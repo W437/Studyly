@@ -20,13 +20,12 @@ class QuestionnaireFlowScreen extends StatefulWidget {
 class _QuestionnaireFlowScreenState extends State<QuestionnaireFlowScreen> {
   final PageController _pageController = PageController();
   int _currentPage = 0;
-  static const int _totalPages = 10;
+  static const int _totalPages = 9;
 
   String _name = '';
   int _age = 20;
   String? _purpose;
   String? _educationLevel;
-  String? _university;
   String? _degree;
   String? _subject;
   String? _year;
@@ -124,22 +123,6 @@ class _QuestionnaireFlowScreenState extends State<QuestionnaireFlowScreen> {
         onContinue: _nextPage,
       ),
       _OptionPage(
-        title: 'Select your university',
-        subtitle: 'Choose the college/university you are in now.',
-        selected: _university,
-        header: _SearchField(hintText: 'Search'),
-        options: const [
-          _OptionItem('Harvard University'),
-          _OptionItem('Stanford University'),
-          _OptionItem('Massachusetts Institute of Technology'),
-          _OptionItem('University of California, Berkeley'),
-          _OptionItem('Princeton University'),
-          _OptionItem('Yale University'),
-        ],
-        onSelected: (value) => setState(() => _university = value),
-        onContinue: _nextPage,
-      ),
-      _OptionPage(
         title: 'Select your degree',
         subtitle: 'Select the degree program you\'re currently enrolled in.',
         selected: _degree,
@@ -154,20 +137,9 @@ class _QuestionnaireFlowScreenState extends State<QuestionnaireFlowScreen> {
         onSelected: (value) => setState(() => _degree = value),
         onContinue: _nextPage,
       ),
-      _OptionPage(
-        title: 'Select your subject',
-        subtitle: 'Choose your subject of study from the list.',
-        selected: _subject,
-        header: _SearchField(hintText: 'Search'),
-        options: const [
-          _OptionItem('Accounting'),
-          _OptionItem('Biology'),
-          _OptionItem('Chemistry'),
-          _OptionItem('Computer Science'),
-          _OptionItem('Economics'),
-          _OptionItem('Engineering'),
-        ],
-        onSelected: (value) => setState(() => _subject = value),
+      _SubjectPage(
+        subject: _subject,
+        onSubjectChanged: (value) => setState(() => _subject = value),
         onContinue: _nextPage,
       ),
       _OptionPage(
@@ -400,6 +372,167 @@ class _AgePage extends StatelessWidget {
             },
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _SubjectPage extends StatefulWidget {
+  const _SubjectPage({
+    required this.subject,
+    required this.onSubjectChanged,
+    required this.onContinue,
+  });
+
+  final String? subject;
+  final ValueChanged<String> onSubjectChanged;
+  final VoidCallback onContinue;
+
+  @override
+  State<_SubjectPage> createState() => _SubjectPageState();
+}
+
+class _SubjectPageState extends State<_SubjectPage> {
+  final TextEditingController _customController = TextEditingController();
+  bool _isCustom = false;
+
+  static const _predefinedSubjects = [
+    'Accounting',
+    'Biology',
+    'Chemistry',
+    'Computer Science',
+    'Economics',
+    'Engineering',
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.subject != null && !_predefinedSubjects.contains(widget.subject)) {
+      _isCustom = true;
+      _customController.text = widget.subject!;
+    }
+  }
+
+  @override
+  void dispose() {
+    _customController.dispose();
+    super.dispose();
+  }
+
+  void _selectSubject(String subject) {
+    setState(() {
+      _isCustom = false;
+      _customController.clear();
+    });
+    widget.onSubjectChanged(subject);
+  }
+
+  void _selectOther() {
+    setState(() {
+      _isCustom = true;
+    });
+    if (_customController.text.trim().isNotEmpty) {
+      widget.onSubjectChanged(_customController.text.trim());
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _QuestionLayout(
+      title: 'Select your subject',
+      subtitle: 'Choose your subject of study from the list.',
+      onContinue: widget.onContinue,
+      isContinueEnabled: widget.subject != null && widget.subject!.trim().isNotEmpty,
+      child: Column(
+        children: [
+          for (final subject in _predefinedSubjects) ...[
+            _OptionButton(
+              label: subject,
+              isSelected: !_isCustom && widget.subject == subject,
+              onTap: () => _selectSubject(subject),
+            ),
+            const SizedBox(height: StudySpacing.md),
+          ],
+          // Other option with text field
+          InkWell(
+            onTap: _selectOther,
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(
+                horizontal: StudySpacing.md,
+                vertical: StudySpacing.lg,
+              ),
+              decoration: BoxDecoration(
+                border: Border.all(
+                  color: _isCustom ? StudyColors.primary : Colors.grey.shade300,
+                  width: _isCustom ? 2 : 1,
+                ),
+                borderRadius: BorderRadius.circular(12),
+                color: _isCustom
+                    ? StudyColors.primary.withOpacity(0.08)
+                    : Colors.white,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Other',
+                          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                            fontWeight: _isCustom ? FontWeight.w600 : FontWeight.w500,
+                            color: _isCustom ? StudyColors.primary : Colors.black87,
+                          ),
+                        ),
+                      ),
+                      if (_isCustom)
+                        const Icon(Icons.check, color: StudyColors.primary, size: 24),
+                    ],
+                  ),
+                  if (_isCustom) ...[
+                    const SizedBox(height: StudySpacing.md),
+                    TextField(
+                      controller: _customController,
+                      autofocus: true,
+                      onChanged: (value) {
+                        if (value.trim().isNotEmpty) {
+                          widget.onSubjectChanged(value.trim());
+                        }
+                      },
+                      decoration: InputDecoration(
+                        hintText: 'Enter your subject',
+                        filled: true,
+                        fillColor: Colors.white,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: Colors.grey.shade300),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: Colors.grey.shade300),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: const BorderSide(
+                            color: StudyColors.primary,
+                            width: 2,
+                          ),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 12,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -865,63 +998,109 @@ class _PreparingScreenState extends State<PreparingScreen> {
   @override
   Widget build(BuildContext context) {
     return Dialog(
-      backgroundColor: Colors.white,
-      child: Padding(
-        padding: const EdgeInsets.all(48),
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 24),
+        padding: const EdgeInsets.all(40),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.15),
+              blurRadius: 30,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            // Icon or animation placeholder
+            Container(
+              width: 64,
+              height: 64,
+              decoration: BoxDecoration(
+                color: StudyColors.primary.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.psychology,
+                size: 36,
+                color: StudyColors.primary,
+              ),
+            ),
+            const SizedBox(height: 24),
             const Text(
               'Preparing a personalized\npage for you...',
               textAlign: TextAlign.center,
               style: TextStyle(
-                fontSize: 24,
+                fontSize: 22,
                 fontWeight: FontWeight.bold,
                 color: Colors.black87,
+                height: 1.3,
               ),
             ),
-            const SizedBox(height: 16),
-            const Text(
+            const SizedBox(height: 12),
+            Text(
               'Please wait...',
-              style: TextStyle(fontSize: 15, color: Colors.black54),
+              style: TextStyle(
+                fontSize: 15,
+                color: Colors.grey.shade600,
+              ),
             ),
-            const SizedBox(height: 48),
+            const SizedBox(height: 40),
             SizedBox(
-              width: 120,
-              height: 120,
+              width: 140,
+              height: 140,
               child: Stack(
                 alignment: Alignment.center,
                 children: [
                   SizedBox(
-                    width: 120,
-                    height: 120,
+                    width: 140,
+                    height: 140,
                     child: CircularProgressIndicator(
-                      strokeWidth: 8,
+                      strokeWidth: 10,
+                      strokeCap: StrokeCap.round,
                       value: _percent / 100,
-                      backgroundColor: Colors.grey.shade200,
+                      backgroundColor: StudyColors.primary.withOpacity(0.1),
                       valueColor: const AlwaysStoppedAnimation(
                         StudyColors.primary,
                       ),
                     ),
                   ),
-                  Text(
-                    '$_percent%',
-                    style: const TextStyle(
-                      fontSize: 32,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                    ),
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        '$_percent%',
+                        style: const TextStyle(
+                          fontSize: 36,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      Text(
+                        'complete',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey.shade600,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 48),
-            const Text(
-              'This might take a few moments. Get ready for an amazing study experience!',
+            const SizedBox(height: 40),
+            Text(
+              'This might take a few moments.\nGet ready for an amazing study experience!',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 14,
-                color: Colors.black54,
+                color: Colors.grey.shade600,
                 height: 1.5,
               ),
             ),
