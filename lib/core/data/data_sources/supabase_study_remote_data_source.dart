@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../models/chat_message.dart';
@@ -16,7 +17,9 @@ class SupabaseStudyRemoteDataSource implements StudyRemoteDataSource {
   @override
   Future<UserProfile> fetchProfile() async {
     final userId = _client.auth.currentUser?.id;
+    debugPrint('🔍 Fetching profile, userId: $userId');
     if (userId == null) {
+      debugPrint('❌ No authenticated user found');
       throw Exception('User not authenticated');
     }
 

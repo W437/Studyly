@@ -251,10 +251,33 @@ class _SignUpScreenState extends State<SignUpScreen> {
   bool _isLoading = false;
 
   Future<void> _signUp() async {
-    if (!_agreedToTerms) return;
+    if (!_agreedToTerms) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please agree to the Terms & Conditions'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
     if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please fill in all fields')),
+        const SnackBar(
+          content: Text('Please fill in all fields'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    // Validate password length (Supabase requires at least 6 characters)
+    if (_passwordController.text.length < 6) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Password must be at least 6 characters'),
+          backgroundColor: Colors.orange,
+        ),
       );
       return;
     }
@@ -268,40 +291,47 @@ class _SignUpScreenState extends State<SignUpScreen> {
       );
 
       if (response.user != null && mounted) {
-        // Generate random profile picture
-        final profilePic = ProfilePicture.random();
-
-        // Create user profile
-        await Supabase.instance.client.from('user_profiles').insert({
-          'user_id': response.user!.id,
-          'email': response.user!.email,
-          'display_name': response.user!.email?.split('@')[0] ?? 'User',
-          'avatar_url':
-              'https://api.dicebear.com/7.x/avataaars/svg?seed=${response.user!.id}',
-          'active_plan': 'Free',
-          'focus_areas': [0, 1, 2], // Default focus areas
-          'profile_bg_color': profilePic.backgroundColorHex,
-          'profile_emoji': profilePic.emoji,
-        });
+        // Profile is automatically created by database trigger
+        // Wait a moment for the trigger to complete
+        await Future.delayed(const Duration(milliseconds: 200));
 
         // Navigate to questionnaire
-        context.go(AppRoute.questionnaire.path);
+        if (mounted) {
+          context.go(AppRoute.questionnaire.path);
+        }
       }
     } on AuthException catch (e) {
       if (mounted) {
+        String errorMessage = e.message;
+
+        // Provide user-friendly messages for common errors
+        if (errorMessage.contains('rate limit') ||
+            errorMessage.contains('security purposes')) {
+          errorMessage = 'Too many signup attempts. Please wait a minute and try again.';
+        } else if (errorMessage.contains('already registered')) {
+          errorMessage = 'This email is already registered. Try logging in instead.';
+        } else if (errorMessage.contains('invalid email')) {
+          errorMessage = 'Please enter a valid email address.';
+        }
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(e.message),
+            content: Text(errorMessage),
             backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
           ),
         );
       }
     } catch (e) {
       if (mounted) {
+        // Log the full error for debugging
+        debugPrint('Signup error: $e');
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: $e'),
+            content: Text('Error: ${e.toString()}'),
             backgroundColor: Colors.red,
+            duration: const Duration(seconds: 6),
           ),
         );
       }
@@ -401,6 +431,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 obscureText: _obscurePassword,
                 decoration: InputDecoration(
                   hintText: 'Password',
+                  helperText: 'Minimum 6 characters',
+                  helperStyle: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey.shade600,
+                  ),
                   prefixIcon: const Icon(Icons.lock_outline, size: 20),
                   suffixIcon: IconButton(
                     icon: Icon(
@@ -557,10 +592,19 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       borderRadius: BorderRadius.circular(28),
                     ),
                   ),
-                  child: const Text(
-                    'Sign up',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                  ),
+                  child: _isLoading
+                      ? const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        )
+                      : const Text(
+                          'Sign up',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                        ),
                 ),
               ),
             ],

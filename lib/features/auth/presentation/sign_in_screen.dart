@@ -1,18 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../app/navigation/routes.dart';
+import '../../../core/providers/study_providers.dart';
 import '../../../ui/theme/color_tokens.dart';
 
-class SignInScreen extends StatefulWidget {
+class SignInScreen extends ConsumerStatefulWidget {
   const SignInScreen({super.key});
 
   @override
-  State<SignInScreen> createState() => _SignInScreenState();
+  ConsumerState<SignInScreen> createState() => _SignInScreenState();
 }
 
-class _SignInScreenState extends State<SignInScreen> {
+class _SignInScreenState extends ConsumerState<SignInScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
@@ -40,6 +42,10 @@ class _SignInScreenState extends State<SignInScreen> {
       if (response.user != null && mounted) {
         // Create profile if it doesn't exist
         await _ensureProfileExists(response.user!);
+
+        // Invalidate providers to force refresh with new auth state
+        ref.invalidate(userProfileProvider);
+        ref.invalidate(studyRepositoryProvider);
 
         // Navigate to home
         context.go(AppRoute.home.path);
