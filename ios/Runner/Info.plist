@@ -45,5 +45,11 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>We need access to your camera to scan questions and notes for study materials.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>We need access to your photo library to import images of questions and notes.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>We need permission to save scanned images to your photo library.</string>
 </dict>
 </plist>

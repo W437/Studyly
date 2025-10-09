@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
 import '../../../app/navigation/routes.dart';
 import '../../../ui/theme/color_tokens.dart';
+import 'sign_in_screen.dart';
 
 class AuthWelcomeScreen extends StatelessWidget {
   const AuthWelcomeScreen({super.key});
@@ -103,7 +106,14 @@ class AuthWelcomeScreen extends StatelessWidget {
                 width: double.infinity,
                 height: 56,
                 child: OutlinedButton(
-                  onPressed: () {},
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const SignInScreen(),
+                      ),
+                    );
+                  },
                   style: OutlinedButton.styleFrom(
                     foregroundColor: StudyColors.primary,
                     side: const BorderSide(color: StudyColors.primary),
@@ -208,53 +218,61 @@ class _SignUpScreenState extends State<SignUpScreen> {
   bool _agreedToTerms = false;
   bool _isLoading = false;
 
-  void _signUp() {
+  Future<void> _signUp() async {
     if (!_agreedToTerms) return;
+    if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please fill in all fields')),
+      );
+      return;
+    }
 
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
 
-    // Show loading dialog
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const Center(
-        child: Card(
-          child: Padding(
-            padding: EdgeInsets.all(32),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                SizedBox(
-                  width: 60,
-                  height: 60,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 4,
-                    valueColor: AlwaysStoppedAnimation(StudyColors.primary),
-                  ),
-                ),
-                SizedBox(height: 24),
-                Text(
-                  'Sign up...',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-                ),
-              ],
-            ),
+    try {
+      final response = await Supabase.instance.client.auth.signUp(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+      );
+
+      if (response.user != null && mounted) {
+        // Create user profile
+        await Supabase.instance.client.from('user_profiles').insert({
+          'user_id': response.user!.id,
+          'email': response.user!.email,
+          'display_name': response.user!.email?.split('@')[0] ?? 'User',
+          'avatar_url':
+              'https://api.dicebear.com/7.x/avataaars/svg?seed=${response.user!.id}',
+          'active_plan': 'Free',
+          'focus_areas': [0, 1, 2], // Default focus areas
+        });
+
+        // Navigate to questionnaire
+        context.go(AppRoute.questionnaire.path);
+      }
+    } on AuthException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.message),
+            backgroundColor: Colors.red,
           ),
-        ),
-      ),
-    );
-
-    // Simulate API call
-    Future.delayed(const Duration(seconds: 2), () {
-      if (!mounted) return;
-      setState(() {
-        _isLoading = false;
-      });
-      Navigator.pop(context); // Close loading dialog
-      context.go(AppRoute.questionnaire.path);
-    });
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 
   @override

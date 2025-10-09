@@ -6,11 +6,33 @@ import '../models/study_set.dart';
 import '../models/user_profile.dart';
 
 abstract class StudyRepository {
-  Future<UserProfile> fetchProfile();
-  Future<List<StudySet>> fetchStudySets();
-  Future<StudySet?> fetchStudySetById(String id);
-  Future<List<StudyPlanTask>> fetchTasksForDate(DateTime date);
-  Future<List<StudyDocument>> fetchDocumentsByType(StudyContentType type);
-  Future<List<ChatMessage>> loadInitialChatTranscript();
+  Stream<UserProfile?> watchProfile();
+  Future<UserProfile> fetchProfile({bool forceRefresh = false});
+
+  Stream<List<StudySet>> watchStudySets();
+  Future<List<StudySet>> fetchStudySets({bool forceRefresh = false});
+
+  Stream<StudySet?> watchStudySetById(String id);
+  Future<StudySet?> fetchStudySetById(
+    String id, {
+    bool forceRefresh = false,
+  });
+
+  Stream<List<StudyPlanTask>> watchTasksForDate(DateTime date);
+  Future<List<StudyPlanTask>> fetchTasksForDate(
+    DateTime date, {
+    bool forceRefresh = false,
+  });
+
+  Stream<List<StudyDocument>> watchDocumentsByType(StudyContentType type);
+  Future<List<StudyDocument>> fetchDocumentsByType(
+    StudyContentType type, {
+    bool forceRefresh = false,
+  });
+
+  Stream<List<ChatMessage>> watchChatTranscript();
+  Future<List<ChatMessage>> loadInitialChatTranscript({bool forceRefresh = false});
+  Future<void> replaceChatTranscript(List<ChatMessage> messages);
+  Future<void> appendChatMessage(ChatMessage message);
   Future<ChatMessage> generateBotReply(String prompt);
 }

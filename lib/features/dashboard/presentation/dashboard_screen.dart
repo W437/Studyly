@@ -35,23 +35,25 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       (index) => startDate.add(Duration(days: index)),
     );
 
+    // Initialize scroll controller first
+    _scrollController = ScrollController();
+
     // Calculate initial scroll position to center today
     final todayIndex = _dateRange.indexWhere((date) => _isSameDay(date, _today));
-    final itemWidth = 72.0;
+    final itemWidth = 72.0; // 60 width + 12 margin
 
     // Use initialScrollOffset to position without animation
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!_hasScrolledToToday && _scrollController.hasClients) {
         final screenWidth = MediaQuery.of(context).size.width;
-        final offset = (todayIndex * itemWidth) - (screenWidth / 2) + (itemWidth / 2);
+        // Calculate offset to center the item, accounting for the item width
+        final offset = (todayIndex * itemWidth) - (screenWidth / 2) + (itemWidth / 2) - 6;
         _scrollController.jumpTo(
           offset.clamp(0.0, _scrollController.position.maxScrollExtent),
         );
         _hasScrolledToToday = true;
       }
     });
-
-    _scrollController = ScrollController();
   }
 
   @override
@@ -192,23 +194,40 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             // Week Calendar
             SizedBox(
               height: 90,
-              child: ListView.builder(
-                controller: _scrollController,
-                scrollDirection: Axis.horizontal,
-                itemCount: _dateRange.length,
-                itemBuilder: (context, index) {
-                  final date = _dateRange[index];
-                  return _DateItem(
-                    date: date,
-                    isToday: _isSameDay(date, _today),
-                    isSelected: _isSameDay(date, _selectedDate),
-                    onTap: () {
-                      setState(() {
-                        _selectedDate = _normalize(date);
-                      });
-                    },
-                  );
+              child: ShaderMask(
+                shaderCallback: (Rect bounds) {
+                  return LinearGradient(
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                    colors: const [
+                      Colors.transparent,
+                      Colors.black,
+                      Colors.black,
+                      Colors.transparent,
+                    ],
+                    stops: const [0.0, 0.1, 0.9, 1.0],
+                  ).createShader(bounds);
                 },
+                blendMode: BlendMode.dstIn,
+                child: ListView.builder(
+                  controller: _scrollController,
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: StudySpacing.md),
+                  itemCount: _dateRange.length,
+                  itemBuilder: (context, index) {
+                    final date = _dateRange[index];
+                    return _DateItem(
+                      date: date,
+                      isToday: _isSameDay(date, _today),
+                      isSelected: _isSameDay(date, _selectedDate),
+                      onTap: () {
+                        setState(() {
+                          _selectedDate = _normalize(date);
+                        });
+                      },
+                    );
+                  },
+                ),
               ),
             ),
             const SizedBox(height: StudySpacing.xl),
@@ -282,51 +301,65 @@ class _DateItem extends StatelessWidget {
         ? StudyColors.primary
         : StudyColors.textTertiary;
 
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 60,
-        margin: const EdgeInsets.only(right: 12),
-        padding: const EdgeInsets.symmetric(vertical: StudySpacing.sm),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? StudyColors.primary.withOpacity(0.12)
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              dayText,
-              style: theme.textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: dayColor,
+    return Container(
+      width: 60,
+      margin: const EdgeInsets.only(right: 12),
+      child: Material(
+        color: Colors.transparent,
+        child: Ink(
+          decoration: BoxDecoration(
+            color: isSelected
+                ? StudyColors.primary.withOpacity(0.12)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
+            border: isSelected
+                ? Border.all(color: StudyColors.primary.withOpacity(0.2), width: 1)
+                : null,
+          ),
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(12),
+            splashColor: StudyColors.primary.withOpacity(0.1),
+            highlightColor: StudyColors.primary.withOpacity(0.05),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: StudySpacing.sm),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Text(
+                    dayText,
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: dayColor,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    label,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: labelColor,
+                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  if (isToday)
+                    Container(
+                      width: 32,
+                      height: 3,
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? StudyColors.primary
+                            : StudyColors.primary.withOpacity(0.6),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    )
+                  else
+                    const SizedBox(height: 3),
+                ],
               ),
             ),
-            const SizedBox(height: 2),
-            Text(
-              label,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: labelColor,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-              ),
-            ),
-            const SizedBox(height: 6),
-            if (isToday)
-              Container(
-                width: 32,
-                height: 3,
-                decoration: BoxDecoration(
-                  color: isSelected
-                      ? StudyColors.primary
-                      : StudyColors.primary.withOpacity(0.6),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              )
-            else
-              const SizedBox(height: 3),
-          ],
+          ),
         ),
       ),
     );
@@ -558,8 +591,8 @@ class _FeaturedStudySetCard extends StatelessWidget {
         }
         return _StudySetOverviewCard(studySet: sets.first);
       },
-      loading: () => const _StudySetSkeleton(),
-      error: (error, stack) => const _StudySetErrorNotice(),
+      loading: () => const _StudySetEmptyState(),
+      error: (error, stack) => const _StudySetEmptyState(),
     );
   }
 }
@@ -734,16 +767,42 @@ class _StudySetEmptyState extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Container(
-      padding: const EdgeInsets.all(StudySpacing.lg),
+      padding: const EdgeInsets.all(StudySpacing.xl),
       decoration: BoxDecoration(
-        color: StudyColors.surfaceVariant,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
-      child: Text(
-        'No featured study sets yet. Create one to fill this space!',
-        style: theme.textTheme.bodyMedium?.copyWith(
-          color: StudyColors.textSecondary,
-        ),
+      child: Column(
+        children: [
+          Icon(
+            Icons.library_books_outlined,
+            size: 64,
+            color: Colors.grey.shade300,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'No Study Sets Yet',
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: Colors.grey.shade700,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Create your first study set to get started',
+            textAlign: TextAlign.center,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: Colors.grey.shade600,
+            ),
+          ),
+        ],
       ),
     );
   }

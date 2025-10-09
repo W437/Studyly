@@ -16,6 +16,13 @@ subprojects {
     project.layout.buildDirectory.value(newSubprojectBuildDir)
 }
 subprojects {
+    afterEvaluate {
+        if (project.name == "isar_flutter_libs") {
+            extensions.findByType<com.android.build.gradle.LibraryExtension>()?.apply {
+                namespace = "dev.isar.isar_flutter_libs"
+            }
+        }
+    }
     project.evaluationDependsOn(":app")
 }
 

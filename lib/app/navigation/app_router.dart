@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/models/generation_result.dart';
 import '../../features/analytics/presentation/analytics_screen.dart';
 import '../../features/auth/presentation/auth_welcome_screen.dart';
 import '../../features/chat/presentation/chat_screen_wrapper.dart';
@@ -8,6 +9,11 @@ import '../../features/dashboard/presentation/dashboard_screen.dart';
 import '../../features/onboarding/presentation/onboarding_screen.dart';
 import '../../features/onboarding/presentation/splash_screen.dart';
 import '../../features/questionnaire/presentation/questionnaire_flow_screen.dart';
+import '../../features/scan/presentation/generation_review_screen.dart';
+import '../../features/scan/presentation/scan_action_chooser_screen.dart';
+import '../../features/scan/presentation/scan_ocr_screen.dart';
+import '../../features/scan/presentation/scan_preview_screen.dart';
+import '../../features/settings/presentation/settings_screen.dart';
 import '../../features/study_session/presentation/study_session_screen.dart';
 import '../../features/study_set/presentation/study_set_detail_screen.dart';
 import '../../features/topic_entry/presentation/topic_entry_screen.dart';
@@ -50,6 +56,51 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) {
           final id = state.pathParameters['id'] ?? 'study-set';
           return StudySetDetailScreen(id: id);
+        },
+      ),
+      GoRoute(
+        path: SettingsScreen.routePath,
+        name: SettingsScreen.routeName,
+        builder: (context, state) => const SettingsScreen(),
+      ),
+      // Scan feature routes
+      GoRoute(
+        path: AppRoute.scanPreview.path,
+        name: AppRoute.scanPreview.name,
+        builder: (context, state) {
+          final id = state.pathParameters['id']!;
+          return ScanPreviewScreen(scannedItemId: id);
+        },
+      ),
+      GoRoute(
+        path: AppRoute.scanOcr.path,
+        name: AppRoute.scanOcr.name,
+        builder: (context, state) {
+          final id = state.pathParameters['id']!;
+          return ScanOcrScreen(scannedItemId: id);
+        },
+      ),
+      GoRoute(
+        path: AppRoute.scanActionChooser.path,
+        name: AppRoute.scanActionChooser.name,
+        builder: (context, state) {
+          final id = state.pathParameters['id']!;
+          return ScanActionChooserScreen(scannedItemId: id);
+        },
+      ),
+      GoRoute(
+        path: AppRoute.scanGenerationReview.path,
+        name: AppRoute.scanGenerationReview.name,
+        builder: (context, state) {
+          final id = state.pathParameters['id']!;
+          final typeStr = state.pathParameters['type']!;
+          final type = GenerationType.values.firstWhere(
+            (e) => e.name == typeStr,
+          );
+          return GenerationReviewScreen(
+            scannedItemId: id,
+            type: type,
+          );
         },
       ),
       // Main app routes (with app scaffold)

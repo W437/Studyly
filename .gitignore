@@ -66,3 +66,6 @@ bin/
 /dist/
 /nbdist/
 /.nb-gradle/
+
+# Supabase config (contains secrets)
+lib/app/config/supabase_config.dart

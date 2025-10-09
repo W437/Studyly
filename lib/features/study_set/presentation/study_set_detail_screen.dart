@@ -3,10 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/navigation/routes.dart';
-import '../../../core/models/study_set.dart';
 import '../../../core/providers/study_providers.dart';
 import '../../../ui/theme/color_tokens.dart';
-import '../../../ui/widgets/shared_header.dart';
 
 class StudySetDetailScreen extends ConsumerStatefulWidget {
   const StudySetDetailScreen({super.key, required this.id});

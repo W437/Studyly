@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../app/navigation/routes.dart';
 import '../../../core/models/study_content_type.dart';
 import '../../../core/models/user_profile.dart';
 import '../../../core/providers/study_providers.dart';
+import '../../../core/providers/sync_settings_provider.dart';
 import '../../../ui/theme/color_tokens.dart';
 import '../../../ui/theme/spacing.dart';
+import '../../settings/presentation/settings_screen.dart';
 
 class TopicEntryScreen extends ConsumerWidget {
   const TopicEntryScreen({super.key});
@@ -16,8 +20,8 @@ class TopicEntryScreen extends ConsumerWidget {
 
     return profileAsync.when(
       data: _ProfileLoadedView.new,
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (error, stack) => const _ProfileErrorView(),
+      loading: () => const _ProfileEmptyView(),
+      error: (error, stack) => const _ProfileEmptyView(),
     );
   }
 }
@@ -44,11 +48,14 @@ class _ProfileLoadedView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    return Consumer(
+      builder: (context, ref, _) {
+        final syncEnabled = ref.watch(syncSettingsProvider);
+        final theme = Theme.of(context);
 
-    return ListView(
-      padding: const EdgeInsets.all(StudySpacing.lg),
-      children: [
+        return ListView(
+          padding: const EdgeInsets.all(StudySpacing.lg),
+          children: [
         Container(
           padding: const EdgeInsets.all(StudySpacing.lg),
           decoration: BoxDecoration(
@@ -145,6 +152,112 @@ class _ProfileLoadedView extends StatelessWidget {
           ),
         ),
         const SizedBox(height: StudySpacing.lg),
+        // Sync Settings Card
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  StudySpacing.lg,
+                  StudySpacing.md,
+                  StudySpacing.lg,
+                  StudySpacing.xs,
+                ),
+                child: Text(
+                  'SYNC & STORAGE',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: StudyColors.textTertiary,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ),
+              SwitchListTile(
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: StudySpacing.lg,
+                  vertical: StudySpacing.xs,
+                ),
+                secondary: Icon(
+                  syncEnabled ? Icons.cloud_sync : Icons.cloud_off,
+                  color: syncEnabled ? StudyColors.primary : StudyColors.textSecondary,
+                  size: 24,
+                ),
+                title: Text(
+                  'Cloud Sync',
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    color: StudyColors.textPrimary,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                subtitle: Text(
+                  syncEnabled
+                      ? 'Data syncs to cloud automatically'
+                      : 'Data stays on device only',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: StudyColors.textSecondary,
+                  ),
+                ),
+                value: syncEnabled,
+                activeColor: StudyColors.primary,
+                onChanged: (value) {
+                  ref.read(syncSettingsProvider.notifier).setSyncEnabled(value);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        value
+                            ? '☁️ Cloud sync enabled. Your data will sync automatically.'
+                            : '📱 Cloud sync disabled. Data will remain local only.',
+                      ),
+                      duration: const Duration(seconds: 2),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                },
+              ),
+              if (!syncEnabled)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    72.0,
+                    0,
+                    StudySpacing.lg,
+                    StudySpacing.md,
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.warning_amber_rounded,
+                        size: 16,
+                        color: Colors.orange,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Your data won\'t be backed up to cloud',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            fontSize: 11,
+                            color: Colors.orange,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(height: StudySpacing.lg),
         Container(
           decoration: BoxDecoration(
             color: Colors.white,
@@ -167,8 +280,8 @@ class _ProfileLoadedView extends StatelessWidget {
               const Divider(height: 1, indent: 60),
               _SettingsItem(
                 icon: Icons.settings_outlined,
-                title: 'Preferences',
-                onTap: () {},
+                title: 'Advanced Settings',
+                onTap: () => context.pushNamed(SettingsScreen.routeName),
               ),
             ],
           ),
@@ -228,27 +341,69 @@ class _ProfileLoadedView extends StatelessWidget {
             ],
           ),
         ),
-        const SizedBox(height: 100),
-      ],
+            const SizedBox(height: 100),
+          ],
+        );
+      },
     );
   }
 }
 
-class _ProfileErrorView extends StatelessWidget {
-  const _ProfileErrorView();
+class _ProfileEmptyView extends StatelessWidget {
+  const _ProfileEmptyView();
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(StudySpacing.lg),
-        child: Text(
-          'We couldn\'t load your profile. Pull to refresh or try again later.',
-          style: theme.textTheme.bodyMedium?.copyWith(
-            color: const Color(0xFFB00020),
-          ),
-          textAlign: TextAlign.center,
+        padding: const EdgeInsets.all(StudySpacing.xl),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.person_outline,
+              size: 80,
+              color: Colors.grey.shade300,
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'No Profile Found',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey.shade700,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Please sign in to view your profile\nand personalized content',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey.shade600,
+                height: 1.5,
+              ),
+            ),
+            const SizedBox(height: 32),
+            ElevatedButton.icon(
+              onPressed: () {
+                context.go(AppRoute.authWelcome.path);
+              },
+              icon: const Icon(Icons.login),
+              label: const Text('Sign In'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: StudyColors.primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 32,
+                  vertical: 16,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

@@ -1,47 +1,79 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../app/bootstrap.dart';
+import '../data/data_sources/isar_study_local_data_source.dart';
+import '../data/data_sources/supabase_study_remote_data_source.dart';
+import '../data/repositories/local_first_study_repository.dart';
 import '../models/study_content_type.dart';
 import '../models/study_document.dart';
 import '../models/study_plan_task.dart';
 import '../models/study_set.dart';
 import '../models/user_profile.dart';
-import '../services/mock_study_repository.dart';
 import '../services/study_repository.dart';
+import 'sync_settings_provider.dart';
 
 final studyRepositoryProvider = Provider<StudyRepository>((ref) {
-  return MockStudyRepository();
+  final isar = ref.watch(isarProvider);
+  final supabase = Supabase.instance.client;
+  final syncEnabled = ref.watch(syncSettingsProvider);
+
+  final localDataSource = IsarStudyLocalDataSource(isar);
+  final remoteDataSource = SupabaseStudyRemoteDataSource(supabase);
+
+  final repository = LocalFirstStudyRepository(
+    localDataSource: localDataSource,
+    remoteDataSource: remoteDataSource,
+    syncEnabled: syncEnabled,
+  );
+
+  // Listen to sync setting changes and update repository
+  ref.listen<bool>(syncSettingsProvider, (_, newSyncEnabled) {
+    repository.setSyncEnabled(newSyncEnabled);
+  });
+
+  return repository;
 });
 
-final userProfileProvider = FutureProvider<UserProfile>((ref) async {
+final userProfileProvider = StreamProvider<UserProfile>((ref) async* {
   final repository = ref.watch(studyRepositoryProvider);
-  return repository.fetchProfile();
+  await repository.fetchProfile();
+  await for (final profile in repository.watchProfile()) {
+    if (profile != null) {
+      yield profile;
+    }
+  }
 });
 
-final studySetsProvider = FutureProvider<List<StudySet>>((ref) async {
+final studySetsProvider = StreamProvider<List<StudySet>>((ref) async* {
   final repository = ref.watch(studyRepositoryProvider);
-  return repository.fetchStudySets();
+  await repository.fetchStudySets();
+  yield* repository.watchStudySets();
 });
 
-final studySetDetailProvider = FutureProvider.family<StudySet?, String>((
+final studySetDetailProvider = StreamProvider.family<StudySet?, String>((
   ref,
   id,
-) async {
+) async* {
   final repository = ref.watch(studyRepositoryProvider);
-  return repository.fetchStudySetById(id);
+  await repository.fetchStudySetById(id);
+  yield* repository.watchStudySetById(id);
 });
 
-final studyTasksProvider = FutureProvider.family<List<StudyPlanTask>, DateTime>(
-  (ref, date) async {
+final studyTasksProvider = StreamProvider.family<List<StudyPlanTask>, DateTime>(
+  (ref, date) async* {
     final repository = ref.watch(studyRepositoryProvider);
-    return repository.fetchTasksForDate(date);
+    await repository.fetchTasksForDate(date);
+    yield* repository.watchTasksForDate(date);
   },
 );
 
 final studyDocumentsProvider =
-    FutureProvider.family<List<StudyDocument>, StudyContentType>((
+    StreamProvider.family<List<StudyDocument>, StudyContentType>((
       ref,
       type,
-    ) async {
+    ) async* {
       final repository = ref.watch(studyRepositoryProvider);
-      return repository.fetchDocumentsByType(type);
+      await repository.fetchDocumentsByType(type);
+      yield* repository.watchDocumentsByType(type);
     });

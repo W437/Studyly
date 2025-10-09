@@ -1,0 +1,7 @@
+class SupabaseConfig {
+  static const String projectUrl = 'https://kzvscyzgzvwyhlhyssvz.supabase.co';
+
+  // Get your anon key from: https://supabase.com/dashboard/project/kzvscyzgzvwyhlhyssvz/settings/api
+  // Copy this file to supabase_config.dart and replace with your actual key
+  static const String anonKey = 'YOUR_ANON_KEY_HERE';
+}

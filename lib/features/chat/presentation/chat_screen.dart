@@ -32,9 +32,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final messages = ref.watch(chatControllerProvider);
+    final chatState = ref.watch(chatControllerProvider);
 
     ref.listen<ChatState>(chatControllerProvider, (previous, next) {
+      if (!next.hasValue) {
+        return;
+      }
       if (_scrollController.hasClients) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (_scrollController.hasClients) {
@@ -51,14 +54,22 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     return Column(
       children: [
         Expanded(
-          child: ListView.builder(
-            controller: _scrollController,
-            padding: const EdgeInsets.all(16),
-            itemCount: messages.length,
-            itemBuilder: (context, index) {
-              final message = messages[index];
-              return _MessageBubble(message: message);
-            },
+          child: chatState.when(
+            data: (value) => ListView.builder(
+              controller: _scrollController,
+              padding: const EdgeInsets.all(16),
+              itemCount: value.length,
+              itemBuilder: (context, index) {
+                final message = value[index];
+                return _MessageBubble(message: message);
+              },
+            ),
+            loading: () => const Center(
+              child: CircularProgressIndicator(),
+            ),
+            error: (error, stackTrace) => Center(
+              child: Text('Something went wrong: ${error.toString()}'),
+            ),
           ),
         ),
         Container(

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../app/navigation/routes.dart';
+import '../../features/scan/presentation/scan_capture_screen.dart';
 import '../theme/color_tokens.dart';
 
 class AppNavigationItem {
@@ -138,7 +139,12 @@ class _NavigationBottomBar extends StatelessWidget {
                         color: StudyColors.primary,
                       ),
                       child: IconButton(
-                        onPressed: () {},
+                        onPressed: () {
+                          showModalBottomSheet(
+                            context: context,
+                            builder: (context) => const ScanCaptureScreen(),
+                          );
+                        },
                         icon: const Icon(
                           Icons.crop_free,
                           color: Colors.white,

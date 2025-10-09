@@ -85,6 +85,10 @@ class AppScaffoldShell extends ConsumerWidget {
       AppRoute.onboarding => 'Onboarding',
       AppRoute.authWelcome => 'Auth',
       AppRoute.questionnaire => 'Questionnaire',
+      AppRoute.scanPreview => 'Scan Preview',
+      AppRoute.scanOcr => 'Scan OCR',
+      AppRoute.scanActionChooser => 'Choose Action',
+      AppRoute.scanGenerationReview => 'Review Content',
     };
   }
 

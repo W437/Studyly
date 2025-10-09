@@ -304,7 +304,7 @@ class _PhoneMockup extends StatelessWidget {
               const Expanded(
                 child: Center(
                   child: Text(
-                    'Explore',
+                    'Dashboard',
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                   ),
                 ),
@@ -312,153 +312,40 @@ class _PhoneMockup extends StatelessWidget {
               const Icon(Icons.menu, size: 20),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 24),
 
-          // Premium Card
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF4DB6AC), Color(0xFF80CBC4)],
-              ),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Upgrade Premium!',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'Enjoy all the benefits',
-                        style: TextStyle(
-                          color: Colors.white.withOpacity(0.9),
-                          fontSize: 11,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Text(
-                          'Upgrade',
-                          style: TextStyle(
-                            color: StudyColors.primary,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 11,
-                          ),
-                        ),
-                      ),
-                    ],
+          // App Preview Content
+          Expanded(
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.dashboard_outlined,
+                    size: 64,
+                    color: Colors.grey.shade300,
                   ),
-                ),
-                const Text('👑', style: TextStyle(fontSize: 40)),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // Recent Study Sets
-          const Text(
-            'Recent Study Sets',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-          ),
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: const Border(
-                left: BorderSide(color: StudyColors.progressGreen, width: 3),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Your Dashboard',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Track your study progress\nand manage your materials',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey.shade500,
+                    ),
+                  ),
+                ],
               ),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const Expanded(
-                      child: Text(
-                        'Cell Biology',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13,
-                        ),
-                      ),
-                    ),
-                    Container(
-                      width: 32,
-                      height: 32,
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          SizedBox(
-                            width: 32,
-                            height: 32,
-                            child: CircularProgressIndicator(
-                              value: 0.58,
-                              strokeWidth: 3,
-                              backgroundColor: Colors.grey.shade200,
-                              valueColor: const AlwaysStoppedAnimation(
-                                StudyColors.progressGreen,
-                              ),
-                            ),
-                          ),
-                          const Text(
-                            '58%',
-                            style: TextStyle(
-                              fontSize: 8,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 6),
-                const Text(
-                  '45 flashcards  ·  12 explanations  ·  20 exercises',
-                  style: TextStyle(fontSize: 9, color: Colors.black54),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          // Calendar
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              _buildDateItem('19', 'Thu', false),
-              _buildDateItem('20', 'Fri', false),
-              _buildDateItem('21', 'Sat', false),
-              _buildDateItem('22', 'Sun', true),
-              _buildDateItem('23', 'Mon', false),
-            ],
-          ),
-          const SizedBox(height: 12),
-
-          // Study Plan
-          const Text(
-            '← study plan today (1/5)',
-            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
           ),
         ],
       ),
@@ -516,51 +403,39 @@ class _PhoneMockup extends StatelessWidget {
               const Icon(Icons.search, size: 20),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 24),
 
-          // Tabs
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                _buildTab('Study Sets', true),
-                const SizedBox(width: 8),
-                _buildTab('Flashcards', false),
-                const SizedBox(width: 8),
-                _buildTab('Explanations', false),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // Study Cards
+          // App Preview Content
           Expanded(
-            child: ListView(
-              children: [
-                _buildStudyCard(
-                  'Microbiology',
-                  '246 flashcards · 155 explanations · 120 exercises',
-                  '🧬',
-                  'Community',
-                  const Color(0xFF42A5F5),
-                ),
-                const SizedBox(height: 12),
-                _buildStudyCard(
-                  'Artificial Intelligence',
-                  '324 flashcards · 214 explanations · 50 exercises',
-                  '🤖',
-                  'Community',
-                  const Color(0xFFAB47BC),
-                ),
-                const SizedBox(height: 12),
-                _buildStudyCard(
-                  'Entrepreneurship',
-                  '250 flashcards · 154 explanations · 102 exercises',
-                  '💼',
-                  'Community',
-                  const Color(0xFF66BB6A),
-                ),
-              ],
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.explore_outlined,
+                    size: 64,
+                    color: Colors.grey.shade300,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Explore Study Materials',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Discover a vast library of\nstudy sets and materials',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey.shade500,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
@@ -689,7 +564,7 @@ class _PhoneMockup extends StatelessWidget {
               Expanded(
                 child: Center(
                   child: Text(
-                    'Chat with StudyBot',
+                    'AI Study Assistant',
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                   ),
                 ),
@@ -697,100 +572,70 @@ class _PhoneMockup extends StatelessWidget {
               Icon(Icons.more_vert, size: 20),
             ],
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 48),
 
-          // Chat Message
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Hello! How can I assist you with your studies today?',
-                  style: TextStyle(fontSize: 12, height: 1.4),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: const [
-                    Icon(
-                      Icons.thumb_up_outlined,
-                      size: 14,
-                      color: Colors.black54,
+          // App Preview Content
+          Expanded(
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.chat_bubble_outline,
+                    size: 64,
+                    color: Colors.grey.shade300,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'AI Learning Assistant',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey.shade600,
                     ),
-                    SizedBox(width: 12),
-                    Icon(
-                      Icons.thumb_down_outlined,
-                      size: 14,
-                      color: Colors.black54,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Get instant help with your\nstudy questions anytime',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey.shade500,
                     ),
-                    SizedBox(width: 12),
-                    Icon(Icons.copy_outlined, size: 14, color: Colors.black54),
-                    SizedBox(width: 12),
-                    Icon(Icons.share_outlined, size: 14, color: Colors.black54),
-                    SizedBox(width: 12),
-                    Icon(
-                      Icons.refresh_outlined,
-                      size: 14,
-                      color: Colors.black54,
-                    ),
-                    SizedBox(width: 12),
-                    Icon(Icons.flag_outlined, size: 14, color: Colors.black54),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          const Spacer(),
-
-          // User message
-          Align(
-            alignment: Alignment.centerRight,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: StudyColors.primary,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Text(
-                'What is meant by Mitosis?',
-                style: TextStyle(fontSize: 12, color: Colors.white),
+                  ),
+                ],
               ),
             ),
           ),
-          const SizedBox(height: 16),
 
-          // Input
+          // Input placeholder
           Row(
             children: [
               Expanded(
                 child: Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 12,
-                    vertical: 8,
+                    vertical: 12,
                   ),
                   decoration: BoxDecoration(
                     color: Colors.grey.shade100,
                     borderRadius: BorderRadius.circular(20),
                   ),
-                  child: const Text(
-                    'What is meant by Mitosis?',
-                    style: TextStyle(fontSize: 11, color: Colors.black54),
+                  child: Text(
+                    'Ask me anything...',
+                    style: TextStyle(fontSize: 11, color: Colors.grey.shade400),
                   ),
                 ),
               ),
               const SizedBox(width: 8),
               Container(
-                width: 32,
-                height: 32,
-                decoration: const BoxDecoration(
-                  color: StudyColors.primary,
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.send, size: 16, color: Colors.white),
+                child: const Icon(Icons.send, size: 18, color: Colors.white),
               ),
             ],
           ),

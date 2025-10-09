@@ -105,14 +105,8 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                 },
               );
             },
-            loading: () => ListView.separated(
-              padding: const EdgeInsets.symmetric(horizontal: StudySpacing.lg),
-              itemCount: 4,
-              separatorBuilder: (_, __) =>
-                  const SizedBox(height: StudySpacing.md),
-              itemBuilder: (_, __) => const _AnalyticsStudySetSkeleton(),
-            ),
-            error: (error, stack) => const _StudySetErrorState(),
+            loading: () => const _EmptyStudySetState(),
+            error: (error, stack) => const _EmptyStudySetState(),
           ),
         ),
 
@@ -314,12 +308,33 @@ class _EmptyStudySetState extends StatelessWidget {
     final theme = Theme.of(context);
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(StudySpacing.lg),
-        child: Text(
-          'No study sets found for this category yet.',
-          style: theme.textTheme.bodyMedium?.copyWith(
-            color: StudyColors.textSecondary,
-          ),
+        padding: const EdgeInsets.all(StudySpacing.xl),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.analytics_outlined,
+              size: 80,
+              color: Colors.grey.shade300,
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'No Study Sets',
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: Colors.grey.shade700,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Create study sets to see\nyour analytics here',
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodyLarge?.copyWith(
+                color: Colors.grey.shade600,
+                height: 1.5,
+              ),
+            ),
+          ],
         ),
       ),
     );
