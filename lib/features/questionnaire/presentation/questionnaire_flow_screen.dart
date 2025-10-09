@@ -56,11 +56,8 @@ class _QuestionnaireFlowScreenState extends State<QuestionnaireFlowScreen> {
         curve: Curves.easeInOut,
       );
     } else {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          Navigator.of(context).maybePop();
-        }
-      });
+      // Navigate back to auth welcome screen
+      context.go(AppRoute.authWelcome.path);
     }
   }
 
