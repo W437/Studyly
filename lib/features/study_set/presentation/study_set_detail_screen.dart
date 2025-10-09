@@ -118,25 +118,52 @@ class _StudySetDetailScreenState extends ConsumerState<StudySetDetailScreen> {
                                     color: Colors.black87,
                                   ),
                                 ),
-                                TextButton(
-                                  onPressed: () {},
-                                  child: Row(
-                                    children: const [
-                                      Text(
-                                        'View All',
+                                Row(
+                                  children: [
+                                    TextButton.icon(
+                                      onPressed: () {
+                                        context.push(
+                                          '/study-set/${widget.id}/flashcard/create',
+                                        );
+                                      },
+                                      icon: const Icon(
+                                        Icons.add,
+                                        size: 18,
+                                        color: StudyColors.primary,
+                                      ),
+                                      label: const Text(
+                                        'Add',
                                         style: TextStyle(
                                           color: StudyColors.primary,
                                           fontWeight: FontWeight.w600,
                                         ),
                                       ),
-                                      SizedBox(width: 4),
-                                      Icon(
-                                        Icons.arrow_forward,
-                                        size: 18,
-                                        color: StudyColors.primary,
+                                    ),
+                                    TextButton(
+                                      onPressed: () {
+                                        context.push(
+                                          '/study-set/${widget.id}/review',
+                                        );
+                                      },
+                                      child: Row(
+                                        children: const [
+                                          Text(
+                                            'Review',
+                                            style: TextStyle(
+                                              color: StudyColors.primary,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                          SizedBox(width: 4),
+                                          Icon(
+                                            Icons.arrow_forward,
+                                            size: 18,
+                                            color: StudyColors.primary,
+                                          ),
+                                        ],
                                       ),
-                                    ],
-                                  ),
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),

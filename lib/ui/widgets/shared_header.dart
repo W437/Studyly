@@ -28,19 +28,6 @@ class SharedHeader extends StatelessWidget {
             IconButton(
               icon: const Icon(Icons.arrow_back, color: Colors.black87),
               onPressed: () => Navigator.pop(context),
-            )
-          else
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: StudyColors.primary.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Icon(
-                Icons.school,
-                color: StudyColors.primary,
-                size: 24,
-              ),
             ),
           const Spacer(),
           Text(

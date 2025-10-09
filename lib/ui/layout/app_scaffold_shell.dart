@@ -32,8 +32,7 @@ class AppScaffoldShell extends ConsumerWidget {
 
     return AppScaffold(
       title: _titleForRoute(currentRoute),
-      showSearch:
-          currentRoute == AppRoute.explore || currentRoute == AppRoute.library,
+      showSearch: currentRoute == AppRoute.library,
       topBar: null,
       bottomBar: isCompact
           ? AppNavigationBar(
@@ -76,11 +75,13 @@ class AppScaffoldShell extends ConsumerWidget {
   static String _titleForRoute(AppRoute route) {
     return switch (route) {
       AppRoute.home => 'Home',
-      AppRoute.explore => 'Explore',
       AppRoute.library => 'Library',
       AppRoute.account => 'Account',
       AppRoute.chat => 'Chat',
       AppRoute.studySetDetail => 'Study Set',
+      AppRoute.studySetCreate => 'Create Study Set',
+      AppRoute.flashcardReview => 'Review Flashcards',
+      AppRoute.flashcardCreate => 'Add Flashcards',
       AppRoute.splash => 'Splash',
       AppRoute.onboarding => 'Onboarding',
       AppRoute.authWelcome => 'Auth',
@@ -100,10 +101,10 @@ class AppScaffoldShell extends ConsumerWidget {
       label: 'Home',
     ),
     AppNavigationItem(
-      route: AppRoute.explore,
-      icon: Icons.explore_outlined,
-      activeIcon: Icons.explore,
-      label: 'Explore',
+      route: AppRoute.chat,
+      icon: Icons.chat_bubble_outline,
+      activeIcon: Icons.chat_bubble,
+      label: 'Chat',
     ),
     AppNavigationItem(
       route: AppRoute.library,

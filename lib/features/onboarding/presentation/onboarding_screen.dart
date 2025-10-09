@@ -289,16 +289,12 @@ class _PhoneMockup extends StatelessWidget {
           // Header
           Row(
             children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(
-                  Icons.psychology,
-                  size: 20,
-                  color: StudyColors.primary,
+              ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: Image.asset(
+                  'assets/logos/studyly_icon.png',
+                  width: 36,
+                  height: 36,
                 ),
               ),
               const Expanded(
@@ -380,16 +376,12 @@ class _PhoneMockup extends StatelessWidget {
           // Header
           Row(
             children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(
-                  Icons.psychology,
-                  size: 20,
-                  color: StudyColors.primary,
+              ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: Image.asset(
+                  'assets/logos/studyly_icon.png',
+                  width: 36,
+                  height: 36,
                 ),
               ),
               const Expanded(

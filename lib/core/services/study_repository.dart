@@ -1,4 +1,5 @@
 import '../models/chat_message.dart';
+import '../models/flashcard.dart';
 import '../models/study_content_type.dart';
 import '../models/study_document.dart';
 import '../models/study_plan_task.dart';
@@ -11,6 +12,7 @@ abstract class StudyRepository {
 
   Stream<List<StudySet>> watchStudySets();
   Future<List<StudySet>> fetchStudySets({bool forceRefresh = false});
+  Future<void> saveStudySet(StudySet studySet);
 
   Stream<StudySet?> watchStudySetById(String id);
   Future<StudySet?> fetchStudySetById(
@@ -36,4 +38,9 @@ abstract class StudyRepository {
   Future<void> appendChatMessage(ChatMessage message);
   Future<void> updateChatMessage(ChatMessage message);
   Future<ChatMessage> generateBotReply(String prompt, {String? imageUrl});
+
+  // Flashcard methods
+  Future<List<Flashcard>> getFlashcardsByStudySet(String studySetId);
+  Future<void> updateFlashcard(Flashcard flashcard);
+  Stream<List<Flashcard>> watchFlashcardsByStudySet(String studySetId);
 }

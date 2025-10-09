@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../models/chat_message.dart';
+import '../../models/flashcard.dart';
 import '../../models/study_content_type.dart';
 import '../../models/study_document.dart';
 import '../../models/study_plan_task.dart';
@@ -68,6 +69,28 @@ class SupabaseStudyRemoteDataSource implements StudyRemoteDataSource {
         description: json['description'] as String,
       );
     }).toList();
+  }
+
+  @override
+  Future<void> saveStudySet(StudySet studySet) async {
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) {
+      throw Exception('User not authenticated');
+    }
+
+    await _client.from('study_sets').upsert({
+      'id': studySet.id,
+      'user_id': userId,
+      'title': studySet.title,
+      'description': studySet.description,
+      'flashcards': studySet.flashcards,
+      'explanations': studySet.explanations,
+      'exercises': studySet.exercises,
+      'views': studySet.views,
+      'border_color': studySet.borderColor,
+      'tag': studySet.tag.index,
+      'created_at': DateTime.now().toIso8601String(),
+    });
   }
 
   @override
@@ -172,8 +195,27 @@ class SupabaseStudyRemoteDataSource implements StudyRemoteDataSource {
         sender: ChatSender.values[json['sender'] as int],
         timestamp: DateTime.parse(json['timestamp'] as String),
         imageUrl: json['image_url'] as String?,
+        feedbackType: json['feedback_type'] as String?,
+        isFlagged: json['is_flagged'] as bool? ?? false,
+        flagReason: json['flag_reason'] as String?,
       );
     }).toList();
+  }
+
+  @override
+  Future<void> updateChatMessageFeedback(
+    String messageId,
+    String userId, {
+    String? feedbackType,
+    bool? isFlagged,
+    String? flagReason,
+  }) async {
+    await _client.from('chat_messages').update({
+      if (feedbackType != null) 'feedback_type': feedbackType,
+      if (isFlagged != null) 'is_flagged': isFlagged,
+      if (flagReason != null) 'flag_reason': flagReason,
+      'updated_at': DateTime.now().toIso8601String(),
+    }).eq('id', messageId).eq('user_id', userId);
   }
 
   @override
@@ -201,5 +243,30 @@ class SupabaseStudyRemoteDataSource implements StudyRemoteDataSource {
       sender: ChatSender.bot,
       timestamp: DateTime.parse(data['timestamp'] as String),
     );
+  }
+
+  @override
+  Future<void> updateFlashcard(Flashcard flashcard) async {
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) {
+      throw Exception('User not authenticated');
+    }
+
+    // Update flashcard with SRS state
+    await _client.from('flashcards').upsert({
+      'id': flashcard.id,
+      'study_set_id': flashcard.studySetId,
+      'user_id': userId,
+      'front': flashcard.front,
+      'back': flashcard.back,
+      'hint': flashcard.hint,
+      'difficulty': flashcard.difficulty,
+      'ease_factor': flashcard.srsState?.easeFactor,
+      'interval': flashcard.srsState?.interval,
+      'repetitions': flashcard.srsState?.repetitions,
+      'next_review_date': flashcard.srsState?.nextReviewDate.toIso8601String(),
+      'last_review_date': flashcard.srsState?.lastReviewDate?.toIso8601String(),
+      'created_at': flashcard.createdAt.toIso8601String(),
+    });
   }
 }

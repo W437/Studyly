@@ -22,6 +22,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   late final ScrollController _scrollController;
   final ImagePicker _imagePicker = ImagePicker();
   String? _selectedImagePath;
+  final Set<String> _animatedMessageIds = {};
 
   @override
   void initState() {
@@ -99,10 +100,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               itemCount: value.length,
               itemBuilder: (context, index) {
                 final message = value[index];
+                final shouldAnimate = !_animatedMessageIds.contains(message.id);
+                if (shouldAnimate) {
+                  _animatedMessageIds.add(message.id);
+                }
                 return _AnimatedMessageBubble(
                   key: ValueKey(message.id),
                   message: message,
                   index: index,
+                  shouldAnimate: shouldAnimate,
                 );
               },
             ),
@@ -246,10 +252,12 @@ class _AnimatedMessageBubble extends StatefulWidget {
     super.key,
     required this.message,
     required this.index,
+    required this.shouldAnimate,
   });
 
   final ChatMessage message;
   final int index;
+  final bool shouldAnimate;
 
   @override
   State<_AnimatedMessageBubble> createState() => _AnimatedMessageBubbleState();
@@ -279,12 +287,18 @@ class _AnimatedMessageBubbleState extends State<_AnimatedMessageBubble>
       curve: Curves.easeOut,
     );
 
-    // Start animation after a tiny delay for staggered effect
-    Future.delayed(Duration(milliseconds: widget.index * 30), () {
-      if (mounted) {
-        _controller.forward();
-      }
-    });
+    // Only animate if this is a new message
+    if (widget.shouldAnimate) {
+      // Start animation after a tiny delay for staggered effect
+      Future.delayed(Duration(milliseconds: widget.index * 30), () {
+        if (mounted) {
+          _controller.forward();
+        }
+      });
+    } else {
+      // Skip animation for existing messages
+      _controller.value = 1.0;
+    }
   }
 
   @override

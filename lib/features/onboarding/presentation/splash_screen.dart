@@ -29,25 +29,18 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: StudyColors.primary,
+      backgroundColor: Colors.white,
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Brain Logo
-            Container(
-              width: 120,
-              height: 120,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(30),
-              ),
-              child: Center(
-                child: Icon(
-                  Icons.psychology,
-                  size: 80,
-                  color: StudyColors.primary,
-                ),
+            // Studyly Logo
+            ClipRRect(
+              borderRadius: BorderRadius.circular(30),
+              child: Image.asset(
+                'assets/logos/studyly_icon.png',
+                width: 120,
+                height: 120,
               ),
             ),
             const SizedBox(height: 32),
@@ -56,7 +49,7 @@ class _SplashScreenState extends State<SplashScreen> {
               style: TextStyle(
                 fontSize: 48,
                 fontWeight: FontWeight.bold,
-                color: Colors.white,
+                color: StudyColors.primary,
               ),
             ),
             const SizedBox(height: 100),
@@ -66,7 +59,7 @@ class _SplashScreenState extends State<SplashScreen> {
               height: 40,
               child: CircularProgressIndicator(
                 strokeWidth: 4,
-                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                valueColor: AlwaysStoppedAnimation<Color>(StudyColors.primary),
               ),
             ),
           ],

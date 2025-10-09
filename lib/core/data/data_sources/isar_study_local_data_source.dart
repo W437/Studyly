@@ -113,16 +113,21 @@ class IsarStudyLocalDataSource implements StudyLocalDataSource {
 
   @override
   Future<void> saveStudySet(StudySet studySet) async {
+    print('DEBUG LOCAL: Starting saveStudySet for ${studySet.id}');
+
     await _isar.writeTxn(() async {
+      print('DEBUG LOCAL: Inside write transaction');
       final existing = await _isar.studySetEntitys
           .filter()
           .studySetIdEqualTo(studySet.id)
           .findFirst();
 
       if (existing != null) {
+        print('DEBUG LOCAL: Deleting existing entity');
         await _isar.studySetEntitys.delete(existing.id);
       }
 
+      print('DEBUG LOCAL: Putting new entity');
       await _isar.studySetEntitys.put(StudySetEntity.create(
         studySetId: studySet.id,
         title: studySet.title,
@@ -134,10 +139,14 @@ class IsarStudyLocalDataSource implements StudyLocalDataSource {
         tagIndex: studySet.tag.index,
         description: studySet.description,
       ));
+      print('DEBUG LOCAL: Entity put complete');
     });
 
+    print('DEBUG LOCAL: Loading all study sets');
     final all = await loadStudySets();
+    print('DEBUG LOCAL: Loaded ${all.length} study sets');
     _studySetsController.add(all);
+    print('DEBUG LOCAL: saveStudySet complete');
   }
 
   // Tasks
@@ -197,6 +206,14 @@ class IsarStudyLocalDataSource implements StudyLocalDataSource {
   // Documents
   @override
   Stream<List<StudyDocument>> watchDocumentsByType(StudyContentType type) async* {
+    // Emit initial value immediately
+    final initialEntities = await _isar.studyDocumentEntitys
+        .filter()
+        .typeIndexEqualTo(type.index)
+        .findAll();
+    yield initialEntities.map(_entityToDocument).toList();
+
+    // Then watch for changes
     await for (final _ in Stream.periodic(const Duration(seconds: 1))) {
       final entities = await _isar.studyDocumentEntitys
           .filter()
@@ -439,6 +456,11 @@ class IsarStudyLocalDataSource implements StudyLocalDataSource {
 
   @override
   Future<void> saveFlashcard(Flashcard flashcard) async {
+    await _isar.putFlashcard(flashcard);
+  }
+
+  @override
+  Future<void> updateFlashcard(Flashcard flashcard) async {
     await _isar.putFlashcard(flashcard);
   }
 

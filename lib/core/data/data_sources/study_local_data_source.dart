@@ -52,6 +52,7 @@ abstract class StudyLocalDataSource {
   Future<List<Flashcard>> loadFlashcardsByStudySet(String studySetId);
   Future<void> saveFlashcards(List<Flashcard> flashcards);
   Future<void> saveFlashcard(Flashcard flashcard);
+  Future<void> updateFlashcard(Flashcard flashcard);
   Future<void> deleteFlashcard(String id);
 
   // Explanation docs

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import '../../models/chat_message.dart';
+import '../../models/flashcard.dart';
 import '../../models/study_content_type.dart';
 import '../../models/study_document.dart';
 import '../../models/study_plan_task.dart';
@@ -89,6 +90,26 @@ class LocalFirstStudyRepository implements StudyRepository {
       // Return empty list instead of throwing for initial state
       return [];
     }
+  }
+
+  @override
+  Future<void> saveStudySet(StudySet studySet) async {
+    print('DEBUG REPO: Starting saveStudySet for ${studySet.id}');
+    print('DEBUG REPO: Sync enabled: $_syncEnabled');
+
+    // Save locally first
+    print('DEBUG REPO: Saving to local...');
+    await _local.saveStudySet(studySet);
+    print('DEBUG REPO: Local save complete');
+
+    // Sync to remote if enabled
+    if (_syncEnabled) {
+      print('DEBUG REPO: Starting remote sync...');
+      _syncSilently(() => _remote.saveStudySet(studySet));
+      print('DEBUG REPO: Remote sync initiated (async)');
+    }
+
+    print('DEBUG REPO: saveStudySet complete');
   }
 
   @override
@@ -239,6 +260,26 @@ class LocalFirstStudyRepository implements StudyRepository {
     final reply = await _remote.generateBotReply(prompt, imageUrl: imageUrl);
     await _local.appendChatMessage(reply);
     return reply;
+  }
+
+  @override
+  Future<List<Flashcard>> getFlashcardsByStudySet(String studySetId) async {
+    return _local.loadFlashcardsByStudySet(studySetId);
+  }
+
+  @override
+  Future<void> updateFlashcard(Flashcard flashcard) async {
+    await _local.updateFlashcard(flashcard);
+
+    // Sync to remote if enabled
+    if (_syncEnabled) {
+      _syncSilently(() => _remote.updateFlashcard(flashcard));
+    }
+  }
+
+  @override
+  Stream<List<Flashcard>> watchFlashcardsByStudySet(String studySetId) {
+    return _local.watchFlashcardsByStudySet(studySetId);
   }
 
   void _syncSilently(Future<void> Function() action) {

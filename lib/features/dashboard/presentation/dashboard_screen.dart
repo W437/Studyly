@@ -72,14 +72,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final tasksAsync = ref.watch(studyTasksProvider(_selectedDate));
     final studySetsAsync = ref.watch(studySetsProvider);
 
-    return Stack(
+    return ListView(
+      padding: const EdgeInsets.symmetric(
+        horizontal: StudySpacing.lg,
+        vertical: 0,
+      ),
       children: [
-        ListView(
-          padding: const EdgeInsets.symmetric(
-            horizontal: StudySpacing.lg,
-            vertical: 0,
-          ),
-          children: [
             const SizedBox(height: StudySpacing.md),
             // Premium Upgrade Card
             Stack(
@@ -167,25 +165,39 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     color: StudyColors.textPrimary,
                   ),
                 ),
-                TextButton(
-                  onPressed: () {},
-                  child: Row(
-                    children: const [
-                      Text(
-                        'View All',
-                        style: TextStyle(
-                          color: StudyColors.primary,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      SizedBox(width: 4),
-                      Icon(
-                        Icons.arrow_forward,
-                        size: 18,
+                Row(
+                  children: [
+                    IconButton(
+                      onPressed: () {
+                        context.push(AppRoute.studySetCreate.path);
+                      },
+                      icon: const Icon(
+                        Icons.add_circle_outline,
                         color: StudyColors.primary,
                       ),
-                    ],
-                  ),
+                      tooltip: 'Create Study Set',
+                    ),
+                    TextButton(
+                      onPressed: () {},
+                      child: Row(
+                        children: const [
+                          Text(
+                            'View All',
+                            style: TextStyle(
+                              color: StudyColors.primary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          SizedBox(width: 4),
+                          Icon(
+                            Icons.arrow_forward,
+                            size: 18,
+                            color: StudyColors.primary,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -238,28 +250,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
             // Your study plan today
             _TaskSection(tasksAsync: tasksAsync),
-            const SizedBox(height: 100), // Extra space for FAB
+            const SizedBox(height: 24),
           ],
-        ),
-        // Floating Chat Button
-        Positioned(
-          right: StudySpacing.lg,
-          bottom: 16, // Just above bottom nav
-          child: FloatingActionButton(
-            backgroundColor: StudyColors.primary,
-            shape: const CircleBorder(),
-            onPressed: () {
-              context.go(AppRoute.chat.path);
-            },
-            child: const Icon(
-              Icons.chat_bubble_outline,
-              color: Colors.white,
-              size: 28,
-            ),
-          ),
-        ),
-      ],
-    );
+        );
   }
 
   DateTime _normalize(DateTime date) =>
@@ -804,6 +797,22 @@ class _StudySetEmptyState extends StatelessWidget {
             textAlign: TextAlign.center,
             style: theme.textTheme.bodyMedium?.copyWith(
               color: Colors.grey.shade600,
+            ),
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton.icon(
+            onPressed: () {
+              context.push(AppRoute.studySetCreate.path);
+            },
+            icon: const Icon(Icons.add),
+            label: const Text('Create Study Set'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: StudyColors.primary,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(
+                horizontal: 24,
+                vertical: 12,
+              ),
             ),
           ),
         ],

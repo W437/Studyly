@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../app/bootstrap.dart';
+import '../../features/flashcard/application/flashcard_review_controller.dart';
 import '../data/data_sources/isar_study_local_data_source.dart';
 import '../data/data_sources/supabase_study_remote_data_source.dart';
 import '../data/repositories/local_first_study_repository.dart';
@@ -10,6 +11,7 @@ import '../models/study_document.dart';
 import '../models/study_plan_task.dart';
 import '../models/study_set.dart';
 import '../models/user_profile.dart';
+import '../services/srs_algorithm_service.dart';
 import '../services/study_repository.dart';
 import 'sync_settings_provider.dart';
 
@@ -84,6 +86,32 @@ final studyDocumentsProvider =
       type,
     ) async* {
       final repository = ref.watch(studyRepositoryProvider);
-      await repository.fetchDocumentsByType(type);
+
+      try {
+        await repository.fetchDocumentsByType(type);
+      } catch (e) {
+        // If fetch fails, still watch local data
+        // The repository will handle falling back to local data
+      }
+
       yield* repository.watchDocumentsByType(type);
     });
+
+// SRS Algorithm Service Provider
+final srsAlgorithmServiceProvider = Provider<SRSAlgorithmService>((ref) {
+  return SRSAlgorithmService();
+});
+
+// Flashcard Review Controller Provider (overriding the stub in the controller file)
+final flashcardReviewControllerProvider =
+    StateNotifierProvider<FlashcardReviewController, FlashcardReviewState>(
+  (ref) {
+    final repository = ref.watch(studyRepositoryProvider);
+    final srsService = ref.watch(srsAlgorithmServiceProvider);
+
+    return FlashcardReviewController(
+      studyRepository: repository,
+      srsService: srsService,
+    );
+  },
+);

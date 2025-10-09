@@ -6,6 +6,8 @@ import '../../features/analytics/presentation/analytics_screen.dart';
 import '../../features/auth/presentation/auth_welcome_screen.dart';
 import '../../features/chat/presentation/chat_screen_wrapper.dart';
 import '../../features/dashboard/presentation/dashboard_screen.dart';
+import '../../features/flashcard/presentation/flashcard_create_screen.dart';
+import '../../features/flashcard/presentation/flashcard_review_screen.dart';
 import '../../features/onboarding/presentation/onboarding_screen.dart';
 import '../../features/onboarding/presentation/splash_screen.dart';
 import '../../features/questionnaire/presentation/questionnaire_flow_screen.dart';
@@ -14,7 +16,7 @@ import '../../features/scan/presentation/scan_action_chooser_screen.dart';
 import '../../features/scan/presentation/scan_ocr_screen.dart';
 import '../../features/scan/presentation/scan_preview_screen.dart';
 import '../../features/settings/presentation/settings_screen.dart';
-import '../../features/study_session/presentation/study_session_screen.dart';
+import '../../features/study_set/presentation/study_set_create_screen.dart';
 import '../../features/study_set/presentation/study_set_detail_screen.dart';
 import '../../features/topic_entry/presentation/topic_entry_screen.dart';
 import '../../ui/layout/app_scaffold_shell.dart';
@@ -46,16 +48,32 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const QuestionnaireFlowScreen(),
       ),
       GoRoute(
-        path: AppRoute.chat.path,
-        name: AppRoute.chat.name,
-        builder: (context, state) => const ChatScreenWrapper(),
-      ),
-      GoRoute(
         path: AppRoute.studySetDetail.path,
         name: AppRoute.studySetDetail.name,
         builder: (context, state) {
           final id = state.pathParameters['id'] ?? 'study-set';
           return StudySetDetailScreen(id: id);
+        },
+      ),
+      GoRoute(
+        path: AppRoute.studySetCreate.path,
+        name: AppRoute.studySetCreate.name,
+        builder: (context, state) => const StudySetCreateScreen(),
+      ),
+      GoRoute(
+        path: AppRoute.flashcardReview.path,
+        name: AppRoute.flashcardReview.name,
+        builder: (context, state) {
+          final id = state.pathParameters['id']!;
+          return FlashcardReviewScreen(studySetId: id);
+        },
+      ),
+      GoRoute(
+        path: AppRoute.flashcardCreate.path,
+        name: AppRoute.flashcardCreate.name,
+        builder: (context, state) {
+          final id = state.pathParameters['id']!;
+          return FlashcardCreateScreen(studySetId: id);
         },
       ),
       GoRoute(
@@ -117,11 +135,11 @@ final routerProvider = Provider<GoRouter>((ref) {
             ),
           ),
           GoRoute(
-            path: AppRoute.explore.path,
-            name: AppRoute.explore.name,
+            path: AppRoute.chat.path,
+            name: AppRoute.chat.name,
             pageBuilder: (context, state) => NoTransitionPage(
               key: state.pageKey,
-              child: const StudySessionScreen(),
+              child: const ChatScreenWrapper(),
             ),
           ),
           GoRoute(
