@@ -22,32 +22,28 @@ class ScanPreviewScreen extends ConsumerStatefulWidget {
 
 class _ScanPreviewScreenState extends ConsumerState<ScanPreviewScreen> {
   int _rotationAngle = 0;
-  String? _currentImagePath;
 
   @override
   void initState() {
     super.initState();
-    _loadScannedItem();
+    // Load the scanned item when screen initializes
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadScannedItem();
+    });
   }
 
   Future<void> _loadScannedItem() async {
     await ref
         .read(scanControllerProvider.notifier)
         .loadScannedItem(widget.scannedItemId);
-
-    final item = ref.read(scanControllerProvider).currentItem;
-    if (item != null) {
-      setState(() {
-        _currentImagePath = item.localImagePath;
-      });
-    }
   }
 
   Future<void> _cropImage() async {
-    if (_currentImagePath == null) return;
+    final currentItem = ref.read(scanControllerProvider).currentItem;
+    if (currentItem == null) return;
 
     final croppedFile = await ImageCropper().cropImage(
-      sourcePath: _currentImagePath!,
+      sourcePath: currentItem.localImagePath,
       uiSettings: [
         AndroidUiSettings(
           toolbarTitle: 'Crop Image',
@@ -55,17 +51,25 @@ class _ScanPreviewScreenState extends ConsumerState<ScanPreviewScreen> {
           toolbarWidgetColor: Colors.white,
           initAspectRatio: CropAspectRatioPreset.original,
           lockAspectRatio: false,
+          hideBottomControls: false,
+          statusBarColor: Theme.of(context).primaryColor,
+          activeControlsWidgetColor: Theme.of(context).primaryColor,
         ),
         IOSUiSettings(
           title: 'Crop Image',
+          aspectRatioPickerButtonHidden: false,
+          resetButtonHidden: false,
+          rotateButtonsHidden: false,
         ),
       ],
     );
 
     if (croppedFile != null) {
-      setState(() {
-        _currentImagePath = croppedFile.path;
-      });
+      // Update the scanned item with new cropped image path
+      final updatedItem = currentItem.copyWith(
+        localImagePath: croppedFile.path,
+      );
+      await ref.read(scanControllerProvider.notifier).updateCurrentItem(updatedItem);
     }
   }
 
@@ -76,13 +80,15 @@ class _ScanPreviewScreenState extends ConsumerState<ScanPreviewScreen> {
   }
 
   Future<void> _retake() async {
-    // Delete current item and go back to capture
+    // Delete current item and navigate back to camera
     await ref
         .read(scanControllerProvider.notifier)
         .deleteScannedItem(widget.scannedItemId);
 
     if (mounted) {
-      context.pop();
+      // Pop twice to get back to the screen before camera, then camera will open again
+      // Or navigate directly to camera route
+      Navigator.of(context).popUntil((route) => route.isFirst);
     }
   }
 
@@ -95,8 +101,9 @@ class _ScanPreviewScreenState extends ConsumerState<ScanPreviewScreen> {
   @override
   Widget build(BuildContext context) {
     final scanState = ref.watch(scanControllerProvider);
+    final currentItem = scanState.currentItem;
 
-    if (scanState.isLoading || _currentImagePath == null) {
+    if (scanState.isLoading || currentItem == null) {
       return Scaffold(
         appBar: AppBar(
           title: const Text('Preview'),
@@ -112,7 +119,15 @@ class _ScanPreviewScreenState extends ConsumerState<ScanPreviewScreen> {
         title: const Text('Preview Image'),
         leading: IconButton(
           icon: const Icon(Icons.close),
-          onPressed: _retake,
+          onPressed: () async {
+            // Delete the item and go back to where we came from
+            await ref
+                .read(scanControllerProvider.notifier)
+                .deleteScannedItem(widget.scannedItemId);
+            if (mounted) {
+              Navigator.of(context).popUntil((route) => route.isFirst);
+            }
+          },
         ),
         actions: [
           TextButton.icon(
@@ -132,7 +147,7 @@ class _ScanPreviewScreenState extends ConsumerState<ScanPreviewScreen> {
                 child: RotatedBox(
                   quarterTurns: _rotationAngle ~/ 90,
                   child: Image.file(
-                    File(_currentImagePath!),
+                    File(currentItem.localImagePath),
                     fit: BoxFit.contain,
                   ),
                 ),
@@ -142,7 +157,6 @@ class _ScanPreviewScreenState extends ConsumerState<ScanPreviewScreen> {
 
           // Controls
           Container(
-            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: Theme.of(context).scaffoldBackgroundColor,
               boxShadow: [
@@ -154,40 +168,44 @@ class _ScanPreviewScreenState extends ConsumerState<ScanPreviewScreen> {
               ],
             ),
             child: SafeArea(
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  // Crop Button
-                  _ActionButton(
-                    icon: Icons.crop,
-                    label: 'Crop',
-                    onPressed: _cropImage,
-                  ),
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    // Crop Button
+                    _ActionButton(
+                      icon: Icons.crop,
+                      label: 'Crop',
+                      onPressed: _cropImage,
+                    ),
 
-                  // Rotate Button
-                  _ActionButton(
-                    icon: Icons.rotate_right,
-                    label: 'Rotate',
-                    onPressed: _rotateImage,
-                  ),
+                    // Rotate Button
+                    _ActionButton(
+                      icon: Icons.rotate_right,
+                      label: 'Rotate',
+                      onPressed: _rotateImage,
+                    ),
 
-                  // Continue Button
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.only(left: 16),
-                      child: ElevatedButton(
-                        onPressed: _continue,
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                    // Continue Button
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.only(left: 16),
+                        child: ElevatedButton(
+                          onPressed: _continue,
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                           ),
+                          child: const Text('Continue'),
                         ),
-                        child: const Text('Continue'),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),

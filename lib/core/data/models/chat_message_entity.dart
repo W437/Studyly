@@ -12,6 +12,11 @@ class ChatMessageEntity {
   late String text;
   late int senderIndex;
   late DateTime timestamp;
+  String? imageUrl;
+  String? localImagePath;
+  String? feedbackType; // 'thumbs_up', 'thumbs_down', or null
+  bool? isFlagged;
+  String? flagReason; // Reason provided by user when flagging
 
   ChatMessageEntity();
 
@@ -20,5 +25,10 @@ class ChatMessageEntity {
     required this.text,
     required this.senderIndex,
     required this.timestamp,
+    this.imageUrl,
+    this.localImagePath,
+    this.feedbackType,
+    this.isFlagged,
+    this.flagReason,
   });
 }

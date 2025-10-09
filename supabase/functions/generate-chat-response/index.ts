@@ -13,7 +13,7 @@ serve(async (req) => {
   }
 
   try {
-    const { prompt, user_id } = await req.json()
+    const { prompt, user_id, image_url } = await req.json()
 
     // Validate input
     if (!prompt || !user_id) {
@@ -30,7 +30,7 @@ serve(async (req) => {
     )
 
     // Generate AI response using OpenAI Assistant
-    const aiResponse = await generateAIResponse(prompt, user_id)
+    const aiResponse = await generateAIResponse(prompt, user_id, image_url)
 
     // Create message object
     const message = {
@@ -66,7 +66,7 @@ serve(async (req) => {
   }
 })
 
-async function generateAIResponse(prompt: string, userId: string): Promise<string> {
+async function generateAIResponse(prompt: string, userId: string, imageUrl?: string): Promise<string> {
   const openaiKey = Deno.env.get('OPENAI_API_KEY')
   const assistantId = Deno.env.get('OPENAI_ASSISTANT_ID')
 
@@ -100,7 +100,24 @@ async function generateAIResponse(prompt: string, userId: string): Promise<strin
     const thread = await threadResponse.json()
     const threadId = thread.id
 
-    // Step 2: Add user message to thread
+    // Step 2: Add user message to thread (with image if provided)
+    const messageContent: any[] = [
+      {
+        type: 'text',
+        text: prompt,
+      }
+    ]
+
+    // Add image if provided (OpenAI Vision API)
+    if (imageUrl) {
+      messageContent.push({
+        type: 'image_url',
+        image_url: {
+          url: imageUrl,
+        },
+      })
+    }
+
     const messageResponse = await fetch(`https://api.openai.com/v1/threads/${threadId}/messages`, {
       method: 'POST',
       headers: {
@@ -110,7 +127,7 @@ async function generateAIResponse(prompt: string, userId: string): Promise<strin
       },
       body: JSON.stringify({
         role: 'user',
-        content: prompt,
+        content: messageContent,
       }),
     })
 

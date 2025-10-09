@@ -16,7 +16,9 @@ import 'sync_settings_provider.dart';
 final studyRepositoryProvider = Provider<StudyRepository>((ref) {
   final isar = ref.watch(isarProvider);
   final supabase = Supabase.instance.client;
-  final syncEnabled = ref.watch(syncSettingsProvider);
+
+  // Read initial value but don't watch to avoid recreating repository
+  final syncEnabled = ref.read(syncSettingsProvider);
 
   final localDataSource = IsarStudyLocalDataSource(isar);
   final remoteDataSource = SupabaseStudyRemoteDataSource(supabase);
@@ -27,7 +29,7 @@ final studyRepositoryProvider = Provider<StudyRepository>((ref) {
     syncEnabled: syncEnabled,
   );
 
-  // Listen to sync setting changes and update repository
+  // Listen to sync setting changes and update repository without recreating it
   ref.listen<bool>(syncSettingsProvider, (_, newSyncEnabled) {
     repository.setSyncEnabled(newSyncEnabled);
   });
@@ -37,7 +39,15 @@ final studyRepositoryProvider = Provider<StudyRepository>((ref) {
 
 final userProfileProvider = StreamProvider<UserProfile>((ref) async* {
   final repository = ref.watch(studyRepositoryProvider);
-  await repository.fetchProfile();
+
+  try {
+    // Try to fetch profile from remote/local
+    await repository.fetchProfile();
+  } catch (e) {
+    // If fetch fails, we'll still try to watch local data
+    // The repository will handle falling back to local data
+  }
+
   await for (final profile in repository.watchProfile()) {
     if (profile != null) {
       yield profile;

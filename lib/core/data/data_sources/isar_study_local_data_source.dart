@@ -263,6 +263,11 @@ class IsarStudyLocalDataSource implements StudyLocalDataSource {
           text: msg.text,
           senderIndex: msg.sender.index,
           timestamp: msg.timestamp,
+          imageUrl: msg.imageUrl,
+          localImagePath: msg.localImagePath,
+          feedbackType: msg.feedbackType,
+          isFlagged: msg.isFlagged,
+          flagReason: msg.flagReason,
         ));
       }
     });
@@ -277,7 +282,41 @@ class IsarStudyLocalDataSource implements StudyLocalDataSource {
         text: message.text,
         senderIndex: message.sender.index,
         timestamp: message.timestamp,
+        imageUrl: message.imageUrl,
+        localImagePath: message.localImagePath,
+        feedbackType: message.feedbackType,
+        isFlagged: message.isFlagged,
+        flagReason: message.flagReason,
       ));
+    });
+
+    final all = await loadChatTranscript();
+    _chatController.add(all);
+  }
+
+  @override
+  Future<void> updateChatMessage(ChatMessage message) async {
+    await _isar.writeTxn(() async {
+      // Find existing entity by messageId
+      final existing = await _isar.chatMessageEntitys
+          .filter()
+          .messageIdEqualTo(message.id)
+          .findFirst();
+
+      if (existing != null) {
+        // Update the entity with new data
+        existing
+          ..text = message.text
+          ..senderIndex = message.sender.index
+          ..timestamp = message.timestamp
+          ..imageUrl = message.imageUrl
+          ..localImagePath = message.localImagePath
+          ..feedbackType = message.feedbackType
+          ..isFlagged = message.isFlagged
+          ..flagReason = message.flagReason;
+
+        await _isar.chatMessageEntitys.put(existing);
+      }
     });
 
     final all = await loadChatTranscript();
@@ -341,6 +380,11 @@ class IsarStudyLocalDataSource implements StudyLocalDataSource {
       text: entity.text,
       sender: ChatSender.values[entity.senderIndex],
       timestamp: entity.timestamp,
+      imageUrl: entity.imageUrl,
+      localImagePath: entity.localImagePath,
+      feedbackType: entity.feedbackType,
+      isFlagged: entity.isFlagged ?? false,
+      flagReason: entity.flagReason,
     );
   }
 

@@ -171,12 +171,13 @@ class SupabaseStudyRemoteDataSource implements StudyRemoteDataSource {
         text: json['text'] as String,
         sender: ChatSender.values[json['sender'] as int],
         timestamp: DateTime.parse(json['timestamp'] as String),
+        imageUrl: json['image_url'] as String?,
       );
     }).toList();
   }
 
   @override
-  Future<ChatMessage> generateBotReply(String prompt) async {
+  Future<ChatMessage> generateBotReply(String prompt, {String? imageUrl}) async {
     final userId = _client.auth.currentUser?.id;
     if (userId == null) {
       throw Exception('User not authenticated');
@@ -188,6 +189,7 @@ class SupabaseStudyRemoteDataSource implements StudyRemoteDataSource {
       body: {
         'prompt': prompt,
         'user_id': userId,
+        if (imageUrl != null) 'image_url': imageUrl,
       },
     );
 

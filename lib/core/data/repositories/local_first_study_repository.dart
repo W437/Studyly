@@ -229,8 +229,14 @@ class LocalFirstStudyRepository implements StudyRepository {
   }
 
   @override
-  Future<ChatMessage> generateBotReply(String prompt) async {
-    final reply = await _remote.generateBotReply(prompt);
+  Future<void> updateChatMessage(ChatMessage message) async {
+    await _local.updateChatMessage(message);
+    // TODO: Optionally sync feedback to remote
+  }
+
+  @override
+  Future<ChatMessage> generateBotReply(String prompt, {String? imageUrl}) async {
+    final reply = await _remote.generateBotReply(prompt, imageUrl: imageUrl);
     await _local.appendChatMessage(reply);
     return reply;
   }

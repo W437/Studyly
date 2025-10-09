@@ -38,6 +38,7 @@ abstract class StudyLocalDataSource {
   Future<List<ChatMessage>> loadChatTranscript();
   Future<void> replaceChatTranscript(List<ChatMessage> messages);
   Future<void> appendChatMessage(ChatMessage message);
+  Future<void> updateChatMessage(ChatMessage message);
 
   // Scanned items
   Stream<List<ScannedItem>> watchScannedItems();

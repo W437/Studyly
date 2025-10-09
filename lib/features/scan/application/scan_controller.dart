@@ -262,6 +262,12 @@ class ScanController extends StateNotifier<ScanState> {
     }
   }
 
+  /// Update current item (for crop/rotate operations)
+  Future<void> updateCurrentItem(ScannedItem item) async {
+    await _localDataSource.saveScannedItem(item);
+    state = state.copyWith(currentItem: item);
+  }
+
   /// Clear current state
   void clear() {
     state = const ScanState();

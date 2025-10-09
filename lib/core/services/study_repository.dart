@@ -34,5 +34,6 @@ abstract class StudyRepository {
   Future<List<ChatMessage>> loadInitialChatTranscript({bool forceRefresh = false});
   Future<void> replaceChatTranscript(List<ChatMessage> messages);
   Future<void> appendChatMessage(ChatMessage message);
-  Future<ChatMessage> generateBotReply(String prompt);
+  Future<void> updateChatMessage(ChatMessage message);
+  Future<ChatMessage> generateBotReply(String prompt, {String? imageUrl});
 }

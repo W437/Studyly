@@ -33,8 +33,14 @@ class SettingsScreen extends ConsumerWidget {
         error: (error, _) => Center(
           child: Text('Error loading settings: $error'),
         ),
-        data: (profile) => ListView(
-          children: [
+        data: (profile) => Theme(
+          data: Theme.of(context).copyWith(
+            splashFactory: NoSplash.splashFactory,
+            highlightColor: Colors.transparent,
+            hoverColor: Colors.transparent,
+          ),
+          child: ListView(
+            children: [
             // Profile Section
             const Padding(
               padding: EdgeInsets.all(16.0),
@@ -210,7 +216,8 @@ class SettingsScreen extends ConsumerWidget {
               title: Text('Version'),
               subtitle: Text('1.0.0'),
             ),
-          ],
+            ],
+          ),
         ),
       ),
     );

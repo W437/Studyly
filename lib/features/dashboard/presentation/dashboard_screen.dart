@@ -22,7 +22,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   late final DateTime _today;
   late DateTime _selectedDate;
   late final ScrollController _scrollController;
-  bool _hasScrolledToToday = false;
+  bool _hasInitializedScroll = false;
 
   @override
   void initState() {
@@ -35,25 +35,29 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       (index) => startDate.add(Duration(days: index)),
     );
 
-    // Initialize scroll controller first
+    // Initialize scroll controller without offset
     _scrollController = ScrollController();
+  }
 
-    // Calculate initial scroll position to center today
-    final todayIndex = _dateRange.indexWhere((date) => _isSameDay(date, _today));
-    final itemWidth = 72.0; // 60 width + 12 margin
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
 
-    // Use initialScrollOffset to position without animation
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!_hasScrolledToToday && _scrollController.hasClients) {
-        final screenWidth = MediaQuery.of(context).size.width;
-        // Calculate offset to center the item, accounting for the item width
-        final offset = (todayIndex * itemWidth) - (screenWidth / 2) + (itemWidth / 2) - 6;
-        _scrollController.jumpTo(
-          offset.clamp(0.0, _scrollController.position.maxScrollExtent),
-        );
-        _hasScrolledToToday = true;
-      }
-    });
+    // Set initial scroll position only once
+    if (!_hasInitializedScroll) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_scrollController.hasClients && !_hasInitializedScroll) {
+          final todayIndex = _dateRange.indexWhere((date) => _isSameDay(date, _today));
+          final itemWidth = 72.0; // 60 width + 12 margin
+          final screenWidth = MediaQuery.of(context).size.width;
+          final offset = ((todayIndex * itemWidth) - (screenWidth / 2) + (itemWidth / 2) - 6)
+              .clamp(0.0, _scrollController.position.maxScrollExtent);
+
+          _scrollController.jumpTo(offset);
+          _hasInitializedScroll = true;
+        }
+      });
+    }
   }
 
   @override

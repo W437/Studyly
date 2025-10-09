@@ -49,7 +49,7 @@ Future<void> bootstrap(Widget app) async {
       );
 
       // TEMPORARY: Clear old seed data (set to false after first run)
-      const clearOldData = true;
+      const clearOldData = false; // Changed to false - no longer clearing data
       if (clearOldData && kDebugMode) {
         debugPrint('🧹 Clearing old seed data from Isar database...');
         await isar.writeTxn(() async {

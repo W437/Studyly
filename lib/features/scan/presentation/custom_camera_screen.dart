@@ -314,45 +314,11 @@ class _ControlButton extends StatelessWidget {
 class ScanOverlayPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Colors.black.withOpacity(0.5)
-      ..style = PaintingStyle.fill;
-
-    // Draw semi-transparent overlay for the entire screen
-    canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), paint);
-
     // Calculate scan area (centered rectangle)
     final scanWidth = size.width * 0.8;
     final scanHeight = size.height * 0.5;
     final scanLeft = (size.width - scanWidth) / 2;
     final scanTop = (size.height - scanHeight) / 2;
-
-    // Clear the scan area
-    final clearPaint = Paint()
-      ..color = Colors.transparent
-      ..blendMode = BlendMode.clear;
-
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromLTWH(scanLeft, scanTop, scanWidth, scanHeight),
-        const Radius.circular(16),
-      ),
-      clearPaint,
-    );
-
-    // Draw border for scan area
-    final borderPaint = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 3;
-
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromLTWH(scanLeft, scanTop, scanWidth, scanHeight),
-        const Radius.circular(16),
-      ),
-      borderPaint,
-    );
 
     // Draw corner decorations
     final cornerLength = 30.0;

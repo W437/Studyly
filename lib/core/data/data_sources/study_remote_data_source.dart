@@ -12,5 +12,5 @@ abstract class StudyRemoteDataSource {
   Future<List<StudyPlanTask>> fetchTasksForDate(DateTime date);
   Future<List<StudyDocument>> fetchDocumentsByType(StudyContentType type);
   Future<List<ChatMessage>> loadInitialChatTranscript();
-  Future<ChatMessage> generateBotReply(String prompt);
+  Future<ChatMessage> generateBotReply(String prompt, {String? imageUrl});
 }

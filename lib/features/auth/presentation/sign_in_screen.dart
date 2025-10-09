@@ -43,12 +43,32 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
         // Create profile if it doesn't exist
         await _ensureProfileExists(response.user!);
 
+        // Give Supabase a moment to fully initialize the session
+        await Future.delayed(const Duration(milliseconds: 500));
+
         // Invalidate providers to force refresh with new auth state
         ref.invalidate(userProfileProvider);
         ref.invalidate(studyRepositoryProvider);
 
+        // Prefetch profile to ensure it's loaded before navigation
+        try {
+          await ref.read(studyRepositoryProvider).fetchProfile(forceRefresh: true);
+        } catch (e) {
+          // Profile fetch failed, show error
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Failed to load profile: $e'),
+                backgroundColor: Colors.orange,
+              ),
+            );
+          }
+        }
+
         // Navigate to home
-        context.go(AppRoute.home.path);
+        if (mounted) {
+          context.go(AppRoute.home.path);
+        }
       }
     } on AuthException catch (e) {
       if (mounted) {
