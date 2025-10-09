@@ -50,6 +50,10 @@ class PrimaryButton extends BaseButton {
         horizontal: StudySpacing.lg,
         vertical: StudySpacing.md,
       ),
+      elevation: 0,
+      shadowColor: Colors.transparent,
+      overlayColor: Colors.white.withOpacity(0.1),
+      splashFactory: NoSplash.splashFactory,
     );
   }
 
@@ -86,6 +90,10 @@ class SecondaryButton extends BaseButton {
         horizontal: StudySpacing.lg,
         vertical: StudySpacing.md,
       ),
+      elevation: 0,
+      shadowColor: Colors.transparent,
+      overlayColor: Colors.black.withOpacity(0.05),
+      splashFactory: NoSplash.splashFactory,
     );
   }
 
@@ -122,6 +130,10 @@ class TextGhostButton extends BaseButton {
     return TextButton.styleFrom(
       foregroundColor: Theme.of(context).colorScheme.secondary,
       padding: const EdgeInsets.symmetric(horizontal: StudySpacing.md),
+      elevation: 0,
+      shadowColor: Colors.transparent,
+      overlayColor: Colors.black.withOpacity(0.05),
+      splashFactory: NoSplash.splashFactory,
     );
   }
 

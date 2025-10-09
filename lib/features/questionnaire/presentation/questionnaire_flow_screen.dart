@@ -37,6 +37,7 @@ class _QuestionnaireFlowScreenState extends State<QuestionnaireFlowScreen> {
   }
 
   void _nextPage() {
+    HapticFeedback.lightImpact();
     FocusScope.of(context).unfocus();
     if (_currentPage < _totalPages - 1) {
       _pageController.nextPage(
@@ -49,6 +50,7 @@ class _QuestionnaireFlowScreenState extends State<QuestionnaireFlowScreen> {
   }
 
   void _previousPage() {
+    HapticFeedback.lightImpact();
     if (_currentPage > 0) {
       _pageController.previousPage(
         duration: const Duration(milliseconds: 300),
@@ -300,14 +302,17 @@ class _AgePage extends StatelessWidget {
       wrapChildInScrollView: false,
       childAlignment: Alignment.center,
       child: SizedBox(
-        height: _itemExtent * 3,
+        height: _itemExtent * 5,
         width: 220,
         child: ListWheelScrollView.useDelegate(
           itemExtent: _itemExtent,
           diameterRatio: 1.5,
           perspective: 0.003,
           controller: FixedExtentScrollController(initialItem: initialIndex),
-          onSelectedItemChanged: (index) => onAgeChanged(_minAge + index),
+          onSelectedItemChanged: (index) {
+            HapticFeedback.selectionClick();
+            onAgeChanged(_minAge + index);
+          },
           childDelegate: ListWheelChildBuilderDelegate(
             childCount: itemCount,
             builder: (context, index) {
@@ -420,6 +425,7 @@ class _SubjectPageState extends State<_SubjectPage> {
   }
 
   void _selectSubject(String subject) {
+    HapticFeedback.selectionClick();
     setState(() {
       _isCustom = false;
       _customController.clear();
@@ -428,6 +434,7 @@ class _SubjectPageState extends State<_SubjectPage> {
   }
 
   void _selectOther() {
+    HapticFeedback.selectionClick();
     setState(() {
       _isCustom = true;
     });
@@ -626,6 +633,7 @@ class _ReminderPage extends StatelessWidget {
                         initialItem: (time.hour % 12).clamp(0, 11),
                       ),
                       onSelectedItemChanged: (index) {
+                        HapticFeedback.selectionClick();
                         final hour = (index + 1) % 12;
                         final adjustedHour = hour == 0 ? 12 : hour;
                         onTimeChanged(
@@ -682,6 +690,7 @@ class _ReminderPage extends StatelessWidget {
                         initialItem: time.minute,
                       ),
                       onSelectedItemChanged: (index) {
+                        HapticFeedback.selectionClick();
                         onTimeChanged(
                           TimeOfDay(hour: time.hour, minute: index),
                         );
@@ -846,7 +855,10 @@ class _OptionButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return InkWell(
-      onTap: onTap,
+      onTap: () {
+        HapticFeedback.selectionClick();
+        onTap();
+      },
       borderRadius: BorderRadius.circular(12),
       child: Container(
         width: double.infinity,

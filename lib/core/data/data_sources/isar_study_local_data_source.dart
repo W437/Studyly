@@ -53,6 +53,8 @@ class IsarStudyLocalDataSource implements StudyLocalDataSource {
         avatarUrl: profile.avatarUrl,
         activePlan: profile.activePlan,
         focusAreaIndexes: profile.focusAreas.map((e) => e.index).toList(),
+        profileBgColor: profile.profileBgColor,
+        profileEmoji: profile.profileEmoji,
       ));
     });
     _profileController.add(profile);
@@ -293,6 +295,8 @@ class IsarStudyLocalDataSource implements StudyLocalDataSource {
       focusAreas: entity.focusAreaIndexes
           .map((i) => StudyMaterialTag.values[i])
           .toList(),
+      profileBgColor: entity.profileBgColor,
+      profileEmoji: entity.profileEmoji,
     );
   }
 

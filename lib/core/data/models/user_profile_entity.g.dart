@@ -42,8 +42,18 @@ const UserProfileEntitySchema = CollectionSchema(
       name: r'focusAreaIndexes',
       type: IsarType.longList,
     ),
-    r'userId': PropertySchema(
+    r'profileBgColor': PropertySchema(
       id: 5,
+      name: r'profileBgColor',
+      type: IsarType.string,
+    ),
+    r'profileEmoji': PropertySchema(
+      id: 6,
+      name: r'profileEmoji',
+      type: IsarType.string,
+    ),
+    r'userId': PropertySchema(
+      id: 7,
       name: r'userId',
       type: IsarType.string,
     )
@@ -73,6 +83,8 @@ int _userProfileEntityEstimateSize(
   bytesCount += 3 + object.displayName.length * 3;
   bytesCount += 3 + object.email.length * 3;
   bytesCount += 3 + object.focusAreaIndexes.length * 8;
+  bytesCount += 3 + object.profileBgColor.length * 3;
+  bytesCount += 3 + object.profileEmoji.length * 3;
   bytesCount += 3 + object.userId.length * 3;
   return bytesCount;
 }
@@ -88,7 +100,9 @@ void _userProfileEntitySerialize(
   writer.writeString(offsets[2], object.displayName);
   writer.writeString(offsets[3], object.email);
   writer.writeLongList(offsets[4], object.focusAreaIndexes);
-  writer.writeString(offsets[5], object.userId);
+  writer.writeString(offsets[5], object.profileBgColor);
+  writer.writeString(offsets[6], object.profileEmoji);
+  writer.writeString(offsets[7], object.userId);
 }
 
 UserProfileEntity _userProfileEntityDeserialize(
@@ -104,7 +118,9 @@ UserProfileEntity _userProfileEntityDeserialize(
   object.email = reader.readString(offsets[3]);
   object.focusAreaIndexes = reader.readLongList(offsets[4]) ?? [];
   object.id = id;
-  object.userId = reader.readString(offsets[5]);
+  object.profileBgColor = reader.readString(offsets[5]);
+  object.profileEmoji = reader.readString(offsets[6]);
+  object.userId = reader.readString(offsets[7]);
   return object;
 }
 
@@ -126,6 +142,10 @@ P _userProfileEntityDeserializeProp<P>(
     case 4:
       return (reader.readLongList(offset) ?? []) as P;
     case 5:
+      return (reader.readString(offset)) as P;
+    case 6:
+      return (reader.readString(offset)) as P;
+    case 7:
       return (reader.readString(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -974,6 +994,278 @@ extension UserProfileEntityQueryFilter
   }
 
   QueryBuilder<UserProfileEntity, UserProfileEntity, QAfterFilterCondition>
+      profileBgColorEqualTo(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'profileBgColor',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<UserProfileEntity, UserProfileEntity, QAfterFilterCondition>
+      profileBgColorGreaterThan(
+    String value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'profileBgColor',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<UserProfileEntity, UserProfileEntity, QAfterFilterCondition>
+      profileBgColorLessThan(
+    String value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'profileBgColor',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<UserProfileEntity, UserProfileEntity, QAfterFilterCondition>
+      profileBgColorBetween(
+    String lower,
+    String upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'profileBgColor',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<UserProfileEntity, UserProfileEntity, QAfterFilterCondition>
+      profileBgColorStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.startsWith(
+        property: r'profileBgColor',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<UserProfileEntity, UserProfileEntity, QAfterFilterCondition>
+      profileBgColorEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.endsWith(
+        property: r'profileBgColor',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<UserProfileEntity, UserProfileEntity, QAfterFilterCondition>
+      profileBgColorContains(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.contains(
+        property: r'profileBgColor',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<UserProfileEntity, UserProfileEntity, QAfterFilterCondition>
+      profileBgColorMatches(String pattern, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.matches(
+        property: r'profileBgColor',
+        wildcard: pattern,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<UserProfileEntity, UserProfileEntity, QAfterFilterCondition>
+      profileBgColorIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'profileBgColor',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<UserProfileEntity, UserProfileEntity, QAfterFilterCondition>
+      profileBgColorIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        property: r'profileBgColor',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<UserProfileEntity, UserProfileEntity, QAfterFilterCondition>
+      profileEmojiEqualTo(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'profileEmoji',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<UserProfileEntity, UserProfileEntity, QAfterFilterCondition>
+      profileEmojiGreaterThan(
+    String value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'profileEmoji',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<UserProfileEntity, UserProfileEntity, QAfterFilterCondition>
+      profileEmojiLessThan(
+    String value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'profileEmoji',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<UserProfileEntity, UserProfileEntity, QAfterFilterCondition>
+      profileEmojiBetween(
+    String lower,
+    String upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'profileEmoji',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<UserProfileEntity, UserProfileEntity, QAfterFilterCondition>
+      profileEmojiStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.startsWith(
+        property: r'profileEmoji',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<UserProfileEntity, UserProfileEntity, QAfterFilterCondition>
+      profileEmojiEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.endsWith(
+        property: r'profileEmoji',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<UserProfileEntity, UserProfileEntity, QAfterFilterCondition>
+      profileEmojiContains(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.contains(
+        property: r'profileEmoji',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<UserProfileEntity, UserProfileEntity, QAfterFilterCondition>
+      profileEmojiMatches(String pattern, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.matches(
+        property: r'profileEmoji',
+        wildcard: pattern,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<UserProfileEntity, UserProfileEntity, QAfterFilterCondition>
+      profileEmojiIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'profileEmoji',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<UserProfileEntity, UserProfileEntity, QAfterFilterCondition>
+      profileEmojiIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        property: r'profileEmoji',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<UserProfileEntity, UserProfileEntity, QAfterFilterCondition>
       userIdEqualTo(
     String value, {
     bool caseSensitive = true,
@@ -1175,6 +1467,34 @@ extension UserProfileEntityQuerySortBy
   }
 
   QueryBuilder<UserProfileEntity, UserProfileEntity, QAfterSortBy>
+      sortByProfileBgColor() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'profileBgColor', Sort.asc);
+    });
+  }
+
+  QueryBuilder<UserProfileEntity, UserProfileEntity, QAfterSortBy>
+      sortByProfileBgColorDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'profileBgColor', Sort.desc);
+    });
+  }
+
+  QueryBuilder<UserProfileEntity, UserProfileEntity, QAfterSortBy>
+      sortByProfileEmoji() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'profileEmoji', Sort.asc);
+    });
+  }
+
+  QueryBuilder<UserProfileEntity, UserProfileEntity, QAfterSortBy>
+      sortByProfileEmojiDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'profileEmoji', Sort.desc);
+    });
+  }
+
+  QueryBuilder<UserProfileEntity, UserProfileEntity, QAfterSortBy>
       sortByUserId() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'userId', Sort.asc);
@@ -1261,6 +1581,34 @@ extension UserProfileEntityQuerySortThenBy
   }
 
   QueryBuilder<UserProfileEntity, UserProfileEntity, QAfterSortBy>
+      thenByProfileBgColor() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'profileBgColor', Sort.asc);
+    });
+  }
+
+  QueryBuilder<UserProfileEntity, UserProfileEntity, QAfterSortBy>
+      thenByProfileBgColorDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'profileBgColor', Sort.desc);
+    });
+  }
+
+  QueryBuilder<UserProfileEntity, UserProfileEntity, QAfterSortBy>
+      thenByProfileEmoji() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'profileEmoji', Sort.asc);
+    });
+  }
+
+  QueryBuilder<UserProfileEntity, UserProfileEntity, QAfterSortBy>
+      thenByProfileEmojiDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'profileEmoji', Sort.desc);
+    });
+  }
+
+  QueryBuilder<UserProfileEntity, UserProfileEntity, QAfterSortBy>
       thenByUserId() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'userId', Sort.asc);
@@ -1313,6 +1661,21 @@ extension UserProfileEntityQueryWhereDistinct
   }
 
   QueryBuilder<UserProfileEntity, UserProfileEntity, QDistinct>
+      distinctByProfileBgColor({bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'profileBgColor',
+          caseSensitive: caseSensitive);
+    });
+  }
+
+  QueryBuilder<UserProfileEntity, UserProfileEntity, QDistinct>
+      distinctByProfileEmoji({bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'profileEmoji', caseSensitive: caseSensitive);
+    });
+  }
+
+  QueryBuilder<UserProfileEntity, UserProfileEntity, QDistinct>
       distinctByUserId({bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'userId', caseSensitive: caseSensitive);
@@ -1359,6 +1722,20 @@ extension UserProfileEntityQueryProperty
       focusAreaIndexesProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'focusAreaIndexes');
+    });
+  }
+
+  QueryBuilder<UserProfileEntity, String, QQueryOperations>
+      profileBgColorProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'profileBgColor');
+    });
+  }
+
+  QueryBuilder<UserProfileEntity, String, QQueryOperations>
+      profileEmojiProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'profileEmoji');
     });
   }
 

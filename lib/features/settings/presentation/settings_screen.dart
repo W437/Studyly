@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/models/study_content_type.dart';
 import '../../../core/providers/study_providers.dart';
 import '../../../core/providers/sync_settings_provider.dart';
+import '../../../ui/widgets/profile_picture_widget.dart';
+import 'profile_picture_editor_screen.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -45,11 +48,52 @@ class SettingsScreen extends ConsumerWidget {
               ),
             ),
             ListTile(
-              leading: CircleAvatar(
-                backgroundImage: NetworkImage(profile.avatarUrl),
+              leading: ProfilePictureWidget(
+                profilePicture: profile.profilePicture,
+                size: 48,
               ),
               title: Text(profile.displayName),
               subtitle: Text(profile.email),
+              trailing: TextButton(
+                onPressed: () async {
+                  final result = await Navigator.push<Map<String, String>>(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => ProfilePictureEditorScreen(
+                        initialColor: profile.profileBgColor,
+                        initialEmoji: profile.profileEmoji,
+                      ),
+                    ),
+                  );
+
+                  if (result != null) {
+                    // Update profile in database
+                    final userId = Supabase.instance.client.auth.currentUser?.id;
+                    if (userId != null) {
+                      await Supabase.instance.client
+                          .from('user_profiles')
+                          .update({
+                        'profile_bg_color': result['color'],
+                        'profile_emoji': result['emoji'],
+                      })
+                          .eq('user_id', userId);
+
+                      // Refresh profile
+                      ref.invalidate(userProfileProvider);
+
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Profile picture updated!'),
+                            duration: Duration(seconds: 2),
+                          ),
+                        );
+                      }
+                    }
+                  }
+                },
+                child: const Text('Edit'),
+              ),
             ),
             ListTile(
               leading: const Icon(Icons.card_membership),

@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../app/navigation/routes.dart';
+import '../../../core/models/profile_picture.dart';
 import '../../../ui/theme/color_tokens.dart';
 import 'sign_in_screen.dart';
 
@@ -12,197 +13,228 @@ class AuthWelcomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              const SizedBox(height: 40),
-              // Logo
-              Container(
-                width: 80,
-                height: 80,
-                decoration: BoxDecoration(
-                  color: StudyColors.primary,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: const Icon(
-                  Icons.psychology,
-                  size: 50,
-                  color: Colors.white,
-                ),
-              ),
-              const SizedBox(height: 40),
-              const Text(
-                'Let\'s Get Started!',
-                style: TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
-              ),
-              const SizedBox(height: 12),
-              const Text(
-                'Let\'s dive in into your account',
-                style: TextStyle(fontSize: 16, color: Colors.black54),
-              ),
-              const SizedBox(height: 48),
-
-              // Social Login Buttons
-              _SocialButton(
-                icon: Icons.g_mobiledata,
-                label: 'Continue with Google',
-                onPressed: () {},
-              ),
-              const SizedBox(height: 16),
-              _SocialButton(
-                icon: Icons.apple,
-                label: 'Continue with Apple',
-                onPressed: () {},
-              ),
-              const SizedBox(height: 16),
-              _SocialButton(
-                icon: Icons.facebook,
-                label: 'Continue with Facebook',
-                onPressed: () {},
-                color: Color(0xFF1877F2),
-              ),
-              const SizedBox(height: 16),
-              _SocialButton(
-                icon: Icons.close,
-                label: 'Continue with X',
-                onPressed: () {},
-              ),
-              const Spacer(),
-
-              // Sign Up Button
-              SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: ElevatedButton(
-                  onPressed: () {
-                    context.go(AppRoute.questionnaire.path);
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: StudyColors.primary,
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(28),
-                    ),
-                  ),
-                  child: const Text(
-                    'Sign up',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // Sign In Button
-              SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: OutlinedButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const SignInScreen(),
-                      ),
-                    );
-                  },
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: StudyColors.primary,
-                    side: const BorderSide(color: StudyColors.primary),
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(28),
-                    ),
-                  ),
-                  child: const Text(
-                    'Sign in',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              // Footer Links
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: const [
-                  Text(
-                    'Privacy Policy',
-                    style: TextStyle(fontSize: 13, color: Colors.black54),
-                  ),
-                  SizedBox(width: 8),
-                  Text('•', style: TextStyle(color: Colors.black54)),
-                  SizedBox(width: 8),
-                  Text(
-                    'Terms of Service',
-                    style: TextStyle(fontSize: 13, color: Colors.black54),
-                  ),
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          // Background with repeating text pattern
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  StudyColors.primary,
+                  StudyColors.primary.withOpacity(0.8),
                 ],
               ),
-            ],
+            ),
+            child: CustomPaint(
+              painter: _RepeatingTextPainter(),
+            ),
           ),
-        ),
-      ),
-    );
-  }
-}
 
-class _SocialButton extends StatelessWidget {
-  const _SocialButton({
-    required this.icon,
-    required this.label,
-    required this.onPressed,
-    this.color,
-  });
+          // Bottom card
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: Container(
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(
+                  top: Radius.circular(32),
+                ),
+              ),
+              child: SafeArea(
+                top: false,
+                child: Padding(
+                  padding: const EdgeInsets.all(32),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Title
+                      const Text(
+                        'You\'re only a few steps away\nfrom Studyly',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                          height: 1.3,
+                        ),
+                      ),
+                      const SizedBox(height: 32),
 
-  final IconData icon;
-  final String label;
-  final VoidCallback onPressed;
-  final Color? color;
+                      // Log In Button
+                      SizedBox(
+                        width: double.infinity,
+                        height: 56,
+                        child: ElevatedButton(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const SignInScreen(),
+                              ),
+                            );
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: StudyColors.primary,
+                            foregroundColor: Colors.white,
+                            elevation: 0,
+                            shadowColor: Colors.transparent,
+                            overlayColor: Colors.white.withOpacity(0.1),
+                            splashFactory: NoSplash.splashFactory,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(28),
+                            ),
+                          ),
+                          child: const Text(
+                            'Log In',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
 
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      height: 56,
-      child: OutlinedButton(
-        onPressed: onPressed,
-        style: OutlinedButton.styleFrom(
-          foregroundColor: Colors.black87,
-          side: BorderSide(color: Colors.grey.shade300),
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, color: color ?? Colors.black87, size: 24),
-            Expanded(
-              child: Text(
-                label,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
+                      // Or continue with
+                      Text(
+                        'Or continue with',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+
+                      // Social login icons
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          _SocialIconButton(
+                            icon: Icons.g_mobiledata,
+                            onPressed: () {},
+                          ),
+                          const SizedBox(width: 16),
+                          _SocialIconButton(
+                            icon: Icons.facebook,
+                            onPressed: () {},
+                          ),
+                          const SizedBox(width: 16),
+                          _SocialIconButton(
+                            icon: Icons.apple,
+                            onPressed: () {},
+                          ),
+                          const SizedBox(width: 16),
+                          _SocialIconButton(
+                            icon: Icons.email_outlined,
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const SignUpScreen(),
+                                ),
+                              );
+                            },
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+                  ),
                 ),
               ),
             ),
-            const SizedBox(width: 24),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 }
+
+class _RepeatingTextPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final textStyle = TextStyle(
+      fontSize: 48,
+      fontWeight: FontWeight.bold,
+      color: Colors.white.withOpacity(0.15),
+      letterSpacing: 2,
+    );
+
+    final words = [
+      'PERSONAL',
+      'WORKOUTS',
+      'CHALLENGE',
+      'BEACON',
+      'SPEED',
+      'WELCOME',
+      'ATHLETE',
+      'SPLITS',
+      'GEAR',
+      'TRACKING',
+    ];
+
+    final textPainter = TextPainter(
+      textDirection: TextDirection.ltr,
+    );
+
+    double yOffset = -20;
+    int wordIndex = 0;
+
+    while (yOffset < size.height + 100) {
+      double xOffset = -50;
+      while (xOffset < size.width + 100) {
+        final word = words[wordIndex % words.length];
+        textPainter.text = TextSpan(text: word, style: textStyle);
+        textPainter.layout();
+
+        canvas.save();
+        canvas.translate(xOffset, yOffset);
+        canvas.rotate(-0.15); // Slight diagonal angle
+        textPainter.paint(canvas, Offset.zero);
+        canvas.restore();
+
+        xOffset += textPainter.width + 40;
+        wordIndex++;
+      }
+      yOffset += 80;
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class _SocialIconButton extends StatelessWidget {
+  const _SocialIconButton({
+    required this.icon,
+    required this.onPressed,
+  });
+
+  final IconData icon;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 56,
+      height: 56,
+      decoration: BoxDecoration(
+        color: Colors.grey.shade100,
+        shape: BoxShape.circle,
+      ),
+      child: IconButton(
+        onPressed: onPressed,
+        icon: Icon(icon, color: Colors.black87, size: 24),
+      ),
+    );
+  }
+}
+
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -236,6 +268,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
       );
 
       if (response.user != null && mounted) {
+        // Generate random profile picture
+        final profilePic = ProfilePicture.random();
+
         // Create user profile
         await Supabase.instance.client.from('user_profiles').insert({
           'user_id': response.user!.id,
@@ -245,6 +280,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
               'https://api.dicebear.com/7.x/avataaars/svg?seed=${response.user!.id}',
           'active_plan': 'Free',
           'focus_areas': [0, 1, 2], // Default focus areas
+          'profile_bg_color': profilePic.backgroundColorHex,
+          'profile_emoji': profilePic.emoji,
         });
 
         // Navigate to questionnaire
@@ -479,17 +516,25 @@ class _SignUpScreenState extends State<SignUpScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  _SocialIconButton(Icons.g_mobiledata, () {}),
-                  const SizedBox(width: 16),
-                  _SocialIconButton(Icons.apple, () {}),
-                  const SizedBox(width: 16),
                   _SocialIconButton(
-                    Icons.facebook,
-                    () {},
-                    color: const Color(0xFF1877F2),
+                    icon: Icons.g_mobiledata,
+                    onPressed: () {},
                   ),
                   const SizedBox(width: 16),
-                  _SocialIconButton(Icons.close, () {}),
+                  _SocialIconButton(
+                    icon: Icons.apple,
+                    onPressed: () {},
+                  ),
+                  const SizedBox(width: 16),
+                  _SocialIconButton(
+                    icon: Icons.facebook,
+                    onPressed: () {},
+                  ),
+                  const SizedBox(width: 16),
+                  _SocialIconButton(
+                    icon: Icons.close,
+                    onPressed: () {},
+                  ),
                 ],
               ),
               const SizedBox(height: 32),
@@ -505,6 +550,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     foregroundColor: Colors.white,
                     disabledBackgroundColor: Colors.grey.shade300,
                     elevation: 0,
+                    shadowColor: Colors.transparent,
+                    overlayColor: Colors.white.withOpacity(0.1),
+                    splashFactory: NoSplash.splashFactory,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(28),
                     ),
@@ -530,27 +578,3 @@ class _SignUpScreenState extends State<SignUpScreen> {
   }
 }
 
-class _SocialIconButton extends StatelessWidget {
-  const _SocialIconButton(this.icon, this.onPressed, {this.color});
-
-  final IconData icon;
-  final VoidCallback onPressed;
-  final Color? color;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onPressed,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        width: 56,
-        height: 56,
-        decoration: BoxDecoration(
-          border: Border.all(color: Colors.grey.shade300),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Icon(icon, color: color ?? Colors.black87, size: 28),
-      ),
-    );
-  }
-}

@@ -96,6 +96,11 @@ class ScanService {
     return await tempFile.copy(permanentPath);
   }
 
+  /// Save captured image from custom camera
+  Future<File> saveCapturedImage(File imageFile) async {
+    return await _saveToPermanentStorage(imageFile);
+  }
+
   /// Upload image to Supabase Storage
   Future<String> uploadToSupabase({
     required File imageFile,

@@ -109,6 +109,17 @@ class ScanController extends StateNotifier<ScanState> {
     return item;
   }
 
+  /// Create scanned item from an already saved file (for custom camera)
+  Future<ScannedItem?> createFromFile(File imageFile) async {
+    try {
+      state = state.copyWith(isLoading: true, error: null);
+      return await _createScannedItem(imageFile);
+    } catch (e) {
+      state = state.copyWith(isLoading: false, error: e.toString());
+      return null;
+    }
+  }
+
   /// Upload image to Supabase Storage (background operation)
   Future<void> _uploadImageInBackground(ScannedItem item) async {
     try {

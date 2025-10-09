@@ -1,5 +1,6 @@
 import 'package:equatable/equatable.dart';
 
+import 'profile_picture.dart';
 import 'study_content_type.dart';
 
 class UserProfile extends Equatable {
@@ -10,6 +11,8 @@ class UserProfile extends Equatable {
     required this.avatarUrl,
     required this.activePlan,
     required this.focusAreas,
+    required this.profileBgColor,
+    required this.profileEmoji,
   });
 
   final String id;
@@ -18,6 +21,13 @@ class UserProfile extends Equatable {
   final String avatarUrl;
   final String activePlan;
   final List<StudyMaterialTag> focusAreas;
+  final String profileBgColor; // Hex color string
+  final String profileEmoji;
+
+  /// Get profile picture from background color and emoji
+  ProfilePicture get profilePicture {
+    return ProfilePicture.fromData(profileBgColor, profileEmoji);
+  }
 
   UserProfile copyWith({
     String? id,
@@ -26,6 +36,8 @@ class UserProfile extends Equatable {
     String? avatarUrl,
     String? activePlan,
     List<StudyMaterialTag>? focusAreas,
+    String? profileBgColor,
+    String? profileEmoji,
   }) {
     return UserProfile(
       id: id ?? this.id,
@@ -34,6 +46,8 @@ class UserProfile extends Equatable {
       avatarUrl: avatarUrl ?? this.avatarUrl,
       activePlan: activePlan ?? this.activePlan,
       focusAreas: focusAreas ?? this.focusAreas,
+      profileBgColor: profileBgColor ?? this.profileBgColor,
+      profileEmoji: profileEmoji ?? this.profileEmoji,
     );
   }
 
@@ -45,5 +59,7 @@ class UserProfile extends Equatable {
     avatarUrl,
     activePlan,
     focusAreas,
+    profileBgColor,
+    profileEmoji,
   ];
 }

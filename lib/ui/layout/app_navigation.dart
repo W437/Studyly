@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../app/navigation/routes.dart';
-import '../../features/scan/presentation/scan_capture_screen.dart';
+import '../../features/scan/presentation/custom_camera_screen.dart';
 import '../theme/color_tokens.dart';
 
 class AppNavigationItem {
@@ -140,9 +140,10 @@ class _NavigationBottomBar extends StatelessWidget {
                       ),
                       child: IconButton(
                         onPressed: () {
-                          showModalBottomSheet(
-                            context: context,
-                            builder: (context) => const ScanCaptureScreen(),
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (context) => const CustomCameraScreen(),
+                            ),
                           );
                         },
                         icon: const Icon(

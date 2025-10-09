@@ -260,6 +260,9 @@ class _SignInScreenState extends State<SignInScreen> {
                       foregroundColor: Colors.white,
                       disabledBackgroundColor: Colors.grey.shade300,
                       elevation: 0,
+                      shadowColor: Colors.transparent,
+                      overlayColor: Colors.white.withOpacity(0.1),
+                      splashFactory: NoSplash.splashFactory,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(28),
                       ),

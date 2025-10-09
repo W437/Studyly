@@ -35,6 +35,8 @@ class SupabaseStudyRemoteDataSource implements StudyRemoteDataSource {
       focusAreas: (response['focus_areas'] as List<dynamic>)
           .map((e) => StudyMaterialTag.values[e as int])
           .toList(),
+      profileBgColor: response['profile_bg_color'] as String? ?? '#6366F1',
+      profileEmoji: response['profile_emoji'] as String? ?? '😊',
     );
   }
 

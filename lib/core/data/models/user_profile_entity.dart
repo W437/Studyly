@@ -12,6 +12,8 @@ class UserProfileEntity {
   late String avatarUrl;
   late String activePlan;
   late List<int> focusAreaIndexes;
+  late String profileBgColor;
+  late String profileEmoji;
 
   UserProfileEntity();
 
@@ -22,5 +24,7 @@ class UserProfileEntity {
     required this.avatarUrl,
     required this.activePlan,
     required this.focusAreaIndexes,
+    required this.profileBgColor,
+    required this.profileEmoji,
   });
 }
