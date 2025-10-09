@@ -61,15 +61,14 @@ class _QuestionnaireFlowScreenState extends State<QuestionnaireFlowScreen> {
   }
 
   void _finish() {
-    showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => PreparingScreen(
-        onCompleted: () {
-          if (!mounted) return;
-          Navigator.of(context).pop();
-          context.go(AppRoute.home.path);
-        },
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (context) => PreparingScreen(
+          onCompleted: () {
+            if (!mounted) return;
+            context.go(AppRoute.home.path);
+          },
+        ),
       ),
     );
   }
@@ -950,12 +949,13 @@ class PreparingScreen extends StatefulWidget {
 
 class _PreparingScreenState extends State<PreparingScreen> {
   static const Duration _tickInterval = Duration(milliseconds: 60);
-  static const Duration _targetDuration = Duration(seconds: 5);
+  static const Duration _targetDuration = Duration(seconds: 6);
 
   final Random _random = Random();
   Timer? _timer;
   Duration _elapsed = Duration.zero;
   int _percent = 1;
+  int _lastHapticPercent = 0;
 
   @override
   void initState() {
@@ -980,11 +980,16 @@ class _PreparingScreenState extends State<PreparingScreen> {
         _percent = min(100, _percent + step);
       }
 
-      HapticFeedback.selectionClick();
+      // Haptic feedback every 10%
+      if (_percent ~/ 10 > _lastHapticPercent ~/ 10) {
+        HapticFeedback.lightImpact();
+        _lastHapticPercent = _percent;
+      }
     });
 
     if (_percent >= 100) {
       _timer?.cancel();
+      HapticFeedback.mediumImpact();
       Future.microtask(widget.onCompleted);
     }
   }
@@ -997,114 +1002,79 @@ class _PreparingScreenState extends State<PreparingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Dialog(
-      backgroundColor: Colors.transparent,
-      elevation: 0,
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 24),
-        padding: const EdgeInsets.all(40),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(24),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.15),
-              blurRadius: 30,
-              offset: const Offset(0, 10),
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Icon or animation placeholder
-            Container(
-              width: 64,
-              height: 64,
-              decoration: BoxDecoration(
-                color: StudyColors.primary.withOpacity(0.1),
-                shape: BoxShape.circle,
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            children: [
+              const Spacer(flex: 2),
+              const Text(
+                'Preparing a personalized\npage for you...',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                  height: 1.3,
+                ),
               ),
-              child: const Icon(
-                Icons.psychology,
-                size: 36,
-                color: StudyColors.primary,
+              const SizedBox(height: 16),
+              Text(
+                'Please wait...',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.grey.shade500,
+                ),
               ),
-            ),
-            const SizedBox(height: 24),
-            const Text(
-              'Preparing a personalized\npage for you...',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
-                height: 1.3,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Please wait...',
-              style: TextStyle(
-                fontSize: 15,
-                color: Colors.grey.shade600,
-              ),
-            ),
-            const SizedBox(height: 40),
-            SizedBox(
-              width: 140,
-              height: 140,
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  SizedBox(
-                    width: 140,
-                    height: 140,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 10,
-                      strokeCap: StrokeCap.round,
-                      value: _percent / 100,
-                      backgroundColor: StudyColors.primary.withOpacity(0.1),
-                      valueColor: const AlwaysStoppedAnimation(
-                        StudyColors.primary,
+              const Spacer(flex: 2),
+              SizedBox(
+                width: 200,
+                height: 200,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    SizedBox(
+                      width: 200,
+                      height: 200,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 12,
+                        strokeCap: StrokeCap.round,
+                        value: _percent / 100,
+                        backgroundColor: Colors.grey.shade200,
+                        valueColor: const AlwaysStoppedAnimation(
+                          StudyColors.primary,
+                        ),
                       ),
                     ),
-                  ),
-                  Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        '$_percent%',
-                        style: const TextStyle(
-                          fontSize: 36,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black87,
-                        ),
+                    Text(
+                      '$_percent%',
+                      style: const TextStyle(
+                        fontSize: 48,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
                       ),
-                      Text(
-                        'complete',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey.shade600,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
+                    ),
+                  ],
+                ),
+              ),
+              const Spacer(flex: 3),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text(
+                  'This might take a few moments. Get ready for an amazing study experience!',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 15,
+                    color: Colors.grey.shade600,
+                    height: 1.5,
                   ),
-                ],
+                ),
               ),
-            ),
-            const SizedBox(height: 40),
-            Text(
-              'This might take a few moments.\nGet ready for an amazing study experience!',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey.shade600,
-                height: 1.5,
-              ),
-            ),
-          ],
+              const Spacer(flex: 1),
+            ],
+          ),
         ),
       ),
     );
