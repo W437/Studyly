@@ -1,0 +1,125 @@
+{
+  "events": [
+    {
+      "event": "start",
+      "delayMs": 650,
+      "data": {
+        "model": "mock"
+      }
+    },
+    {
+      "event": "delta",
+      "delayMs": 55,
+      "data": {
+        "text": "Let's work it "
+      }
+    },
+    {
+      "event": "delta",
+      "delayMs": 55,
+      "data": {
+        "text": "out from your "
+      }
+    },
+    {
+      "event": "delta",
+      "delayMs": 55,
+      "data": {
+        "text": "page. p. 87 "
+      }
+    },
+    {
+      "event": "delta",
+      "delayMs": 55,
+      "data": {
+        "text": "says mitosis copies "
+      }
+    },
+    {
+      "event": "delta",
+      "delayMs": 55,
+      "data": {
+        "text": "the DNA and "
+      }
+    },
+    {
+      "event": "delta",
+      "delayMs": 55,
+      "data": {
+        "text": "separates it into "
+      }
+    },
+    {
+      "event": "delta",
+      "delayMs": 55,
+      "data": {
+        "text": "two new nuclei. "
+      }
+    },
+    {
+      "event": "delta",
+      "delayMs": 55,
+      "data": {
+        "text": "Then something else "
+      }
+    },
+    {
+      "event": "delta",
+      "delayMs": 55,
+      "data": {
+        "text": "happens to the "
+      }
+    },
+    {
+      "event": "delta",
+      "delayMs": 55,
+      "data": {
+        "text": "rest of the "
+      }
+    },
+    {
+      "event": "delta",
+      "delayMs": 55,
+      "data": {
+        "text": "cell. What does "
+      }
+    },
+    {
+      "event": "delta",
+      "delayMs": 55,
+      "data": {
+        "text": "the page say "
+      }
+    },
+    {
+      "event": "citation",
+      "delayMs": 30,
+      "data": {
+        "sourceId": "s1",
+        "label": "Textbook p. 87",
+        "quote": "During mitosis, the genetic material (DNA) is copied and equally separated into two new nuclei."
+      }
+    },
+    {
+      "event": "delta",
+      "delayMs": 55,
+      "data": {
+        "text": "is divided in "
+      }
+    },
+    {
+      "event": "delta",
+      "delayMs": 55,
+      "data": {
+        "text": "cytokinesis?"
+      }
+    },
+    {
+      "event": "done",
+      "delayMs": 40,
+      "data": {
+        "model": "mock"
+      }
+    }
+  ]
+}

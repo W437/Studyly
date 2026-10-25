@@ -1,0 +1,17 @@
+{
+  "model": "mock",
+  "lines": [
+    {
+      "id": "p0.c0",
+      "text": "Mitosis notes"
+    },
+    {
+      "id": "p0.c1",
+      "text": "PMAT: prophase, metaphase, anaphase, telophase"
+    },
+    {
+      "id": "p0.c2",
+      "text": "2n → 2n (chromosome number stays the same)"
+    }
+  ]
+}

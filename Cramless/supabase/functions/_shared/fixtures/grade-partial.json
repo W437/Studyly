@@ -1,0 +1,21 @@
+{
+  "model": "mock",
+  "score": 0.67,
+  "verdict": "partial",
+  "confidence": 0.86,
+  "hits": [
+    {
+      "ideaId": "k1",
+      "quote": "grow and repair tissue"
+    },
+    {
+      "ideaId": "k2",
+      "quote": "two identical cells"
+    }
+  ],
+  "missing": [
+    "k3"
+  ],
+  "feedback": "You named growth and repair, and that the new cells are identical.",
+  "fix": "Add the chromosome number: each new cell keeps the same number of chromosomes as the parent cell."
+}

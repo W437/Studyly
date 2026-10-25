@@ -1,0 +1,33 @@
+{
+  "kind": "recall",
+  "level": "college",
+  "prompt": "In your own words: why do cells divide by mitosis?",
+  "modelAnswer": "To grow, to replace old or damaged cells and help healing, and in single-celled organisms to reproduce, making two genetically identical cells.",
+  "keyIdeas": [
+    {
+      "id": "k1",
+      "label": "Growth and repair",
+      "terms": [
+        "grow",
+        "growth",
+        "repair"
+      ]
+    },
+    {
+      "id": "k2",
+      "label": "Genetically identical cells",
+      "terms": [
+        "identical"
+      ]
+    },
+    {
+      "id": "k3",
+      "label": "Same number of chromosomes",
+      "terms": [
+        "same number of chromosomes"
+      ]
+    }
+  ],
+  "response": "So the body can grow and repair tissue, making two identical cells.",
+  "sourceExcerpt": "Mitosis is essential for growth and development, allowing multicellular organisms to increase their number of cells."
+}

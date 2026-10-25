@@ -1,0 +1,38 @@
+{
+  "model": "mock",
+  "items": [
+    {
+      "id": "m1",
+      "kind": "flashcard",
+      "topic": "Cytokinesis",
+      "prompt": "Mitosis vs cytokinesis",
+      "answer": "Mitosis splits the nucleus (the DNA goes into two new nuclei); cytokinesis splits the cytoplasm into two cells.",
+      "explanation": "",
+      "keyIdeas": [],
+      "choices": [],
+      "anchors": [],
+      "difficulty": 0.35
+    },
+    {
+      "id": "m2",
+      "kind": "mcq",
+      "topic": "Cytokinesis",
+      "prompt": "Which happens first?",
+      "answer": "Mitosis",
+      "explanation": "Cytokinesis takes place after mitosis.",
+      "keyIdeas": [],
+      "choices": [
+        {
+          "text": "Mitosis",
+          "correct": true
+        },
+        {
+          "text": "Cytokinesis",
+          "correct": false
+        }
+      ],
+      "anchors": [],
+      "difficulty": 0.25
+    }
+  ]
+}

@@ -1,0 +1,139 @@
+{
+  "model": "mock",
+  "title": "Lecture 6: Cell division",
+  "summary": "The four phases of mitosis in order, with the midterm hint that anaphase is where sister chromatids are pulled apart.",
+  "sections": [
+    {
+      "id": "n1",
+      "title": "Prophase",
+      "start": 192,
+      "end": 458,
+      "bullets": [
+        "Chromatin condenses into visible chromosomes.",
+        "The nuclear envelope breaks down; the spindle forms from the centrosomes."
+      ]
+    },
+    {
+      "id": "n2",
+      "title": "Metaphase",
+      "start": 460,
+      "end": 723,
+      "bullets": [
+        "Chromosomes line up along the middle: the metaphase plate."
+      ]
+    },
+    {
+      "id": "n3",
+      "title": "Anaphase (on the midterm)",
+      "start": 725,
+      "end": 918,
+      "bullets": [
+        "Sister chromatids are pulled apart to opposite poles."
+      ]
+    },
+    {
+      "id": "n4",
+      "title": "Telophase",
+      "start": 920,
+      "end": 1040,
+      "bullets": [
+        "Prophase in reverse: nuclear envelopes re-form around each set of chromosomes."
+      ]
+    }
+  ],
+  "keyTerms": [
+    "chromatin",
+    "spindle",
+    "centrosome",
+    "metaphase plate",
+    "sister chromatids"
+  ],
+  "examFlags": [
+    {
+      "time": 725,
+      "text": "This one will be on the midterm, by the way: anaphase is where the sister chromatids get pulled apart.",
+      "why": "The lecturer said it will be on the midterm."
+    }
+  ],
+  "items": [
+    {
+      "id": "l1",
+      "kind": "recall",
+      "topic": "Phases of mitosis",
+      "prompt": "Your lecturer said this will be on the midterm: what happens in anaphase?",
+      "answer": "The sister chromatids are pulled apart to opposite poles.",
+      "explanation": "Flagged at 12:05 in Lecture 6.",
+      "choices": [],
+      "keyIdeas": [
+        {
+          "id": "k1",
+          "label": "Sister chromatids pulled apart",
+          "terms": [
+            "pulled apart",
+            "separate",
+            "pulled",
+            "split"
+          ]
+        },
+        {
+          "id": "k2",
+          "label": "To opposite poles",
+          "terms": [
+            "opposite poles",
+            "opposite ends",
+            "poles"
+          ]
+        }
+      ],
+      "anchors": [
+        "s5"
+      ],
+      "difficulty": 0.5
+    },
+    {
+      "id": "l2",
+      "kind": "mcq",
+      "topic": "Phases of mitosis",
+      "prompt": "Where does the spindle form from?",
+      "answer": "The centrosomes",
+      "explanation": "Said at 05:40.",
+      "keyIdeas": [],
+      "choices": [
+        {
+          "text": "The centrosomes",
+          "correct": true
+        },
+        {
+          "text": "The nuclear envelope",
+          "correct": false
+        },
+        {
+          "text": "The cytoplasm",
+          "correct": false
+        },
+        {
+          "text": "The chromatin",
+          "correct": false
+        }
+      ],
+      "anchors": [
+        "s3"
+      ],
+      "difficulty": 0.45
+    },
+    {
+      "id": "l3",
+      "kind": "flashcard",
+      "topic": "Phases of mitosis",
+      "prompt": "Metaphase plate",
+      "answer": "The line along the middle of the cell where the chromosomes line up in metaphase.",
+      "explanation": "",
+      "keyIdeas": [],
+      "choices": [],
+      "anchors": [
+        "s4"
+      ],
+      "difficulty": 0.3
+    }
+  ]
+}

@@ -1,0 +1,302 @@
+// The relay contract in TypeScript: the Swift types in Cramless/AI/RelayContract.swift, field for field. The
+// JSON schemas in schemas/contract.json say the same; tests/schemas.test.ts keeps both honest against the
+// fixtures. camelCase keys, ISO 8601 dates without fractions.
+
+export type ItemKind = "recall" | "apply" | "mcq" | "cloze" | "diagram" | "flashcard";
+export const ITEM_KINDS: readonly ItemKind[] = ["recall", "apply", "mcq", "cloze", "diagram", "flashcard"];
+
+export type Plan = "free" | "pro" | "squad" | "pass";
+
+export interface LineInput {
+  id: string;
+  text: string;
+}
+
+export interface PageInput {
+  page: number;
+  label: string;
+  lines: LineInput[];
+  /** Base64 JPEG, only when the person turned on "Send page photos". */
+  image?: string;
+}
+
+export interface KeyIdea {
+  id: string;
+  label: string;
+  terms: string[];
+}
+
+export interface Choice {
+  text: string;
+  correct: boolean;
+  why?: string;
+}
+
+export interface ClozeSpec {
+  text: string;
+  alternates: string[][];
+}
+
+export interface GeneratedItem {
+  id: string;
+  kind: ItemKind;
+  topic: string;
+  prompt: string;
+  answer: string;
+  explanation: string;
+  keyIdeas: KeyIdea[];
+  choices: Choice[];
+  cloze?: ClozeSpec;
+  diagramLabels?: string[];
+  anchors: string[];
+  difficulty: number;
+}
+
+export interface GeneratedTopic {
+  name: string;
+  summary: string;
+}
+
+export interface GenerateRequest {
+  course: string;
+  sourceTitle: string;
+  level?: string;
+  language: string;
+  formats: ItemKind[];
+  maxItems: number;
+  pages: PageInput[];
+}
+
+export interface GenerateResponse {
+  title: string;
+  model: string;
+  topics: GeneratedTopic[];
+  items: GeneratedItem[];
+}
+
+export interface CheckRequest {
+  pages: PageInput[];
+  items: GeneratedItem[];
+}
+
+export interface CheckVerdict {
+  id: string;
+  verdict: "supported" | "fixed" | "unsupported";
+  reason: string;
+  fixedAnswer?: string;
+  fixedChoices?: Choice[];
+}
+
+export interface CheckResponse {
+  model: string;
+  verdicts: CheckVerdict[];
+}
+
+export interface GradeRequest {
+  kind: ItemKind;
+  level?: string;
+  prompt: string;
+  modelAnswer: string;
+  keyIdeas: KeyIdea[];
+  response: string;
+  sourceExcerpt?: string;
+}
+
+export interface GradeHit {
+  ideaId: string;
+  quote: string;
+}
+
+export interface GradeResponse {
+  model: string;
+  score: number;
+  verdict: "correct" | "partial" | "incorrect";
+  confidence: number;
+  hits: GradeHit[];
+  missing: string[];
+  feedback: string;
+  fix: string;
+}
+
+export interface TutorMessage {
+  role: "user" | "assistant";
+  text: string;
+}
+
+export interface TutorSource {
+  id: string;
+  title: string;
+  label: string;
+  text: string;
+}
+
+export interface TutorContext {
+  itemPrompt: string;
+  expected: string;
+  given: string;
+}
+
+export interface TutorRequest {
+  mode: "hints" | "explain";
+  minor: boolean;
+  course?: string;
+  messages: TutorMessage[];
+  sources: TutorSource[];
+  context?: TutorContext;
+}
+
+export interface TutorScriptEvent {
+  event: "start" | "delta" | "citation" | "done" | "error";
+  delayMs: number;
+  data: Record<string, string>;
+}
+
+export interface TutorScript {
+  events: TutorScriptEvent[];
+}
+
+export interface MistakeInput {
+  itemId: string;
+  topic: string;
+  prompt: string;
+  expected: string;
+  given: string;
+  misses: number;
+}
+
+export interface ConfusionsRequest {
+  course: string;
+  mistakes: MistakeInput[];
+}
+
+export interface ConfusionOut {
+  name: string;
+  explanation: string;
+  itemIds: string[];
+  lesson: string;
+  questions: GeneratedItem[];
+}
+
+export interface ConfusionsResponse {
+  model: string;
+  confusions: ConfusionOut[];
+}
+
+export interface SegmentInput {
+  id: string;
+  start: number;
+  end: number;
+  text: string;
+}
+
+export interface FlagInput {
+  time: number;
+  text: string;
+}
+
+export interface LectureRequest {
+  course: string;
+  title: string;
+  segments: SegmentInput[];
+  flags: FlagInput[];
+  maxItems: number;
+}
+
+export interface LectureSection {
+  id: string;
+  title: string;
+  start: number;
+  end: number;
+  bullets: string[];
+}
+
+export interface LectureExamFlag {
+  time: number;
+  text: string;
+  why: string;
+}
+
+export interface LectureResponse {
+  model: string;
+  title: string;
+  summary: string;
+  sections: LectureSection[];
+  keyTerms: string[];
+  examFlags: LectureExamFlag[];
+  items: GeneratedItem[];
+}
+
+export interface CardsFromChatRequest {
+  course?: string;
+  messages: TutorMessage[];
+  maxItems: number;
+}
+
+export interface CardsFromChatResponse {
+  model: string;
+  items: GeneratedItem[];
+}
+
+export interface TranscribeImageRequest {
+  image: string;
+  page: number;
+  label: string;
+}
+
+export interface TranscribeImageResponse {
+  model: string;
+  lines: LineInput[];
+}
+
+export type MeterKey = "scans" | "grades" | "tutor" | "lectures";
+export type Period = "day" | "week";
+
+export interface QuotaMeter {
+  key: MeterKey;
+  used: number;
+  /** Null means unlimited. */
+  limit: number | null;
+  period: Period;
+}
+
+export interface QuotaStatus {
+  plan: Plan;
+  meters: QuotaMeter[];
+}
+
+export interface EntitlementRequest {
+  signedTransactions: string[];
+}
+
+export interface EntitlementResponse {
+  plan: Plan;
+  expiresAt: string | null;
+  quota: QuotaStatus;
+}
+
+export interface SquadInvite {
+  code: string;
+  url: string;
+  expiresAt: string;
+}
+
+export interface SquadRedeemResponse {
+  plan: Plan;
+  ownerName: string;
+}
+
+export interface SquadMember {
+  id: string;
+  name: string;
+  joinedAt: string;
+  isOwner: boolean;
+}
+
+export interface SquadMembers {
+  seats: number;
+  members: SquadMember[];
+}
+
+export interface AccountDeleteResponse {
+  deleted: boolean;
+}

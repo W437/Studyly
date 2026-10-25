@@ -1,0 +1,22 @@
+{
+  "model": "mock",
+  "verdicts": [
+    { "id": "i1", "verdict": "supported", "reason": "Growth, repair, healing and asexual reproduction are on p. 87." },
+    { "id": "i2", "verdict": "fixed", "reason": "The page also says the daughter cells keep the same number of chromosomes; added to the answer.",
+      "fixedAnswer": "Both new cells have the same DNA, and the same number of chromosomes, as the parent cell." },
+    { "id": "i3", "verdict": "supported", "reason": "Prophase: chromosomes condense and the nuclear envelope breaks down." },
+    { "id": "i4", "verdict": "supported", "reason": "Anaphase: chromatids pulled to opposite poles; each becomes a separate chromosome." },
+    { "id": "i5", "verdict": "supported", "reason": "Cytokinesis is the division of the cytoplasm; mitosis separates the DNA into two nuclei." },
+    { "id": "i6", "verdict": "supported", "reason": "Spindle fibres attach to the centromeres in metaphase; chromatids are pulled apart in anaphase." },
+    { "id": "i7", "verdict": "supported", "reason": "Metaphase: chromosomes line up at the equator." },
+    { "id": "i8", "verdict": "unsupported", "reason": "p. 87 never mentions sex cells, so the right answer can't be checked against your page." },
+    { "id": "i9", "verdict": "supported", "reason": "Spindle fibres attach to the centromeres." },
+    { "id": "i10", "verdict": "supported", "reason": "Telophase is the last phase listed; cytokinesis takes place after mitosis." },
+    { "id": "i11", "verdict": "supported", "reason": "Telophase: new nuclear envelopes form around each set of chromosomes." },
+    { "id": "i12", "verdict": "supported", "reason": "Two identical daughter cells." },
+    { "id": "i13", "verdict": "supported", "reason": "Key term on p. 87." },
+    { "id": "i14", "verdict": "supported", "reason": "The four phase labels sit above the diagram." },
+    { "id": "i15", "verdict": "supported", "reason": "Key term and the paragraph after mitosis." },
+    { "id": "i16", "verdict": "supported", "reason": "Prophase bullets." }
+  ]
+}

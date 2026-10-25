@@ -1,0 +1,348 @@
+{
+  "$comment": "The relay contract's reply types, field for field the Swift types in Cramless/AI/RelayContract.swift (and KeyIdea, Choice, ClozeSpec, LectureNotes.Section from Model/ModelTypes.swift). Swift optionals are the properties left out of `required`. Every fixture validates against its type here (tests/schemas.test.ts), and the structured-output schemas sent to the model are derived from these (_shared/schemas.ts), so this file stays inside the structured-outputs subset: no numeric or length constraints, no type arrays, additionalProperties false on every object. Request schemas, with size limits, are in requests/.",
+  "$defs": {
+    "ItemKind": {
+      "type": "string",
+      "enum": ["recall", "apply", "mcq", "cloze", "diagram", "flashcard"]
+    },
+    "Plan": {
+      "type": "string",
+      "enum": ["free", "pro", "squad", "pass"]
+    },
+    "KeyIdea": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "label": { "type": "string" },
+        "terms": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["id", "label", "terms"],
+      "additionalProperties": false
+    },
+    "Choice": {
+      "type": "object",
+      "properties": {
+        "text": { "type": "string" },
+        "correct": { "type": "boolean" },
+        "why": { "type": "string" }
+      },
+      "required": ["text", "correct"],
+      "additionalProperties": false
+    },
+    "ClozeSpec": {
+      "type": "object",
+      "properties": {
+        "text": { "type": "string", "description": "The sentence with {{…}} around each blank's answer." },
+        "alternates": {
+          "type": "array",
+          "description": "Extra accepted spellings for each blank, in blank order.",
+          "items": { "type": "array", "items": { "type": "string" } }
+        }
+      },
+      "required": ["text", "alternates"],
+      "additionalProperties": false
+    },
+    "GeneratedItem": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "kind": { "$ref": "#/$defs/ItemKind" },
+        "topic": { "type": "string" },
+        "prompt": { "type": "string" },
+        "answer": { "type": "string" },
+        "explanation": { "type": "string" },
+        "keyIdeas": { "type": "array", "items": { "$ref": "#/$defs/KeyIdea" } },
+        "choices": { "type": "array", "items": { "$ref": "#/$defs/Choice" } },
+        "cloze": { "$ref": "#/$defs/ClozeSpec" },
+        "diagramLabels": {
+          "type": "array",
+          "description": "For a diagram: the anchor ids of the label lines to hide.",
+          "items": { "type": "string" }
+        },
+        "anchors": {
+          "type": "array",
+          "description": "Line ids (p0.l12) or transcript segment ids (s5) the item came from.",
+          "items": { "type": "string" }
+        },
+        "difficulty": { "type": "number", "description": "0 (easy) to 1 (hard)." }
+      },
+      "required": ["id", "kind", "topic", "prompt", "answer", "explanation", "keyIdeas", "choices", "anchors", "difficulty"],
+      "additionalProperties": false
+    },
+    "GeneratedTopic": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "summary": { "type": "string" }
+      },
+      "required": ["name", "summary"],
+      "additionalProperties": false
+    },
+    "LineInput": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "text": { "type": "string" }
+      },
+      "required": ["id", "text"],
+      "additionalProperties": false
+    },
+    "GenerateResponse": {
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "model": { "type": "string" },
+        "topics": { "type": "array", "items": { "$ref": "#/$defs/GeneratedTopic" } },
+        "items": { "type": "array", "items": { "$ref": "#/$defs/GeneratedItem" } }
+      },
+      "required": ["title", "model", "topics", "items"],
+      "additionalProperties": false
+    },
+    "CheckVerdict": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "verdict": { "type": "string", "enum": ["supported", "fixed", "unsupported"] },
+        "reason": { "type": "string" },
+        "fixedAnswer": { "type": "string" },
+        "fixedChoices": { "type": "array", "items": { "$ref": "#/$defs/Choice" } }
+      },
+      "required": ["id", "verdict", "reason"],
+      "additionalProperties": false
+    },
+    "CheckResponse": {
+      "type": "object",
+      "properties": {
+        "model": { "type": "string" },
+        "verdicts": { "type": "array", "items": { "$ref": "#/$defs/CheckVerdict" } }
+      },
+      "required": ["model", "verdicts"],
+      "additionalProperties": false
+    },
+    "GradeHit": {
+      "type": "object",
+      "properties": {
+        "ideaId": { "type": "string" },
+        "quote": { "type": "string", "description": "Words from the person's answer, verbatim." }
+      },
+      "required": ["ideaId", "quote"],
+      "additionalProperties": false
+    },
+    "GradeResponse": {
+      "type": "object",
+      "properties": {
+        "model": { "type": "string" },
+        "score": { "type": "number", "description": "0 to 1." },
+        "verdict": { "type": "string", "enum": ["correct", "partial", "incorrect"] },
+        "confidence": { "type": "number", "description": "0 to 1." },
+        "hits": { "type": "array", "items": { "$ref": "#/$defs/GradeHit" } },
+        "missing": { "type": "array", "description": "Key idea ids the answer missed.", "items": { "type": "string" } },
+        "feedback": { "type": "string" },
+        "fix": { "type": "string", "description": "One sentence that would complete the answer; empty when nothing is missing." }
+      },
+      "required": ["model", "score", "verdict", "confidence", "hits", "missing", "feedback", "fix"],
+      "additionalProperties": false
+    },
+    "TutorScriptEvent": {
+      "type": "object",
+      "properties": {
+        "event": { "type": "string", "enum": ["start", "delta", "citation", "done", "error"] },
+        "delayMs": { "type": "integer" },
+        "data": {
+          "type": "object",
+          "properties": {
+            "text": { "type": "string" },
+            "model": { "type": "string" },
+            "sourceId": { "type": "string" },
+            "label": { "type": "string" },
+            "quote": { "type": "string" },
+            "code": { "type": "string" },
+            "message": { "type": "string" }
+          },
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      "required": ["event", "delayMs", "data"],
+      "additionalProperties": false
+    },
+    "TutorScript": {
+      "type": "object",
+      "properties": {
+        "events": { "type": "array", "items": { "$ref": "#/$defs/TutorScriptEvent" } }
+      },
+      "required": ["events"],
+      "additionalProperties": false
+    },
+    "ConfusionOut": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "explanation": { "type": "string" },
+        "itemIds": { "type": "array", "items": { "type": "string" } },
+        "lesson": { "type": "string" },
+        "questions": { "type": "array", "items": { "$ref": "#/$defs/GeneratedItem" } }
+      },
+      "required": ["name", "explanation", "itemIds", "lesson", "questions"],
+      "additionalProperties": false
+    },
+    "ConfusionsResponse": {
+      "type": "object",
+      "properties": {
+        "model": { "type": "string" },
+        "confusions": { "type": "array", "items": { "$ref": "#/$defs/ConfusionOut" } }
+      },
+      "required": ["model", "confusions"],
+      "additionalProperties": false
+    },
+    "LectureSection": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "start": { "type": "number" },
+        "end": { "type": "number" },
+        "bullets": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["id", "title", "start", "end", "bullets"],
+      "additionalProperties": false
+    },
+    "LectureExamFlag": {
+      "type": "object",
+      "properties": {
+        "time": { "type": "number" },
+        "text": { "type": "string" },
+        "why": { "type": "string" }
+      },
+      "required": ["time", "text", "why"],
+      "additionalProperties": false
+    },
+    "LectureResponse": {
+      "type": "object",
+      "properties": {
+        "model": { "type": "string" },
+        "title": { "type": "string" },
+        "summary": { "type": "string" },
+        "sections": { "type": "array", "items": { "$ref": "#/$defs/LectureSection" } },
+        "keyTerms": { "type": "array", "items": { "type": "string" } },
+        "examFlags": { "type": "array", "items": { "$ref": "#/$defs/LectureExamFlag" } },
+        "items": { "type": "array", "items": { "$ref": "#/$defs/GeneratedItem" } }
+      },
+      "required": ["model", "title", "summary", "sections", "keyTerms", "examFlags", "items"],
+      "additionalProperties": false
+    },
+    "CardsFromChatResponse": {
+      "type": "object",
+      "properties": {
+        "model": { "type": "string" },
+        "items": { "type": "array", "items": { "$ref": "#/$defs/GeneratedItem" } }
+      },
+      "required": ["model", "items"],
+      "additionalProperties": false
+    },
+    "TranscribeImageResponse": {
+      "type": "object",
+      "properties": {
+        "model": { "type": "string" },
+        "lines": { "type": "array", "items": { "$ref": "#/$defs/LineInput" } }
+      },
+      "required": ["model", "lines"],
+      "additionalProperties": false
+    },
+    "QuotaMeter": {
+      "type": "object",
+      "properties": {
+        "key": { "type": "string", "enum": ["scans", "grades", "tutor", "lectures"] },
+        "used": { "type": "integer" },
+        "limit": { "anyOf": [{ "type": "integer" }, { "type": "null" }], "description": "Null means unlimited." },
+        "period": { "type": "string", "enum": ["day", "week"] }
+      },
+      "required": ["key", "used", "period"],
+      "additionalProperties": false
+    },
+    "QuotaStatus": {
+      "type": "object",
+      "properties": {
+        "plan": { "$ref": "#/$defs/Plan" },
+        "meters": { "type": "array", "items": { "$ref": "#/$defs/QuotaMeter" } }
+      },
+      "required": ["plan", "meters"],
+      "additionalProperties": false
+    },
+    "EntitlementResponse": {
+      "type": "object",
+      "properties": {
+        "plan": { "$ref": "#/$defs/Plan" },
+        "expiresAt": { "anyOf": [{ "type": "string", "format": "date-time" }, { "type": "null" }] },
+        "quota": { "$ref": "#/$defs/QuotaStatus" }
+      },
+      "required": ["plan", "quota"],
+      "additionalProperties": false
+    },
+    "SquadInvite": {
+      "type": "object",
+      "properties": {
+        "code": { "type": "string" },
+        "url": { "type": "string" },
+        "expiresAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["code", "url", "expiresAt"],
+      "additionalProperties": false
+    },
+    "SquadRedeemResponse": {
+      "type": "object",
+      "properties": {
+        "plan": { "$ref": "#/$defs/Plan" },
+        "ownerName": { "type": "string" }
+      },
+      "required": ["plan", "ownerName"],
+      "additionalProperties": false
+    },
+    "SquadMember": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "joinedAt": { "type": "string", "format": "date-time" },
+        "isOwner": { "type": "boolean" }
+      },
+      "required": ["id", "name", "joinedAt", "isOwner"],
+      "additionalProperties": false
+    },
+    "SquadMembers": {
+      "type": "object",
+      "properties": {
+        "seats": { "type": "integer" },
+        "members": { "type": "array", "items": { "$ref": "#/$defs/SquadMember" } }
+      },
+      "required": ["seats", "members"],
+      "additionalProperties": false
+    },
+    "AccountDeleteResponse": {
+      "type": "object",
+      "properties": {
+        "deleted": { "type": "boolean" }
+      },
+      "required": ["deleted"],
+      "additionalProperties": false
+    },
+    "RelayErrorBody": {
+      "type": "object",
+      "properties": {
+        "error": {
+          "type": "object",
+          "properties": {
+            "code": { "type": "string", "enum": ["unauthorized", "quota_exceeded", "entitlement_required", "bad_request", "upstream"] },
+            "message": { "type": "string" },
+            "retryAfter": { "type": "number" },
+            "quota": { "$ref": "#/$defs/QuotaStatus" }
+          },
+          "required": ["code", "message"],
+          "additionalProperties": false
+        }
+      },
+      "required": ["error"],
+      "additionalProperties": false
+    }
+  }
+}

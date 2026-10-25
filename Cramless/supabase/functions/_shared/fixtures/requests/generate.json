@@ -1,0 +1,183 @@
+{
+  "course": "Bio 101",
+  "sourceTitle": "Biology textbook",
+  "level": "college",
+  "language": "en",
+  "formats": [
+    "recall",
+    "apply",
+    "mcq",
+    "cloze",
+    "diagram",
+    "flashcard"
+  ],
+  "maxItems": 16,
+  "pages": [
+    {
+      "page": 0,
+      "label": "87",
+      "lines": [
+        {
+          "id": "p0.l0",
+          "text": "Unit 3 Cell Biology"
+        },
+        {
+          "id": "p0.l1",
+          "text": "87"
+        },
+        {
+          "id": "p0.l2",
+          "text": "Mitosis: How Cells Divide"
+        },
+        {
+          "id": "p0.l3",
+          "text": "Mitosis is the process by which a single eukaryotic cell divides to produce two"
+        },
+        {
+          "id": "p0.l4",
+          "text": "identical daughter cells. It allows organisms to grow, replace damaged cells and"
+        },
+        {
+          "id": "p0.l5",
+          "text": "maintain healthy tissues. During mitosis, the genetic material (DNA) is copied and"
+        },
+        {
+          "id": "p0.l6",
+          "text": "equally separated into two new nuclei."
+        },
+        {
+          "id": "p0.l7",
+          "text": "Mitosis occurs in four main phases:"
+        },
+        {
+          "id": "p0.l8",
+          "text": "Prophase"
+        },
+        {
+          "id": "p0.l9",
+          "text": "Metaphase"
+        },
+        {
+          "id": "p0.l10",
+          "text": "Anaphase"
+        },
+        {
+          "id": "p0.l11",
+          "text": "Telophase"
+        },
+        {
+          "id": "p0.l12",
+          "text": "• Chromosomes condense"
+        },
+        {
+          "id": "p0.l13",
+          "text": "• Chromosomes line up at"
+        },
+        {
+          "id": "p0.l14",
+          "text": "• Sister chromatids are"
+        },
+        {
+          "id": "p0.l15",
+          "text": "• New nuclear envelopes"
+        },
+        {
+          "id": "p0.l16",
+          "text": "and become visible."
+        },
+        {
+          "id": "p0.l17",
+          "text": "the equator of the cell."
+        },
+        {
+          "id": "p0.l18",
+          "text": "pulled to opposite poles"
+        },
+        {
+          "id": "p0.l19",
+          "text": "form around each set of"
+        },
+        {
+          "id": "p0.l20",
+          "text": "• The nuclear envelope"
+        },
+        {
+          "id": "p0.l21",
+          "text": "• Spindle fibres attach to"
+        },
+        {
+          "id": "p0.l22",
+          "text": "of the cell."
+        },
+        {
+          "id": "p0.l23",
+          "text": "chromosomes."
+        },
+        {
+          "id": "p0.l24",
+          "text": "breaks down."
+        },
+        {
+          "id": "p0.l25",
+          "text": "the centromeres."
+        },
+        {
+          "id": "p0.l26",
+          "text": "• Each chromatid becomes"
+        },
+        {
+          "id": "p0.l27",
+          "text": "• Chromosomes unwind"
+        },
+        {
+          "id": "p0.l28",
+          "text": "a separate chromosome."
+        },
+        {
+          "id": "p0.l29",
+          "text": "and the cells begin to"
+        },
+        {
+          "id": "p0.l30",
+          "text": "separate."
+        },
+        {
+          "id": "p0.l31",
+          "text": "What happens after mitosis?"
+        },
+        {
+          "id": "p0.l32",
+          "text": "After mitosis, cytokinesis takes place. This is the division of the cytoplasm, producing"
+        },
+        {
+          "id": "p0.l33",
+          "text": "two separate daughter cells. Each daughter cell is genetically identical to the parent cell,"
+        },
+        {
+          "id": "p0.l34",
+          "text": "with the same number of chromosomes."
+        },
+        {
+          "id": "p0.l35",
+          "text": "Why is mitosis important?"
+        },
+        {
+          "id": "p0.l36",
+          "text": "Mitosis is essential for growth and development, allowing multicellular organisms to increase"
+        },
+        {
+          "id": "p0.l37",
+          "text": "their number of cells. It also replaces old or damaged cells, such as skin cells, and helps with"
+        },
+        {
+          "id": "p0.l38",
+          "text": "healing after injury. In unicellular organisms, mitosis is a form of asexual reproduction."
+        },
+        {
+          "id": "p0.l39",
+          "text": "Key term: Cytokinesis - the division of the cytoplasm."
+        }
+      ]
+    }
+  ]
+}

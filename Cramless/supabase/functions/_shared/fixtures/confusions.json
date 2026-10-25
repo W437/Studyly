@@ -1,0 +1,110 @@
+{
+  "model": "mock",
+  "confusions": [
+    {
+      "name": "Anaphase vs telophase",
+      "explanation": "You've swapped these twice: anaphase is the pull (chromatids to opposite poles), telophase is the rebuild (new nuclear envelopes).",
+      "itemIds": [
+        "i4",
+        "i11"
+      ],
+      "lesson": "Anaphase: Apart. The spindle fibres pull the sister chromatids to opposite poles. Telophase: The end. New nuclear envelopes form around each set of chromosomes, then cytokinesis splits the cell.",
+      "questions": [
+        {
+          "id": "c1",
+          "kind": "mcq",
+          "topic": "Phases of mitosis",
+          "prompt": "Chromatids are moving to opposite poles. Which phase is it?",
+          "answer": "Anaphase",
+          "explanation": "Moving apart is anaphase.",
+          "keyIdeas": [],
+          "choices": [
+            {
+              "text": "Anaphase",
+              "correct": true
+            },
+            {
+              "text": "Telophase",
+              "correct": false
+            },
+            {
+              "text": "Metaphase",
+              "correct": false
+            }
+          ],
+          "anchors": [
+            "p0.l14",
+            "p0.l18"
+          ],
+          "difficulty": 0.4
+        },
+        {
+          "id": "c2",
+          "kind": "mcq",
+          "topic": "Phases of mitosis",
+          "prompt": "New nuclear envelopes are forming. Which phase is it?",
+          "answer": "Telophase",
+          "explanation": "Rebuilding the nuclei is telophase.",
+          "keyIdeas": [],
+          "choices": [
+            {
+              "text": "Anaphase",
+              "correct": false
+            },
+            {
+              "text": "Telophase",
+              "correct": true
+            },
+            {
+              "text": "Prophase",
+              "correct": false
+            }
+          ],
+          "anchors": [
+            "p0.l15",
+            "p0.l19"
+          ],
+          "difficulty": 0.4
+        },
+        {
+          "id": "c3",
+          "kind": "recall",
+          "topic": "Phases of mitosis",
+          "prompt": "In one sentence each: what happens in anaphase, and what happens in telophase?",
+          "answer": "In anaphase the sister chromatids are pulled to opposite poles; in telophase new nuclear envelopes form around each set of chromosomes.",
+          "explanation": "",
+          "choices": [],
+          "keyIdeas": [
+            {
+              "id": "k1",
+              "label": "Anaphase pulls chromatids apart",
+              "terms": [
+                "pulled",
+                "apart",
+                "opposite poles",
+                "separate"
+              ]
+            },
+            {
+              "id": "k2",
+              "label": "Telophase rebuilds the nuclear envelopes",
+              "terms": [
+                "envelope",
+                "nuclear envelopes",
+                "nuclei form",
+                "new nuclei"
+              ]
+            }
+          ],
+          "anchors": [
+            "p0.l14",
+            "p0.l15",
+            "p0.l18",
+            "p0.l19"
+          ],
+          "difficulty": 0.55
+        }
+      ]
+    }
+  ]
+}

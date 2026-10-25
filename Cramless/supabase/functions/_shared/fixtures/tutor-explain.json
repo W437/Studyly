@@ -1,0 +1,148 @@
+{
+  "events": [
+    {
+      "event": "start",
+      "delayMs": 650,
+      "data": {
+        "model": "mock"
+      }
+    },
+    {
+      "event": "delta",
+      "delayMs": 55,
+      "data": {
+        "text": "Short version: mitosis "
+      }
+    },
+    {
+      "event": "delta",
+      "delayMs": 55,
+      "data": {
+        "text": "splits the nucleus, "
+      }
+    },
+    {
+      "event": "delta",
+      "delayMs": 55,
+      "data": {
+        "text": "cytokinesis splits the "
+      }
+    },
+    {
+      "event": "delta",
+      "delayMs": 55,
+      "data": {
+        "text": "rest of the "
+      }
+    },
+    {
+      "event": "delta",
+      "delayMs": 55,
+      "data": {
+        "text": "cell. During mitosis "
+      }
+    },
+    {
+      "event": "delta",
+      "delayMs": 55,
+      "data": {
+        "text": "the DNA is "
+      }
+    },
+    {
+      "event": "delta",
+      "delayMs": 55,
+      "data": {
+        "text": "copied and separated "
+      }
+    },
+    {
+      "event": "delta",
+      "delayMs": 55,
+      "data": {
+        "text": "into two new "
+      }
+    },
+    {
+      "event": "delta",
+      "delayMs": 55,
+      "data": {
+        "text": "nuclei. After mitosis, "
+      }
+    },
+    {
+      "event": "delta",
+      "delayMs": 55,
+      "data": {
+        "text": "cytokinesis divides the "
+      }
+    },
+    {
+      "event": "delta",
+      "delayMs": 55,
+      "data": {
+        "text": "cytoplasm, which gives "
+      }
+    },
+    {
+      "event": "delta",
+      "delayMs": 55,
+      "data": {
+        "text": "two separate daughter "
+      }
+    },
+    {
+      "event": "delta",
+      "delayMs": 55,
+      "data": {
+        "text": "cells, each identical "
+      }
+    },
+    {
+      "event": "delta",
+      "delayMs": 55,
+      "data": {
+        "text": "to the parent. "
+      }
+    },
+    {
+      "event": "citation",
+      "delayMs": 30,
+      "data": {
+        "sourceId": "s1",
+        "label": "Textbook p. 87",
+        "quote": "During mitosis, the genetic material (DNA) is copied and equally separated into two new nuclei."
+      }
+    },
+    {
+      "event": "delta",
+      "delayMs": 55,
+      "data": {
+        "text": "Quick check: which "
+      }
+    },
+    {
+      "event": "delta",
+      "delayMs": 55,
+      "data": {
+        "text": "one happens first?"
+      }
+    },
+    {
+      "event": "citation",
+      "delayMs": 30,
+      "data": {
+        "sourceId": "s1",
+        "label": "Textbook p. 87",
+        "quote": "After mitosis, cytokinesis takes place. This is the division of the cytoplasm, producing two separate daughter cells."
+      }
+    },
+    {
+      "event": "done",
+      "delayMs": 40,
+      "data": {
+        "model": "mock"
+      }
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "mode": "hints",
+  "minor": false,
+  "course": "Bio 101",
+  "messages": [
+    {
+      "role": "user",
+      "text": "What's the difference between mitosis and cytokinesis?"
+    }
+  ],
+  "sources": [
+    {
+      "id": "s1",
+      "title": "Biology textbook",
+      "label": "Textbook p. 87",
+      "text": "Unit 3 Cell Biology 87 Mitosis: How Cells Divide Mitosis is the process by which a single eukaryotic cell divides to produce two identical daughter cells. It allows organisms to grow, replace damaged cells and maintain healthy tissues. During mitosis, the genetic material (DNA) is copied and equally separated into two new nuclei. Mitosis occurs in four main phases: Prophase Metaphase Anaphase Telophase • Chromosomes condense • Chromosomes line up at • Sister chromatids are • New nuclear envelopes and become visible. the equator of the cell. pulled to opposite poles form around each set of • The nuclear envelope • Spindle fibres attach to of the cell. chromosomes. breaks down. the centromeres. • Each chromatid becomes • Chromosomes unwind a separate chromosome. and the cells begin to separate. What happens after mitosis? After mitosis, cytokinesis takes place. This is the division of the cytoplasm, producing two separate daughter cells. Each daughter cell is genetically identical to the parent cell, with the same number of chromosomes. Why is mitosis important? Mitosis is essential for growth and development, allowing multicellular organisms to increase their number of cells. It also replaces old or damaged cells, such as skin cells, and helps with healing after injury. In unicellular organisms, mitosis is a form of asexual reproduction. Key term: Cytokinesis - the division of the cytoplasm."
+    }
+  ]
+}

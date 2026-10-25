@@ -1,0 +1,14 @@
+{
+  "model": "mock",
+  "score": 0.0,
+  "verdict": "incorrect",
+  "confidence": 0.9,
+  "hits": [],
+  "missing": [
+    "k1",
+    "k2",
+    "k3"
+  ],
+  "feedback": "That describes making sex cells, which p. 87 doesn't cover.",
+  "fix": "Mitosis is for growth and repair: it makes two genetically identical cells with the same number of chromosomes."
+}

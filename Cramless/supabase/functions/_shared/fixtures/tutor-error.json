@@ -1,0 +1,19 @@
+{
+  "events": [
+    {
+      "event": "start",
+      "delayMs": 400,
+      "data": {
+        "model": "mock"
+      }
+    },
+    {
+      "event": "error",
+      "delayMs": 300,
+      "data": {
+        "code": "upstream",
+        "message": "Cap couldn't reach the tutor. Try again in a moment."
+      }
+    }
+  ]
+}

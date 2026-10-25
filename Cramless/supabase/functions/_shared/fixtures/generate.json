@@ -1,0 +1,189 @@
+{
+  "title": "Mitosis",
+  "model": "mock",
+  "topics": [
+    { "name": "Phases of mitosis", "summary": "Prophase, metaphase, anaphase and telophase, and what happens to the chromosomes in each." },
+    { "name": "Cytokinesis", "summary": "The division of the cytoplasm that follows mitosis." },
+    { "name": "Why mitosis matters", "summary": "Growth, repair and asexual reproduction." },
+    { "name": "Chromosome number", "summary": "Daughter cells are genetically identical, with the same number of chromosomes." }
+  ],
+  "items": [
+    {
+      "id": "i1", "kind": "recall", "topic": "Why mitosis matters",
+      "prompt": "In your own words: why do cells divide by mitosis?",
+      "answer": "To grow, to replace old or damaged cells and help healing, and in single-celled organisms to reproduce, making two genetically identical cells.",
+      "explanation": "Mitosis makes more cells that are copies of the parent, which is what growth and repair need.",
+      "keyIdeas": [
+        { "id": "k1", "label": "Growth and repair", "terms": ["grow", "growth", "repair", "replace", "replaces damaged", "heal", "healing", "development"] },
+        { "id": "k2", "label": "Genetically identical cells", "terms": ["identical", "same dna", "same genes", "copies", "exact copy", "clone"] },
+        { "id": "k3", "label": "Same number of chromosomes", "terms": ["same number of chromosomes", "same chromosome number", "same chromosomes", "chromosome number"] }
+      ],
+      "choices": [], "anchors": ["p0.l36", "p0.l37", "p0.l38", "p0.l33", "p0.l34"], "difficulty": 0.45
+    },
+    {
+      "id": "i2", "kind": "recall", "topic": "Chromosome number",
+      "prompt": "What does \"genetically identical daughter cells\" mean?",
+      "answer": "Both new cells have the same DNA as the parent cell.",
+      "explanation": "Identical means the DNA was copied and split equally, so nothing is lost or added.",
+      "keyIdeas": [
+        { "id": "k1", "label": "Same DNA as the parent", "terms": ["same dna", "same genetic", "same genes", "identical dna", "copy of the dna", "same as the parent"] },
+        { "id": "k2", "label": "Same number of chromosomes", "terms": ["same number of chromosomes", "same chromosome number", "same chromosomes"] }
+      ],
+      "choices": [], "anchors": ["p0.l3", "p0.l4", "p0.l5", "p0.l6", "p0.l33", "p0.l34"], "difficulty": 0.35
+    },
+    {
+      "id": "i3", "kind": "recall", "topic": "Phases of mitosis",
+      "prompt": "What happens to the nuclear envelope in prophase?",
+      "answer": "It breaks down, while the chromosomes condense and become visible.",
+      "explanation": "Prophase gets the chromosomes ready: they condense and the envelope around the nucleus breaks down.",
+      "keyIdeas": [
+        { "id": "k1", "label": "The envelope breaks down", "terms": ["breaks down", "break down", "breaks apart", "dissolves", "disappears", "falls apart"] },
+        { "id": "k2", "label": "Chromosomes condense", "terms": ["condense", "condensed", "become visible", "visible", "coil up"] }
+      ],
+      "choices": [], "anchors": ["p0.l8", "p0.l12", "p0.l16", "p0.l20", "p0.l24"], "difficulty": 0.4
+    },
+    {
+      "id": "i4", "kind": "recall", "topic": "Phases of mitosis",
+      "prompt": "Describe what happens in anaphase.",
+      "answer": "The sister chromatids are pulled to opposite poles of the cell, and each chromatid becomes a separate chromosome.",
+      "explanation": "Anaphase is the pulling-apart phase.",
+      "keyIdeas": [
+        { "id": "k1", "label": "Sister chromatids pulled apart", "terms": ["chromatids are pulled", "pulled apart", "separate", "split", "pulled", "chromatids move apart"] },
+        { "id": "k2", "label": "To opposite poles", "terms": ["opposite poles", "opposite ends", "opposite sides", "each end", "poles"] },
+        { "id": "k3", "label": "Each becomes a chromosome", "terms": ["becomes a separate chromosome", "becomes a chromosome", "own chromosome", "separate chromosome"] }
+      ],
+      "choices": [], "anchors": ["p0.l10", "p0.l14", "p0.l18", "p0.l22", "p0.l26", "p0.l28"], "difficulty": 0.55
+    },
+    {
+      "id": "i5", "kind": "recall", "topic": "Cytokinesis",
+      "prompt": "How is cytokinesis different from mitosis?",
+      "answer": "Mitosis copies the DNA and separates it into two new nuclei; cytokinesis divides the cytoplasm, giving two separate daughter cells.",
+      "explanation": "One splits the nucleus, the other splits the rest of the cell.",
+      "keyIdeas": [
+        { "id": "k1", "label": "Mitosis separates the DNA into two nuclei", "terms": ["nucleus", "nuclei", "dna", "genetic material", "chromosomes"] },
+        { "id": "k2", "label": "Cytokinesis divides the cytoplasm", "terms": ["cytoplasm", "rest of the cell", "divides the cell"] },
+        { "id": "k3", "label": "Two separate cells", "terms": ["two separate", "two cells", "two daughter cells", "separate cells"] }
+      ],
+      "choices": [], "anchors": ["p0.l5", "p0.l6", "p0.l32", "p0.l33"], "difficulty": 0.6
+    },
+    {
+      "id": "i6", "kind": "apply", "topic": "Phases of mitosis",
+      "prompt": "A drug stops spindle fibres from attaching to the centromeres. Which phase can't happen, and why?",
+      "answer": "Anaphase: the spindle fibres attached to the centromeres are what pull the sister chromatids apart, so without them the chromatids are never separated.",
+      "explanation": "Metaphase is where the fibres attach; anaphase is where they pull.",
+      "keyIdeas": [
+        { "id": "k1", "label": "Anaphase is blocked", "terms": ["anaphase"] },
+        { "id": "k2", "label": "Spindle fibres pull the chromatids apart", "terms": ["pull", "pulled apart", "separate", "can't be pulled", "pulls the chromatids", "move apart"] }
+      ],
+      "choices": [], "anchors": ["p0.l21", "p0.l25", "p0.l14", "p0.l18"], "difficulty": 0.75
+    },
+    {
+      "id": "i7", "kind": "mcq", "topic": "Phases of mitosis",
+      "prompt": "In which phase do chromosomes line up at the equator of the cell?",
+      "answer": "Metaphase",
+      "explanation": "In metaphase the chromosomes line up across the middle of the cell, with spindle fibres attached to the centromeres.",
+      "keyIdeas": [],
+      "choices": [
+        { "text": "Prophase", "correct": false, "why": "In prophase the chromosomes condense; they haven't lined up yet." },
+        { "text": "Metaphase", "correct": true, "why": "Chromosomes line up at the equator in metaphase." },
+        { "text": "Anaphase", "correct": false, "why": "In anaphase the chromatids are already being pulled apart." },
+        { "text": "Telophase", "correct": false, "why": "In telophase new nuclear envelopes form." }
+      ],
+      "anchors": ["p0.l9", "p0.l13", "p0.l17"], "difficulty": 0.3
+    },
+    {
+      "id": "i8", "kind": "mcq", "topic": "Why mitosis matters",
+      "prompt": "Which of these is not a job of mitosis?",
+      "answer": "Making sex cells",
+      "explanation": "Mitosis makes identical body cells.",
+      "keyIdeas": [],
+      "choices": [
+        { "text": "Growth", "correct": false },
+        { "text": "Replacing damaged cells", "correct": false },
+        { "text": "Making sex cells", "correct": true },
+        { "text": "Asexual reproduction in single-celled organisms", "correct": false }
+      ],
+      "anchors": ["p0.l36", "p0.l37", "p0.l38"], "difficulty": 0.5
+    },
+    {
+      "id": "i9", "kind": "mcq", "topic": "Phases of mitosis",
+      "prompt": "What do spindle fibres attach to in metaphase?",
+      "answer": "The centromeres",
+      "explanation": "Spindle fibres attach to the centromeres, ready to pull the chromatids apart.",
+      "keyIdeas": [],
+      "choices": [
+        { "text": "The centromeres", "correct": true },
+        { "text": "The nuclear envelope", "correct": false },
+        { "text": "The cytoplasm", "correct": false },
+        { "text": "The cell membrane", "correct": false }
+      ],
+      "anchors": ["p0.l21", "p0.l25"], "difficulty": 0.35
+    },
+    {
+      "id": "i10", "kind": "mcq", "topic": "Cytokinesis",
+      "prompt": "Which phase comes right before cytokinesis?",
+      "answer": "Telophase",
+      "explanation": "Telophase is the last phase of mitosis; cytokinesis follows it.",
+      "keyIdeas": [],
+      "choices": [
+        { "text": "Prophase", "correct": false },
+        { "text": "Metaphase", "correct": false },
+        { "text": "Anaphase", "correct": false },
+        { "text": "Telophase", "correct": true }
+      ],
+      "anchors": ["p0.l11", "p0.l15", "p0.l32"], "difficulty": 0.4
+    },
+    {
+      "id": "i11", "kind": "cloze", "topic": "Phases of mitosis",
+      "prompt": "Fill in the phase.",
+      "answer": "telophase",
+      "explanation": "Telophase: the nuclear envelopes form again around each set of chromosomes.",
+      "keyIdeas": [], "choices": [],
+      "cloze": { "text": "During {{telophase}}, new nuclear envelopes form around each set of chromosomes.", "alternates": [["telophase."]] },
+      "anchors": ["p0.l11", "p0.l15", "p0.l19", "p0.l23"], "difficulty": 0.45
+    },
+    {
+      "id": "i12", "kind": "cloze", "topic": "Chromosome number",
+      "prompt": "Fill in the word.",
+      "answer": "identical",
+      "explanation": "Mitosis makes two genetically identical daughter cells.",
+      "keyIdeas": [], "choices": [],
+      "cloze": { "text": "Mitosis produces two genetically {{identical}} daughter cells.", "alternates": [["the same"]] },
+      "anchors": ["p0.l3", "p0.l4"], "difficulty": 0.25
+    },
+    {
+      "id": "i13", "kind": "cloze", "topic": "Cytokinesis",
+      "prompt": "Fill in the key term.",
+      "answer": "Cytokinesis",
+      "explanation": "Cytokinesis is the division of the cytoplasm.",
+      "keyIdeas": [], "choices": [],
+      "cloze": { "text": "{{Cytokinesis}} is the division of the cytoplasm.", "alternates": [[]] },
+      "anchors": ["p0.l39"], "difficulty": 0.3
+    },
+    {
+      "id": "i14", "kind": "diagram", "topic": "Phases of mitosis",
+      "prompt": "Label the four phases of mitosis.",
+      "answer": "Prophase, Metaphase, Anaphase, Telophase",
+      "explanation": "Left to right: prophase, metaphase, anaphase, telophase.",
+      "keyIdeas": [], "choices": [],
+      "diagramLabels": ["p0.l8", "p0.l9", "p0.l10", "p0.l11"],
+      "anchors": ["p0.l8", "p0.l9", "p0.l10", "p0.l11"], "difficulty": 0.4
+    },
+    {
+      "id": "i15", "kind": "flashcard", "topic": "Cytokinesis",
+      "prompt": "Cytokinesis",
+      "answer": "The division of the cytoplasm, producing two separate daughter cells. It happens right after mitosis.",
+      "explanation": "",
+      "keyIdeas": [], "choices": [],
+      "anchors": ["p0.l32", "p0.l39"], "difficulty": 0.25
+    },
+    {
+      "id": "i16", "kind": "flashcard", "topic": "Phases of mitosis",
+      "prompt": "Prophase",
+      "answer": "Chromosomes condense and become visible, and the nuclear envelope breaks down.",
+      "explanation": "",
+      "keyIdeas": [], "choices": [],
+      "anchors": ["p0.l8", "p0.l12", "p0.l16", "p0.l20", "p0.l24"], "difficulty": 0.3
+    }
+  ]
+}

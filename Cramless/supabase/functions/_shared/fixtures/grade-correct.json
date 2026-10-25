@@ -1,0 +1,23 @@
+{
+  "model": "mock",
+  "score": 1.0,
+  "verdict": "correct",
+  "confidence": 0.93,
+  "hits": [
+    {
+      "ideaId": "k1",
+      "quote": "grow and repair damaged tissue"
+    },
+    {
+      "ideaId": "k2",
+      "quote": "genetically identical"
+    },
+    {
+      "ideaId": "k3",
+      "quote": "same number of chromosomes"
+    }
+  ],
+  "missing": [],
+  "feedback": "All three ideas, in your own words.",
+  "fix": ""
+}

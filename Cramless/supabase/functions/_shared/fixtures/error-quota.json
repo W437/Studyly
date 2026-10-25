@@ -1,0 +1,17 @@
+{
+  "error": {
+    "code": "quota_exceeded",
+    "message": "That's today's 20 graded answers on the free plan. Quick check still works, and it resets at midnight.",
+    "quota": {
+      "plan": "free",
+      "meters": [
+        {
+          "key": "grades",
+          "used": 20,
+          "limit": 20,
+          "period": "day"
+        }
+      ]
+    }
+  }
+}

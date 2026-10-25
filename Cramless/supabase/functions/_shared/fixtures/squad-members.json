@@ -1,0 +1,17 @@
+{
+  "seats": 4,
+  "members": [
+    {
+      "id": "u-owner",
+      "name": "Maya",
+      "joinedAt": "2026-10-01T18:00:00Z",
+      "isOwner": true
+    },
+    {
+      "id": "u-priya",
+      "name": "Priya",
+      "joinedAt": "2026-10-03T20:12:00Z",
+      "isOwner": false
+    }
+  ]
+}

@@ -1,0 +1,143 @@
+# Cramless backend: local development settings.
+# Reference: https://supabase.com/docs/guides/local-development/cli/config
+#
+# Local ports sit on 584xx, away from the CLI defaults (543xx) and from other local stacks on this Mac (573xx is
+# taken), so `supabase start` here never collides with another project. The hosted project ignores every port.
+project_id = "cramless"
+
+[api]
+enabled = true
+port = 58421
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[api.tls]
+enabled = false
+
+[db]
+port = 58422
+shadow_port = 58420
+health_timeout = "2m"
+major_version = 17
+
+[db.pooler]
+enabled = false
+port = 58429
+pool_mode = "transaction"
+default_pool_size = 20
+max_client_conn = 100
+
+[db.migrations]
+enabled = true
+schema_paths = []
+
+[db.seed]
+enabled = true
+sql_paths = ["./seed.sql"]
+
+[realtime]
+enabled = false
+
+[studio]
+enabled = false
+port = 58423
+api_url = "http://127.0.0.1"
+
+# Local email: with `enabled = true` the OTP codes land at http://127.0.0.1:58424.
+[local_smtp]
+enabled = false
+port = 58424
+
+[storage]
+enabled = true
+file_size_limit = "15MiB"
+
+[storage.s3_protocol]
+enabled = false
+
+[auth]
+enabled = true
+site_url = "http://127.0.0.1:3000"
+additional_redirect_urls = ["com.loopware.Capling://auth"]
+jwt_expiry = 3600
+enable_refresh_token_rotation = true
+refresh_token_reuse_interval = 10
+enable_signup = true
+# Every install gets an anonymous session on first need, so the relay can meter quotas before anyone signs in.
+enable_anonymous_sign_ins = true
+enable_manual_linking = false
+minimum_password_length = 8
+
+[auth.rate_limit]
+email_sent = 2
+sms_sent = 30
+# LOCAL ONLY: tests create many anonymous users. Keep Supabase's default (30 an hour per IP) on the hosted project.
+anonymous_users = 5000
+token_refresh = 150
+sign_in_sign_ups = 30
+token_verifications = 30
+web3 = 30
+
+[auth.email]
+# Email sign-in is a 6-digit one-time code (no passwords, no magic links in the app).
+enable_signup = true
+double_confirm_changes = true
+enable_confirmations = false
+secure_password_change = false
+max_frequency = "1m0s"
+otp_length = 6
+otp_expiry = 900
+
+[auth.sms]
+enable_signup = false
+enable_confirmations = false
+template = "Your code is {{ .Code }}"
+max_frequency = "5s"
+
+[auth.mfa]
+max_enrolled_factors = 10
+
+[auth.mfa.totp]
+enroll_enabled = false
+verify_enabled = false
+
+[auth.mfa.phone]
+enroll_enabled = false
+verify_enabled = false
+
+# Sign in with Apple, native: the app sends Apple's id_token and the raw nonce. The client id is the bundle ID;
+# a secret is needed only for the web OAuth flow, which Cramless doesn't use, so it stays empty.
+[auth.external.apple]
+enabled = true
+client_id = "com.loopware.Capling"
+secret = ""
+redirect_uri = ""
+url = ""
+skip_nonce_check = false
+
+[edge_runtime]
+enabled = true
+policy = "per_worker"
+inspector_port = 58483
+deno_version = 2
+
+[analytics]
+enabled = false
+port = 58427
+backend = "postgres"
+
+# Functions share supabase/functions/deno.json, which pins every dependency. `ai` and `account` verify the
+# caller's Supabase JWT themselves (anonymous users allowed) so every failure comes back in the contract's error
+# envelope; the gateway's own check is off. `appstore-notify` is authenticated by Apple's signature.
+[functions.ai]
+verify_jwt = false
+import_map = "./functions/deno.json"
+
+[functions.account]
+verify_jwt = false
+import_map = "./functions/deno.json"
+
+[functions.appstore-notify]
+verify_jwt = false
+import_map = "./functions/deno.json"

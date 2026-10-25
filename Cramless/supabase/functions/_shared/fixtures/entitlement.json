@@ -1,0 +1,33 @@
+{
+  "plan": "pro",
+  "expiresAt": "2027-10-29T00:00:00Z",
+  "quota": {
+    "plan": "pro",
+    "meters": [
+      {
+        "key": "scans",
+        "used": 0,
+        "limit": null,
+        "period": "week"
+      },
+      {
+        "key": "grades",
+        "used": 0,
+        "limit": null,
+        "period": "day"
+      },
+      {
+        "key": "tutor",
+        "used": 0,
+        "limit": null,
+        "period": "day"
+      },
+      {
+        "key": "lectures",
+        "used": 0,
+        "limit": null,
+        "period": "week"
+      }
+    ]
+  }
+}

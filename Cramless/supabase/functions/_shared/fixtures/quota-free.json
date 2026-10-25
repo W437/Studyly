@@ -1,0 +1,29 @@
+{
+  "plan": "free",
+  "meters": [
+    {
+      "key": "scans",
+      "used": 1,
+      "limit": 3,
+      "period": "week"
+    },
+    {
+      "key": "grades",
+      "used": 6,
+      "limit": 20,
+      "period": "day"
+    },
+    {
+      "key": "tutor",
+      "used": 2,
+      "limit": 10,
+      "period": "day"
+    },
+    {
+      "key": "lectures",
+      "used": 0,
+      "limit": 1,
+      "period": "week"
+    }
+  ]
+}
