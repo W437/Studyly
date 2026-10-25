@@ -1,0 +1,212 @@
+{
+  "endpoint": "openai/gpt-image-2.5/sunburst/text-to-image",
+  "edit_endpoint": "openai/gpt-image-2.5/sunburst/edit",
+  "defaults": {
+    "image_size": {
+      "width": 1024,
+      "height": 1024
+    },
+    "quality": "high",
+    "num_images": 1,
+    "output_format": "png"
+  },
+  "icon_rules": "Square artwork that fills the whole canvas edge to edge. No rounded corners, no border, no device or mockup, no drop shadow around the tile, no text unless stated.",
+  "jobs": [
+    {
+      "id": "readily-check",
+      "name": "Readily",
+      "prompt": "Square app icon artwork for a study app called Readily. The background fills the entire square edge to edge: a deep ink-navy surface (#0E2233) with an extremely subtle paper grain. Centered and large: one bold check mark drawn as a single confident stroke of fluorescent yellow highlighter ink (#FFE24A), with the flat chisel-tip ends of a real highlighter, slightly more saturated where the stroke overlaps itself, faint streaks inside the stroke like real ink. Minimal, modern, flat, premium. No text, no letters, no border, no rounded corners, no device mockup, no drop shadow around the artwork."
+    },
+    {
+      "id": "readily-ring",
+      "name": "Readily",
+      "prompt": "Square app icon artwork for a study app called Readily. The background fills the entire square edge to edge with deep ink navy (#0E2233). Centered: a thick circular progress ring about four fifths complete, drawn in fluorescent highlighter yellow (#FFE24A) with a rounded cap at its end; the unfilled part of the ring is a faint navy track (#1E3A52). Inside the ring sits a small paper-white index card (#F5F7FA), tilted a few degrees, with two short rounded gray text lines on it. Flat vector, crisp edges, generous margins, premium and calm. No text, no letters, no border, no rounded corners on the square, no device mockup, no drop shadow around the artwork."
+    },
+    {
+      "id": "readily-sunrise",
+      "name": "Readily",
+      "prompt": "Square app icon artwork for a study app called Readily. The background fills the entire square edge to edge with flat fluorescent highlighter yellow (#FFE24A). Centered: a paper-white index card (#F5F7FA) with softly rounded corners, and a bold ink-navy (#0E2233) half sun rising from behind the card's top edge, with three short navy rays. Flat geometric vector, thick confident shapes, minimal, friendly, morning energy. No text, no letters, no border, no rounded corners on the square, no device mockup, no drop shadow around the artwork."
+    },
+    {
+      "id": "cramless-capy",
+      "name": "Cramless",
+      "prompt": "Square app icon artwork for a playful study app called Cramless. The background fills the entire square edge to edge with flat sky blue (#7CC8FF). Centered and large: the head of a cute, calm capybara in warm tangerine-brown (#E0884A) with closed, content eyes and a tiny relaxed smile, wearing small round off-white headphones, and a deep navy (#14213D) graduation mortarboard tilted on its head. Flat vector mascot style with soft simple shading, thick friendly shapes, a clear silhouette that reads at small sizes. No text, no letters, no border, no rounded corners on the square, no device mockup, no drop shadow around the artwork."
+    },
+    {
+      "id": "cramless-wave",
+      "name": "Cramless",
+      "prompt": "Square app icon artwork for a study app called Cramless. The background fills the entire square edge to edge with flat tangerine orange (#FF7A1A). Centered: one thick off-white (#FFF8F0) line that starts on the left as a sharp jagged spike, like a panic graph, then smooths into a calm, even wave across the right side and ends in a round dot. Bold, minimal, flat vector, rounded line caps, generous margins. No text, no letters, no border, no rounded corners on the square, no device mockup, no drop shadow around the artwork."
+    },
+    {
+      "id": "cramless-moon",
+      "name": "Cramless",
+      "prompt": "Square app icon artwork for a study app called Cramless, whose promise is no more all-nighters before exams. The background fills the entire square edge to edge with deep night navy (#14213D). Centered: a neat stack of three index cards in off-white (#FFF8F0), sky blue (#7CC8FF) and tangerine (#FF7A1A), slightly fanned, with a plump tangerine crescent moon resting on top of the stack as if asleep, and two tiny off-white stars. Flat vector, soft simple shading, cozy, friendly. No text, no letters, no border, no rounded corners on the square, no device mockup, no drop shadow around the artwork."
+    },
+    {
+      "id": "poised-pencil",
+      "name": "Poised",
+      "prompt": "Square app icon artwork for a premium study app called Poised. The background fills the entire square edge to edge with deep pine green (#173B33) with a very subtle matte texture. Centered: a single chalk-white (#F2F4F1) pencil standing perfectly balanced on its sharpened graphite tip, on top of a small brass (#C9A45C) dot, with a brass ferrule and a pale eraser. Minimal, elegant, flat vector with soft subtle shading, lots of calm negative space. No text, no letters, no border, no rounded corners on the square, no device mockup, no drop shadow around the artwork."
+    },
+    {
+      "id": "poised-ribbon",
+      "name": "Poised",
+      "prompt": "Square app icon artwork for a premium study app called Poised. The background fills the entire square edge to edge with deep pine green (#173B33). Centered and large: a lowercase letter p formed by one folded brass-gold (#C9A45C) silk bookmark ribbon, the ribbon's tail ending in a clean forked cut at the bottom like a book's bookmark. Elegant, minimal, flat vector with soft satin shading. The single letter p is the only letterform. No other text, no border, no rounded corners on the square, no device mockup, no drop shadow around the artwork."
+    },
+    {
+      "id": "poised-stones",
+      "name": "Poised",
+      "prompt": "Square app icon artwork for a premium study app called Poised. The background fills the entire square edge to edge with chalk white (#F2F4F1). Centered: three smooth river stones balanced in a calm vertical stack, the bottom one deep pine green (#173B33), the middle one sage (#7FA493), the small top one brass-gold (#C9A45C). Minimal, flat vector with soft subtle shading, a tiny contact shadow under the stack only. No text, no letters, no border, no rounded corners on the square, no device mockup, no drop shadow around the artwork."
+    },
+    {
+      "id": "textbook-mitosis",
+      "name": "scan demo",
+      "image_size": {
+        "width": 1024,
+        "height": 1536
+      },
+      "prompt": "Realistic overhead photo of an open high-school biology textbook page lying on a light oak desk, shot from directly above with a phone, soft natural window light from the left. The page is titled 'Mitosis: How Cells Divide' in a bold sans-serif heading, followed by a short paragraph of body text, then a clean labeled diagram of the four phases of mitosis in a row (Prophase, Metaphase, Anaphase, Telophase) with small cell illustrations, then two more short paragraphs and a highlighted key-term box reading 'Key term: Cytokinesis - the division of the cytoplasm'. A yellow highlighter lies diagonally across the bottom right corner of the page. Sharp, legible, realistic print texture, slight page curl at the edge."
+    },
+    {
+      "id": "textbook-mitosis-v2",
+      "name": "scan demo",
+      "image_size": {
+        "width": 1024,
+        "height": 1536
+      },
+      "prompt": "Realistic overhead photo of an open high-school biology textbook page lying on a light oak desk, shot from directly above with a phone, soft natural window light from the left. The running header reads 'Unit 3 Cell Biology 87'. The page is titled 'Mitosis: How Cells Divide' in a bold sans-serif heading, followed by a short paragraph of body text, then a clean labeled diagram of the four phases of mitosis in a row (Prophase, Metaphase, Anaphase, Telophase) with small cell illustrations and two bullet points under each, then two short sections headed 'What happens after mitosis?' and 'Why is mitosis important?', and a pale yellow key-term box reading 'Key term: Cytokinesis - the division of the cytoplasm.' A plain unbranded yellow highlighter with a black cap lies diagonally across the bottom right corner of the desk, with no text, logo or label printed on it. Sharp, legible, realistic print texture, slight page curl at the edge."
+    },
+    {
+      "id": "cap-wave",
+      "name": "Cramless mascot",
+      "ref": "raw/cramless-capy.png",
+      "transparent": true,
+      "prompt": "The same capybara character as in the reference image, named Cap: identical face, tangerine-brown fur, closed content eyes, off-white headphones and navy graduation mortarboard. Now shown full body, standing on its hind legs and waving one front paw hello, friendly calm smile. Same flat vector mascot style, same colors and soft simple shading as the reference. Transparent background, no ground, no shadow, centered with margin, nothing else in the image."
+    },
+    {
+      "id": "cap-celebrate",
+      "name": "Cramless mascot",
+      "ref": "raw/cramless-capy.png",
+      "transparent": true,
+      "prompt": "The same capybara character as in the reference image, named Cap: identical face, tangerine-brown fur, off-white headphones and navy graduation mortarboard. Now shown full body, mid-jump with both front paws raised in celebration, eyes happily closed, a big smile, with a few small confetti pieces in tangerine, sky blue and sunny yellow around it. Same flat vector mascot style, same colors and soft simple shading as the reference. Transparent background, no ground, no shadow, centered with margin."
+    },
+    {
+      "id": "cap-sleep",
+      "name": "Cramless mascot",
+      "ref": "raw/cramless-capy.png",
+      "transparent": true,
+      "prompt": "The same capybara character as in the reference image, named Cap: identical face, tangerine-brown fur, navy graduation mortarboard slipping to one side. Now curled up peacefully asleep on top of a small neat stack of three index cards (off-white, sky blue and tangerine), headphones around its neck, eyes closed, tiny content smile. Same flat vector mascot style, same colors and soft simple shading as the reference. Transparent background, no ground, no shadow, centered with margin."
+    },
+    {
+      "id": "cap-study",
+      "name": "Cramless mascot",
+      "ref": "raw/cramless-capy.png",
+      "transparent": true,
+      "prompt": "The same capybara character as in the reference image, named Cap: identical face, tangerine-brown fur, off-white headphones on its ears and navy graduation mortarboard. Now sitting comfortably and reading an open book held in its front paws, eyes open and focused, a small yellow highlighter tucked behind one ear. Same flat vector mascot style, same colors and soft simple shading as the reference. Transparent background, no ground, no shadow, centered with margin."
+    },
+    {
+      "id": "cap-think",
+      "name": "Cramless mascot",
+      "ref": "raw/cramless-capy.png",
+      "transparent": true,
+      "prompt": "The same capybara character as in the reference image, named Cap: identical face, tangerine-brown fur, closed content eyes, off-white headphones and navy graduation mortarboard. Now shown full body, sitting, one front paw raised to its chin, looking slightly up, thoughtful and curious, calm smile. Same flat vector mascot style, same colors and soft simple shading as the reference. Transparent background, no ground, no shadow, centered with margin, no text or letters anywhere, nothing else in the image."
+    },
+    {
+      "id": "cap-point",
+      "name": "Cramless mascot",
+      "ref": "raw/cramless-capy.png",
+      "transparent": true,
+      "prompt": "The same capybara character as in the reference image, named Cap: identical face, tangerine-brown fur, closed content eyes, off-white headphones and navy graduation mortarboard. Now shown full body, standing, cheerfully pointing with one front paw at a small blank sky-blue index card floating beside it (the card is empty, no writing). Same flat vector mascot style, same colors and soft simple shading as the reference. Transparent background, no ground, no shadow, centered with margin, no text or letters anywhere, nothing else in the image."
+    },
+    {
+      "id": "cap-scan",
+      "name": "Cramless mascot",
+      "ref": "raw/cramless-capy.png",
+      "transparent": true,
+      "prompt": "The same capybara character as in the reference image, named Cap: identical face, tangerine-brown fur, closed content eyes, off-white headphones and navy graduation mortarboard. Now shown full body, sitting, holding a smartphone up with both front paws over an open book lying in front of it, as if photographing the page, focused and happy. The phone screen and the book pages show only soft grey lines, no readable text. Same flat vector mascot style, same colors and soft simple shading as the reference. Transparent background, no ground, no shadow, centered with margin, no text or letters anywhere, nothing else in the image."
+    },
+    {
+      "id": "cap-plan",
+      "name": "Cramless mascot",
+      "ref": "raw/cramless-capy.png",
+      "transparent": true,
+      "prompt": "The same capybara character as in the reference image, named Cap: identical face, tangerine-brown fur, closed content eyes, off-white headphones and navy graduation mortarboard. Now shown full body, standing, holding a small paper calendar page with a grid of empty squares and three tangerine check marks, proud calm smile. No numbers or words on the calendar. Same flat vector mascot style, same colors and soft simple shading as the reference. Transparent background, no ground, no shadow, centered with margin, no text or letters anywhere, nothing else in the image."
+    },
+    {
+      "id": "cap-mic",
+      "name": "Cramless mascot",
+      "ref": "raw/cramless-capy.png",
+      "transparent": true,
+      "prompt": "The same capybara character as in the reference image, named Cap: identical face, tangerine-brown fur, closed content eyes, off-white headphones and navy graduation mortarboard. Now shown full body, sitting attentively, holding a small round desk microphone in both front paws, ears perked, listening, calm smile. Same flat vector mascot style, same colors and soft simple shading as the reference. Transparent background, no ground, no shadow, centered with margin, no text or letters anywhere, nothing else in the image."
+    },
+    {
+      "id": "cap-relax",
+      "name": "Cramless mascot",
+      "ref": "raw/cramless-capy.png",
+      "transparent": true,
+      "prompt": "The same capybara character as in the reference image, named Cap: identical face, tangerine-brown fur, closed content eyes, off-white headphones and navy graduation mortarboard. Now shown full body, lying back relaxed on a soft mint-green beanbag with a steaming mug of tea held on its belly, eyes closed, perfectly content, the day's work done. Same flat vector mascot style, same colors and soft simple shading as the reference. Transparent background, no ground, no shadow, centered with margin, no text or letters anywhere, nothing else in the image."
+    },
+    {
+      "id": "cap-nice",
+      "name": "Cramless mascot",
+      "ref": "raw/cramless-capy.png",
+      "transparent": true,
+      "prompt": "The same capybara character as in the reference image, named Cap: identical face, tangerine-brown fur, closed content eyes, off-white headphones and navy graduation mortarboard. Now shown full body, standing with a little bounce, one front paw raised in a small happy fist pump, eyes happily closed, a big warm smile. Same flat vector mascot style, same colors and soft simple shading as the reference. Transparent background, no ground, no shadow, centered with margin, no text or letters anywhere, nothing else in the image."
+    },
+    {
+      "id": "cap-almost",
+      "name": "Cramless mascot",
+      "ref": "raw/cramless-capy.png",
+      "transparent": true,
+      "prompt": "The same capybara character as in the reference image, named Cap: identical face, tangerine-brown fur, off-white headphones on its ears and navy graduation mortarboard. Now shown full body, sitting, head tilted slightly to one side, one front paw raised with two claws almost touching in a 'nearly there' gesture, eyes open and warm, an encouraging half smile. Same flat vector mascot style, same colors and soft simple shading as the reference. Transparent background, no ground, no shadow, centered with margin, no text or letters anywhere, nothing else in the image."
+    },
+    {
+      "id": "cap-notYet",
+      "name": "Cramless mascot",
+      "ref": "raw/cramless-capy.png",
+      "transparent": true,
+      "prompt": "The same capybara character as in the reference image, named Cap: identical face, tangerine-brown fur, off-white headphones on its ears and navy graduation mortarboard. Now shown full body, sitting, holding a small open notebook against its chest, eyes open and soft, a gentle reassuring smile, calm and kind, never sad. Same flat vector mascot style, same colors and soft simple shading as the reference. Transparent background, no ground, no shadow, centered with margin, no text or letters anywhere, nothing else in the image."
+    },
+    {
+      "id": "cap-listen",
+      "name": "Cramless mascot",
+      "ref": "raw/cramless-capy.png",
+      "transparent": true,
+      "prompt": "The same capybara character as in the reference image, named Cap: identical face, tangerine-brown fur, off-white headphones on its ears and navy graduation mortarboard. Now shown full body, sitting attentively with ears perked, holding a small notepad and a pencil, eyes open and focused forward as if listening carefully to someone explain, calm small smile. The notepad shows only soft grey lines. Same flat vector mascot style, same colors and soft simple shading as the reference. Transparent background, no ground, no shadow, centered with margin, no text or letters anywhere, nothing else in the image."
+    },
+    {
+      "id": "cap-ask",
+      "name": "Cramless mascot",
+      "ref": "raw/cramless-capy.png",
+      "transparent": true,
+      "prompt": "The same capybara character as in the reference image, named Cap: identical face, tangerine-brown fur, off-white headphones on its ears and navy graduation mortarboard. Now shown full body, sitting, one front paw raised high as if asking a question in class, eyes open and curious, a small friendly smile, a small empty sky-blue speech bubble beside its head. Same flat vector mascot style, same colors and soft simple shading as the reference. Transparent background, no ground, no shadow, centered with margin, no text or letters anywhere, nothing else in the image."
+    },
+    {
+      "id": "cap-sleepy",
+      "name": "Cramless mascot",
+      "ref": "raw/cramless-capy.png",
+      "transparent": true,
+      "prompt": "The same capybara character as in the reference image, named Cap: identical face, tangerine-brown fur, closed content eyes, off-white headphones and navy graduation mortarboard. Now shown full body, sitting, drowsy, mid-yawn with one front paw over its mouth, mortarboard slightly tilted, cozy and sleepy, not sad. Same flat vector mascot style, same colors and soft simple shading as the reference. Transparent background, no ground, no shadow, centered with margin, no text or letters anywhere, nothing else in the image."
+    },
+    {
+      "id": "cap-proud",
+      "name": "Cramless mascot",
+      "ref": "raw/cramless-capy.png",
+      "transparent": true,
+      "prompt": "The same capybara character as in the reference image, named Cap: identical face, tangerine-brown fur, closed content eyes, off-white headphones and navy graduation mortarboard. Now shown full body, standing tall with its chest out and both front paws on its hips, eyes happily closed, a proud warm smile, a small sunny yellow star badge pinned to its chest. Same flat vector mascot style, same colors and soft simple shading as the reference. Transparent background, no ground, no shadow, centered with margin, no text or letters anywhere, nothing else in the image."
+    },
+    {
+      "id": "cap-stargaze",
+      "name": "Cramless mascot",
+      "ref": "raw/cramless-capy.png",
+      "transparent": true,
+      "prompt": "The same capybara character as in the reference image, named Cap: identical face, tangerine-brown fur, off-white headphones on its ears and navy graduation mortarboard. Now shown full body, sitting and looking up through a small brass telescope on a short tripod pointed up and to the right, a few tiny sunny yellow stars floating near the end of the telescope, peaceful and curious. Same flat vector mascot style, same colors and soft simple shading as the reference. Transparent background, no ground, no shadow, centered with margin, no text or letters anywhere, nothing else in the image."
+    },
+    {
+      "id": "cap-tuckIn",
+      "name": "Cramless mascot",
+      "ref": "raw/cramless-capy.png",
+      "transparent": true,
+      "prompt": "The same capybara character as in the reference image, named Cap: identical face, tangerine-brown fur, closed content eyes, off-white headphones and navy graduation mortarboard. Now shown full body, standing on its hind legs and gently pulling a small soft navy blanket dotted with tiny yellow stars over a neat stack of three index cards (off-white, sky blue and tangerine), sleepy content smile, saying goodnight. Same flat vector mascot style, same colors and soft simple shading as the reference. Transparent background, no ground, no shadow, centered with margin, no text or letters anywhere, nothing else in the image."
+    }
+  ]
+}
