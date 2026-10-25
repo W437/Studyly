@@ -1,0 +1,90 @@
+import Foundation
+
+/// Mistake patterns by the offline rules (tier T0). Two patterns plain code can see:
+///
+/// - **a swap**: the answer given to one item is the expected answer of another ("telophase" for the anaphase
+///   question, "anaphase" for the telophase one). Named "Anaphase vs telophase", with a two-line lesson from the
+///   two expected answers and a choice question for each item between the two confused answers;
+/// - **a weak topic**: two or more items of one topic missed three or more times between them.
+///
+/// It can't explain *why* two ideas get mixed up; the cloud does that when allowed.
+enum LocalConfusions {
+
+    static func find(_ mistakes: [MistakeInput]) -> [ConfusionOut] {
+        var out: [ConfusionOut] = []
+        var used = Set<String>()
+
+        // Swaps.
+        for a in mistakes where !used.contains(a.itemId) {
+            guard let b = mistakes.first(where: { b in
+                b.itemId != a.itemId && !used.contains(b.itemId) && same(a.given, b.expected)
+            }) else { continue }
+            used.formUnion([a.itemId, b.itemId])
+            let first = Lexicon.trimmedSentence(b.expected), second = Lexicon.trimmedSentence(a.expected)
+            let name = "\(Lexicon.capitalizedFirst(first)) vs \(LocalGrader.lowerFirst(second))"
+            let lesson = "For “\(Lexicon.trimmedSentence(a.prompt))”, the answer is \(LocalGrader.lowerFirst(second)). "
+                + "For “\(Lexicon.trimmedSentence(b.prompt))”, it's \(LocalGrader.lowerFirst(first))."
+            let questions = [a, b].enumerated().map { n, m -> GeneratedItem in
+                let other = m.itemId == a.itemId ? b.expected : a.expected
+                return GeneratedItem(id: "x\(out.count + 1)-\(n + 1)", kind: .mcq, topic: m.topic, prompt: m.prompt,
+                                     answer: m.expected, explanation: "",
+                                     choices: [Choice(text: m.expected, correct: true), Choice(text: other, correct: false)],
+                                     anchors: [], difficulty: 0.4)
+            }
+            out.append(ConfusionOut(name: name,
+                                    explanation: "You've answered \(LocalGrader.lowerFirst(first)) where it was \(LocalGrader.lowerFirst(second)), and the other way round.",
+                                    itemIds: [a.itemId, b.itemId], lesson: lesson, questions: questions))
+        }
+
+        // Weak topics.
+        let byTopic = Dictionary(grouping: mistakes.filter { !used.contains($0.itemId) && !$0.topic.isEmpty }, by: \.topic)
+        for (topic, items) in byTopic.sorted(by: { $0.key < $1.key }) {
+            let misses = items.reduce(0) { $0 + $1.misses }
+            guard items.count >= 2, misses >= 3 else { continue }
+            let lesson = items.prefix(3).map { "\(Lexicon.trimmedSentence($0.prompt)): \(Lexicon.trimmedSentence($0.expected))." }
+                .joined(separator: " ")
+            out.append(ConfusionOut(name: topic,
+                                    explanation: "You've missed \(items.count) questions on \(LocalGrader.lowerFirst(topic)), \(misses) times between them.",
+                                    itemIds: items.map(\.itemId), lesson: lesson, questions: []))
+        }
+        return out
+    }
+
+    private static func same(_ a: String, _ b: String) -> Bool {
+        let x = Lexicon.normalizedAnswer(a), y = Lexicon.normalizedAnswer(b)
+        return !x.isEmpty && (x == y || LocalGrader.exactMatch(a, accepted: [b]) != .wrong)
+    }
+}
+
+/// Flashcards from a tutor chat by the offline rules (tier T0): definitions stated in Cap's answers, and the
+/// person's question with the first sentences of the answer. Drafts only: the person picks which to keep.
+enum LocalCardsFromChat {
+
+    static func cards(messages: [TutorMessage], maxItems: Int) -> [GeneratedItem] {
+        var out: [GeneratedItem] = []
+        var seen = Set<String>()
+        func add(_ front: String, _ back: String) {
+            let key = Lexicon.normalizedAnswer(front)
+            guard !key.isEmpty, !back.isEmpty, out.count < maxItems, seen.insert(key).inserted else { return }
+            out.append(GeneratedItem(id: "m\(out.count + 1)", kind: .flashcard, topic: "", prompt: front, answer: back,
+                                     difficulty: 0.3))
+        }
+        for (i, message) in messages.enumerated() where message.role == .assistant {
+            let sentences = Lexicon.sentences(message.text).filter { !$0.hasSuffix("?") && !$0.lowercased().hasPrefix("quick check") }
+            for sentence in sentences {
+                if let d = PageStructure.sentenceDefinition(sentence) {
+                    add(d.term, Lexicon.capitalizedFirst(d.meaning) + ".")
+                } else if let d = PageStructure.lineDefinition(sentence) {
+                    add(d.term, Lexicon.capitalizedFirst(d.meaning) + ".")
+                }
+            }
+            if let question = messages[..<i].last(where: { $0.role == .user }), !sentences.isEmpty {
+                let front = Lexicon.trimmedSentence(question.text)
+                guard front.split(separator: " ").count <= 16 else { continue }
+                let back = sentences.prefix(2).joined(separator: " ")
+                add(front.hasSuffix("?") ? front : front + "?", back)
+            }
+        }
+        return out
+    }
+}

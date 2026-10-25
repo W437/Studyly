@@ -1,0 +1,7 @@
+{
+  "front": "turn-front-2",
+  "threeq": "turn-threeq-1",
+  "side": "turn-side-1",
+  "face": "expr-laugh",
+  "extra": ["expr-open", "expr-wink", "expr-yawn", "expr-content", "detail-teeth", "detail-eyes", "turn-back-1"]
+}

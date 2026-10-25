@@ -1,0 +1,107 @@
+# XcodeGen spec for Cramless. `xcodegen generate` (or scripts/xc.sh) writes Cramless.xcodeproj, which is
+# generated and gitignored: this file is the source of truth, and globs pick up new files.
+name: Cramless
+
+options:
+  bundleIdPrefix: com.loopware
+  deploymentTarget:
+    iOS: "26.0"
+  createIntermediateGroups: true
+  groupSortPosition: top
+  generateEmptyDirectories: true
+  developmentLanguage: en
+
+settings:
+  base:
+    DEVELOPMENT_TEAM: 6XH75DGC66
+    SWIFT_VERSION: "5.0"
+    MARKETING_VERSION: "1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    CODE_SIGN_STYLE: Automatic
+    SWIFT_STRICT_CONCURRENCY: minimal
+    ENABLE_USER_SCRIPT_SANDBOXING: NO
+    ALWAYS_SEARCH_USER_PATHS: NO
+    TARGETED_DEVICE_FAMILY: "1"
+    # Copy lives in String Catalogs (Cramless/Resources/Localizable.xcstrings, CramlessWidgets/Localizable.xcstrings);
+    # building extracts every localizable literal into them.
+    LOCALIZATION_PREFERS_STRING_CATALOGS: YES
+    SWIFT_EMIT_LOC_STRINGS: YES
+    # Anything that needs the iOS 27 SDK sits behind `#if HAS_IOS27_SDK` plus an availability check, so a
+    # 26.x toolchain still builds. Add a `28*` pair when moving to Xcode 28.
+    SWIFT_ACTIVE_COMPILATION_CONDITIONS[sdk=iphoneos27*]: "$(inherited) HAS_IOS27_SDK"
+    SWIFT_ACTIVE_COMPILATION_CONDITIONS[sdk=iphonesimulator27*]: "$(inherited) HAS_IOS27_SDK"
+
+targets:
+  Cramless:
+    type: application
+    platform: iOS
+    configFiles:
+      Debug: Secrets.xcconfig
+      Release: Secrets.xcconfig
+    sources:
+      - path: Cramless
+        excludes:
+          - "**/.DS_Store"
+      - path: Shared
+      # The relay's canned replies. The app's mock transport and the relay's MOCK mode read these same files.
+      - path: supabase/functions/_shared/fixtures
+        type: folder
+        buildPhase: resources
+    dependencies:
+      - target: CramlessWidgetsExtension
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.loopware.Capling
+        PRODUCT_NAME: Cramless
+        GENERATE_INFOPLIST_FILE: NO
+        INFOPLIST_FILE: Cramless/Resources/Info.plist
+        CODE_SIGN_ENTITLEMENTS: Cramless/Resources/Cramless.entitlements
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ENABLE_PREVIEWS: YES
+
+  # Home and Lock Screen widgets, the Live Activity and the controls. Compiles a blind subset: its own sources
+  # plus Shared/. It cannot see AppModel, SwiftData or any feature view; it reads the snapshot the app writes.
+  CramlessWidgetsExtension:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: CramlessWidgets
+      - path: Shared
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.loopware.Capling.Widgets
+        PRODUCT_NAME: CramlessWidgets
+        GENERATE_INFOPLIST_FILE: NO
+        INFOPLIST_FILE: CramlessWidgets/Info.plist
+        CODE_SIGN_ENTITLEMENTS: CramlessWidgets/CramlessWidgets.entitlements
+        SKIP_INSTALL: YES
+
+  CramlessTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: CramlessTests
+    dependencies:
+      - target: Cramless
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: com.loopware.CaplingTests
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/Cramless.app/Cramless"
+        BUNDLE_LOADER: "$(TEST_HOST)"
+
+schemes:
+  Cramless:
+    build:
+      targets:
+        Cramless: all
+        CramlessTests: [test]
+    run:
+      config: Debug
+      # Local test store so purchases work in the simulator; real pricing lives in App Store Connect.
+      storeKitConfiguration: Cramless.storekit
+    test:
+      config: Debug
+      targets:
+        - CramlessTests

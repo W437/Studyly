@@ -1,0 +1,79 @@
+import Foundation
+
+// The read model the screens, widgets and notifications use: what today looks like, how ready each exam is,
+// the streak. Computed by the engines through `AppModel+Insights.swift`. Extend these types by adding fields with
+// defaults; don't rename (several lanes read them).
+
+struct TodaySummary: Equatable, Sendable {
+    /// The person's daily goal (settings).
+    var minutesGoal: Int = 15
+    /// Minutes studied today so far.
+    var minutesDone: Int = 0
+    /// The size of today's session as built now, in minutes.
+    var plannedMinutes: Int = 0
+    var reviews: Int = 0
+    var newItems: Int = 0
+    var weakSpots: Int = 0
+    /// Short names for the weak spots in today's session ("Meiosis I vs II", "Chromosome number").
+    var weakChips: [String] = []
+    var studiedToday = false
+    /// There is something to study right now.
+    var sessionReady = false
+    /// A backlog too big for one day: the session runs in catch-up mode.
+    var catchUp = false
+    /// Everything due right now, including what doesn't fit in today's session.
+    var dueTotal: Int = 0
+    /// In catch-up mode: days at the daily goal to clear the backlog.
+    var catchUpDaysToClear: Int = 0
+    /// An exam tomorrow: offer its exam-eve session (weak spots only, then stop).
+    var examEveExamID: UUID? = nil
+}
+
+struct TopicReadiness: Equatable, Sendable, Identifiable {
+    var id: UUID
+    var name: String
+    /// 0…1; nil when the topic has no material yet (a coverage gap).
+    var value: Double?
+    var itemCount: Int
+}
+
+struct ProjectedGrade: Equatable, Sendable {
+    /// 0…1.
+    var percent: Double
+    var letter: String
+    /// True once logged grades have calibrated the projection.
+    var isCalibrated: Bool
+}
+
+struct ExamReadiness: Equatable, Sendable {
+    var examID: UUID
+    /// Predicted recall over the exam's scope on exam day if the person stopped studying now. 0…1.
+    var value: Double
+    /// The same, if the plan is followed. 0…1.
+    var projected: Double
+    /// Change in `value` over the last 7 days.
+    var deltaThisWeek: Double
+    var daysLeft: Int
+    var topics: [TopicReadiness]
+    var projectedGrade: ProjectedGrade
+    var itemsInScope: Int
+    /// Items in scope never studied.
+    var unseenItems: Int
+    /// The exam's target readiness, 0…1.
+    var target: Double = 0.9
+    /// When the plan's projection first reaches the target (nil: it doesn't before the exam).
+    var targetReachedOn: Date? = nil
+    /// Topics in scope with no material yet.
+    var coverageGaps: Int = 0
+}
+
+struct StreakState: Equatable, Sendable {
+    var current: Int = 0
+    var best: Int = 0
+    var studiedToday = false
+    var freezesAvailable: Int = 0
+    /// Days covered by a freeze, most recent first.
+    var frozenDays: [Date] = []
+    /// A missed day that a double session today would repair.
+    var repairableDay: Date?
+}

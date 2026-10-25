@@ -1,0 +1,498 @@
+import SwiftUI
+
+/// One message of a chat, as plain values (read once from the model, so a deleted chat can't trap a view).
+struct ChatEntry: Identifiable, Equatable {
+    var id: UUID
+    var role: ChatRole
+    var text: String
+    var citations: [Citation]
+    var origin: ItemOrigin?
+    var contextItemID: UUID?
+
+    init(_ message: ChatMessage) {
+        id = message.id
+        role = message.role
+        text = message.text
+        citations = message.citations
+        origin = message.origin.flatMap(ItemOrigin.init(rawValue:))
+        contextItemID = message.contextItemID
+    }
+
+    static func entries(of thread: ChatThread?) -> [ChatEntry] {
+        guard let thread, thread.modelContext != nil else { return [] }
+        return thread.sortedMessages.map(ChatEntry.init)
+    }
+
+    /// Cap's reply for a question the notes don't cover (the offline tutor's words, or the cloud's).
+    var isNotCovered: Bool {
+        role == .assistant && (text == LocalTutor.notCovered || text.hasPrefix("Your material doesn't cover")
+                               || text.hasPrefix("Your notes don't cover"))
+    }
+
+    var isRefusal: Bool { role == .assistant && text == TutorPolicy.refusal }
+}
+
+/// The tutor chat: the course chip and Cap's style, the messages (Cap's streaming in), the suggestions and the glass
+/// composer pinned above the keyboard. Used by the Ask tab (a new chat until the first question) and by a chat
+/// pushed from history.
+struct ChatPane: View {
+    @Binding var threadID: UUID?
+    /// The course for a chat that hasn't started yet (the Ask tab).
+    @Binding var pendingCourseID: UUID?
+    var showsEmptyState = true
+
+    @Environment(AppModel.self) private var app
+    @Environment(\.clReduceMotion) private var reduceMotion
+    @State private var draft = ""
+    @FocusState private var composerFocused: Bool
+    @State private var starters: [String]?
+
+    private var streams: AskStreams { AskStreams.shared }
+
+    private var thread: ChatThread? {
+        guard let thread = app.thread(threadID), thread.modelContext != nil else { return nil }
+        return thread
+    }
+
+    private var courseID: UUID? { thread.map(\.courseID) ?? pendingCourseID }
+
+    var body: some View {
+        let _ = app.revision
+        let thread = self.thread
+        let entries = ChatEntry.entries(of: thread)
+        let live = threadID.flatMap { streams.live[$0] }
+        ScrollViewReader { proxy in
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    header(thread)
+                    if entries.isEmpty && live == nil {
+                        if showsEmptyState { emptyState }
+                    } else {
+                        conversation(entries, live: live, thread: thread)
+                        suggestions(entries, thread: thread, isAnswering: live != nil)
+                    }
+                    Color.clear.frame(height: 1).id("end")
+                }
+                .padding(.horizontal, CLSpace.gutter)
+                .padding(.top, 4)
+                .padding(.bottom, 12)
+                .frame(maxWidth: CLMetrics.readableWidth)
+                .frame(maxWidth: .infinity)
+            }
+            .scrollDismissesKeyboard(.interactively)
+            .defaultScrollAnchor(HarnessScroll.anchor(entries.isEmpty ? .top : .bottom), for: .initialOffset)
+            .defaultScrollAnchor(HarnessScroll.anchor(.bottom), for: .sizeChanges)
+            .onChange(of: entries.count) { _, _ in scrollToEnd(proxy) }
+            .onChange(of: live == nil) { _, _ in scrollToEnd(proxy) }
+        }
+        .safeAreaInset(edge: .bottom) {
+            ChatComposer(text: $draft, focused: $composerFocused, isAnswering: live != nil,
+                         onSend: { send(draft) },
+                         onStop: { if let id = threadID { streams.stop(id, app: app) } })
+                .padding(.horizontal, 12)
+                .padding(.bottom, 8)
+        }
+        .clScreenBackground()
+        .task(id: courseID) {
+            guard showsEmptyState else { return }
+            starters = nil
+            starters = await app.chatStarters(courseID: courseID)
+        }
+    }
+
+    // MARK: Parts
+
+    private func header(_ thread: ChatThread?) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            CourseMaterialChip(courseID: courseID) { picked in
+                if let thread { app.setChatCourse(thread, to: picked) } else { pendingCourseID = picked }
+            }
+            TutorModeControl(thread: thread)
+        }
+    }
+
+    @ViewBuilder
+    private func conversation(_ entries: [ChatEntry], live: AskStreams.Live?, thread: ChatThread?) -> some View {
+        let context = entries.first { $0.role == .user }?.text ?? ""
+        let lastAssistant = entries.lastIndex { $0.role == .assistant }
+        ForEach(Array(entries.enumerated()), id: \.element.id) { index, entry in
+            if entry.role == .user {
+                // A question rises into place; under Reduce Motion it only fades in.
+                UserBubble(text: entry.text)
+                    .transition(.asymmetric(insertion: reduceMotion ? .opacity : .move(edge: .bottom).combined(with: .opacity),
+                                            removal: .identity))
+            } else {
+                let reply = entries.indices.contains(index + 1) && entries[index + 1].role == .user ? entries[index + 1].text : nil
+                CapMessageView(entry: entry, note: streams.notes[entry.id], chatContext: context,
+                               isLatest: index == lastAssistant && live == nil, reply: reply,
+                               onCitation: open, onAnswer: { answer, check in answerQuickCheck(answer, check: check) },
+                               onSuggestion: { app.router.present($0.sheet) })
+                    .transition(.identity)
+            }
+        }
+        if let live {
+            LiveAnswerView(live: live, onCitation: open)
+                .transition(.asymmetric(insertion: .opacity, removal: .identity))
+        }
+    }
+
+    @ViewBuilder
+    private func suggestions(_ entries: [ChatEntry], thread: ChatThread?, isAnswering: Bool) -> some View {
+        if !isAnswering, let last = entries.last, last.role == .assistant {
+            let lastQuestion = entries.last { $0.role == .user }?.text ?? ""
+            CLFlow(spacing: 8, lineSpacing: 0) {
+                if last.isRefusal {
+                    let topic = AskPolicy.topic(ofRefused: lastQuestion)
+                    SuggestionChip(title: topic.map { "Explain \($0) from my notes" } ?? "Explain the key ideas",
+                                   systemImage: "text.book.closed") {
+                        ask(topic.map { "Explain \($0) from my notes" } ?? "Explain the key ideas", sendAs: nil)
+                    }
+                    SuggestionChip(title: topic.map { "Quiz me on \($0)" } ?? "Quiz me on this", systemImage: "checklist") {
+                        quiz(hint: topic ?? "")
+                    }
+                } else if last.isNotCovered {
+                    SuggestionChip(title: "Add notes on this", systemImage: "doc.viewfinder") {
+                        app.router.present(.capture(courseID: courseID))
+                    }
+                } else {
+                    SuggestionChip(title: "Quiz me on this", systemImage: "checklist") { quiz(hint: chatText(entries)) }
+                    SuggestionChip(title: "Explain with an analogy", systemImage: "lightbulb") {
+                        ask("Explain with an analogy", sendAs: "Explain \(subject(thread, entries)) with an analogy, using my notes.")
+                    }
+                    if let thread {
+                        SuggestionChip(title: "Make cards from this", systemImage: "rectangle.stack.badge.plus") {
+                            CLHaptics.tap()
+                            app.router.present(.makeCards(threadID: thread.id))
+                        }
+                    }
+                }
+            }
+            .padding(.top, 2)
+        }
+    }
+
+    private var emptyState: some View {
+        let recent = app.chatThreads().filter { $0.id != threadID && !$0.messages.isEmpty }.prefix(3)
+        return AskEmptyState(name: app.settings.firstName, courseName: app.liveCourse(courseID)?.name,
+                             sourceCount: app.readableSources(courseID: courseID).count, starters: starters,
+                             recent: recent.map { RecentChat(id: $0.id, title: $0.title, updatedAt: $0.updatedAt) },
+                             now: app.now,
+                             onStarter: { ask($0, sendAs: nil) },
+                             onOpen: { id in withAnimation(CLMotion.settle) { threadID = id } },
+                             onAddMaterial: { app.router.present(.capture(courseID: courseID)) })
+    }
+
+    // MARK: Actions
+
+    private func send(_ text: String) {
+        let clean = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !clean.isEmpty else { return }
+        draft = ""
+        ask(clean, sendAs: nil)
+    }
+
+    /// Asks Cap. `sendAs` is what the tutor reads when the shown words lean on the chat ("Explain with an
+    /// analogy", a quick-check answer), so the question finds the notes it's about.
+    private func ask(_ text: String, sendAs: String?) {
+        guard !streams.isAnswering(threadID) else { return }
+        let thread = self.thread ?? app.startChat(courseID: pendingCourseID)
+        if threadID != thread.id { threadID = thread.id }
+        CLHaptics.tap()
+        withAnimation(CLMotion.settle) {
+            streams.ask(text, in: thread, app: app, sendAs: sendAs)
+        }
+    }
+
+    private func answerQuickCheck(_ answer: String, check: QuickCheck) {
+        ask(answer, sendAs: "Quick check: \(check.question) My answer: \(answer)")
+    }
+
+    private func open(_ group: CitationGroup) {
+        CitationOpener.open(group, app: app)
+    }
+
+    /// A practice session on the topic the chat is about (the course's topic whose name the chat uses most).
+    private func quiz(hint: String) {
+        let scope = app.liveCourse(courseID).map { [$0] } ?? app.courses
+        let topics = scope.flatMap(\.liveTopics)
+        let topic = topics
+            .map { ($0, Lexicon.overlap(of: $0.name, with: hint)) }
+            .filter { $0.1 >= 0.5 }
+            .max { $0.1 < $1.1 }?.0
+        CLHaptics.tap()
+        app.router.present(.session(SessionRequest(kind: .practice, courseID: topic?.course?.id ?? courseID,
+                                                   topicID: topic?.id)))
+    }
+
+    private func chatText(_ entries: [ChatEntry]) -> String {
+        entries.suffix(4).map(\.text).joined(separator: " ")
+    }
+
+    /// What the chat is about, for a follow-up that leans on it.
+    private func subject(_ thread: ChatThread?, _ entries: [ChatEntry]) -> String {
+        if let title = thread?.title, !title.isEmpty, !title.hasSuffix("…") { return title }
+        return entries.first { $0.role == .user }?.text ?? "this"
+    }
+
+    private func scrollToEnd(_ proxy: ScrollViewProxy) {
+        guard HarnessScroll.anchor(nil) != .top else { return }
+        withAnimation(CLMotion.settle) { proxy.scrollTo("end", anchor: .bottom) }
+    }
+}
+
+// MARK: - Opening a citation
+
+enum CitationOpener {
+    /// The page with the quote's lines highlighted, or the lecture at that moment, as a sheet.
+    @MainActor
+    static func open(_ group: CitationGroup, app: AppModel) {
+        guard let first = group.citations.first, let id = first.sourceID, let source = app.source(id), source.deletedAt == nil else {
+            app.router.toast("That source isn't in your library anymore.", systemImage: "questionmark.folder", tone: .warning)
+            return
+        }
+        CLHaptics.tap()
+        if source.kind == .lecture || (first.pageIndex == nil && first.start != nil) {
+            app.router.present(.lectureMoment(sourceID: id, time: first.start))
+        } else {
+            app.router.present(.sourcePage(sourceID: id, pageIndex: first.pageIndex ?? 0, highlight: anchors(group, app: app)))
+        }
+    }
+
+    @MainActor
+    static func anchors(_ group: CitationGroup, app: AppModel) -> [String] {
+        var out: [String] = []
+        for citation in group.citations {
+            for id in app.anchorIDs(for: citation) where !out.contains(id) { out.append(id) }
+        }
+        return out
+    }
+}
+
+// MARK: - Cap's messages
+
+/// One of Cap's saved answers: the text with its citations, the quick check it ends with (answerable when it's the
+/// latest), an honest note on who answered when it wasn't the cloud, and the offer a better path carries.
+struct CapMessageView: View {
+    let entry: ChatEntry
+    let note: AskStreams.Note?
+    var chatContext: String = ""
+    let isLatest: Bool
+    let reply: String?
+    let onCitation: (CitationGroup) -> Void
+    let onAnswer: (String, QuickCheck) -> Void
+    let onSuggestion: (AISuggestion) -> Void
+
+    var body: some View {
+        let check = QuickCheck.split(entry.text, chatContext: chatContext)
+        let lead = check?.lead ?? entry.text
+        let groups = CitationGroup.groups(entry.citations)
+        let origin = OriginNote.line(origin: note?.origin ?? entry.origin, note: note?.note, quotesNotes: !entry.citations.isEmpty)
+        VStack(alignment: .leading, spacing: 8) {
+            if !lead.isEmpty {
+                VStack(alignment: .leading, spacing: 10) {
+                    CapMarkdownView(text: lead)
+                        .accessibilityElement(children: .combine)
+                        .accessibilityLabel(Text(Self.spoken(lead, groups: groups)))
+                        .accessibilityActions {
+                            ForEach(groups) { group in
+                                Button("Open \(group.label)") { onCitation(group) }
+                            }
+                        }
+                    if !groups.isEmpty { chips(groups) }
+                }
+                .capBubble(tint: entry.isNotCovered || entry.isRefusal ? CLColor.surface2 : CLColor.surface)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.trailing, 28)
+            }
+            if let check {
+                QuickCheckCard(check: check, isActive: isLatest, answered: reply) { onAnswer($0, check) }
+                if lead.isEmpty, !groups.isEmpty { chips(groups).padding(.leading, 4) }
+            }
+            if let origin { OriginNote(text: origin.text, systemImage: origin.icon) }
+            if isLatest, let suggestion = note?.suggestion {
+                AISuggestionCard(suggestion: suggestion) { onSuggestion(suggestion) }
+                    .padding(.trailing, 28)
+            }
+        }
+    }
+
+    private func chips(_ groups: [CitationGroup]) -> some View {
+        CLFlow(spacing: 6, lineSpacing: 0) {
+            ForEach(groups) { group in CitationChipButton(group: group) { onCitation(group) } }
+        }
+        .padding(.vertical, -6)
+    }
+
+    /// Cap's answer as VoiceOver reads it: the words, then where they come from.
+    static func spoken(_ text: String, groups: [CitationGroup]) -> String {
+        var line = "Cap: " + CapMarkdown.plain(text).trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !groups.isEmpty else { return line }
+        if let last = line.last, !".!?".contains(last) { line += "." }
+        return line + " Sources: " + groups.map(\.label).joined(separator: ", ") + "."
+    }
+}
+
+/// The answer being written: three dots until the first words, then the text with a caret, and citations as
+/// they're checked.
+struct LiveAnswerView: View {
+    let live: AskStreams.Live
+    let onCitation: (CitationGroup) -> Void
+
+    var body: some View {
+        if live.origin == nil && live.text.isEmpty {
+            CapThinkingBubble()
+        } else {
+            let groups = CitationGroup.groups(live.citations)
+            VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: 10) {
+                    CapMarkdownView(text: live.text, streaming: true)
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel(Text(CapMessageView.spoken(live.text, groups: groups)))
+                    if !groups.isEmpty {
+                        CLFlow(spacing: 6, lineSpacing: 0) {
+                            ForEach(groups) { group in
+                                CitationChipButton(group: group) { onCitation(group) }
+                                    .transition(.scale(scale: 0.6).combined(with: .opacity))
+                            }
+                        }
+                        .padding(.vertical, -6)
+                        .animation(CLMotion.pop, value: groups.count)
+                    }
+                }
+                .capBubble()
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.trailing, 28)
+                if let origin = OriginNote.line(origin: live.origin, note: nil, quotesNotes: !live.citations.isEmpty) {
+                    OriginNote(text: origin.text, systemImage: origin.icon)
+                }
+            }
+            .accessibilityAddTraits(.updatesFrequently)
+        }
+    }
+}
+
+// MARK: - Empty
+
+struct RecentChat: Identifiable, Equatable {
+    var id: UUID
+    var title: String
+    var updatedAt: Date
+}
+
+/// A new chat: Cap, what it answers from, three questions drawn from the person's material, and the chats to pick
+/// up again. With no material yet, a way to add some.
+struct AskEmptyState: View {
+    let name: String
+    let courseName: String?
+    let sourceCount: Int
+    /// Nil while they're being picked.
+    let starters: [String]?
+    let recent: [RecentChat]
+    let now: Date
+    let onStarter: (String) -> Void
+    let onOpen: (UUID) -> Void
+    let onAddMaterial: () -> Void
+
+    @Environment(\.dynamicTypeSize) private var typeSize
+
+    var body: some View {
+        // Cap beside the words; above them at the accessibility sizes, so the words keep the full width.
+        let intro = typeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 10))
+            : AnyLayout(HStackLayout(alignment: .center, spacing: 14))
+        VStack(alignment: .leading, spacing: 0) {
+            intro {
+                CapView(pose: sourceCount == 0 ? .sleep : .study, size: typeSize.isAccessibilitySize ? 88 : 104)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(title)
+                        .clFont(.title3)
+                        .foregroundStyle(CLColor.ink)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityAddTraits(.isHeader)
+                    Text(subtitle)
+                        .clFont(.subheadline)
+                        .foregroundStyle(CLColor.ink2)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .padding(.top, 10)
+
+            if sourceCount == 0 {
+                Button(action: onAddMaterial) {
+                    Label("Add your notes", systemImage: "doc.viewfinder")
+                }
+                .buttonStyle(.cl(.primary))
+                .padding(.top, 22)
+            } else {
+                CLSectionHeader(title: "Try asking")
+                if let starters {
+                    if starters.isEmpty {
+                        Text("Ask anything your notes cover. Cap shows you where each answer comes from.")
+                            .clFont(.subheadline)
+                            .foregroundStyle(CLColor.ink2)
+                    } else {
+                        CLList {
+                            ForEach(starters, id: \.self) { starter in
+                                Button { onStarter(starter) } label: {
+                                    CLRow(icon: "text.bubble", tint: .sky, title: .verbatim(starter)) {
+                                        Image(systemName: "arrow.up.right")
+                                            .font(.system(size: 13, weight: .bold))
+                                            .foregroundStyle(CLColor.ink4)
+                                            .accessibilityHidden(true)
+                                    }
+                                }
+                                .buttonStyle(.pressable)
+                                .accessibilityHint(Text("Asks Cap"))
+                            }
+                        }
+                        .transition(.opacity)
+                    }
+                } else {
+                    CLList {
+                        ForEach(0..<3, id: \.self) { _ in
+                            CLRow(icon: "text.bubble", tint: .sky, title: "What happens after mitosis in the cell?") { EmptyView() }
+                                .redacted(reason: .placeholder)
+                        }
+                    }
+                    .accessibilityHidden(true)
+                }
+            }
+
+            if !recent.isEmpty {
+                CLSectionHeader(title: "Pick up where you left off")
+                CLList {
+                    ForEach(recent) { chat in
+                        Button { onOpen(chat.id) } label: {
+                            CLRow(icon: "bubble.left.and.bubble.right", tint: .tangerine, title: .verbatim(chat.title),
+                                  subtitle: .verbatim(Self.when(chat.updatedAt, now: now)))
+                        }
+                        .buttonStyle(.pressable)
+                    }
+                }
+            }
+        }
+        .animation(CLMotion.fade, value: starters)
+    }
+
+    private var title: String {
+        let first = name.trimmingCharacters(in: .whitespaces)
+        if sourceCount == 0 { return first.isEmpty ? "Cap answers from your notes" : "Hi \(first). Cap answers from your notes" }
+        let course = courseName ?? "your courses"
+        return first.isEmpty ? "Ask me about \(course)" : "Hi \(first), ask me about \(course)"
+    }
+
+    private var subtitle: String {
+        if sourceCount == 0 { return "Scan a page or add slides, and ask away. Every answer points to where it says so." }
+        return "I answer from your \(CLFormat.count(sourceCount, "source")) and show you where it says so. If they don't cover it, I'll tell you."
+    }
+
+    static func when(_ date: Date, now: Date) -> String {
+        let days = Calendar.current.dayDistance(from: date, to: now)
+        switch days {
+        case 0: return "Today, " + date.formatted(.dateTime.hour().minute())
+        case 1: return "Yesterday"
+        case 2..<7: return date.formatted(.dateTime.weekday(.wide))
+        default: return date.formatted(.dateTime.month(.abbreviated).day())
+        }
+    }
+}

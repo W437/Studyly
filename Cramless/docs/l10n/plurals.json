@@ -1,0 +1,161 @@
+{
+  "_about": "English plural forms for String Catalog keys. scripts/sync_strings.sh applies them after every build, so a literal like \"\\(n) minutes\" reads \"1 minute\". A key with one number: {\"one\", \"other\"}. A key with several: {\"value\", \"substitutions\": {name: {\"argNum\", \"one\", \"other\"}}}, where %#@name@ marks the plural word and the other arguments are numbered (%1$lld). Translators add their own languages' forms in the catalog.",
+  "%lld days in a row": {
+    "one": "%lld day in a row",
+    "other": "%lld days in a row"
+  },
+  "%lld freezes saved": {
+    "one": "%lld freeze saved",
+    "other": "%lld freezes saved"
+  },
+  "%lld minutes": {
+    "one": "%lld minute",
+    "other": "%lld minutes"
+  },
+  "%lld minutes a day": {
+    "one": "%lld minute a day",
+    "other": "%lld minutes a day"
+  },
+  "%lld minutes tonight and you're done.": {
+    "one": "%lld minute tonight and you're done.",
+    "other": "%lld minutes tonight and you're done."
+  },
+  "%lld pages": {
+    "one": "%lld page",
+    "other": "%lld pages"
+  },
+  "%lld pages of text": {
+    "one": "%lld page of text",
+    "other": "%lld pages of text"
+  },
+  "%lld topics have no material yet. Add some and they join your sessions.": {
+    "one": "%lld topic has no material yet. Add some and it joins your sessions.",
+    "other": "%lld topics have no material yet. Add some and they join your sessions."
+  },
+  "Example reminder: %lld minutes tonight and you're done.": {
+    "one": "Example reminder: %lld minute tonight and you're done.",
+    "other": "Example reminder: %lld minutes tonight and you're done."
+  },
+  "No exam yet. %lld minutes today.": {
+    "one": "No exam yet. %lld minute today.",
+    "other": "No exam yet. %lld minutes today."
+  },
+  "Show the whole transcript (%lld parts)": {
+    "one": "Show the whole transcript (%lld part)",
+    "other": "Show the whole transcript (%lld parts)"
+  },
+  "Start today's session, %lld minutes": {
+    "one": "Start today's session, %lld minute",
+    "other": "Start today's session, %lld minutes"
+  },
+  "for %lld days, one time. Doesn't renew.": {
+    "one": "for %lld day, one time. Doesn't renew.",
+    "other": "for %lld days, one time. Doesn't renew."
+  },
+  "%lld of %lld minutes today": {
+    "value": "%1$lld of %#@minutes@ today",
+    "substitutions": {
+      "minutes": {
+        "argNum": 2,
+        "one": "%arg minute",
+        "other": "%arg minutes"
+      }
+    }
+  },
+  "%lld of %lld seats": {
+    "value": "%1$lld of %#@seats@",
+    "substitutions": {
+      "seats": {
+        "argNum": 2,
+        "one": "%arg seat",
+        "other": "%arg seats"
+      }
+    }
+  },
+  "Added the first %lld of %lld pages.": {
+    "value": "Added the first %1$lld of %#@pages@.",
+    "substitutions": {
+      "pages": {
+        "argNum": 2,
+        "one": "%arg page",
+        "other": "%arg pages"
+      }
+    }
+  },
+  "Your Squad: %lld of %lld seats taken. %@.": {
+    "value": "Your Squad: %1$lld of %#@seats@ taken. %3$@.",
+    "substitutions": {
+      "seats": {
+        "argNum": 2,
+        "one": "%arg seat",
+        "other": "%arg seats"
+      }
+    }
+  },
+  "%lld stars": {
+    "one": "%lld star",
+    "other": "%lld stars"
+  },
+  "%lld constellations": {
+    "one": "%lld constellation",
+    "other": "%lld constellations"
+  },
+  "Relit %lld stars": {
+    "one": "Relit %lld star",
+    "other": "Relit %lld stars"
+  },
+  "%lld of %lld stars bright": {
+    "value": "%1$lld of %#@stars@ bright",
+    "substitutions": {
+      "stars": {
+        "argNum": 2,
+        "one": "%arg star",
+        "other": "%arg stars"
+      }
+    }
+  },
+  "%lld of %lld minutes done": {
+    "value": "%1$lld of %#@minutes@ done",
+    "substitutions": {
+      "minutes": {
+        "argNum": 2,
+        "one": "%arg minute",
+        "other": "%arg minutes"
+      }
+    }
+  },
+  "%lld reviews piled up.": {
+    "one": "%lld review piled up.",
+    "other": "%lld reviews piled up."
+  },
+  "At %lld minutes a day they're cleared in %lld days, starting with what you're closest to forgetting.": {
+    "value": "At %#@minutes@ a day they're cleared in %#@days@, starting with what you're closest to forgetting.",
+    "substitutions": {
+      "minutes": {
+        "argNum": 1,
+        "one": "%arg minute",
+        "other": "%arg minutes"
+      },
+      "days": {
+        "argNum": 2,
+        "one": "a day",
+        "other": "%arg days"
+      }
+    }
+  },
+  "%lld minutes, %lld answers. Back tomorrow. Your streak is safe.": {
+    "value": "%#@minutes@, %#@answers@. Back tomorrow. Your streak is safe.",
+    "substitutions": {
+      "minutes": {
+        "argNum": 1,
+        "one": "%arg minute",
+        "other": "%arg minutes"
+      },
+      "answers": {
+        "argNum": 2,
+        "one": "%arg answer",
+        "other": "%arg answers"
+      }
+    }
+  }
+}

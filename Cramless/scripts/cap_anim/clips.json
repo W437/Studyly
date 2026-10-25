@@ -1,0 +1,325 @@
+{
+  "_about": "The prompt book for Cap's production clips (produce.py reads it). One entry per pose, because every pose gets one clip that starts and ends on its still. 'role' says how the app uses it: 'idle' loops while Cap waits, 'performance' plays once when the moment happens. 'seconds' is the length asked of Kling 4.0 (3 to 30; $0.157 a second). 'eyes' says what the still shows, so the prompt can hold it.",
+  "common": {
+    "ref_intro": "@Element1 is Cap, a friendly flat-vector capybara mascot, drawn exactly as in the first frame.",
+    "pin_intro": "Cap, a friendly flat-vector capybara mascot, drawn exactly as in the first frame.",
+    "look": " Keep Cap exactly as defined: the same face, ears, broad muzzle, fur, navy mortarboard with its gold tassel and cream headphones, in a flat vector illustration style with no outline around him.",
+    "eyes_closed": " His eyes are happy closed arcs; if they open for a moment they are round, dark brown, each with one small white highlight and no white around them.",
+    "eyes_open": " His eyes are open: round, dark brown, each with one small white highlight and no white around them.",
+    "teeth": " When his mouth is open it shows exactly two small rounded cream upper front teeth and a soft pink tongue.",
+    "scene": " The background is one solid flat magenta (#FF00FF) in every frame, with no shadow, no gradient, no floor and no other objects. Static locked camera, no zoom, no pan. He stays the same size and in the same place. Soft, gentle, natural motion.",
+    "ending": " By the end he has returned to exactly the pose of the first frame.",
+    "eyes_shut": " His eyes are happy closed arcs and they stay closed for the whole clip; they never open."
+  },
+  "clips": [
+    {
+      "id": "wave",
+      "pose": "wave",
+      "role": "performance",
+      "seconds": 5,
+      "eyes": "shut",
+      "action": "He waves hello: three small relaxed waves with his raised right paw and a warm closed-mouth smile."
+    },
+    {
+      "id": "study",
+      "pose": "study",
+      "role": "idle",
+      "seconds": 4,
+      "eyes": "open",
+      "action": "He reads the open blue book in his paws: his eyes move slowly along the page, he blinks once, and he breathes slowly. The book stays open in his paws."
+    },
+    {
+      "id": "celebrate",
+      "pose": "celebrate",
+      "role": "performance",
+      "seconds": 5,
+      "eyes": "closed",
+      "teeth": true,
+      "action": "He does one joyful hop with both arms up, laughing out loud with his mouth open; the orange, gold and blue confetti pieces from the first frame flutter and drift down slowly (no other confetti colours). He lands softly and settles back into the first frame's pose."
+    },
+    {
+      "id": "sleep",
+      "pose": "sleep",
+      "role": "idle",
+      "seconds": 4,
+      "eyes": "closed",
+      "action": "He sleeps deeply on the pile of index cards: slow, deep breathing so his back and chest rise and fall, and one tiny ear twitch. His eyes stay closed and the cards stay still."
+    },
+    {
+      "id": "think",
+      "pose": "think",
+      "role": "idle",
+      "seconds": 4,
+      "eyes": "closed",
+      "action": "He thinks it over: he taps his chin gently twice with his paw, tilts his head a little and tilts it back, and breathes slowly."
+    },
+    {
+      "id": "point",
+      "pose": "point",
+      "role": "performance",
+      "seconds": 4,
+      "eyes": "closed",
+      "action": "He points at the floating blue card: he taps the air in front of it twice with his pointing paw and nods with a happy smile while the blue card bobs a little."
+    },
+    {
+      "id": "scan",
+      "pose": "scan",
+      "role": "idle",
+      "seconds": 4,
+      "eyes": "closed",
+      "action": "He takes a photo with his phone: the phone gives a small flash with three little yellow flash lines, then he gives a satisfied small nod. The open book on the ground stays still."
+    },
+    {
+      "id": "plan",
+      "pose": "plan",
+      "role": "idle",
+      "seconds": 4,
+      "eyes": "closed",
+      "action": "He holds the calendar and tips it a little toward us and back with a satisfied nod, and breathes slowly. The red check marks on the calendar stay the same."
+    },
+    {
+      "id": "mic",
+      "pose": "mic",
+      "role": "idle",
+      "seconds": 4,
+      "eyes": "closed",
+      "action": "He holds the microphone with both paws, leans a little toward it as if listening, nods once and leans back, and breathes slowly."
+    },
+    {
+      "id": "relax",
+      "pose": "relax",
+      "role": "idle",
+      "seconds": 5,
+      "eyes": "shut",
+      "action": "He relaxes in the green beanbag: he lifts the cup a little, blows gently on the steam, takes a small sip, sighs happily and lowers the cup again while the steam curls up."
+    },
+    {
+      "id": "nice",
+      "pose": "nice",
+      "role": "performance",
+      "seconds": 4,
+      "eyes": "closed",
+      "action": "A quick happy cheer using only his arm and head: he pumps his raised right fist firmly twice with a proud closed-mouth grin, nodding his head a little in time. His body and feet stay perfectly still, and his mortarboard stays glued to his head and does not move."
+    },
+    {
+      "id": "almost",
+      "pose": "almost",
+      "role": "performance",
+      "seconds": 4,
+      "eyes": "open",
+      "action": "He holds up his raised paw with the curled fist and wobbles it gently from side to side as if to say nearly there, with a hopeful, warm look and one slow blink."
+    },
+    {
+      "id": "notYet",
+      "pose": "notYet",
+      "role": "performance",
+      "seconds": 4,
+      "eyes": "open",
+      "action": "He reads the open navy book patiently: he nods kindly twice with a warm, encouraging look and one slow blink. The book stays open in his paws."
+    },
+    {
+      "id": "listen",
+      "pose": "listen",
+      "role": "idle",
+      "seconds": 4,
+      "eyes": "open",
+      "action": "He listens and takes notes: he nods slowly and his pencil makes small writing strokes on the notepad, with one slow blink."
+    },
+    {
+      "id": "ask",
+      "pose": "ask",
+      "role": "performance",
+      "seconds": 4,
+      "eyes": "open",
+      "action": "He raises his paw a little higher as if to ask a question and tilts his head, while the light blue speech bubble pulses softly; then he lowers his paw."
+    },
+    {
+      "id": "sleepy",
+      "pose": "sleepy",
+      "role": "performance",
+      "seconds": 4,
+      "eyes": "closed",
+      "teeth": true,
+      "action": "He finishes a big sleepy yawn, lowers his paw and blinks drowsily, then lifts his paw to cover the next yawn again."
+    },
+    {
+      "id": "proud",
+      "pose": "proud",
+      "role": "idle",
+      "seconds": 4,
+      "eyes": "closed",
+      "action": "He stands proud with his hands on his hips: he puffs out his chest a little, a small glint of light sparkles on the gold star on his chest, and he gives a gentle nod."
+    },
+    {
+      "id": "stargaze",
+      "pose": "stargaze",
+      "role": "idle",
+      "seconds": 5,
+      "eyes": "closed",
+      "action": "He looks through the golden telescope on its wooden tripod. A very subtle idle loop: slow breathing so his chest and shoulders rise and fall a little, a tiny ear twitch, and the small yellow stars beside the telescope twinkle gently. The telescope and tripod stay perfectly still and rigid."
+    },
+    {
+      "id": "tuckIn",
+      "pose": "tuckIn",
+      "role": "performance",
+      "seconds": 4,
+      "eyes": "closed",
+      "action": "He tucks the starry navy blanket over the stack of index cards: he smooths it with both paws and pats it gently, with a soft sleepy smile, while the little stars on the blanket twinkle."
+    },
+    {
+      "id": "wavePoke",
+      "pose": "wave",
+      "role": "poke",
+      "seconds": 3,
+      "eyes": "shut",
+      "action": "He is surprised and delighted to be touched: his raised paw gives a quick, bigger wave, his whole body does a tiny happy wiggle, his closed-mouth smile widens, and then he settles back into the waving pose."
+    },
+    {
+      "id": "studyPoke",
+      "pose": "study",
+      "role": "poke",
+      "seconds": 3,
+      "eyes": "open",
+      "action": "He looks up from the book, startled and pleased: he lowers the book a little to peek over its top edge with wide round eyes, gives a small sheepish smile, then lifts the book back to exactly where it was and returns to reading."
+    },
+    {
+      "id": "celebratePoke",
+      "pose": "celebrate",
+      "role": "poke",
+      "seconds": 3,
+      "eyes": "shut",
+      "action": "He gives one more joyful shake in his mid-air celebration pose: both arms pump up twice and his head tilts side to side as he laughs with his mouth open, eyes squeezed shut with joy; the orange, gold and blue confetti pieces flutter in place (no other confetti colours). He stays in the same spot and settles back into the first frame's pose.",
+      "teeth": true
+    },
+    {
+      "id": "sleepPoke",
+      "pose": "sleep",
+      "role": "poke",
+      "seconds": 3,
+      "eyes": "shut",
+      "action": "He is gently disturbed in his sleep: one ear twitches, his nose scrunches, he shifts a little and hugs the cards tighter with a tiny sleepy murmur, then falls deeply asleep again. His eyes stay closed and the cards stay still."
+    },
+    {
+      "id": "thinkPoke",
+      "pose": "think",
+      "role": "poke",
+      "seconds": 3,
+      "eyes": "shut",
+      "action": "He is thinking hard: he taps his chin twice with his paw, his ears perk up slightly as an idea arrives, he nods slowly once, and a small satisfied smile appears before he settles back."
+    },
+    {
+      "id": "pointPoke",
+      "pose": "point",
+      "role": "poke",
+      "seconds": 3,
+      "eyes": "closed",
+      "action": "He points more emphatically at the blue card: his pointing paw gives two firm little jabs toward it, he nods confidently with a closed-mouth smile and a tiny shoulder shimmy. The blue card stays exactly where it is."
+    },
+    {
+      "id": "scanPoke",
+      "pose": "scan",
+      "role": "poke",
+      "seconds": 3,
+      "eyes": "closed",
+      "action": "He aims the phone like a camera: a small soft glint of light pops at the phone, his shoulders hop with a giddy shrug, and he smiles proudly at the photo he just took. The open book on the floor stays still."
+    },
+    {
+      "id": "planPoke",
+      "pose": "plan",
+      "role": "poke",
+      "seconds": 3,
+      "eyes": "closed",
+      "action": "He holds the calendar up proudly and tilts it a little to show it off, taps one day with a paw and nods with a pleased smile, then lowers it back to exactly where it was."
+    },
+    {
+      "id": "micPoke",
+      "pose": "mic",
+      "role": "poke",
+      "seconds": 3,
+      "eyes": "closed",
+      "action": "He leans toward the microphone and says a little 'check, check, one two': his mouth opens and closes softly, his head bobs to a rhythm and one ear flicks. Then he smiles and sits back. The microphone stays in his paws.",
+      "teeth": true
+    },
+    {
+      "id": "relaxPoke",
+      "pose": "relax",
+      "role": "poke",
+      "seconds": 3,
+      "eyes": "shut",
+      "action": "He takes a slow sip of his hot drink with steam curling up, lets out a long content sigh, and wiggles a little deeper into the beanbag with a blissful smile. The cup returns to exactly where it was."
+    },
+    {
+      "id": "nicePoke",
+      "pose": "nice",
+      "role": "poke",
+      "seconds": 3,
+      "eyes": "shut",
+      "action": "He gives a quick proud fist pump: the raised paw pumps twice, with a cheeky smile and a small shoulder shimmy, his eyes staying happily closed."
+    },
+    {
+      "id": "almostPoke",
+      "pose": "almost",
+      "role": "poke",
+      "seconds": 3,
+      "eyes": "open",
+      "action": "He holds up his paw and wiggles his fingers encouragingly, tilts his head, and gives a warm encouraging nod with a kind smile, looking toward the viewer."
+    },
+    {
+      "id": "notYetPoke",
+      "pose": "notYet",
+      "role": "poke",
+      "seconds": 3,
+      "eyes": "open",
+      "action": "He gives the book a gentle reassuring pat with one paw, looks up with a kind patient smile and nods slowly, as if saying 'try again, you've got this', then looks back down at the book."
+    },
+    {
+      "id": "listenPoke",
+      "pose": "listen",
+      "role": "poke",
+      "seconds": 3,
+      "eyes": "open",
+      "action": "He quickly scribbles a note on the notepad with the pencil, then looks up with bright attentive eyes and nods eagerly as if he understood."
+    },
+    {
+      "id": "askPoke",
+      "pose": "ask",
+      "role": "poke",
+      "seconds": 3,
+      "eyes": "open",
+      "action": "He raises his paw higher and bounces a little in his seat like 'ooh, pick me', the blue speech bubble bobs with him, and his eyes are wide with curiosity. Then he settles back."
+    },
+    {
+      "id": "sleepyPoke",
+      "pose": "sleepy",
+      "role": "poke",
+      "seconds": 3,
+      "eyes": "closed",
+      "action": "He stretches into an even bigger yawn: his mouth opens wide, the paw pats his mouth, his head sinks a little, then he blinks sleepily and gives a content little smile.",
+      "teeth": true
+    },
+    {
+      "id": "proudPoke",
+      "pose": "proud",
+      "role": "poke",
+      "seconds": 3,
+      "eyes": "shut",
+      "action": "He puffs out his chest proudly and a small soft glint of light shines on the gold star on his chest; he lifts his chin with a satisfied closed-eye smile, then relaxes. The star stays small and in place."
+    },
+    {
+      "id": "stargazePoke",
+      "pose": "stargaze",
+      "role": "poke",
+      "seconds": 3,
+      "eyes": "shut",
+      "action": "He adjusts the telescope slightly and leans in toward the eyepiece with a delighted smile; one of the small gold stars above it twinkles brighter, then he eases back. The telescope returns to exactly where it was."
+    },
+    {
+      "id": "tuckInPoke",
+      "pose": "tuckIn",
+      "role": "poke",
+      "seconds": 3,
+      "eyes": "closed",
+      "action": "He pats the starry blanket over the pile of index cards twice, smooths it with both paws, gives a tender sleepy smile and gently tucks one corner in again."
+    }
+  ]
+}

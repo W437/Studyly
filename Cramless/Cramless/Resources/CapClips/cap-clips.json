@@ -1,0 +1,1033 @@
+{
+  "version": 1,
+  "canvas": 720,
+  "pose": 600,
+  "clips": [
+    {
+      "id": "almost",
+      "pose": "almost",
+      "role": "performance",
+      "file": "cap-almost.mov",
+      "fps": 24.0,
+      "frames": 67,
+      "duration": 2.792,
+      "bytes": 404478,
+      "source": "almost-ref-1s",
+      "easedFromStill": 0.00447,
+      "easedOntoStill": 0.00536,
+      "grade": [
+        [
+          1.0139,
+          0.0246
+        ],
+        [
+          1.0093,
+          0.032
+        ],
+        [
+          0.9916,
+          0.0328
+        ]
+      ]
+    },
+    {
+      "id": "almostPoke",
+      "pose": "almost",
+      "role": "poke",
+      "file": "cap-almostPoke.mov",
+      "fps": 24.0,
+      "frames": 73,
+      "duration": 3.042,
+      "bytes": 342263,
+      "source": "almostPoke-pin-1",
+      "easedFromStill": 0.00586,
+      "easedOntoStill": 0.00615,
+      "grade": [
+        [
+          1.0239,
+          -0.0016
+        ],
+        [
+          1.0305,
+          0.0033
+        ],
+        [
+          1.0089,
+          0.0094
+        ]
+      ]
+    },
+    {
+      "id": "ask",
+      "pose": "ask",
+      "role": "performance",
+      "file": "cap-ask.mov",
+      "fps": 24.0,
+      "frames": 97,
+      "duration": 4.042,
+      "bytes": 494017,
+      "source": "ask-pin-2",
+      "easedFromStill": 0.00616,
+      "easedOntoStill": 0.00654,
+      "grade": [
+        [
+          1.0266,
+          -0.0017
+        ],
+        [
+          1.0269,
+          0.0053
+        ],
+        [
+          1.0047,
+          0.0105
+        ]
+      ]
+    },
+    {
+      "id": "askPoke",
+      "pose": "ask",
+      "role": "poke",
+      "file": "cap-askPoke.mov",
+      "fps": 24.0,
+      "frames": 73,
+      "duration": 3.042,
+      "bytes": 535019,
+      "source": "askPoke-pin-1",
+      "easedFromStill": 0.00618,
+      "easedOntoStill": 0.00649,
+      "grade": [
+        [
+          1.0236,
+          0.0001
+        ],
+        [
+          1.0246,
+          0.0062
+        ],
+        [
+          1.0029,
+          0.0109
+        ]
+      ]
+    },
+    {
+      "id": "celebrate",
+      "pose": "celebrate",
+      "role": "performance",
+      "file": "cap-celebrate.mov",
+      "fps": 24.0,
+      "frames": 121,
+      "duration": 5.042,
+      "bytes": 1124522,
+      "source": "celebrate-pin-2",
+      "easedFromStill": 0.00557,
+      "easedOntoStill": 0.00575,
+      "grade": [
+        [
+          1.027,
+          -0.0026
+        ],
+        [
+          1.0316,
+          0.003
+        ],
+        [
+          1.0081,
+          0.0095
+        ]
+      ]
+    },
+    {
+      "id": "celebratePoke",
+      "pose": "celebrate",
+      "role": "poke",
+      "file": "cap-celebratePoke.mov",
+      "fps": 24.0,
+      "frames": 73,
+      "duration": 3.042,
+      "bytes": 781825,
+      "source": "celebratePoke-pin-2",
+      "easedFromStill": 0.00559,
+      "easedOntoStill": 0.00576,
+      "grade": [
+        [
+          1.028,
+          -0.0034
+        ],
+        [
+          1.0331,
+          0.002
+        ],
+        [
+          1.0086,
+          0.0083
+        ]
+      ]
+    },
+    {
+      "id": "listen",
+      "pose": "listen",
+      "role": "idle",
+      "file": "cap-listen.mov",
+      "fps": 24.0,
+      "frames": 97,
+      "duration": 4.042,
+      "bytes": 413612,
+      "source": "listen-ref-1",
+      "easedFromStill": 0.00365,
+      "easedOntoStill": 0.00387,
+      "grade": [
+        [
+          0.9877,
+          0.0297
+        ],
+        [
+          0.9816,
+          0.0266
+        ],
+        [
+          0.9905,
+          0.0291
+        ]
+      ]
+    },
+    {
+      "id": "listenPoke",
+      "pose": "listen",
+      "role": "poke",
+      "file": "cap-listenPoke.mov",
+      "fps": 24.0,
+      "frames": 73,
+      "duration": 3.042,
+      "bytes": 382685,
+      "source": "listenPoke-pin-1",
+      "easedFromStill": 0.0057,
+      "easedOntoStill": 0.00583,
+      "grade": [
+        [
+          1.0222,
+          0.0008
+        ],
+        [
+          1.0247,
+          0.0049
+        ],
+        [
+          1.0187,
+          0.0067
+        ]
+      ]
+    },
+    {
+      "id": "mic",
+      "pose": "mic",
+      "role": "idle",
+      "file": "cap-mic.mov",
+      "fps": 24.0,
+      "frames": 97,
+      "duration": 4.042,
+      "bytes": 538063,
+      "source": "mic-ref-1s",
+      "easedFromStill": 0.00445,
+      "easedOntoStill": 0.00449,
+      "grade": [
+        [
+          1.0196,
+          0.0195
+        ],
+        [
+          0.9995,
+          0.0274
+        ],
+        [
+          0.9871,
+          0.0272
+        ]
+      ]
+    },
+    {
+      "id": "micPoke",
+      "pose": "mic",
+      "role": "poke",
+      "file": "cap-micPoke.mov",
+      "fps": 24.0,
+      "frames": 73,
+      "duration": 3.042,
+      "bytes": 392938,
+      "source": "micPoke-pin-1",
+      "easedFromStill": 0.00581,
+      "easedOntoStill": 0.00611,
+      "grade": [
+        [
+          1.0285,
+          -0.003
+        ],
+        [
+          1.0275,
+          0.0037
+        ],
+        [
+          1.0013,
+          0.0107
+        ]
+      ]
+    },
+    {
+      "id": "nice",
+      "pose": "nice",
+      "role": "performance",
+      "file": "cap-nice.mov",
+      "fps": 24.0,
+      "frames": 97,
+      "duration": 4.042,
+      "bytes": 459761,
+      "source": "nice-pin-4",
+      "easedFromStill": 0.0051,
+      "easedOntoStill": 0.00544,
+      "grade": [
+        [
+          1.0242,
+          -0.0013
+        ],
+        [
+          1.0323,
+          0.0028
+        ],
+        [
+          1.0001,
+          0.0113
+        ]
+      ]
+    },
+    {
+      "id": "nicePoke",
+      "pose": "nice",
+      "role": "poke",
+      "file": "cap-nicePoke.mov",
+      "fps": 24.0,
+      "frames": 73,
+      "duration": 3.042,
+      "bytes": 399902,
+      "source": "nicePoke-pin-2",
+      "easedFromStill": 0.00509,
+      "easedOntoStill": 0.00545,
+      "grade": [
+        [
+          1.0224,
+          -0.0007
+        ],
+        [
+          1.0308,
+          0.0036
+        ],
+        [
+          1.0021,
+          0.0108
+        ]
+      ]
+    },
+    {
+      "id": "notYet",
+      "pose": "notYet",
+      "role": "performance",
+      "file": "cap-notYet.mov",
+      "fps": 24.0,
+      "frames": 97,
+      "duration": 4.042,
+      "bytes": 566671,
+      "source": "notYet-pin-2",
+      "easedFromStill": 0.00606,
+      "easedOntoStill": 0.00641,
+      "grade": [
+        [
+          1.0267,
+          -0.002
+        ],
+        [
+          1.0307,
+          0.0023
+        ],
+        [
+          1.0156,
+          0.0075
+        ]
+      ]
+    },
+    {
+      "id": "notYetPoke",
+      "pose": "notYet",
+      "role": "poke",
+      "file": "cap-notYetPoke.mov",
+      "fps": 24.0,
+      "frames": 73,
+      "duration": 3.042,
+      "bytes": 371253,
+      "source": "notYetPoke-pin-1",
+      "easedFromStill": 0.00607,
+      "easedOntoStill": 0.00631,
+      "grade": [
+        [
+          1.026,
+          -0.0021
+        ],
+        [
+          1.0295,
+          0.0026
+        ],
+        [
+          1.0137,
+          0.0077
+        ]
+      ]
+    },
+    {
+      "id": "plan",
+      "pose": "plan",
+      "role": "idle",
+      "file": "cap-plan.mov",
+      "fps": 24.0,
+      "frames": 97,
+      "duration": 4.042,
+      "bytes": 428925,
+      "source": "plan-pin-2",
+      "easedFromStill": 0.0054,
+      "easedOntoStill": 0.00548,
+      "grade": [
+        [
+          1.0256,
+          -0.001
+        ],
+        [
+          1.0246,
+          0.0055
+        ],
+        [
+          1.0204,
+          0.0066
+        ]
+      ]
+    },
+    {
+      "id": "planPoke",
+      "pose": "plan",
+      "role": "poke",
+      "file": "cap-planPoke.mov",
+      "fps": 24.0,
+      "frames": 73,
+      "duration": 3.042,
+      "bytes": 377930,
+      "source": "planPoke-pin-1",
+      "easedFromStill": 0.00537,
+      "easedOntoStill": 0.00546,
+      "grade": [
+        [
+          1.0253,
+          -0.0011
+        ],
+        [
+          1.0245,
+          0.0056
+        ],
+        [
+          1.0207,
+          0.006
+        ]
+      ]
+    },
+    {
+      "id": "point",
+      "pose": "point",
+      "role": "performance",
+      "file": "cap-point.mov",
+      "fps": 24.0,
+      "frames": 97,
+      "duration": 4.042,
+      "bytes": 568759,
+      "source": "point-ref-1",
+      "easedFromStill": 0.00368,
+      "easedOntoStill": 0.00375,
+      "grade": [
+        [
+          1.0178,
+          0.0074
+        ],
+        [
+          0.9898,
+          0.0217
+        ],
+        [
+          1.0111,
+          0.0228
+        ]
+      ]
+    },
+    {
+      "id": "pointPoke",
+      "pose": "point",
+      "role": "poke",
+      "file": "cap-pointPoke.mov",
+      "fps": 24.0,
+      "frames": 73,
+      "duration": 3.042,
+      "bytes": 458488,
+      "source": "pointPoke-pin-1",
+      "easedFromStill": 0.00589,
+      "easedOntoStill": 0.00609,
+      "grade": [
+        [
+          1.0228,
+          -0.001
+        ],
+        [
+          1.018,
+          0.0075
+        ],
+        [
+          0.9991,
+          0.0117
+        ]
+      ]
+    },
+    {
+      "id": "proud",
+      "pose": "proud",
+      "role": "idle",
+      "file": "cap-proud.mov",
+      "fps": 24.0,
+      "frames": 97,
+      "duration": 4.042,
+      "bytes": 476594,
+      "source": "proud-pin-2",
+      "easedFromStill": 0.00484,
+      "easedOntoStill": 0.00508,
+      "grade": [
+        [
+          1.0211,
+          0.0002
+        ],
+        [
+          1.0288,
+          0.0042
+        ],
+        [
+          0.9985,
+          0.0127
+        ]
+      ]
+    },
+    {
+      "id": "proudPoke",
+      "pose": "proud",
+      "role": "poke",
+      "file": "cap-proudPoke.mov",
+      "fps": 24.0,
+      "frames": 73,
+      "duration": 3.042,
+      "bytes": 344262,
+      "source": "proudPoke-pin-2",
+      "easedFromStill": 0.00484,
+      "easedOntoStill": 0.00506,
+      "grade": [
+        [
+          1.0209,
+          0.0004
+        ],
+        [
+          1.0298,
+          0.0033
+        ],
+        [
+          0.9974,
+          0.0127
+        ]
+      ]
+    },
+    {
+      "id": "relax",
+      "pose": "relax",
+      "role": "idle",
+      "file": "cap-relax.mov",
+      "fps": 24.0,
+      "frames": 121,
+      "duration": 5.042,
+      "bytes": 519429,
+      "source": "relax-pin-3",
+      "easedFromStill": 0.00666,
+      "easedOntoStill": 0.00718,
+      "grade": [
+        [
+          1.0232,
+          0.0016
+        ],
+        [
+          1.0225,
+          0.0056
+        ],
+        [
+          1.0143,
+          0.007
+        ]
+      ]
+    },
+    {
+      "id": "relaxPoke",
+      "pose": "relax",
+      "role": "poke",
+      "file": "cap-relaxPoke.mov",
+      "fps": 24.0,
+      "frames": 73,
+      "duration": 3.042,
+      "bytes": 361043,
+      "source": "relaxPoke-pin-1",
+      "easedFromStill": 0.0067,
+      "easedOntoStill": 0.0072,
+      "grade": [
+        [
+          1.0274,
+          -0.0005
+        ],
+        [
+          1.0244,
+          0.0045
+        ],
+        [
+          1.016,
+          0.006
+        ]
+      ]
+    },
+    {
+      "id": "scan",
+      "pose": "scan",
+      "role": "idle",
+      "file": "cap-scan.mov",
+      "fps": 24.0,
+      "frames": 72,
+      "duration": 3.0,
+      "bytes": 392750,
+      "source": "scan-ref-1",
+      "easedFromStill": 0.01099,
+      "easedOntoStill": 0.00736,
+      "grade": [
+        [
+          0.9625,
+          0.0525
+        ],
+        [
+          0.9714,
+          0.0412
+        ],
+        [
+          0.982,
+          0.0404
+        ]
+      ]
+    },
+    {
+      "id": "scanPoke",
+      "pose": "scan",
+      "role": "poke",
+      "file": "cap-scanPoke.mov",
+      "fps": 24.0,
+      "frames": 73,
+      "duration": 3.042,
+      "bytes": 431176,
+      "source": "scanPoke-pin-1sc",
+      "easedFromStill": 0.0061,
+      "easedOntoStill": 0.00646,
+      "grade": [
+        [
+          1.0265,
+          0.0056
+        ],
+        [
+          1.0182,
+          0.0118
+        ],
+        [
+          1.0072,
+          0.0172
+        ]
+      ]
+    },
+    {
+      "id": "sleep",
+      "pose": "sleep",
+      "role": "idle",
+      "file": "cap-sleep.mov",
+      "fps": 24.0,
+      "frames": 97,
+      "duration": 4.042,
+      "bytes": 378872,
+      "source": "sleep-ref-1",
+      "easedFromStill": 0.00511,
+      "easedOntoStill": 0.00545,
+      "grade": [
+        [
+          1.0107,
+          0.0166
+        ],
+        [
+          1.0007,
+          0.0274
+        ],
+        [
+          1.0048,
+          0.0289
+        ]
+      ]
+    },
+    {
+      "id": "sleepPoke",
+      "pose": "sleep",
+      "role": "poke",
+      "file": "cap-sleepPoke.mov",
+      "fps": 24.0,
+      "frames": 73,
+      "duration": 3.042,
+      "bytes": 343781,
+      "source": "sleepPoke-pin-1s",
+      "easedFromStill": 0.00722,
+      "easedOntoStill": 0.00746,
+      "grade": [
+        [
+          1.0201,
+          0.0098
+        ],
+        [
+          1.0152,
+          0.0148
+        ],
+        [
+          1.0174,
+          0.0135
+        ]
+      ]
+    },
+    {
+      "id": "sleepy",
+      "pose": "sleepy",
+      "role": "performance",
+      "file": "cap-sleepy.mov",
+      "fps": 24.0,
+      "frames": 97,
+      "duration": 4.042,
+      "bytes": 481528,
+      "source": "sleepy-pin-2s",
+      "easedFromStill": 0.0053,
+      "easedOntoStill": 0.00552,
+      "grade": [
+        [
+          1.0231,
+          0.0059
+        ],
+        [
+          1.026,
+          0.0098
+        ],
+        [
+          1.0065,
+          0.0168
+        ]
+      ]
+    },
+    {
+      "id": "sleepyPoke",
+      "pose": "sleepy",
+      "role": "poke",
+      "file": "cap-sleepyPoke.mov",
+      "fps": 24.0,
+      "frames": 73,
+      "duration": 3.042,
+      "bytes": 307251,
+      "source": "sleepyPoke-pin-1s",
+      "easedFromStill": 0.00529,
+      "easedOntoStill": 0.00548,
+      "grade": [
+        [
+          1.025,
+          0.0053
+        ],
+        [
+          1.0274,
+          0.0094
+        ],
+        [
+          1.0052,
+          0.0177
+        ]
+      ]
+    },
+    {
+      "id": "stargaze",
+      "pose": "stargaze",
+      "role": "idle",
+      "file": "cap-stargaze.mov",
+      "fps": 24.0,
+      "frames": 120,
+      "duration": 5.0,
+      "bytes": 718739,
+      "source": "stargaze-ref-1",
+      "easedFromStill": 0.00542,
+      "easedOntoStill": 0.00631,
+      "grade": [
+        [
+          1.0227,
+          0.0107
+        ],
+        [
+          0.9984,
+          0.022
+        ],
+        [
+          0.9904,
+          0.0191
+        ]
+      ]
+    },
+    {
+      "id": "stargazePoke",
+      "pose": "stargaze",
+      "role": "poke",
+      "file": "cap-stargazePoke.mov",
+      "fps": 24.0,
+      "frames": 73,
+      "duration": 3.042,
+      "bytes": 442655,
+      "source": "stargazePoke-pin-2",
+      "easedFromStill": 0.0065,
+      "easedOntoStill": 0.00668,
+      "grade": [
+        [
+          1.0274,
+          -0.0037
+        ],
+        [
+          1.0326,
+          0.0027
+        ],
+        [
+          1.0049,
+          0.0113
+        ]
+      ]
+    },
+    {
+      "id": "study",
+      "pose": "study",
+      "role": "idle",
+      "file": "cap-study.mov",
+      "fps": 24.0,
+      "frames": 97,
+      "duration": 4.042,
+      "bytes": 475738,
+      "source": "study-pin-2",
+      "easedFromStill": 0.00667,
+      "easedOntoStill": 0.0071,
+      "grade": [
+        [
+          1.0275,
+          -0.0017
+        ],
+        [
+          1.0272,
+          0.0045
+        ],
+        [
+          1.023,
+          0.0049
+        ]
+      ]
+    },
+    {
+      "id": "studyPoke",
+      "pose": "study",
+      "role": "poke",
+      "file": "cap-studyPoke.mov",
+      "fps": 24.0,
+      "frames": 73,
+      "duration": 3.042,
+      "bytes": 391282,
+      "source": "studyPoke-pin-1",
+      "easedFromStill": 0.00668,
+      "easedOntoStill": 0.00703,
+      "grade": [
+        [
+          1.0291,
+          -0.0026
+        ],
+        [
+          1.0271,
+          0.0043
+        ],
+        [
+          1.0242,
+          0.0042
+        ]
+      ]
+    },
+    {
+      "id": "think",
+      "pose": "think",
+      "role": "idle",
+      "file": "cap-think.mov",
+      "fps": 24.0,
+      "frames": 97,
+      "duration": 4.042,
+      "bytes": 319773,
+      "source": "think-ref-1",
+      "easedFromStill": 0.00462,
+      "easedOntoStill": 0.00453,
+      "grade": [
+        [
+          1.0023,
+          0.0148
+        ],
+        [
+          0.9961,
+          0.0187
+        ],
+        [
+          0.9855,
+          0.0217
+        ]
+      ]
+    },
+    {
+      "id": "thinkPoke",
+      "pose": "think",
+      "role": "poke",
+      "file": "cap-thinkPoke.mov",
+      "fps": 24.0,
+      "frames": 73,
+      "duration": 3.042,
+      "bytes": 327463,
+      "source": "thinkPoke-pin-1",
+      "easedFromStill": 0.00502,
+      "easedOntoStill": 0.00519,
+      "grade": [
+        [
+          1.0232,
+          -0.0008
+        ],
+        [
+          1.0264,
+          0.0046
+        ],
+        [
+          1.0042,
+          0.0113
+        ]
+      ]
+    },
+    {
+      "id": "tuckIn",
+      "pose": "tuckIn",
+      "role": "performance",
+      "file": "cap-tuckIn.mov",
+      "fps": 24.0,
+      "frames": 97,
+      "duration": 4.042,
+      "bytes": 548983,
+      "source": "tuckIn-ref-1",
+      "easedFromStill": 0.00483,
+      "easedOntoStill": 0.00992,
+      "grade": [
+        [
+          1.0333,
+          0.0031
+        ],
+        [
+          1.0058,
+          0.0185
+        ],
+        [
+          1.0029,
+          0.0196
+        ]
+      ]
+    },
+    {
+      "id": "tuckInPoke",
+      "pose": "tuckIn",
+      "role": "poke",
+      "file": "cap-tuckInPoke.mov",
+      "fps": 24.0,
+      "frames": 73,
+      "duration": 3.042,
+      "bytes": 420949,
+      "source": "tuckInPoke-pin-1s",
+      "easedFromStill": 0.00597,
+      "easedOntoStill": 0.00619,
+      "grade": [
+        [
+          1.0347,
+          0.0008
+        ],
+        [
+          1.0312,
+          0.0062
+        ],
+        [
+          1.0155,
+          0.0136
+        ]
+      ]
+    },
+    {
+      "id": "wave",
+      "pose": "wave",
+      "role": "performance",
+      "file": "cap-wave.mov",
+      "fps": 24.0,
+      "frames": 121,
+      "duration": 5.042,
+      "bytes": 363240,
+      "source": "wave-pin-3s",
+      "easedFromStill": 0.00513,
+      "easedOntoStill": 0.00546,
+      "grade": [
+        [
+          1.0199,
+          0.0075
+        ],
+        [
+          1.0293,
+          0.01
+        ],
+        [
+          0.9969,
+          0.0204
+        ]
+      ]
+    },
+    {
+      "id": "wavePoke",
+      "pose": "wave",
+      "role": "poke",
+      "file": "cap-wavePoke.mov",
+      "fps": 24.0,
+      "frames": 73,
+      "duration": 3.042,
+      "bytes": 465672,
+      "source": "wavePoke-pin-1",
+      "easedFromStill": 0.00516,
+      "easedOntoStill": 0.00533,
+      "grade": [
+        [
+          1.0177,
+          0.0022
+        ],
+        [
+          1.0295,
+          0.0041
+        ],
+        [
+          1.0039,
+          0.0107
+        ]
+      ]
+    }
+  ]
+}

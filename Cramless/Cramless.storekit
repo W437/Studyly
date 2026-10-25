@@ -1,0 +1,110 @@
+{
+  "identifier": "C4A51000-0000-4000-8000-000000000001",
+  "nonRenewingSubscriptions": [
+    {
+      "displayPrice": "14.99",
+      "familyShareable": false,
+      "internalID": "C4A51004",
+      "localizations": [
+        {
+          "description": "30 days of Capling Pro for one exam season. Doesn't renew.",
+          "displayName": "Exam Pass",
+          "locale": "en_US"
+        }
+      ],
+      "productID": "com.loopware.Capling.exampass",
+      "referenceName": "Exam Pass (30 days)",
+      "type": "NonRenewingSubscription"
+    }
+  ],
+  "products": [],
+  "settings": {
+    "_failTransactionsEnabled": false,
+    "_locale": "en_US",
+    "_storefront": "USA",
+    "_storeKitErrors": []
+  },
+  "subscriptionGroups": [
+    {
+      "id": "C4A51000",
+      "localizations": [],
+      "name": "Capling Pro",
+      "subscriptions": [
+        {
+          "adHocOffers": [],
+          "codeOffers": [],
+          "displayPrice": "99.99",
+          "familyShareable": false,
+          "groupNumber": 1,
+          "internalID": "C4A51003",
+          "introductoryOffer": {
+            "internalID": "C4A51013",
+            "paymentMode": "free",
+            "subscriptionPeriod": "P1W"
+          },
+          "localizations": [
+            {
+              "description": "Capling Pro for you and 3 friends, billed yearly.",
+              "displayName": "Squad",
+              "locale": "en_US"
+            }
+          ],
+          "productID": "com.loopware.Capling.squad.yearly",
+          "recurringSubscriptionPeriod": "P1Y",
+          "referenceName": "Squad Yearly",
+          "subscriptionGroupID": "C4A51000",
+          "type": "RecurringSubscription"
+        },
+        {
+          "adHocOffers": [],
+          "codeOffers": [],
+          "displayPrice": "49.99",
+          "familyShareable": false,
+          "groupNumber": 2,
+          "internalID": "C4A51001",
+          "introductoryOffer": {
+            "internalID": "C4A51011",
+            "paymentMode": "free",
+            "subscriptionPeriod": "P1W"
+          },
+          "localizations": [
+            {
+              "description": "Every Capling Pro feature, billed yearly.",
+              "displayName": "Pro Yearly",
+              "locale": "en_US"
+            }
+          ],
+          "productID": "com.loopware.Capling.pro.yearly",
+          "recurringSubscriptionPeriod": "P1Y",
+          "referenceName": "Pro Yearly",
+          "subscriptionGroupID": "C4A51000",
+          "type": "RecurringSubscription"
+        },
+        {
+          "adHocOffers": [],
+          "codeOffers": [],
+          "displayPrice": "9.99",
+          "familyShareable": false,
+          "groupNumber": 3,
+          "internalID": "C4A51002",
+          "localizations": [
+            {
+              "description": "Every Capling Pro feature, billed monthly.",
+              "displayName": "Pro Monthly",
+              "locale": "en_US"
+            }
+          ],
+          "productID": "com.loopware.Capling.pro.monthly",
+          "recurringSubscriptionPeriod": "P1M",
+          "referenceName": "Pro Monthly",
+          "subscriptionGroupID": "C4A51000",
+          "type": "RecurringSubscription"
+        }
+      ]
+    }
+  ],
+  "version": {
+    "major": 3,
+    "minor": 0
+  }
+}
