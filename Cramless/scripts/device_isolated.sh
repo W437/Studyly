@@ -16,7 +16,12 @@ cd "$(dirname "$0")/.." || exit 1
 
 state=$(xcrun devicectl list devices 2>/dev/null | grep "$udid" | head -1)
 echo "device: ${state:-not listed}"
-case "$state" in *"available"*|*"connected"*) ;; *) echo "the device is not connected; nothing was built"; exit 2 ;; esac
+# "unavailable" contains "available": the phone is off, locked or not on this network.
+case "$state" in
+  *unavailable*) echo "the device is unavailable (off, locked or not on this network); nothing was built"; exit 2 ;;
+  *available*|*connected*) ;;
+  *) echo "the device is not connected; nothing was built"; exit 2 ;;
+esac
 
 mkdir -p build
 read -r profile identity < <(python3 -I scripts/device_profile.py "$udid")

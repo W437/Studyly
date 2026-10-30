@@ -11,7 +11,11 @@
 # CRAMLESS_SOUND_PALETTE, default marimba) and writes <name>.mp4, <name>-half.mp4 (half speed, for motion), and
 # <name>.jpg (a poster frame), and keeps the cue times as <name>.cues.json. FILM_PALETTES="marimba kalimba glass"
 # scores the same recording once per palette (<name>-<palette>.mp4) to compare them on identical footage.
-# FILM_GIF=1 adds <name>.gif of the first 12 seconds; FILM_KEEP_RAW=1 keeps the uncut recording. Haptics can't be filmed: feel them in the Feel lab on a phone.
+# FILM_NO_HALF=1 skips the half-speed copy (the tour films don't use it, and it doubles the encoding time). FILM_GIF=1 adds <name>.gif of the first 12 seconds; FILM_KEEP_RAW=1 keeps the uncut recording. Haptics can't be filmed: feel them in the Feel lab on a phone.
+# FILM_DRIVER="<command>" runs that command while it records, instead of waiting <seconds> (then <seconds> only bounds the timecode
+# search; the film is as long as the command plus FILM_TAIL, default 1.5 s). The command is how a person would use the app: see
+# scripts/journeys. It gets JOURNEY_UDID, and JOURNEY_MARKS, a file it appends {"t": wall seconds, "cue": caption} lines to; film.sh
+# turns those into <name>.marks.json (film seconds, from the same timecode as the cues), the chapters and captions of a tour page.
 # Films are H.264 High at a constant 60 fps, level 5.1. The recorder's own stream is variable-rate at about 100-120 fps,
 # and encoded as it comes it is labelled level 6.1; the Phase 5 films made that way would not play on the owner's iPhone.
 # The app must already be installed (see scripts/shots.sh).
@@ -38,7 +42,15 @@ rec=$!
 for _ in $(seq 1 100); do grep -q "Recording started" "$tmp/rec.log" 2>/dev/null && break; sleep 0.05; done
 started=$(python3 -c 'import time; print(time.time())')
 env "${envs[@]}" xcrun simctl launch "$udid" "$bundle" >/dev/null
-sleep "$secs"
+driver_status=0
+if [ -n "${FILM_DRIVER:-}" ]; then
+  JOURNEY_UDID=$udid JOURNEY_MARKS="$tmp/marks.jsonl" bash -c "$FILM_DRIVER" || driver_status=$?
+  sleep "${FILM_TAIL:-1.5}"
+  # The film is as long as the driver took: the poster frame and the timecode window below follow it.
+  secs=$(python3 -c "import time; print(round(time.time() - $started, 1))")
+else
+  sleep "$secs"
+fi
 kill -INT "$rec"; wait "$rec" 2>/dev/null || true
 xcrun simctl terminate "$udid" "$bundle" >/dev/null 2>&1 || true
 
@@ -51,10 +63,11 @@ ffprobe -v error -select_streams v -show_entries frame=pts_time -of csv=p=0 "$tm
 # One strip row per recorded frame (passthrough: no frames padded in for a constant rate).
 ffmpeg -nostdin -v fatal -i "$tmp/raw.mov" -an -fps_mode passthrough \
   -vf "crop=iw:6:0:3,scale=32:1:flags=area,format=gray" -f rawvideo - > "$tmp/strip.raw"
+touch "$tmp/marks.jsonl"
 python3 - "$container/Documents/feel-log.jsonl" "$started" "$secs" "$tmp/pts.txt" "$tmp/strip.raw" "$tmp/events.json" \
-  "$tmp/trim" <<'PY'
+  "$tmp/trim" "$tmp/marks.jsonl" "$tmp/marks.json" <<'PY'
 import bisect, json, sys
-log, started, secs, pts_file, strip_file, out, trim_file = sys.argv[1:8]
+log, started, secs, pts_file, strip_file, out, trim_file, marks_file, marks_out = sys.argv[1:10]
 started, secs = float(started), float(secs)
 entries = []
 try:
@@ -102,11 +115,21 @@ else:
 events = [{"t": round(film_time(e["t"]), 3), "cue": e["cue"]} for e in entries]
 events = [e for e in events if e["t"] >= 0]
 json.dump(events, open(out, "w"))
+# The driver's captions, on the same clock as the cues.
+marks = [json.loads(line) for line in open(marks_file) if line.strip()]
+mapped = []
+for m in marks:
+    item = {"t": round(film_time(m["t"]), 3), "text": m["cue"]}
+    if "until" in m:                            # a cut: a stretch of the film to drop (the driver was waiting on the app)
+        item["until"] = round(film_time(m["until"]), 3)
+    mapped.append(item)
+json.dump([m for m in mapped if m["t"] >= 0], open(marks_out, "w"), indent=1)
 open(trim_file, "w").write(f"{trim:.3f}")
 print(f"{len(events)} cues logged, {how}")
 PY
 trim=$(cat "$tmp/trim")
 cp "$tmp/events.json" "$out/$name.cues.json"
+[ -n "${FILM_DRIVER:-}" ] && cp "$tmp/marks.json" "$out/$name.marks.json"
 [ "${FILM_KEEP_RAW:-0}" = 1 ] && cp "$tmp/raw.mov" "$out/$name.raw.mov"
 
 # score <palette> <file>: the recording with that palette's soundtrack.
@@ -122,6 +145,7 @@ score() {
 }
 score "$palette" "$out/$name.mp4"
 for p in ${FILM_PALETTES:-}; do score "$p" "$out/$name-$p.mp4"; done
+if [ "${FILM_NO_HALF:-0}" != 1 ]; then
 # Half speed is cut from the recording, not from the 60 fps film, so it keeps all of the recorder's frames and stays smooth.
 # Its length is set outright (-t): `apad` makes the audio endless, and -shortest does not stop a filter_complex output.
 half=$(python3 -c "import subprocess,sys; d=float(subprocess.run(['ffprobe','-v','error','-show_entries','format=duration','-of','csv=p=0',sys.argv[1]],capture_output=True,text=True).stdout); print(round(2*d,3))" "$out/$name.mp4")
@@ -130,6 +154,7 @@ ffmpeg -hide_banner -loglevel error -y -i "$tmp/raw.mov" -i "$tmp/sound-$palette
   -map "[v]" -map "[a]" -t "$half" -c:v libx264 -preset veryfast -crf 20 -profile:v high -level:v 5.1 -pix_fmt yuv420p \
   -c:a aac -b:a 160k -movflags +faststart \
   "$out/$name-half.mp4"
+fi
 poster=$(python3 -c "print(max(1, int($secs * 0.4)))")
 ffmpeg -hide_banner -loglevel error -y -ss "$poster" -i "$out/$name.mp4" -frames:v 1 -q:v 3 "$out/$name.jpg"
 if [ "${FILM_GIF:-0}" = 1 ]; then
@@ -137,3 +162,4 @@ if [ "${FILM_GIF:-0}" = 1 ]; then
     -vf "fps=12,scale=360:-1:flags=lanczos,split[a][b];[a]palettegen[p];[b][p]paletteuse" "$out/$name.gif"
 fi
 echo "$out/$name.mp4"
+[ "$driver_status" = 0 ] || { echo "the driver exited $driver_status (the film was kept)" >&2; exit 3; }

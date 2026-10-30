@@ -3,12 +3,17 @@ byte ranges (Safari won't play a video without them).
 
     python3 scripts/review_server.py [port]          default 8824; binds 127.0.0.1 only
     tailscale serve --bg --https=8824 http://127.0.0.1:8824
+
+The log (stderr) has one line per request with its Range header, and one line when a client hangs up early (Safari does, once it has
+read a film's header). `GET /__d?<text>` answers 204 and is logged: a page on a phone can report to the log with
+`new Image().src = '/__d?' + encodeURIComponent(text)`, which is how a phone that will not play a film is asked what it sees.
 """
 import functools
 import http.server
 import os
 import re
 import sys
+import time
 
 ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'build', 'review'))
 
@@ -67,13 +72,37 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         self.end_headers()
         return _Slice(f, end - start + 1)
 
+    def do_GET(self):
+        if self.path.startswith('/__d'):
+            self.send_response(204)
+            self.end_headers()
+            return
+        super().do_GET()
+
     def log_message(self, fmt, *args):
-        sys.stderr.write('%s %s\n' % (self.log_date_time_string(), fmt % args))
+        headers = getattr(self, 'headers', None)
+        extra = ''
+        if headers is not None:
+            if headers.get('Range'):
+                extra += ' [%s]' % headers['Range']
+            path = getattr(self, 'path', '')
+            if path.startswith('/__d') or path.endswith('/') or path.endswith('.html'):
+                agent = re.search(r'\(([^)]*)\)', headers.get('User-Agent', ''))
+                extra += ' ua=%s' % (agent.group(1) if agent else '?')
+        sys.stderr.write('%s %s%s\n' % (self.log_date_time_string(), fmt % args, extra))
+
+
+class Server(http.server.ThreadingHTTPServer):
+    def handle_error(self, request, client_address):
+        if isinstance(sys.exc_info()[1], (BrokenPipeError, ConnectionResetError)):
+            sys.stderr.write('%s client %s closed the connection early\n' % (time.strftime('%d/%b/%Y %H:%M:%S'), client_address[1]))
+            return
+        super().handle_error(request, client_address)
 
 
 if __name__ == '__main__':
     port = int(sys.argv[1]) if len(sys.argv) > 1 else 8824
     os.makedirs(ROOT, exist_ok=True)
-    server = http.server.ThreadingHTTPServer(('127.0.0.1', port), functools.partial(Handler, directory=ROOT))
+    server = Server(('127.0.0.1', port), functools.partial(Handler, directory=ROOT))
     print(f'serving {ROOT} on http://127.0.0.1:{port}', flush=True)
     server.serve_forever()

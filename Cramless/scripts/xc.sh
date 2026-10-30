@@ -43,6 +43,12 @@ case $action in
   *) echo "usage: scripts/xc.sh build | test [xcodebuild args]"; exit 2 ;;
 esac
 
+# simq's xcodebuild wrapper shares one compile cache between worktrees and, for that, rewrites source paths to /^src/…. A few
+# tests find the source folder through #filePath (LocalizationTests, PaywallCopyTests) or write PNGs into docs/ with it
+# (GameRenderTests, WidgetRenderTests), and fail on the rewritten path ("no such file", "volume is read only"). The tests build
+# without the cache.
+[ "$action" = test ] && export SIMQ_NO_CACHE=1
+
 xcodebuild "${args[@]}" > "$log" 2>&1 &
 pid=$!
 finished_at=0

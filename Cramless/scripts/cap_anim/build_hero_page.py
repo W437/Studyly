@@ -16,7 +16,7 @@ OUT = ROOT / "build/review/hero-world"
 
 FILMS = [
     ("hero-live", "The world, and tapping it",
-     "Tap a star: the camera glides to its constellation, Cap steps aside and one card offers to relight it. Close it, tap empty "
+     "Tap a star: the camera glides to its constellation, Cap steps aside and one card offers a short practice on it. Close it, tap empty "
      "sky (a ripple), pick another, then tap Cap and he answers. The layers sway on their own here because the Simulator has no "
      "motion sensor; on the phone they follow how you tilt it."),
     ("hero-eve", "Exam eve", "One exam's region glows and everything else recedes. It holds still."),
