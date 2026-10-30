@@ -18,26 +18,33 @@ struct RootView: View {
             ToastHost()
         }
         #if DEBUG
-        .onAppear { FilmTimecode.installIfAsked() }
+        .onAppear {
+            FilmTimecode.installIfAsked()
+            TouchDots.installIfAsked()
+        }
         #endif
         .environment(\.clDyslexicFont, app.settings.dyslexicFont)
+        .environment(\.skyTheme, app.skyTheme)
         .preferredColorScheme(colorScheme)
         .tint(CLColor.tangerine)
         .sheet(item: $router.sheet) { sheet in
             SheetDestination(sheet: sheet)
                 // A sheet doesn't inherit what's set on the view that presents it.
                 .environment(\.clDyslexicFont, app.settings.dyslexicFont)
+                .environment(\.skyTheme, app.skyTheme)
                 .tint(CLColor.tangerine)
         }
         .fullScreenCover(item: $router.cover) { cover in
             CoverDestination(cover: cover)
                 .environment(\.clDyslexicFont, app.settings.dyslexicFont)
+                .environment(\.skyTheme, app.skyTheme)
                 .preferredColorScheme(colorScheme)
                 .tint(CLColor.tangerine)
                 // A sheet raised while a cover is up is presented by the cover.
                 .sheet(item: $router.sheet) { sheet in
                     SheetDestination(sheet: sheet)
                         .environment(\.clDyslexicFont, app.settings.dyslexicFont)
+                        .environment(\.skyTheme, app.skyTheme)
                         .tint(CLColor.tangerine)
                 }
                 .overlay(alignment: .top) { ToastHost() }
@@ -180,6 +187,7 @@ struct RouteDestination: View {
         case .squad: SquadView()
         case .streak: StreakView()
         case .sky: SkyScreen()
+        case .badges: BadgesView()
         case .chat(let id): ChatView(threadID: id)
         }
     }
@@ -212,6 +220,7 @@ struct SheetDestination: View {
         case .examPass(let id): ExamPassView(examID: id)
         case .consent(let reason): ConsentSheet(reason: reason)
         case .squadRedeem(let code): SquadRedeemView(code: code)
+        case .badge(let badge): BadgeSheet(badge: badge)
         }
     }
 }

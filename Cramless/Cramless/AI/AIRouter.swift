@@ -34,6 +34,13 @@ final class AIRouter {
     @ObservationIgnored var mockLatencyScale: Double = 1
     /// The pause between the pieces of an answer made at once (offline, on device), so it arrives like the cloud's.
     @ObservationIgnored var streamPause: Duration = .milliseconds(24)
+    /// The pause between one drafted card being checked against the notes and the next, so the checks can be watched.
+    @ObservationIgnored var assistantBeat: Duration = .milliseconds(130)
+    /// After the relay said it has no assistant, Ask Cap doesn't ask again until then.
+    @ObservationIgnored var assistantRetryAt: Date?
+    /// The relay refused the last cloud request for a limit that isn't a free meter: a paid plan's fair use, or the day's cost cap.
+    /// The tutor says so in its note, instead of "couldn't be reached". Cleared before each cloud attempt.
+    @ObservationIgnored var cloudRefused = false
 
     // MARK: State the UI can read
 
@@ -217,6 +224,7 @@ final class AIRouter {
     /// fall back quietly; a paid plan never sees the paywall).
     func absorbQuotaError(_ error: RelayError, meter: QuotaMeter.Key?) -> QuotaMeter.Key? {
         guard case .quotaExceeded(let status, let message) = error else { return nil }
+        cloudRefused = true
         if let status {
             // Only the meters it names change; the others keep their last counts.
             var merged = serverQuota ?? QuotaStatus(plan: status.plan, meters: [])

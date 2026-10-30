@@ -60,6 +60,8 @@ struct TodaySnapshot: Equatable, Sendable {
     var initials: String
     /// The person's memory sky, laid out for the hero's band.
     var sky: SkyScene = SkyScene.empty
+    /// Today's quests. Empty until a first session is done, on exam eve, and with nothing to study.
+    var quests = QuestsToday()
 
     /// The shape (height over width) the hero's sky is laid out for when the screen isn't known: a phone's world. The real
     /// one comes from the hero's geometry (`HeroWorldGeometry.skyAspect`), so the constellations fill the sky exactly.
@@ -90,6 +92,7 @@ struct TodaySnapshot: Equatable, Sendable {
         if case .examEve(let id) = snapshot.hero {
             snapshot.eveHasWork = !app.buildSession(SessionRequest(kind: .examEve, examID: id)).isEmpty
         }
+        if hasItems, app.hasFinishedAnySession() { snapshot.quests = app.questsToday() }
         #if DEBUG
         debugOverride(&snapshot)
         #endif
@@ -119,9 +122,11 @@ struct TodaySnapshot: Equatable, Sendable {
             snapshot.summary.examEveExamID = firstExam
             snapshot.hero = .examEve(firstExam)
             snapshot.eveHasWork = true
+            snapshot.quests = QuestsToday()
         case "eveDone":
             snapshot.summary.examEveExamID = firstExam
             snapshot.hero = .examEveDone(firstExam)
+            snapshot.quests = QuestsToday()
         case "done":
             snapshot.summary.studiedToday = true
             snapshot.summary.minutesDone = max(snapshot.summary.minutesGoal, 16)
@@ -134,10 +139,12 @@ struct TodaySnapshot: Equatable, Sendable {
             snapshot.hero = .noMaterial
             snapshot.exams = []
             snapshot.confusion = nil
+            snapshot.quests = QuestsToday()
         case "empty":
             snapshot.hero = .empty
             snapshot.exams = []
             snapshot.confusion = nil
+            snapshot.quests = QuestsToday()
         default:
             break
         }

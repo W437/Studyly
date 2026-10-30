@@ -52,6 +52,17 @@ final class AppModel {
     /// What the sessions since the sky was last shown did to it. The sky plays it once, then clears it.
     var pendingSkyRelight: SkyRelight = .none
 
+    // MARK: The game loop (`AppModel+Game.swift`)
+
+    /// What the badges read from the whole log, worked out once per revision.
+    @ObservationIgnored let gameCache = GameCache()
+    /// Switches the app icon (the system's, or a fake in tests).
+    @ObservationIgnored var iconSwitcher: any AppIconSwitching = SystemIconSwitcher()
+    #if DEBUG
+    /// `CRAMLESS_UNLOCK=all`: every icon and sky shows as unlocked, for films and screenshots.
+    @ObservationIgnored var debugUnlockAll = false
+    #endif
+
     /// Off in unit tests: no widget reloads, notification scheduling, sync or network from `save()`.
     @ObservationIgnored var sideEffectsEnabled: Bool
 
@@ -180,6 +191,7 @@ final class AppModel {
         #if DEBUG
         if config.seedDemoData { SampleData.seed(into: self) }
         TestHarness.applyLaunchSettings(to: self)
+        applyGameHarness()
         if config.isHarness, TestHarness.skipsOnboarding { settings.onboardingCompleted = true }
         #endif
         applyDailyRollover()

@@ -171,8 +171,7 @@ struct TodaySessionPanel: View {
             Spacer(minLength: 6)
             if s.streak.current > 0 {
                 HStack(spacing: 5) {
-                    Image(systemName: "flame.fill")
-                        .foregroundStyle(CLColor.tangerine)
+                    StreakFlame(stage: StreakStage(days: s.streak.current), size: 20)
                     Text("\(s.streak.current)-day streak")
                 }
                 .font(WidgetFont.captionEmphasis)

@@ -13,7 +13,23 @@ protocol RelayTransport: Sendable {
     func lecture(_ request: LectureRequest) async throws -> LectureResponse
     func cardsFromChat(_ request: CardsFromChatRequest) async throws -> CardsFromChatResponse
     func transcribeImage(_ request: TranscribeImageRequest) async throws -> TranscribeImageResponse
+    /// Streams one round of Ask Cap's assistant: text, and calls to tools that the app runs. Cancelling the consuming task
+    /// cancels the request.
+    func assistant(_ request: AssistantRequest) -> AsyncThrowingStream<AssistantEvent, Error>
+    /// Streams web research from trusted study sites: the search as it happens, then a cited summary. Pro only.
+    func research(_ request: ResearchRequest) -> AsyncThrowingStream<ResearchEvent, Error>
     func quota() async throws -> QuotaStatus
+}
+
+extension RelayTransport {
+    // Transports (and the test doubles) that predate the assistant refuse it, so Ask Cap falls back to the tutor.
+    func assistant(_ request: AssistantRequest) -> AsyncThrowingStream<AssistantEvent, Error> {
+        AsyncThrowingStream { $0.finish(throwing: RelayError.upstream("The assistant isn't available here.")) }
+    }
+
+    func research(_ request: ResearchRequest) -> AsyncThrowingStream<ResearchEvent, Error> {
+        AsyncThrowingStream { $0.finish(throwing: RelayError.upstream("Web research isn't available here.")) }
+    }
 }
 
 /// Supplies the bearer token for relay and backend calls (a Supabase access token; an anonymous session is

@@ -4,7 +4,7 @@ extension View {
     /// Harness (DEBUG): `CRAMLESS_SCROLL=<section>` scrolls a long screen to one of its sections once it appears, so
     /// headless screenshots can show the lower half. Sections: Library `bring`; course `exams`, `topics`, `sources`,
     /// `questions`; source `questions`; page `questions`; exam `path`, `topics`, `plan`, `materials`; progress
-    /// `streak`, `week`, `memory`, `topics`; streak `freezes`. A no-op in release builds.
+    /// `streak`, `week`, `memory`, `topics`; streak `freezes`; Settings ▸ What Cap can do `added`. A no-op in release builds.
     func harnessScroll(_ proxy: ScrollViewProxy) -> some View {
         #if DEBUG
         return task {

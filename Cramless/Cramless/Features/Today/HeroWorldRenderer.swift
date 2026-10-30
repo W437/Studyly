@@ -48,22 +48,13 @@ enum HeroWorldRenderer {
         var wave: Wave?
         /// The pull is past the line: letting go refreshes. The far ridge catches the light of the dawn that will follow.
         var armed = false
+        /// The sky the person has chosen: what is behind the stars and what the world stands on (`SkyTheme`).
+        var palette = SkyPalette.night
     }
 
-    // MARK: Colours
-
-    private static let coolDust = Color(red: 0.78, green: 0.87, blue: 1.0)
-    private static let warmDust = Color(red: 1.0, green: 0.90, blue: 0.76)
-    private static let farHills = (top: Color(hex: 0x333E78), bottom: Color(hex: 0x1A2350))
-    private static let midHills = (top: Color(hex: 0x212D5E), bottom: Color(hex: 0x121C3E))
-    private static let water = (top: Color(hex: 0x24396E), bottom: Color(hex: 0x0C1432))
-    private static let nearGround = (top: Color(hex: 0x131F3E), bottom: Color(hex: 0x080E22))
-    /// The dusk at the horizon, from the violet of the sky down to peach where the hills begin.
-    private static let violet = Color(hex: 0x6C46A8)
-    private static let rose = Color(hex: 0xE4708C)
-    private static let peach = Color(hex: 0xFFB070)
-
     // MARK: The frame
+    //
+    // Every colour of the world comes from the frame's `palette` (`SkyTheme`): Night is the look Capling has always had.
 
     static func draw(_ g: inout GraphicsContext, size: CGSize, frame f: Frame) {
         #if DEBUG
@@ -112,10 +103,11 @@ enum HeroWorldRenderer {
         let top = g0.farHills - (g0.compact ? 70 : 190)
         let rect = CGRect(x: 0, y: top, width: size.width, height: size.height - top)
         let dawn = 1 + HeroPullLook.dawn * f.pull
-        let glow = Gradient(stops: [.init(color: violet.opacity(0), location: 0),
-                                    .init(color: violet.opacity(min(1, 0.20 * dawn)), location: 0.38),
-                                    .init(color: rose.opacity(min(1, 0.22 * dawn)), location: 0.74),
-                                    .init(color: peach.opacity(min(1, 0.34 * dawn)), location: 1)])
+        let p = f.palette
+        let glow = Gradient(stops: [.init(color: p.glowHigh.opacity(0), location: 0),
+                                    .init(color: p.glowHigh.opacity(min(1, 0.20 * dawn)), location: 0.38),
+                                    .init(color: p.glowMid.opacity(min(1, 0.22 * dawn)), location: 0.74),
+                                    .init(color: p.glowLow.opacity(min(1, 0.34 * dawn)), location: 1)])
         g.blendMode = .plusLighter
         g.fill(Path(rect), with: .linearGradient(glow, startPoint: CGPoint(x: 0, y: top), endPoint: CGPoint(x: 0, y: g0.farHills + 8)))
         g.blendMode = .normal
@@ -132,14 +124,14 @@ enum HeroWorldRenderer {
         band.rotate(by: .degrees(-23))
         band.blendMode = .plusLighter
         let length = size.width * 1.5
-        let haze = Gradient(stops: [.init(color: Color(hex: 0xA9B8FF).opacity(0), location: 0),
-                                    .init(color: Color(hex: 0xA9B8FF).opacity(0.075 * receded(f)), location: 0.5),
-                                    .init(color: Color(hex: 0xA9B8FF).opacity(0), location: 1)])
+        let haze = Gradient(stops: [.init(color: f.palette.haze.opacity(0), location: 0),
+                                    .init(color: f.palette.haze.opacity(0.075 * receded(f)), location: 0.5),
+                                    .init(color: f.palette.haze.opacity(0), location: 1)])
         band.fill(Path(CGRect(x: -length / 2, y: -58, width: length, height: 116)),
                   with: .linearGradient(haze, startPoint: CGPoint(x: 0, y: -58), endPoint: CGPoint(x: 0, y: 58)))
-        let warm = Gradient(stops: [.init(color: Color(hex: 0xFFD9B0).opacity(0), location: 0),
-                                    .init(color: Color(hex: 0xFFD9B0).opacity(0.04 * receded(f)), location: 0.5),
-                                    .init(color: Color(hex: 0xFFD9B0).opacity(0), location: 1)])
+        let warm = Gradient(stops: [.init(color: f.palette.hazeWarm.opacity(0), location: 0),
+                                    .init(color: f.palette.hazeWarm.opacity(0.04 * receded(f)), location: 0.5),
+                                    .init(color: f.palette.hazeWarm.opacity(0), location: 1)])
         band.fill(Path(CGRect(x: -length / 2, y: -22, width: length, height: 44)),
                   with: .linearGradient(warm, startPoint: CGPoint(x: 0, y: -22), endPoint: CGPoint(x: 0, y: 22)))
     }
@@ -161,7 +153,7 @@ enum HeroWorldRenderer {
             let y = top + mote.y * height + tilt.height - pan.height * follow + lean(f, HeroPullLook.dust[mote.depth])
             guard bounds.contains(CGPoint(x: x, y: y)) else { continue }
             let shine = HeroDust.twinkle(mote, time: f.time, animated: f.ambient)
-            let color = coolDust.mix(with: warmDust, by: mote.warmth)
+            let color = f.palette.dustCool.mix(with: f.palette.dustWarm, by: mote.warmth)
             // The arc of a refresh lights the stars it is passing.
             let lit = arc.map { $0.glow * HeroRefreshWave.flash(distance: Double(y - $0.y)) } ?? 0
             let r = mote.radius * (1 + 0.7 * lit)
@@ -230,7 +222,7 @@ enum HeroWorldRenderer {
         SkyRenderer.draw(&g, size: size, frame: SkyFrame(
             scene: f.scene, plan: plan, camera: camera, time: f.time, animated: f.ambient, differentiate: f.differentiate,
             restlessRing: f.restlessRing, focus: f.focus, litRegion: litRegion, starScale: 1.5, playback: nil, labels: false,
-            spikes: true, lineWidth: 1.15, focusLift: 0.42))
+            spikes: true, lineWidth: 1.15, focusLift: 0.42, palette: f.palette))
     }
 
     private static func drawShootingStar(_ g: inout GraphicsContext, _ f: Frame, size: CGSize) {
@@ -276,18 +268,18 @@ enum HeroWorldRenderer {
         let farMove = shift(f, 3)
         far.translateBy(x: farMove.width, y: 0)
         let farShape = hills(width: size.width, height: size.height, base: g0.farHills, waves: farWaves)
-        far.fill(farShape.fill, with: .linearGradient(Gradient(colors: [farHills.top, farHills.bottom]),
+        far.fill(farShape.fill, with: .linearGradient(Gradient(colors: [f.palette.farHills.top, f.palette.farHills.bottom]),
                                                        startPoint: CGPoint(x: 0, y: g0.farHills - 20), endPoint: CGPoint(x: 0, y: size.height)))
         if f.armed {
             far.blendMode = .plusLighter
-            far.stroke(farShape.crest, with: .color(peach.opacity(0.24)), lineWidth: 5)
-            far.stroke(farShape.crest, with: .color(Color(hex: 0xFFE2C4).opacity(0.85)), lineWidth: 1.6)
+            far.stroke(farShape.crest, with: .color(f.palette.glowLow.opacity(0.24)), lineWidth: 5)
+            far.stroke(farShape.crest, with: .color(f.palette.crestWarm.opacity(0.85)), lineWidth: 1.6)
             far.blendMode = .normal
         } else {
-            far.stroke(farShape.crest, with: .color(Color(hex: 0xB9C6FF).opacity(0.20)), lineWidth: 1.1)
+            far.stroke(farShape.crest, with: .color(f.palette.crestCool.opacity(0.20)), lineWidth: 1.1)
         }
         let mist = CGRect(x: -40, y: g0.farHills - 6, width: size.width + 80, height: 46)
-        far.fill(Path(mist), with: .linearGradient(Gradient(colors: [Color(hex: 0xB9C6FF).opacity(0.0), Color(hex: 0xB9C6FF).opacity(0.10), Color(hex: 0xB9C6FF).opacity(0)]),
+        far.fill(Path(mist), with: .linearGradient(Gradient(colors: [f.palette.crestCool.opacity(0.0), f.palette.crestCool.opacity(0.10), f.palette.crestCool.opacity(0)]),
                                                    startPoint: CGPoint(x: 0, y: mist.minY), endPoint: CGPoint(x: 0, y: mist.maxY)))
 
         // Middle hills.
@@ -296,13 +288,13 @@ enum HeroWorldRenderer {
         mid.translateBy(x: midMove.width, y: 0)
         let midShape = hills(width: size.width, height: size.height, base: g0.midHills,
                              waves: [(9, 58, 2.3), (5, 26, 0.4), (2.5, 13, 5.1)])
-        mid.fill(midShape.fill, with: .linearGradient(Gradient(colors: [midHills.top, midHills.bottom]),
+        mid.fill(midShape.fill, with: .linearGradient(Gradient(colors: [f.palette.midHills.top, f.palette.midHills.bottom]),
                                                        startPoint: CGPoint(x: 0, y: g0.midHills - 14), endPoint: CGPoint(x: 0, y: size.height)))
-        mid.stroke(midShape.crest, with: .color(Color(hex: 0xB9C6FF).opacity(0.11)), lineWidth: 1)
+        mid.stroke(midShape.crest, with: .color(f.palette.crestCool.opacity(0.11)), lineWidth: 1)
 
         // The lake, mirroring the brightest stars.
         let lake = CGRect(x: 0, y: g0.lakeTop, width: size.width, height: size.height - g0.lakeTop)
-        g.fill(Path(lake), with: .linearGradient(Gradient(colors: [water.top, water.bottom]),
+        g.fill(Path(lake), with: .linearGradient(Gradient(colors: [f.palette.water.top, f.palette.water.bottom]),
                                                  startPoint: CGPoint(x: 0, y: lake.minY), endPoint: CGPoint(x: 0, y: lake.maxY)))
         if !compact { drawReflections(&g, f, size: size) }
         // The shore: a thin line of light where the water meets the land.
@@ -316,11 +308,11 @@ enum HeroWorldRenderer {
         // they are the plane of the screen.
         guard !compact else { return }
         let mound = Path(ellipseIn: CGRect(x: -size.width * 0.18, y: size.height - 30, width: size.width * 0.80, height: 80))
-        g.fill(mound, with: .linearGradient(Gradient(colors: [nearGround.top, nearGround.bottom]),
+        g.fill(mound, with: .linearGradient(Gradient(colors: [f.palette.ground.top, f.palette.ground.bottom]),
                                             startPoint: CGPoint(x: 0, y: size.height - 30), endPoint: CGPoint(x: 0, y: size.height + 20)))
         g.stroke(mound, with: .color(.white.opacity(0.07)), lineWidth: 1)
         let knoll = Path(ellipseIn: CGRect(x: size.width * 0.74, y: size.height - 16, width: size.width * 0.5, height: 56))
-        g.fill(knoll, with: .color(nearGround.bottom.opacity(0.9)))
+        g.fill(knoll, with: .color(f.palette.ground.bottom.opacity(0.9)))
     }
 
     /// A hill's silhouette: a few sine waves around `base`, filled down to the bottom of the frame, and its crest as a line.
@@ -359,7 +351,7 @@ enum HeroWorldRenderer {
             let w = 5 + CGFloat((k * 31) % 11)
             glints.addRect(CGRect(x: x - w / 2 + (f.ambient ? 1.5 * sin(f.time * 0.9 + Double(k)) : 0), y: y, width: w, height: 1))
         }
-        g.fill(glints, with: .color(peach.opacity(0.16)))
+        g.fill(glints, with: .color(f.palette.glowLow.opacity(0.16)))
 
         guard let plan = f.plan, !f.scene.isEmpty, f.mode != .outline else { g.blendMode = .normal; return }
         let layout = f.scene.layout
@@ -394,8 +386,6 @@ enum HeroWorldRenderer {
 
     // MARK: The refresh
 
-    private static let arcLight = Color(hex: 0xE6ECFF)
-
     /// What letting go of a pull does to the world: an arc of light climbs from behind the hills to above the sky, lighting the
     /// stars as it passes (the sky drawn once more, added, through a soft band; the background stars flash in `drawDust`), and a
     /// star falls (`drawShootingStar`). Under Reduce Motion the sky only brightens for a moment. Drawn before the ground, so the
@@ -403,6 +393,7 @@ enum HeroWorldRenderer {
     private static func drawRefresh(_ g: inout GraphicsContext, _ f: Frame, size: CGSize) {
         guard let wave = f.wave else { return }
         let g0 = f.geometry
+        let arcLight = f.palette.arc, peach = f.palette.glowLow, rose = f.palette.glowMid
         if wave.calm {
             let a = HeroRefreshWave.calm(at: wave.t)
             guard a > 0.001 else { return }
@@ -467,7 +458,7 @@ enum HeroWorldRenderer {
         let g0 = f.geometry
         let reach = g0.topInset + (g0.compact ? 20 : 104)
         g.fill(Path(CGRect(x: 0, y: 0, width: size.width, height: reach)),
-               with: .linearGradient(Gradient(colors: [SkyRenderer.top.opacity(0.74), SkyRenderer.top.opacity(0.34), SkyRenderer.top.opacity(0)]),
+               with: .linearGradient(Gradient(colors: [f.palette.top.opacity(0.74), f.palette.top.opacity(0.34), f.palette.top.opacity(0)]),
                                      startPoint: CGPoint(x: 0, y: 0), endPoint: CGPoint(x: 0, y: reach)))
     }
 }

@@ -286,7 +286,7 @@ extension ReviewSnapshot {
 extension DaySnapshot {
     init(_ r: DayRecord) {
         self.init(dayKey: r.dayKey, day: r.day, studySeconds: r.studySeconds, itemsReviewed: r.itemsReviewed,
-                  sessions: r.sessions, frozen: r.frozen, repaired: r.repaired)
+                  sessions: r.sessions, frozen: r.frozen, repaired: r.repaired, questMask: r.questMask)
     }
 }
 

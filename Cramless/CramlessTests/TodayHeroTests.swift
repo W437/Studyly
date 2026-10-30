@@ -36,11 +36,11 @@ final class TodayHeroContentTests: XCTestCase {
 
     // MARK: The days
 
-    func testASessionDayIsOneButtonToRelightAndWhatsInIt() throws {
+    func testASessionDayIsOneButtonToStudyAndWhatsInIt() throws {
         let c = content(.session)
         let action = try XCTUnwrap(c.actions.first)
         XCTAssertEqual(c.actions.count, 1)
-        XCTAssertEqual(text(action.title), "Relight · 15 min")
+        XCTAssertEqual(text(action.title), "Study · 15 min")
         XCTAssertTrue(action.prominent)
         XCTAssertEqual(action.kind, .session(.daily, minutes: nil, examID: nil), "it sizes itself")
         XCTAssertEqual(action.request?.kind, .daily)
@@ -53,7 +53,7 @@ final class TodayHeroContentTests: XCTestCase {
 
     func testPartWayThroughTheGoalTheCaptionSaysHowFarAndTheButtonHowMuchIsLeft() throws {
         let c = content(.session, summary(planned: 9, done: 6))
-        XCTAssertEqual(text(try XCTUnwrap(c.actions.first).title), "Relight · 9 min")
+        XCTAssertEqual(text(try XCTUnwrap(c.actions.first).title), "Study · 9 min")
         XCTAssertTrue(text(c.caption).hasPrefix("6 of 15 minutes done · "), text(c.caption))
     }
 

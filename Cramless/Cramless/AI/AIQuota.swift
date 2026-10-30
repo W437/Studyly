@@ -12,6 +12,9 @@ enum AIFreeLimits {
         }
     }
 
+    /// The line when a free plan's drafts for the day are used up (the relay's own words are in plans.ts).
+    static let draftsMessage = String(localized: "That's today's 3 free drafts. Capling Pro lifts the daily limit, and Cap can still answer from your notes.")
+
     static func period(_ key: QuotaMeter.Key) -> QuotaMeter.Period {
         switch key {
         case .scans, .lectures: .week

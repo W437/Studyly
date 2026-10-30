@@ -8,6 +8,8 @@ struct ChatEntry: Identifiable, Equatable {
     var citations: [Citation]
     var origin: ItemOrigin?
     var contextItemID: UUID?
+    /// What Cap's assistant did in this reply.
+    var steps: [AssistantStep]
 
     init(_ message: ChatMessage) {
         id = message.id
@@ -16,6 +18,7 @@ struct ChatEntry: Identifiable, Equatable {
         citations = message.citations
         origin = message.origin.flatMap(ItemOrigin.init(rawValue:))
         contextItemID = message.contextItemID
+        steps = message.steps
     }
 
     static func entries(of thread: ChatThread?) -> [ChatEntry] {
@@ -46,6 +49,9 @@ struct ChatPane: View {
     @State private var draft = ""
     @FocusState private var composerFocused: Bool
     @State private var starters: [String]?
+    /// The chat follows Cap's reply down as it is made, until the student scrolls away from the end (and again once they are back).
+    @State private var following = true
+    @State private var endGap: CGFloat = 0
 
     private var streams: AskStreams { AskStreams.shared }
 
@@ -82,8 +88,18 @@ struct ChatPane: View {
             .scrollDismissesKeyboard(.interactively)
             .defaultScrollAnchor(HarnessScroll.anchor(entries.isEmpty ? .top : .bottom), for: .initialOffset)
             .defaultScrollAnchor(HarnessScroll.anchor(.bottom), for: .sizeChanges)
+            .onScrollGeometryChange(for: CGFloat.self) { $0.contentSize.height - $0.visibleRect.maxY } action: { _, gap in endGap = gap }
+            .onScrollPhaseChange { old, new in
+                // A finger on the scroll view takes it over; it follows Cap again once the student lets go at the end.
+                if new == .idle, old == .interacting || old == .decelerating { following = endGap < 80 }
+            }
             .onChange(of: entries.count) { _, _ in scrollToEnd(proxy) }
-            .onChange(of: live == nil) { _, _ in scrollToEnd(proxy) }
+            .onChange(of: live == nil) { _, ended in
+                if !ended { following = true }
+                scrollToEnd(proxy)
+            }
+            // Cards written, pages found, a note growing: the new work stays in view above the composer.
+            .onChange(of: live?.progress) { _, _ in if following { scrollToEnd(proxy) } }
         }
         .safeAreaInset(edge: .bottom) {
             ChatComposer(text: $draft, focused: $composerFocused, isAnswering: live != nil,
@@ -125,6 +141,7 @@ struct ChatPane: View {
                 let reply = entries.indices.contains(index + 1) && entries[index + 1].role == .user ? entries[index + 1].text : nil
                 CapMessageView(entry: entry, note: streams.notes[entry.id], chatContext: context,
                                isLatest: index == lastAssistant && live == nil, reply: reply,
+                               stepActions: stepActions(for: entry),
                                onCitation: open, onAnswer: { answer, check in answerQuickCheck(answer, check: check) },
                                onSuggestion: { app.router.present($0.sheet) })
                     .transition(.identity)
@@ -177,12 +194,21 @@ struct ChatPane: View {
                              sourceCount: app.readableSources(courseID: courseID).count, starters: starters,
                              recent: recent.map { RecentChat(id: $0.id, title: $0.title, updatedAt: $0.updatedAt) },
                              now: app.now,
+                             quickStarts: app.ai.assistantReady ? AssistantQuickStart.available(app) : [],
                              onStarter: { ask($0, sendAs: nil) },
+                             onCompose: { compose($0) },
                              onOpen: { id in withAnimation(CLMotion.settle) { threadID = id } },
                              onAddMaterial: { app.router.present(.capture(courseID: courseID)) })
     }
 
     // MARK: Actions
+
+    /// Puts the start of a request in the composer, for the student to finish.
+    private func compose(_ prefix: String) {
+        CLHaptics.tap()
+        draft = prefix
+        composerFocused = true
+    }
 
     private func send(_ text: String) {
         let clean = text.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -201,6 +227,33 @@ struct ChatPane: View {
         withAnimation(CLMotion.settle) {
             streams.ask(text, in: thread, app: app, sendAs: sendAs)
         }
+    }
+
+    /// What the student can do with the steps of one saved reply.
+    private func stepActions(for entry: ChatEntry) -> AssistantStepActions {
+        let id = entry.id
+        let app = self.app
+        return AssistantStepActions(
+            approve: { step in
+                CLHaptics.commit()
+                guard let done = app.approveAssistantStep(messageID: id, stepID: step.id) else { return }
+                if done.status == .applied {
+                    CLHaptics.success()
+                    CLFeel.play(.saved)
+                } else if let why = done.detail {
+                    app.router.toast(.verbatim(why), systemImage: "exclamationmark.triangle.fill", tone: .warning)
+                }
+            },
+            skip: { app.skipAssistantStep(messageID: id, stepID: $0.id) },
+            undo: { step in
+                guard app.undoAssistantStep(messageID: id, stepID: step.id) != nil else { return }
+                CLHaptics.commit()
+                app.router.toast("Taken back", systemImage: "arrow.uturn.backward", tone: .neutral)
+            },
+            reopen: { app.reopenAssistantStep(messageID: id, stepID: $0.id) },
+            edit: { step, change in app.updateAssistantStep(messageID: id, stepID: step.id, change) },
+            perform: { app.perform($0) },
+            upgrade: { app.router.present(.paywall(.feature("Web research is part of Capling Pro."))) })
     }
 
     private func answerQuickCheck(_ answer: String, check: QuickCheck) {
@@ -278,6 +331,7 @@ struct CapMessageView: View {
     var chatContext: String = ""
     let isLatest: Bool
     let reply: String?
+    var stepActions: AssistantStepActions = .live
     let onCitation: (CitationGroup) -> Void
     let onAnswer: (String, QuickCheck) -> Void
     let onSuggestion: (AISuggestion) -> Void
@@ -288,6 +342,9 @@ struct CapMessageView: View {
         let groups = CitationGroup.groups(entry.citations)
         let origin = OriginNote.line(origin: note?.origin ?? entry.origin, note: note?.note, quotesNotes: !entry.citations.isEmpty)
         VStack(alignment: .leading, spacing: 8) {
+            if !entry.steps.isEmpty {
+                AssistantStepList(steps: entry.steps, actions: stepActions)
+            }
             if !lead.isEmpty {
                 VStack(alignment: .leading, spacing: 10) {
                     CapMarkdownView(text: lead)
@@ -339,35 +396,102 @@ struct LiveAnswerView: View {
     let onCitation: (CitationGroup) -> Void
 
     var body: some View {
-        if live.origin == nil && live.text.isEmpty {
+        if live.origin == nil && live.text.isEmpty && live.steps.isEmpty {
             CapThinkingBubble()
         } else {
             let groups = CitationGroup.groups(live.citations)
             VStack(alignment: .leading, spacing: 8) {
-                VStack(alignment: .leading, spacing: 10) {
-                    CapMarkdownView(text: live.text, streaming: true)
-                        .accessibilityElement(children: .ignore)
-                        .accessibilityLabel(Text(CapMessageView.spoken(live.text, groups: groups)))
-                    if !groups.isEmpty {
-                        CLFlow(spacing: 6, lineSpacing: 0) {
-                            ForEach(groups) { group in
-                                CitationChipButton(group: group) { onCitation(group) }
-                                    .transition(.scale(scale: 0.6).combined(with: .opacity))
-                            }
-                        }
-                        .padding(.vertical, -6)
-                        .animation(CLMotion.pop, value: groups.count)
-                    }
+                if !live.steps.isEmpty {
+                    AssistantStepList(steps: live.steps, actions: .live, animated: true)
                 }
-                .capBubble()
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.trailing, 28)
+                if !live.text.isEmpty {
+                    VStack(alignment: .leading, spacing: 10) {
+                        CapMarkdownView(text: live.text, streaming: true)
+                            .accessibilityElement(children: .ignore)
+                            .accessibilityLabel(Text(CapMessageView.spoken(live.text, groups: groups)))
+                        if !groups.isEmpty {
+                            CLFlow(spacing: 6, lineSpacing: 0) {
+                                ForEach(groups) { group in
+                                    CitationChipButton(group: group) { onCitation(group) }
+                                        .transition(.scale(scale: 0.6).combined(with: .opacity))
+                                }
+                            }
+                            .padding(.vertical, -6)
+                            .animation(CLMotion.pop, value: groups.count)
+                        }
+                    }
+                    .capBubble()
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.trailing, 28)
+                } else if !live.steps.isEmpty, !live.steps.contains(where: { $0.status == .working }) {
+                    // The work is on the table; Cap is writing its note.
+                    AssistantWritingNote()
+                }
+                if let working = live.steps.last(where: { $0.status == .working }) {
+                    AssistantWorkingBar(step: working)
+                }
                 if let origin = OriginNote.line(origin: live.origin, note: nil, quotesNotes: !live.citations.isEmpty) {
                     OriginNote(text: origin.text, systemImage: origin.icon)
                 }
             }
             .accessibilityAddTraits(.updatesFrequently)
         }
+    }
+}
+
+/// Cap at work under the card that is working, and what he is doing this second.
+struct AssistantWorkingBar: View {
+    let step: AssistantStep
+
+    var body: some View {
+        HStack(spacing: 10) {
+            CapView(.working, size: 44, interactive: false)
+            Text(verbatim: line)
+                .clFont(.footnote)
+                .foregroundStyle(CLColor.ink2)
+                .contentTransition(.opacity)
+                .animation(CLMotion.fade, value: line)
+            WorkingDots()
+        }
+        .padding(.leading, 4)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text("Cap is working: \(line)"))
+    }
+
+    private var line: String {
+        switch step.payload {
+        case .lookup: return String(localized: "Reading your notes")
+        case .cards(let c):
+            return c.isEmpty ? String(localized: "Choosing what to put on the cards")
+                : step.checking == true ? String(localized: "Checking each card against your notes") : String(localized: "Writing the cards")
+        case .questions(let q):
+            return q.isEmpty ? String(localized: "Choosing what to ask")
+                : step.checking == true ? String(localized: "Checking each question against your notes") : String(localized: "Writing the questions")
+        case .note(let n): return n.body.isEmpty ? String(localized: "Starting your note") : String(localized: "Writing your note")
+        case .research(let r):
+            switch r.phase {
+            case .starting, .searching: return String(localized: "Searching trusted study sites")
+            case .reading: return String(localized: "Reading \(CLFormat.count(r.sources.count, "page"))")
+            case .writing: return String(localized: "Writing the summary")
+            case .done: return String(localized: "Almost done")
+            }
+        case .exam: return String(localized: "Looking at the calendar")
+        default: return String(localized: "Working on it")
+        }
+    }
+}
+
+/// Cap is writing the short note that goes with what it made.
+struct AssistantWritingNote: View {
+    var body: some View {
+        HStack(spacing: 10) {
+            CapView(.working, size: 40)
+            Text("Cap is adding a note").clFont(.footnote).foregroundStyle(CLColor.ink3)
+            WorkingDots()
+        }
+        .padding(.leading, 4)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text("Cap is writing a note about what it made"))
     }
 }
 
@@ -389,7 +513,10 @@ struct AskEmptyState: View {
     let starters: [String]?
     let recent: [RecentChat]
     let now: Date
+    /// What Cap can make, as first words for the composer (none when its tools can't be used).
+    var quickStarts: [AssistantQuickStart.Start] = []
     let onStarter: (String) -> Void
+    var onCompose: ((String) -> Void)?
     let onOpen: (UUID) -> Void
     let onAddMaterial: () -> Void
 
@@ -424,6 +551,14 @@ struct AskEmptyState: View {
                 .buttonStyle(.cl(.primary))
                 .padding(.top, 22)
             } else {
+                if let onCompose, !quickStarts.isEmpty {
+                    CLSectionHeader(title: "Ask Cap to make something")
+                    CLFlow(spacing: 8, lineSpacing: 0) {
+                        ForEach(quickStarts, id: \.prefix) { start in
+                            SuggestionChip(title: start.title, systemImage: start.icon) { onCompose(start.prefix) }
+                        }
+                    }
+                }
                 CLSectionHeader(title: "Try asking")
                 if let starters {
                     if starters.isEmpty {
@@ -494,5 +629,26 @@ struct AskEmptyState: View {
         case 2..<7: return date.formatted(.dateTime.weekday(.wide))
         default: return date.formatted(.dateTime.month(.abbreviated).day())
         }
+    }
+}
+
+
+/// The first words of the things Cap can make, put in the composer to be finished.
+enum AssistantQuickStart {
+    struct Start: Equatable { var title: String; var icon: String; var prefix: String }
+
+    /// What this student can ask for: everything, except the web when it is off (or not for them).
+    @MainActor
+    static func available(_ app: AppModel) -> [Start] {
+        var all = [
+            Start(title: String(localized: "Make flashcards"), icon: "rectangle.stack", prefix: String(localized: "Make flashcards on ")),
+            Start(title: String(localized: "Quiz me"), icon: "checklist", prefix: String(localized: "Quiz me on ")),
+            Start(title: String(localized: "Write a note"), icon: "doc.text", prefix: String(localized: "Write me a note on ")),
+            Start(title: String(localized: "Add an exam"), icon: "calendar", prefix: String(localized: "Add my exam on ")),
+        ]
+        if app.assistantTools.contains(.researchWeb) {
+            all.append(Start(title: String(localized: "Research online"), icon: "globe", prefix: String(localized: "Research online: ")))
+        }
+        return all
     }
 }

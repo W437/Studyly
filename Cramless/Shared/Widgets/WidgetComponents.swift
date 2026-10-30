@@ -191,9 +191,7 @@ struct WidgetStreakPill: View {
 
     var body: some View {
         HStack(spacing: 3) {
-            Image(systemName: "flame.fill")
-                .font(.system(size: 11, weight: .bold))
-                .foregroundStyle(onNight ? CLColor.tangerine : CLColor.tangerineInk)
+            StreakFlame(stage: StreakStage(days: count), size: 16)
             Text("\(count)")
                 .font(WidgetFont.number(14, .bold))
                 .foregroundStyle(onNight ? CLColor.ink : CLColor.tangerineInk)

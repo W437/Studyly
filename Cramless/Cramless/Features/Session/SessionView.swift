@@ -443,7 +443,10 @@ struct SessionEmptyView: View {
 ///   sky's flare; `mcq-saved` does the same with a multiple-choice question answered right ("Saved it.", Cap's sparkles
 ///   and the flare together);
 ///   `summary` answers eight questions plus a swapped pair, then shows the summary (with a mix-up offered);
-///   `exameve-summary`, `fix-summary` answer everything and finish (use with `session:examEve`, `session:fix`).
+///   `exameve-summary`, `fix-summary` answer everything and finish (use with `session:examEve`, `session:fix`);
+///   `milestone-summary`, `badge-summary` and `quest-summary` answer eight questions and show the summary of the game loop
+///   (`milestone-summary` with `CRAMLESS_SCENARIO=streak:29`; `quest-summary` with `CRAMLESS_QUESTS=partial|weekFull`;
+///   `badge-summary` first forgets the 7-day badge, so the session earns it).
 /// - `CRAMLESS_SESSION_ANSWER=<text>`: the own-words answer to submit (with `graded` or `ownwords`).
 @MainActor
 struct SessionDebug {
@@ -499,6 +502,8 @@ struct SessionDebug {
             runner.debugFront(kinds: [.cloze], preferring: "Fill in the phase")
         case "diagram", "diagram-answered", "diagram-filled":
             runner.debugFront(kinds: [.diagram])
+        case "badge-summary":
+            app.debugForgetBadge(.streak7)
         case "flashcard", "flipped", "flashcard-saved":
             runner.debugFront(kinds: [.flashcard], preferring: "Cytokinesis")
             if state == "flashcard-saved", let first = runner.queue.current, let item = runner.item(for: first) {
@@ -550,6 +555,8 @@ struct SessionDebug {
                let b = items.first(where: { $0.prompt == "What does anaphase II separate?" }) {
                 runner.debugSwap(a, b)
             }
+            runner.debugAnswer(8)
+        case "milestone-summary", "badge-summary", "quest-summary":
             runner.debugAnswer(8)
         case "exameve-summary":
             runner.debugAnswer(runner.queue.count, pattern: [.good, .good, .hard, .good])

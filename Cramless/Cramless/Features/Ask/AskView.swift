@@ -55,6 +55,10 @@ struct AskView: View {
     #if DEBUG
     private func applyHarness() {
         AskDemo.applyLaunchState(app)
+        if let script = TestHarness.once("CRAMLESS_ASSISTANT") {
+            threadID = AskDemo.assistant(script, app: app, courseID: courseID)
+            return
+        }
         guard let hook = TestHarness.once("CRAMLESS_ASK") else { return }
         switch hook {
         case "demo":
@@ -185,6 +189,9 @@ struct ChatActionsMenu: View {
                 app.router.present(.makeCards(threadID: thread.id))
             }
             .disabled(!hasAnswers)
+            Button("What Cap can do", systemImage: "wand.and.stars") {
+                app.router.push(.settingsPage(.assistant), on: .ask)
+            }
             Button("Delete chat", systemImage: "trash", role: .destructive, action: onDelete)
         } label: {
             Image(systemName: "ellipsis")

@@ -35,6 +35,7 @@ struct HeroWorld: View {
     @Environment(\.clReduceMotion) private var reduceMotion
     @Environment(\.clDifferentiateWithoutColor) private var differentiate
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.skyTheme) private var skyTheme
 
     @State private var plan: SkyPlan?
     @State private var clouds: [HeroCloud] = []
@@ -67,7 +68,7 @@ struct HeroWorld: View {
 
     var body: some View {
         ZStack(alignment: .bottomLeading) {
-            LinearGradient(colors: [SkyRenderer.top, SkyRenderer.bottom], startPoint: .top, endPoint: .bottom)
+            LinearGradient(colors: [skyTheme.palette.top, skyTheme.palette.bottom], startPoint: .top, endPoint: .bottom)
             world
             if let cap {
                 CapView(cap, size: geometry.capSize, refreshed: capCheer)
@@ -131,9 +132,10 @@ struct HeroWorld: View {
                 let fit = fitCamera(size)
                 let current = move?.camera(at: time) ?? camera ?? fit
                 HeroWorldRenderer.draw(&g, size: size, frame: HeroWorldRenderer.Frame(
-                    scene: scene, plan: plan, camera: current, fit: fit, geometry: geometry, mode: mode, time: time,
+                    scene: scene, plan: plan?.fitting(scene), camera: current, fit: fit, geometry: geometry, mode: mode, time: time,
                     ambient: ambientOn, tilt: currentTilt(at: time), dust: Self.dust, clouds: clouds, focus: focus,
-                    differentiate: differentiate, restlessRing: reduceMotion, ripples: ripples, pull: lean, wave: wave, armed: armed))
+                    differentiate: differentiate, restlessRing: reduceMotion, ripples: ripples, pull: lean, wave: wave, armed: armed,
+                    palette: skyTheme.palette))
             }
         }
         .contentShape(Rectangle())

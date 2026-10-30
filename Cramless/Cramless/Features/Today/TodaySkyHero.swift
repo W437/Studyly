@@ -64,25 +64,29 @@ struct TodaySkyHero: View {
 
     /// "63 stars · 7 dim ›": what the sky holds, and the cue that it opens. For a moment after a refresh it says so instead.
     private var starsTag: some View {
-        HStack(spacing: 6) {
-            Text(verbatim: showsFresh ? String(localized: "Sky refreshed") : tagText)
-                .clFont(.footnoteEmphasis)
-                .contentTransition(.opacity)
-            Image(systemName: showsFresh ? "sparkle" : "chevron.right")
-                .font(.system(size: showsFresh ? 11 : 10, weight: .bold))
-                .contentTransition(.symbolEffect(.replace))
-                .accessibilityHidden(true)
+        // A finger opens the sky here; VoiceOver does it from the hero itself, so the tag stays hidden from it.
+        Button(action: onOpenSky) {
+            HStack(spacing: 6) {
+                Text(verbatim: showsFresh ? String(localized: "Sky refreshed") : tagText)
+                    .clFont(.footnoteEmphasis)
+                    .contentTransition(.opacity)
+                Image(systemName: showsFresh ? "sparkle" : "chevron.right")
+                    .font(.system(size: showsFresh ? 11 : 10, weight: .bold))
+                    .contentTransition(.symbolEffect(.replace))
+                    .accessibilityHidden(true)
+            }
+            .animation(CLMotion.fade, value: showsFresh)
+            .foregroundStyle(.white.opacity(0.92))
+            .padding(.horizontal, 12)
+            .frame(minHeight: 32)
+            .glassEffect(.regular, in: .capsule)
+            .contentShape(Rectangle().inset(by: -6))   // a 44-pt target around the 32-pt capsule
         }
-        .animation(CLMotion.fade, value: showsFresh)
-        .foregroundStyle(.white.opacity(0.92))
-        .padding(.horizontal, 12)
-        .frame(minHeight: 32)
-        .glassEffect(.regular, in: .capsule)
+        .buttonStyle(.pressable)
         .environment(\.colorScheme, .dark)
         .padding(.trailing, CLSpace.gutter)
         .padding(.bottom, 16)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
-        .allowsHitTesting(false)
         .accessibilityHidden(true)
     }
 

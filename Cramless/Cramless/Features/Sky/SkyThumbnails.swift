@@ -10,6 +10,7 @@ struct SkyRegionStill: View {
     var cornerRadius: CGFloat = 18
 
     @Environment(\.clDifferentiateWithoutColor) private var differentiate
+    @Environment(\.skyTheme) private var skyTheme
 
     var body: some View {
         Canvas { g, size in
@@ -17,9 +18,9 @@ struct SkyRegionStill: View {
             SkyRenderer.draw(&g, size: size, frame: SkyFrame(
                 scene: scene, plan: SkyPlan(scene), camera: camera, time: 0, animated: false, differentiate: differentiate,
                 restlessRing: true, focus: nil, litRegion: scene.layout.regions.first?.examID, recede: 0, starScale: 1.7,
-                playback: nil, labels: false))
+                playback: nil, labels: false, palette: skyTheme.palette))
         }
-        .background(LinearGradient(colors: [SkyRenderer.top, SkyRenderer.bottom], startPoint: .top, endPoint: .bottom))
+        .background(LinearGradient(colors: [skyTheme.palette.top, skyTheme.palette.bottom], startPoint: .top, endPoint: .bottom))
         .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
         .accessibilityHidden(true)
     }
@@ -32,13 +33,14 @@ struct SkyGlyphView: View {
     var size: CGFloat = 46
 
     @Environment(\.clDifferentiateWithoutColor) private var differentiate
+    @Environment(\.skyTheme) private var skyTheme
 
     var body: some View {
         Canvas { g, canvas in
             Self.draw(&g, glyph, in: canvas, differentiate: differentiate)
         }
         .frame(width: size, height: size)
-        .background(LinearGradient(colors: [SkyRenderer.top, SkyRenderer.bottom], startPoint: .top, endPoint: .bottom),
+        .background(LinearGradient(colors: [skyTheme.palette.top, skyTheme.palette.bottom], startPoint: .top, endPoint: .bottom),
                     in: RoundedRectangle(cornerRadius: size * 0.3, style: .continuous))
         .accessibilityHidden(true)
     }

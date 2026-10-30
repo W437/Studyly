@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Your memory sky, full screen: every star an item you've studied, every constellation a topic. Tap a constellation
-/// for how it's doing and to relight it; "Sky as a list" is the same thing for VoiceOver, for large text, and for
+/// for how it's doing and to practise it; "Sky as a list" is the same thing for VoiceOver, for large text, and for
 /// anyone who'd rather read it.
 ///
 /// DEBUG hooks, read once (`SkyDebug`): `CRAMLESS_SKY=still|relight|flare|age:<days>|lapse:<days>|focus:<n>|tour|list|fill:<n>`,
@@ -10,6 +10,7 @@ struct SkyScreen: View {
     @Environment(AppModel.self) private var app
     @Environment(\.dynamicTypeSize) private var typeSize
     @Environment(\.clReduceMotion) private var reduceMotion
+    @Environment(\.skyTheme) private var skyTheme
 
     @State private var scene: SkyScene?
     @State private var sceneID = 0
@@ -99,7 +100,7 @@ struct SkyScreen: View {
                 Color.clear
             }
         }
-        .background(SkyRenderer.top.ignoresSafeArea())
+        .background(skyTheme.palette.top.ignoresSafeArea())
     }
 
     private var animates: Bool {
@@ -285,7 +286,7 @@ private struct SkyMeter: View {
     }
 }
 
-/// A tapped constellation: its name, how it's doing, and the way to relight it.
+/// A tapped constellation: its name, how it's doing, and the way to practise it.
 private struct SkyFocusCard: View {
     let scene: SkyScene
     let index: Int
@@ -315,7 +316,7 @@ private struct SkyFocusCard: View {
             Text(verbatim: SkyCopy.detail(index, in: scene))
                 .clFont(.footnote).foregroundStyle(.white.opacity(0.85))
             Button(action: onRelight) {
-                Text(dim > 0 ? SkyCopy.relight(c.name, minutes: minutes) : SkyCopy.practice(c.name, minutes: minutes))
+                Text(SkyCopy.practice(c.name, minutes: minutes))
                     .lineLimit(2).multilineTextAlignment(.center)
             }
             .buttonStyle(.cl(.primary))
@@ -371,7 +372,7 @@ private struct SkyEmpty: View {
 // MARK: - As a list
 
 /// The sky as rows: each course, and under it each constellation with how many of its stars are bright and a way to
-/// relight it. What VoiceOver gets by default, and anyone at large text sizes (where each row stacks).
+/// practise it. What VoiceOver gets by default, and anyone at large text sizes (where each row stacks).
 struct SkyListView: View {
     let scene: SkyScene
     var onRelight: (SkyLayout.Constellation) -> Void
@@ -453,7 +454,6 @@ private struct SkyListRow: View {
 
     var body: some View {
         let c = constellation
-        let dim = scene.light.dimCount(c)
         let stacked = typeSize.isAccessibilitySize
         let layout = stacked ? AnyLayout(VStackLayout(alignment: .leading, spacing: 12)) : AnyLayout(HStackLayout(spacing: 12))
         let minutes = scene.minutesToRelight(index)
@@ -465,17 +465,17 @@ private struct SkyListRow: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             Button { onRelight(c) } label: {
-                Text(dim > 0 ? "Relight" : "Practice")
+                Text("Practice")
             }
             .buttonStyle(.cl(.soft, size: .small, fullWidth: stacked))
-            .accessibilityLabel(Text(dim > 0 ? SkyCopy.relight(c.name, minutes: minutes) : SkyCopy.practice(c.name, minutes: minutes)))
+            .accessibilityLabel(Text(SkyCopy.practice(c.name, minutes: minutes)))
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
         .frame(minHeight: CLMetrics.rowMinHeight, alignment: .leading)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(SkyCopy.label(index, in: scene))
-        .accessibilityAction(named: Text("Relight")) { onRelight(c) }
+        .accessibilityAction(named: Text("Practice")) { onRelight(c) }
     }
 }
 

@@ -79,7 +79,11 @@ Twelve tokens: `pop`, `settle`, `snap`, `calm`, `fill`, `fade`, `exit`, the high
   - "Here's the answer." when nothing was answered.
   - "Saved it." when a right answer rescued a fading memory.
 
-  Cap reacts beside it (see Cap). Under the headline come why, the fix and the source, then Continue in the
+  Cap reacts beside it (see Cap), in an 82 pt box (about 74 pt of Cap; 60 pt until 2026-10-26, 44 pt at the accessibility
+  sizes). He stays left of the headline, and the panel's spacing is tightened by the amount he grew, so the panel is no
+  taller. The owner's rule for him anywhere: bigger is fine, but never by lengthening a panel or by overlapping what is
+  above it (a Cap peeking over the top edge hid the ✕ of a wrong answer and the start of a line of a long one). Under the
+  headline come why, the fix and the source, then Continue in the
   verdict's colour (mint, sun, or tangerine for "Not yet": a red button reads as an alarm). At the accessibility
   sizes the panel keeps the headline and Continue, and the details stay in the card. The panel's colour runs on under
   the home indicator to the bottom edge of the screen.
@@ -217,9 +221,9 @@ answering relights it. It is the one picture of "how ready am I", and it can't l
 | Where | What shows |
 |---|---|
 | Today, the top | The sky edge to edge, with Cap on the horizon and "63 stars · 20 dim ›" (see Today and Progress) |
-| Progress | Each exam's region as a small still; each topic as a constellation glyph with Relight |
+| Progress | Each exam's region as a small still; each topic as a constellation glyph with Practice |
 | The sky screen | The sky, full screen: tap a constellation to focus it, drag to look, pinch to zoom |
-| A focused constellation | Its name and course, a bar of bright, dim and not-yet-lit stars, "Relight Meiosis · 4 min" (a practice session for that topic, its dim stars first) and "Open course" |
+| A focused constellation | Its name and course, a bar of bright, dim and not-yet-lit stars, "Practice Meiosis · 4 min" (a practice session for that topic, its dim stars first) and "Open course" |
 | During a session | When "Saved it." comes up, a gold four-point star blooms over the question with a ring and a few motes, about a second, with no sound of its own (the save's marimba note plays with the verdict). A flashcard flares as you rate it |
 | The summary | A night strip under the numbers: "Relit 12 stars · 3 saved", which opens the sky |
 | Opening the sky after a session | The relit stars ignite one after another through the constellations, once; a save gets a gold ring and a sparkle |
@@ -233,7 +237,7 @@ answering relights it. It is the one picture of "how ready am I", and it can't l
   unlit ones rings. The counts are always in words as well.
 - **VoiceOver and large text:** "Sky as a list" shows the same thing as rows by course (and is the default at the
   accessibility text sizes). In the sky, each constellation is an element ("Meiosis, Biology 101. 5 of 8 stars bright,
-  2 dim. Recall about 74%") with a Relight action, and rotors for dim constellations and exams.
+  2 dim. Recall about 74%") with a Practice action, and rotors for dim constellations and exams.
 - **Cap** watches from his telescope when the sky is empty.
 
 ## Today and Progress
@@ -257,7 +261,7 @@ parts):
   wide strip, and the camera may start closer than the full screen's (`SkyCamera.fit(largest:)`). Constellations are not
   named in the hero (the card names the one you pick); the exam regions keep their dashed rims.
 - **Interactive**: tap a star and the camera glides to its constellation, Cap steps aside, and one glass card slides up:
-  its name, how it is doing, "Relight · 4 min" (or "Practice") and a close button. Taps aim at stars (any within 40 pt),
+  its name, how it is doing, "Practice · 4 min" and a close button. Taps aim at stars (any within 40 pt),
   not at circles, so a near miss still finds the shape; a tap on empty sky ripples, or lets go of what was focused; it does
   not open the full sky (a near miss mustn't throw you out of Today). The "63 stars · 17 dim" pill opens the full sky, and so
   does VoiceOver's one element. Tapping Cap makes him answer (see Cap).
@@ -287,7 +291,7 @@ parts):
 
 | Day | The sky | Under it |
 |---|---|---|
-| A session | Yours | "Relight · 15 min", and "18 reviews · 6 new · 2 weak spots" |
+| A session | Yours | "Study · 15 min", and "18 reviews · 6 new · 2 weak spots" |
 | Catch-up | Yours | "Catch up · 15 min", how much has piled up and how long it takes |
 | Exam eve | The exam's region glows, the rest recedes | "Tonight · 10 min", and "10 minutes on your weak spots, then sleep" |
 | Exam eve, nothing weak or already done | The same, and it stops twinkling | "That's enough for tonight", no button; Cap sleeps |
@@ -305,7 +309,7 @@ parts):
 - Each exam's card has a small still of its region (`SkyRegionStill`): the stars it covers, lit or fading, beside the
   readiness number.
 - "Topics" is "Constellations": each topic's shape drawn small (`SkyGlyphView`), how many of its stars are bright, dim
-  and not yet lit, and Relight on the ones that need it. "See the sky" opens the full one.
+  and not yet lit, and Practice on the weakest, under "Fading". "See the sky" opens the full one.
 - The study heatmap's days are stars: a dot that grows and brightens with the minutes, a sparkle from the third step,
   a glow at the top. Size and shape carry the scale as well as colour does, so it holds without colour.
 - A readiness sparkline ends in a star.
@@ -320,10 +324,10 @@ biggest reason wins and names the summary's title.
 | Reason | Size | Title |
 |---|---|---|
 | The first session after onboarding | big | First session done |
-| A streak of 3, 7, or 30/100/365 days | small, medium, big | 7 days in a row |
+| A streak of 3, 7, or 30/100/365 days | small, medium, big | 7 days. (the hero becomes the flame) |
 | Readiness crossing the exam's goal | medium | Goal reached |
 | A mix-up fixed | medium | Mix-up fixed |
-| A badge (Phase 6) | medium | |
+| A new badge | medium | the badge's name |
 | Every answer right first time, 5 or more | small | All right first time |
 | Another day on the streak | nudge | Session done |
 
@@ -340,9 +344,70 @@ biggest reason wins and names the summary's title.
   - Cap arrives, then the done sound with its haptic.
   - The numbers count up, with at most 12 light ticks (`CLCountingText`).
   - The ring climbs, with ticks again, and the streak rolls over.
-  - Last comes the celebration.
+  - The sky line says what the session did to the sky, and the day's quests tick off one by one, each with a light tick
+    (a sky the week's quests lit comes up under them).
+  - Last comes the celebration, and, rarely, the system's rating prompt a beat and a half after it.
   - The confetti is silent: the summary has one sound.
 - **Reduce Motion:** everything shows its final state at once, with no confetti.
+
+## The game loop
+
+Nothing here is a currency, a shop or a way to lose something. A quest finished stays finished, a badge earned stays earned,
+an icon or a sky unlocked stays unlocked, so a streak that breaks takes nothing away. Each part fits in a sentence and lives on a
+screen that was already there.
+
+**The flame** (`StreakFlame` over `StreakStage`, `Shared/`): five looks for how long the streak is, drawn in code from three paths
+and no asset, so the widgets draw the same. A spark (1 to 6 days), the flame with a bright heart (7 to 29), the flame with a
+warm glow and two embers (30 to 99), gold with glints (100 to 364), and gold with a star over it (365 and more). With no streak,
+or one on hold (a missed day a repair can still join back up) it is an outline. It is in Today's pill, the streak screen, Progress's
+streak card, the badges and the two full-colour widget pills (the Lock Screen's stay monochrome symbols). It bounces once when
+the streak grows (`bounce:`), and never under Reduce Motion.
+
+**Milestones** are 3, 7, 30, 100 and 365 days (`StreakStage.milestones`; the flame changes at the last four). The summary's hero
+becomes the milestone: Cap proud, the stage's flame popping in beside him and bouncing once, "30 days." as the title and one
+warm line about the memory, never about the number ("A month of showing up. Your sky is brighter for it."). The streak screen
+lists all five, a check for each the best streak has reached and how far the streak is along to the next. The day one session
+makes a milestone (a streak of 29, today not done; or 29 and done, for tomorrow) the reminder and the 20:30 nudge say so: "One
+session today makes it 30 days."
+
+**Daily quests** (`QuestEngine`, pure and seeded, so a day's picks are the same on every device):
+- Three a day: "Finish today's session" every day, and two more that the material allows: save 3 fading stars, answer 2 in your own
+  words, study before noon (only offered to someone who opens the app before 10:00), fix a mix-up, meet 5 new questions, get 5 right
+  in a row, practise for your exam (5 answers on what an exam in the next month covers).
+- Picked the first time the app is opened that day and kept all day. Yesterday's two come last in the order, so they rarely repeat. None
+  on exam eve and none with nothing to study. They show on Today after the first session is done, never before.
+- Read from the day's own answers: Today's card counts "2 of 3" as they come in, and a quest's bit goes into `DayRecord.questMask`
+  when the session is settled (the summary does it; a day the app was not opened after is settled at the next launch). The mask syncs as
+  `quest_mask` and merges by OR, so two devices' quests add up and a bit never goes back; at most 3 count for a day.
+- No reward in points. 12 quests in a calendar week light the next sky; each week lights one at most.
+
+**Skies** (`SkyTheme`, six, drawn in code): Night is the look Capling has always had and is always there. Dusk, Aurora, Ember, Bloom
+and Glacier are lit one at a time, in that order, by weeks of 12 quests. A sky is a palette (`SkyPalette`): the sky's own gradient, the
+dusk at the horizon, the pale band, the faint stars, the hills, the lake and the ground. The stars keep their course colours in every
+sky. Settings ▸ Appearance ▸ Sky picks one (an unlit one is a dim silhouette with what lights it). Every white thing drawn over a sky
+(the date, the pills) clears 7:1 on all six (`SkyThemeTests`). Today's world, the full sky, the exam stills and the constellation
+glyphs all read the palette from the environment (`\.skyTheme`, set at the root).
+
+**Badges** (13, `Badge`, `AchievementEngine`): first session, 10 stars saved, 25 answers in your own words, a mix-up fixed and five,
+best streaks of 7, 30, 100 and 365 (each wears its flame), 80% ready on an exam morning, a grade called within 5 points, 1,000
+answers, a repaired day. Worked out again from the log each time (a fact only grows) and kept in `settings.badges` once the
+person has been told, so nothing is lost if the history is trimmed and nothing syncs. The first launch with badges notes what is
+already earned without a fuss. A badge is a metal medal (`BadgeMedal`): a rim, a disc (a night disc for the flames, which would
+vanish on orange or gold), the glyph and a sheen that slides as the phone tilts. In its sheet (`TiltingMedal`) it turns up to 12
+degrees with the sensor, sways slowly where there is none, and stands still under Reduce Motion. One not earned yet is a silhouette
+with how far along it is. Progress has a row of four and "See all".
+- **Trap:** a `.shadow` on the whole medal, `inset(by:)`, a blur and a `plusLighter` sheen together, in a card that fades in, drew
+  a second hard-edged medal beside the first on screen (not in an `ImageRenderer`). Each layer now has its own size, and the
+  shadow is a gradient disc. Look at anything with layers in a real screenshot, not only in a render test.
+
+**App icons** (`AppIconChoice`): Cap on blue, and four more a best streak unlocks at the flame's milestones: Night (7 days),
+Ember (30), Gold (100) and Aurora (365). They are drawn from the main icon by `scripts/make_alt_icons.py` (Cap cut out of the blue
+and set on four new skies; the gold one is his fur regraded), not generated, so they cost nothing and can be redrawn. Settings ▸
+Appearance ▸ App icon. The system shows its own alert when the icon changes.
+
+**The rating prompt** (`ReviewPromptPolicy`): only after a good moment (a session of 8 or more answered right first time, 2 saves,
+or a milestone), never in the first 4 days or 5 sessions, never on exam eve, 120 days apart at least, once a version, and never in
+the harness or in tests. It asks 1.5 seconds after the summary's celebration.
 
 ## Haptics
 
@@ -379,3 +444,7 @@ they fade, and every cue is a few notes on it.
 
 Cap is calm, warm and specific: "22 minutes tonight and you're done." The app never guilt-trips, never uses
 emoji in the chrome, writes in sentence case, and labels a projection as a projection.
+
+Buttons name the action in plain words: Study, Practice, Catch up. The sky's words (lit, relit, dim, fading) say what
+happened or how a topic is doing, and are never the thing to tap: a button once said "Relight" and nobody could tell
+what it would do.

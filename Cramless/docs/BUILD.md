@@ -398,7 +398,7 @@ pose showed a drawn stand-in; the art came after (next entry).
 - **Progress:**
   - The Phase 4 card (`SkyCard`) is gone: Today has the sky now.
   - Each exam card has a still of its region (`SkyRegionStill`). "Topics" is "Constellations": a glyph
-    (`SkyGlyphView`), bright, dim and not-yet-lit counts, and Relight. Heatmap days are stars
+    (`SkyGlyphView`), bright, dim and not-yet-lit counts, and Practice. Heatmap days are stars
     (`ProgressPresentation.starMark`: a dot that grows, then a sparkle from the third step; `SparkleShape` is in the
     design system), and readiness sparklines end in a star.
   - `SkyScene.region(of:)` and `.glyph(of:)` (`Features/Sky/SkyScene+Derived.swift`, pure) cut these from the sky.
@@ -625,7 +625,7 @@ mascot").**
     brightness; zoomed in, a mostly dim constellation was nearly invisible, which found this) as frame settings, off by default so
     the full sky is unchanged. `SkyCamera.fit(largest:)` lets a small sky start closer than the full screen's.
   - Interactive: `SkyHit.nearestStar` (any star within 40 pt, not a circle round the shape) focuses a constellation; the camera
-    glides (`SkyCamera.focus`, keeping the shape above the card) and `HeroFocusCard` (name, `SkyCopy.detail`, Relight or
+    glides (`SkyCamera.focus`, keeping the shape above the card) and `HeroFocusCard` (name, `SkyCopy.detail`,
     Practice with its minutes, close) slides up; Cap steps aside. A tap on empty sky ripples or lets go; it no longer opens the
     full sky (a near miss on a small target used to throw the person out of Today: found with a real tap). The pill and
     VoiceOver's one element open it.
@@ -819,11 +819,273 @@ Better looking and more minimal, and I noticed slight lag as it animates, so it 
 - **Not measured:** the phone itself (the Simulator has no GPU of a phone's kind, no haptics and no motion sensor). Today's world is
   unchanged, and heavier than this; it could take the same treatment if it ever stutters.
 
+**Phase 6: the game loop (built 2026-10-26, under review; the owner said "go" to start it).** Nothing in it is a currency, a shop or a way
+to lose something: a quest finished, a badge earned, an icon or a sky unlocked all stay. Design rules: `docs/design.md` ▸ The game loop.
+- **The flame** (`Shared/Widgets/StreakFlame.swift`, `Shared/Core/StreakStage.swift`): five stages drawn in code from three SVG-style paths
+  (spark 1 to 6 days, the flame 7 to 29, a glow and embers 30 to 99, gold with glints 100 to 364, gold with a star 365+; an outline for
+  none or on hold), one optional bounce. It replaces every full-colour `flame.fill` (Today's pill, the streak screen, Progress, the
+  badges, two widget pills); the Lock Screen's accessories keep their monochrome symbols. Designed as an SVG sheet in headless Chrome first
+  (ImageMagick draws no gradients), then ported.
+- **Milestones** are 3, 7, 30, 100 and 365 (`StreakStage.milestones`; `StreakEngine.milestoneCrossed(from:to:)`, which freezes and repairs
+  cross like studied days; `CelebrationPolicy.milestone` now asks it). The summary's hero becomes "30 days." with the stage's flame
+  popping in beside a proud Cap; the streak screen has a Milestones card (a check for each reached, how far to the next); and the day one
+  session makes a milestone the reminder and the 20:30 nudge say "One session today makes it 30 days." (`NotificationPlanner.milestoneNext`).
+- **Daily quests** (`Engine/Quests.swift`, pure, seeded; `AppModel+Game.swift`): "Finish today's session" every day plus two of save 3
+  fading stars, answer 2 in your own words, study before noon (only if the app is first opened before 10:00), fix a mix-up, meet 5 new
+  questions, get 5 right in a row, practise for your exam; none on exam eve or with nothing to study; yesterday's come last. Picks are stored
+  for the day (`settings.questDay`). Progress is read from the day's own log (`questFacts(forDay:)`), so Today's card counts them as they come;
+  `settleQuests()` writes the bits into `DayRecord.questMask` (summary, and the next launch for a day the app was not opened after).
+  **Synced** as `quest_mask` (`SyncRecords`, merged by OR, capped at 3 a day when counted); migration `20261025000000_cramless_quest_mask.sql`
+  (moved up from Phase 9's). The card (`TodayQuestsCard`) shows after a first finished session. 12 in a calendar week (Sunday- or
+  Monday-first, across the clocks changing) light the next sky, once a week.
+  - The golden picks are pinned to an independent Python implementation of the hash. `StableRandom.seed` XORs its salt into the day, so
+    small salts only shuffle a day's low bits and a week's picks echoed each other; the quest hash mixes the kind in afterwards.
+- **Skies** (`Shared/SkyTheme.swift`): six palettes (Night, the old look exactly; Dusk, Aurora, Ember, Bloom, Glacier), read from the
+  environment by Today's world (`HeroWorldRenderer`: the glow, the pale band, the dust, the hills, the lake, the ground, the arc), the full
+  sky, the exam stills and the glyphs. Settings ▸ Appearance ▸ Sky (`SkyPicker`, `SkySwatch`). Every sky clears 7:1 for white text.
+- **Badges** (`Engine/Achievements.swift`): 13 of them, worked out from the log; `settings.badges` remembers which the person has been told
+  about, so a first launch notes what is already earned quietly. `BadgeMedal` (a metal rim, a disc, a glyph or the flame, a sheen), the sheet
+  (`BadgeSheet`, `TiltingMedal`: CoreMotion up to 12 degrees, a slow sway where there is no sensor, still under Reduce Motion), Progress's row,
+  `Route.badges`. The log scan is incremental (one more answer costs a look at the newest ones): 20,000 answers cost 0.4 s the first
+  time, nothing again, and 6 ms for one more answer (`testTheBadgeFactsOfAHugeHistoryAreCheapToKeepUpToDate`).
+- **App icons** (`Shared/Core/AppIconChoice.swift`): Night (best streak 7), Ember (30), Gold (100), Aurora (365), made by
+  `scripts/make_alt_icons.py` from the main icon (no model, no spend). `project.yml` lists them; the picker previews are image sets.
+- **The rating prompt** (`Engine/ReviewPrompt.swift`): only after a perfect session of 8 or more, 2 saves or a milestone; not in the first
+  4 days or 5 sessions, never on exam eve, 120 days apart, once a version, never in the harness or tests.
+- **Hooks:** see `CLAUDE.md` (`CRAMLESS_SCENARIO=streak:<n>`, `CRAMLESS_QUESTS=start|partial|done|weekFull`, `CRAMLESS_QUEST_PICKS`,
+  `CRAMLESS_UNLOCK=all`, `CRAMLESS_SKY_THEME`, `CRAMLESS_SKY_TOUR`, `CRAMLESS_TILT`, the three summaries and `CRAMLESS_SUMMARY_*`).
+- **Found on the way:** (1) a medal with a `.shadow`, `inset(by:)`, a blur and a `plusLighter` sheen, in a card that fades in, drew a second
+  hard-edged medal beside the first on screen and not in an `ImageRenderer`; every layer now has its own size and no filter. (2) NumPy's
+  `~a` flipped the icon matte in place (use ufunc calls). (3) Films recorded after 22:00 had no confetti: quiet hours make a
+  celebration calm; the films freeze the clock in the afternoon. (4) The Milestones rows broke at the largest text size; the count goes
+  under the name there.
+- **Verified:** all 1,023 Swift tests pass (104 new for the game loop; 18 skipped as before) and the 95 Deno tests (11 need the local
+  stack). Screenshots in light and dark, at the largest text size and with Reduce Motion; films; real taps were not needed
+  (every state is a hook). Page: https://macbook-pro.tail9699dc.ts.net:8824/game-loop/ (`scripts/cap_anim/films_game.sh`,
+  `build_game_page.py`).
+- **Not verified:** the tilt on a phone (the Simulator has no motion sensor), the system's alert when the icon changes, the rating prompt (the
+  Simulator shows it, but it is never asked in the harness), and how the quests feel over a real week.
+- **Decided without the owner (reversible):** icons unlock at 7, 30, 100 and 365 (the flame's milestones); skies in a fixed order, one a
+  week of 12; quests stay hidden until a first session is done; the rest of the plan's badges (a wrapped term, an event) arrive with those
+  features.
+
+### Cap on the answer panel: 82 pt (2026-10-26)
+
+The owner found Cap small on the "Saved it." panel (60 pt box, about 54 pt of Cap) and asked for a bigger one that neither lengthens
+the panel nor covers anything. Four layouts were rendered by the real app (a DEBUG switch, since removed) and shown on
+`build/review/cap-sheet-size/` (tshare `capling-cap-panel`; the full-size shots are in `build/cap-sheet-size/raw/`), with each panel's
+height measured from the screenshots (the screen is 3 px per pt): A the same spot at 82 pt with tighter spacing (the same height as
+before in every state: 282, 350 and 422 pt for "Saved it", "Not yet" and a long own-words answer); B Cap on the right at 100 pt with the
+message beside the headline (6 to 28 pt shorter); C and D at 128 pt with his head over the panel's top edge (the same height, but they
+covered the ✕ of a wrong answer and the start of a checklist line). **The owner chose A.** `FeedbackPanel` now draws Cap at 82 pt (44 pt at
+the accessibility sizes, as before), with a -8 pt side padding that takes back the empty sides of his tall, narrow art, and the spacing
+10 / 8 / 6 / 6 pt (top, between rows, between Cap and the headline, bottom) in place of 18 / 12 / 12 / 8. At the accessibility sizes
+nothing changed.
+
+### Review tour for a reviewer without an iPhone (2026-10-26)
+
+Ten films of Maya using the app with real taps and typing (not hooks), plus one staged clip of the rewards a first week doesn't reach (the
+Phase 6 hooks), one page with five decisions: `build/review/anis-tour/`,
+registered with tshare as `capling-tour` (shared with nobody until the owner says so). `scripts/journey_film.sh` records a journey
+(`scripts/journeys/j_*.py`), `scripts/journeys/tour.py try <journey> <udid>` rehearses it, `tour_page.py` + `tour_content.py` build the page.
+The how-to is the `review-tour` skill. Real taps found two bugs that the hook-driven films had hidden:
+1. **The "63 stars · 17 dim ›" tag on Today's sky did nothing.** It looked tappable and had `allowsHitTesting(false)`, so a finger could
+   not open the full sky (only VoiceOver and the `CRAMLESS_TODAY_OPEN` hook could). It is now a button (`TodaySkyHero.starsTag`).
+2. **Adding questions from Today crashed the app** (`SkyRenderer.draw`, `Array index out of range`): the hero's canvas received the
+   bigger scene a frame before it received the bigger draw plan. `SkyPlan.fitting(scene)` makes the canvas skip a plan that does not
+   fit (`testAPlanFitsOnlyTheSkyItWasMadeFor`).
+App-side additions, DEBUG only: `App/TouchDots.swift` (a ring under each finger, `CRAMLESS_SHOW_TOUCHES=1`).
+
+**The page did not play on the owner's iPhone** (2026-10-26, iOS 27 Safari: black players at 00:00, a tap did nothing), although the films
+played in Chromium, in real WebKit on the Mac (Playwright's `webkit`) and in the iOS 27 Simulator, through both Tailscale links. Two rounds:
+1. The first page had eleven `<video preload="metadata">` with a `<source>` and a captions `<track>`. The review server's log showed the
+   phone asking for about 90 byte ranges (the eleven films' headers) in four seconds and then nothing, even after a tap. The page was changed
+   to `preload="none"`, with an "Open the file" link and a failure note, and `?log` on the plain link (the clips' events go to `/__d`).
+2. Still nothing on a tap (`waiting`, then `networkState 3`), but "Open the file" (the same mp4 in Safari's own player) played. The owner ran
+   `build/review/anis-tour-diag/` (deleted since; the skill keeps it as `scripts/video_check.html`) on the phone: every film, in every encoding (no audio, Main
+   profile 30 fps, Apple's H.264 encoder, HEVC, the old full-size films), played from a bare `<video src>`, and eleven at once and the
+   `preload="none"` + tap case played with a `<source>` and a poster; the one test that failed was the page's exact markup, which also has
+   `<track kind="captions">` (no length, `readyState 0`, `networkState 3`; its requests read `0-1`, `0-whole file` dropped early, `0-1445`).
+   The element that differs is the `<track>`. Not proven alone (the Simulator and desktop WebKit play every variant, so only the phone shows
+   it), so the page now is a plain `src` with no `<source>` and no `<track>`, the caption is drawn by the page from the clip's moments
+   (`.cue`, compared with the old `.vtt` at 9 sample times: 0 differences; it first sat over the clip and covered the app's Continue button, so it is a line under the clip, as wide as the clip), and a clip that errors or has no length 14 s after Play is
+   fetched and played from memory (a blob), which does not use the browser's media loader; if that fails too, the note and "Open the file"
+   are what is left. `scripts/review_server.py` logs Range headers and takes the beacon. The check page has `?auto&bisect` for the next time
+   (the markup one piece at a time).
+Confirmed on the phone (2026-10-26, the owner): the plain `:8824` link with `?log&v=2` plays. Four clips were tapped (welcome, scan,
+lecture, sky); each got its length within 0.3 s of the tap, the fetch fallback was never needed, and the requests read `0-1` then the whole
+file, without the `0-1445` of the failing runs. The gateway link (`:4810`) has the same page and was checked with a real tap in the iOS 27
+Simulator, not yet on the phone. Chromium, Playwright's WebKit and the Simulator played the failing markup too, so no test off the phone
+would have caught it.
+
+**Who it is for and where it sits (2026-10-26, the owner asked).** The page said what the app does but nothing about the audience, the
+market or the competition, so a reviewer judging the price, the amount of game and what to build next had no frame. Added, all from the
+plan (`../docs/rethink/site/plan.html`, researched 2026-10-22), in `tour_content.py`: the lead says "high-school and college students"; a
+paragraph in the brief says who it is for (students with exams coming, 13 and up: the app's own data page says "Made for students 13 and
+up"), the problem (fewer than 1 in 5 feel very confident about their progress) and the bet (flashcards are free everywhere now; knowing
+what you know, and saying honestly if you are ready, is not); a section "Where it sits" (`WHERE_TITLE`, `WHERE`), first in the list, with
+Quizlet, Anki, ChatGPT and Gemini and Gizmo in one line each, then "Our position" (ready, not busy), "How we differ" and "Our advantage"
+(company figures are called their own claims, and the block is dated); and the pricing decision's context now carries the benchmark (the
+median education app $44.99 a year, AI-heavy study apps about $96 to $155). The brief lost a clause that the "How" cards already say. The
+figures age: refresh them from the plan's sources before the page goes out in a later month.
+
+**The page follows the cabinet skill's "Sections fold" (2026-10-26, the owner asked; the skill had been updated).** The gateway folds every
+`<section>` that opens with its own heading to that heading and starts them all folded. So now: the hero (the app's store listing, below), the
+brief, the how-to cards, the route and the nav stay on show; each clip, "Where it sits" and "For reference" is one `<section>`; the five
+decisions moved inside the sections they are about (a closed row says "0 of 1 decided"; they used to sit between sections, always on show);
+the two `<details>` blocks (where it sits, what else) became sections, and `<details>` is left only for the moments list inside a clip. Each
+section ends with **"Mark section as done"** (`data-tshare-pick="done-<id>"`): the gateway saves it for the reader and draws it
+(`aria-pressed`), it is not counted as a decision (a `data-tshare-choice` would be, and 13 of them would have held Done back), and the page
+shows a tick on the section's label (still there when it is closed) and on its chip; on the plain `:8824` address, with no gateway, the
+buttons keep their state in the browser. **The store listing at the top:** the app icon in the store's rounded shape (the 1024 px
+`AppIcon.png`, resized with `sips` to `brand/icon.png` and `brand/touch.png`, which also become the tab and home-screen icon), "Capling",
+the subtitle "Ready on exam day" (the app's welcome line), a "Coming soon" that is not a button, "In-App Purchases", and age 13+, Education,
+EN, Free to start. Checked through the gateway link in WebKit (iPhone size, light and dark, and 1280 wide): 13 sections, all folded at the
+start; the hero and brief on show; no decision outside a section; a title opens its section; a mark shows on the button, the closed row and the
+chip and survives a reload (the test put it back: `tshare feedback capling-tour` is empty); a route button opens a closed section and
+plays; a chip opens its section; no sideways scroll. On the plain address: the marks work and persist, and `tour_test2.js` is ALL OK in
+WebKit and Chromium.
+
+### Ask Cap on OpenAI (2026-10-26)
+
+The owner asked whether the cloud tutor should be OpenAI, leaned to GPT 6.1 Sol at medium reasoning, saw the test below and chose
+**GPT 6.1 Terra at low reasoning** for Ask Cap. Only the tutor moved: every other cloud route is still written for Claude and was
+not tested on OpenAI. Set `OPENAI_API_KEY` on the relay and the tutor answers from OpenAI; without it, from Claude Sonnet as before.
+
+- **Built:** `_shared/openai.ts` (`OpenAIProvider.tutor`: the Responses API with a strict JSON schema, `store: false`, one retry
+  before any text, abort and timeout; `AnswerStream`, which reads the answer out of the JSON as it arrives; quotes checked against
+  the passages before they go out as `citation` events; `withTutor`, the tutor on one provider and the rest on another).
+  `Deps.tutorModel` and `tutorEffort` (OpenAI's when the key is set, else Sonnet at low), the settings `OPENAI_API_KEY`,
+  `OPENAI_TUTOR_MODEL`, `OPENAI_TUTOR_EFFORT` and `OPENAI_BASE_URL` (tests), the prices in `cost.ts`. The app's contract is
+  unchanged. The server suite is green (119 tests, 24 of them new: `tests/openai.test.ts` against `tests/_mock_openai.ts`), and
+  79 app tests on consent, the tutor, routing and the string catalog. A reviewer who hadn't seen the code found that a cut-off answer
+  lost its cost and that the retry and early-stop guards were untested; both are fixed and covered.
+- **Consent:** it now names both companies. `AIConsent.processor` is "Anthropic and OpenAI" and `currentVersion` is 2, so everyone
+  is asked again, as the rule in `AIConsent` says for a new processor; the harness grants the current version. Change the
+  processor line with the relay's wiring if everything moves to OpenAI. The privacy policy and the App Store privacy answers
+  still have to say the same.
+- **First real call (2026-10-27):** `OPENAI_API_KEY=… deno task live-openai` ran the relay's code path against OpenAI with
+  Terra at low reasoning. Hints, explain, a question the page can't answer and an under-18 account all passed: quotes on the
+  page, hints and explain ending on a question, no outside facts, no source id in the answer. 0.64¢ for the four answers; first
+  words after 0.7 to 1.2 s (3 s for the very first, a cold connection).
+- **Not done:** a per-user spend cap (proposed: a monthly dollar cap near 15% of what the plan nets, then Cap answers on the iPhone;
+  the paid tutor ceiling cut from 300 to about 60 a day), the other cloud routes on OpenAI, and a check of OpenAI's rules for
+  apps used by 13 to 17 year olds.
+
+The test that chose it: `supabase/functions/tools/tutor_bakeoff/` sends 33 Ask Cap questions to the OpenAI Responses API with the
+relay's own tutor prompt (`tutorSystem`) and four passages from the demo notes each: explain and hints mode, under-18 accounts,
+follow-ups, "Explain my mistake", questions the notes can't answer, an essay request, a detector rewrite, a planted instruction.
+
+- Run: `deno run --no-check --allow-net=api.openai.com --allow-env=HOME,OPENAI_API_KEY --allow-read --allow-write
+  tools/tutor_bakeoff/run.ts [--configs sol-medium,terra-low] [--cases ...]`, then `report.ts DIR`. The key comes from
+  `~/.config/capling/openai_key` or `OPENAI_API_KEY` and is written nowhere; `store: false` is sent. The runs are in
+  `build/bakeoff/run1` to `run4` (gitignored); about 640 calls cost $0.88.
+- Citations: OpenAI has nothing like Claude's `search_result` blocks that keeps the notes on our side, so the model returns
+  `{answer, citations: [{source_id, quote}]}` in a strict JSON schema, and the app's own rule (`HighlightMark.locate`) judges
+  the quotes. 787 of 787 quotes were kept, every one naming the right passage.
+- Per answer, at list prices of 2026-10-26 (per million tokens: Sol $2 in / $10 out, Terra $1 / $5, Luna $0.10 / $0.50), about
+  940 tokens in and 90 to 180 out: Sol medium 0.32¢, Sol low 0.29¢, Terra medium 0.18¢, Terra low 0.14¢, Luna medium 0.02¢.
+  First words, median and slowest tenth: Sol medium 1.9 s and 5.8 s, Terra low 1.1 s and 1.5 s, Luna medium 1.7 s and 2.9 s.
+- Held for every setup: a cited quote for every factual answer, "your material doesn't cover that" on all five questions the
+  notes can't answer (no outside facts), the essay and the detector rewrite refused, the planted instruction ignored, a
+  trusted adult named to the stressed under-18. Without the instruction not to, Sol and Terra sometimes wrote "(s1)" into the
+  answer: the format note now says never to write a source id.
+- Hints first is where they differ. Two graders who didn't know the models read 150 hints-mode replies. The reply gave the
+  answer away in full: Sol medium 43%, Terra medium 10%, Terra low 13%, Luna medium 27%, Luna low 60%. Judged a good hint:
+  30%, 67%, 57%, 63%, 30%. Sol also ended on a statement, not a question, in 10% of them. Luna with no reasoning once kept
+  writing after its JSON ended.
+- Recommended, and chosen: Terra at low reasoning (Luna at medium for the free plan if its cost matters more). Not tested:
+  Claude (no key), real students' wording, the app's own retriever, a stronger hints prompt for Sol.
+
+### Ask Cap as an assistant (2026-10-27)
+
+The owner asked for Ask Cap to "fully assist the user": create flashcards, quizzes and notes, plan exams, research online, with the
+user in charge of everything and animated feedback for each state, like the top apps' agents. Built the same day; the design, the
+trust rules and the screens are in `docs/assistant.md`, the wire format in `docs/relay-contract.md` ▸ `ai/assistant`, `ai/research`.
+
+- **What it is:** the tutor's model, given tools. It only *chooses* a tool; the app runs it. Eight tools: look up the notes, make
+  flashcards, make questions (pick one, in your words, fill in the blank), write a note, plan an exam, offer a practice session, offer
+  a screen, research on the web. A draft is shown as a card (it works, it proposes, it settles) and added only by the student, or
+  by "Let Cap do it" for flashcards and questions, notes or exams (never for an account under 18). Everything added can be undone, and
+  Settings ▸ What Cap can do lists it.
+- **Relay:** `ai/assistant` and `ai/research` (server-sent events); strict function tools and the trusted-sites list in
+  `_shared/assistant.ts`; `OpenAIAssistantProvider` (`_shared/openai_assistant.ts`) on the tutor's provider; `_shared/argstream.ts` reads
+  finished cards out of a half-written call, so the app can show each card as it is written; the model's own reasoning travels as an
+  opaque `continuation` between rounds (the relay stores nothing). Meters: the first round is a `tutor` message; later rounds are the hidden
+  `rounds`, refused when they would pass three for each tutor message that day; a draft (`drafts`, free: 3 a day) is taken atomically before
+  the model is asked and given back if the reply drafts nothing; research is Pro only (`research`, 3 a day; 5 until 2026-10-27). The web search is a fee of $0.01
+  on top of the tokens. Mock scripts `assistant-*.json` and `research-*.json` (the app's mock transport and the relay's MOCK mode play the same
+  files). The server suite is green (170 tests; 51 new: streaming readers fuzzed over random cuts, the OpenAI streams against a mock that checks
+  each request's shape, quota and refunds, the minor and Pro gates, the mock scripts against the real tool schemas, and one regression test
+  for each defect the review below found).
+- **App:** `AI/AssistantContract.swift`, `AssistantDrafts.swift` (pure: quotes are evidence only if the notes hold them, a choice question
+  needs its right option and is shuffled, a date must be a real day that hasn't passed), `AIRouter+Assistant.swift` (up to four rounds,
+  the lookup and the web here, a staged reveal of the checks), `AppModel+Assistant.swift` (study index with short ids, draft tools,
+  add through `ItemFactory` / `createSource` / `createExam`, undo as a soft delete), `Model/AssistantSteps.swift`
+  (`ChatMessage.actionsData`), the cards in `Features/Ask/Assistant/` and `Features/Settings/AssistantPage.swift`. `AIConsent.currentVersion`
+  is 3 (Cap now also sees course, topic and exam names and due counts, and a research topic goes to trusted sites), so everyone is asked again.
+  Ask Cap tries the assistant first when Cloud AI is on and falls back to the tutor if the relay has none or it fails before anything is shown.
+- **The test that chose the prompt and tools:** `supabase/functions/tools/assistant_bakeoff/` runs 50 requests (45, and five for a free account that has used its three drafts) through the relay's real code on
+  GPT 6.1 Terra at low reasoning, playing the app's part (lookups from a small set of notes; drafts "proposed"). The first run passed 40
+  of 45 and showed what to fix in the prompt (draft an exam when the student only mentions one; look up at most once; spread cards across
+  the passages; the right option was always first or second; no quick-check question after acting; do what "from your own knowledge" says). The
+  last run, with real web research: **50 of 50**; $0.136 for 50 requests (0.27¢ each: a drafting turn about 0.25¢, a web research turn
+  1.7¢); the first sign of work after 1.1 s, the first card or line after 2.6 s, a whole reply in 3.5 s (9.8 s for the slowest tenth); 72 of
+  72 quotes exact and none made up (4 items had none: the student had said "from your own knowledge", and they are marked as Cap's own
+  words); hostile text in a note or in a course name ignored; "not in your notes" said, not guessed. Results:
+  `build/assistant-bakeoff/run8/results.json` (50 cases, the final prompt; gitignored). A run after the reviewer's fixes showed one case flaky: "from your own
+  knowledge" was refused in 2 of 6 tries (the "not covered" rule came first in the prompt); with the exception first it is 10 of 10.
+- **Independent review (same day).** A reviewer who had not seen the work read the relay, the migration and the tests and found defects
+  that were all fixed, each with a test:
+  - the database's meter check did not know `drafts`, `research` or `rounds`, so every draft and research request would have failed in
+    production (migration `20261027000000_cramless_assistant_meters.sql`, and the pgTAP file);
+  - a request made up by hand, with forged `turns`, skipped the tutor meter (now: a later round needs `rounds` within three for each tutor
+    message of the day), and a call id could be replayed (now each id is used once; at most three turns);
+  - the day's drafts were checked after the model was asked, so parallel requests could all pass (now taken first, atomically, and given
+    back when unused); the "free drafts used up" notice was sent on every first round, even for a plain question (now: the model reaching for a draft tool is the signal, the relay stops it there and the reply ends with the limit, and the app writes the words; 15 of 15 on the real model);
+  - the tag scrubber for pasted notes took quadratic time on a long run of spaces, and the first fix still let nine spaces through (now one
+    linear pass, `defangTags`);
+  - research sources and citations were passed on whatever their address (now https on an allowed site only), a stream cut after the search
+    lost its $0.01, and a billed failure gave the quota back (now kept when the provider billed it or the student left);
+  - a call to a tool that was not offered was passed on (now ignored), and a round with one unreadable call acted on the others (now every
+    call is read before the app is told of any);
+  - web research saved itself when "Let Cap do it" was on for notes (now only on a tap).
+- **Looking at the real screens (later the same day)** found what no test did, and it is all fixed: the card said "Checking…" while cards were
+  still being written (the step now knows its phase, `AssistantStep.checking`, and Cap's line says "Writing the cards", then "Checking each
+  card against your notes"); the chat did not follow a growing reply (it follows now, and stops when the student scrolls away); the empty chat
+  hid its "make something" chips under the composer (moved up, hidden when Cap's tools can't be used); a failed card showed the model's
+  instructions to the student (the student and the model now get their own words); a stopped reply marked an auto-added step "Skipped" while its
+  items were in the library (it stays added, and can be taken back); the mock scripts collided with the demo world's own cards and gave the wrong
+  wrap-up (they don't now); at accessibility text sizes the card header squeezed its title (it stacks). The app's wire tests
+  (`AssistantWireTests`) run the real HTTP client against the relay in MOCK mode. The real model in the app's default hints-first mode: 49 of 50
+  (the miss was one card instead of two, from notes that state one fact; the case accepts one now), and explain mode 50 of 50. A reply stopped at the free limit is logged with no tokens (the connection to the model is closed at
+  the first sign of the call); it costs about 0.05¢ at OpenAI and counts as one of the day's tutor messages, so it is bounded.
+- **Final numbers (2026-10-27):** the relay's Deno suite 172 passed (11 more need the local stack); `deno fmt`, `deno lint` and
+  `deno task check` clean. The app's whole suite: 1,079 tests, 0 failures, 18 skipped (the opt-in LocalStack and StoreKit ones), the six
+  `AssistantWireTests` among them. With Reduce Motion on, the cards and the research step show their last state at once (checked by eye on
+  both: `cards-calm`, `research-calm` in `scripts/cap_anim/films_assistant.sh`). Not run: pgTAP (its values were checked by hand on a scratch
+  Postgres). One trap: simq's `xcodebuild` wrapper now shares a compile cache and rewrites source paths to `/^src/…`, which made 15 tests
+  that find the source folder with `#filePath` fail; `scripts/xc.sh test` builds without the cache (`SIMQ_NO_CACHE=1`).
+- **Decided with the owner (2026-10-27):** keep 3 free drafts a day; research down to 3 a day on Pro (worst case $1.53 a month against the
+  $3.54 a yearly plan nets); no web research for under-18s at launch (Apple's age-rating wording and OpenAI's rules for 13 to 17 are
+  unchecked; teens keep everything else, asking first); **a daily cost cap** for every person, 10¢ (`DAILY_COST_CAP_USD`), under the
+  meters: Pro's fair-use ceilings alone (300 tutor messages, 150 drafts a day) would cost more than a yearly plan nets, so before each AI
+  request the relay reads what the person's calls have cost since their local midnight (`cramless_spent_since`, new migration
+  `20261027000100_cramless_daily_spend.sql`) and answers 429 "That's all the cloud AI for today" past the cap (`docs/assistant.md`, "The
+  day's cost cap"); in the app the tutor's note says so instead of "couldn't be reached". The privacy wording (policy section, App
+  Store answers, the manifest's four added types, consent text with exam dates and readiness) is in `docs/privacy-wording.md`.
+  `scripts/device_demo.sh` opens the isolated build in demo mode on a phone; the owner's iPhone was unavailable (off or out of reach),
+  so nothing was installed. Both device scripts had a guard that took "unavailable" for "available"; fixed.
+- **Not done:** editing or deleting what already exists by chat; making a new course; the assistant on the iPhone's own model; open-web research for adults (Apple's
+  age ratings ask about unrestricted web access and the floor for a 13+ app was not confirmed); real site icons (the tiles are drawn in code
+  so the app never tells a site what the student is researching); the privacy policy and App Store privacy answers have to name the web
+  step and the new data; OpenAI's rules for 13 to 17 year olds are unchecked.
+
 ## Left for the owner
 
 - Accounts and keys (see README "Before the App Store"):
   - a Supabase project
-  - the Anthropic key
+  - the Anthropic key, and the OpenAI key for Ask Cap's tutor (see "Ask Cap on OpenAI")
   - App Store Connect products and URLs
   - the Squad link domain
   - a trademark check on the name

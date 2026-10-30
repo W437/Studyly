@@ -391,6 +391,34 @@ final class RouterTests: XCTestCase {
         if case .upgrade = outcome.suggestion { XCTFail("a paid plan never sees the paywall") }
     }
 
+    func testTheTutorSaysWhenTheDaysCloudAIIsUsedUp() async {
+        // The day's cost cap, or a paid plan's fair use: a refusal that is no free meter. The note says so instead of "couldn't be reached".
+        let app = AITestSupport.makeApp(mode: .relay, consent: true)
+        let transport = RecordingTransport()
+        transport.failures["tutor"] = .quotaExceeded(QuotaStatus(plan: .pro, meters: []),
+                                                     message: "That's all the cloud AI for today. It starts again at midnight.")
+        app.ai.transportOverride = transport
+        let input = TutorInput(messages: [TutorMessage(role: .user, text: "What happens in anaphase?")], course: nil,
+                               material: AITestSupport.material)
+        let refused = await app.ai.tutorReply(input)
+        XCTAssertEqual(transport.calls, ["tutor"])
+        XCTAssertEqual(refused?.origin, .rules)
+        XCTAssertEqual(refused?.note, "That's all the cloud AI for today, so Cap answered from your notes on this iPhone. It starts again at midnight.")
+        XCTAssertNil(refused?.suggestion, "a paid plan never sees the paywall")
+
+        // The same cap on the free plan, where no meter is named, is not a paywall either.
+        transport.failures["tutor"] = .quotaExceeded(QuotaStatus(plan: .free, meters: []),
+                                                     message: "That's all the cloud AI for today. It starts again at midnight.")
+        let free = await app.ai.tutorReply(input)
+        XCTAssertEqual(free?.note, refused?.note)
+        XCTAssertNil(free?.limitReached)
+
+        // A lost connection is still one, and the next answer isn't told the day is over.
+        transport.failures["tutor"] = .offline
+        let offline = await app.ai.tutorReply(input)
+        XCTAssertEqual(offline?.note, "Cloud AI couldn't be reached, so Cap answered from your notes on this iPhone.")
+    }
+
     func testAFreeLimitCarriesTheRelaysOwnWords() async {
         let app = AITestSupport.makeApp(mode: .relay, consent: true)
         let transport = RecordingTransport()

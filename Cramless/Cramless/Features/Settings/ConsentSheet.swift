@@ -4,8 +4,8 @@ import SwiftUI
 /// carries `AISuggestion.allowCloud` or `.allowPhotos`; the router never presents it. Allow records the consent
 /// version (`AIConsent.currentVersion`); the screen then runs the job again, and the router reads the new settings.
 ///
-/// The copy says what is sent (page text; photos only with their own switch), who processes it (Anthropic, through
-/// Capling's server), that notes never train models, and how to turn it off. It never says nothing leaves the
+/// The copy says what is sent (page text; photos only with their own switch), who processes it (Anthropic and OpenAI,
+/// through Capling's server), that notes never train models, and how to turn it off. It never says nothing leaves the
 /// device: with Cloud AI on, things do.
 ///
 /// Harness: `CRAMLESS_ROUTE=consent` or `consent:photos`, with `CRAMLESS_CONSENT=0` for a person who hasn't allowed it.
@@ -155,7 +155,7 @@ struct ConsentSheet: View {
         var sent: String
         switch reason {
         case .cloudAI:
-            sent = "The text of your pages and lectures, answers you type when they're graded, and your questions to Cap. Page photos only go if you turn on the switch below."
+            sent = "The text of your pages and lectures, answers you type when they're graded, and your questions to Cap. So Cap can make things for the right course, it also sees the names of your courses, topics and exams, your exam dates, how ready you are, which topics are fading and how many cards are due. If you ask it to research something online, that topic is searched on trusted study sites. Page photos only go if you turn on the switch below."
         case .photos:
             sent = "Photos of the pages you scan, made smaller first, along with their text, for as long as this switch is on."
             if !hasConsent {
@@ -165,7 +165,7 @@ struct ConsentSheet: View {
         return [
             Point(icon: "doc.text", title: "What's sent", text: sent),
             Point(icon: "server.rack", title: "Who reads it",
-                  text: "\(AIConsent.processor)'s Claude models, through Capling's own server, never straight from your phone to an AI company."),
+                  text: "\(AIConsent.processor), through Capling's own server, never straight from your phone to an AI company."),
             Point(icon: "hand.raised", title: "Never used for training",
                   text: "Your notes and answers are never used to train AI models."),
             Point(icon: "switch.2", title: "Your choice",

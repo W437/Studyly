@@ -6,7 +6,7 @@ import Foundation
 ///
 /// | State | Button |
 /// |---|---|
-/// | Session | "Relight · 15 min" |
+/// | Session | "Study · 15 min" |
 /// | Catch-up | "Catch up · 15 min" |
 /// | Exam eve | "Tonight · 10 min", with the exam's region lit |
 /// | Done | "Bright tonight", and "5 more minutes" if you want them |
@@ -156,9 +156,9 @@ private extension TodayHeroContent.Action {
         TodayHeroContent.Action(kind: .scan, title: "Scan a page", systemImage: "camera", prominent: prominent)
     }
 
-    /// The day's big button: a session that sizes itself, named by what it will do ("Relight · 15 min").
+    /// The day's big button: a session that sizes itself, named by what it will do ("Study · 15 min").
     static func primary(_ kind: SessionKind, shownMinutes: Int) -> TodayHeroContent.Action {
-        let title: LocalizedStringResource = kind == .catchUp ? .catchUp(shownMinutes) : .relight(shownMinutes)
+        let title: LocalizedStringResource = kind == .catchUp ? .catchUp(shownMinutes) : .study(shownMinutes)
         return TodayHeroContent.Action(kind: .session(kind, minutes: nil, examID: nil), title: title,
                                        systemImage: "sparkles", prominent: true)
     }
@@ -176,7 +176,7 @@ private extension TodayHeroContent.Action {
 }
 
 private extension LocalizedStringResource {
-    static func relight(_ minutes: Int) -> LocalizedStringResource { "Relight · \(minutes) min" }
+    static func study(_ minutes: Int) -> LocalizedStringResource { "Study · \(minutes) min" }
     static func catchUp(_ minutes: Int) -> LocalizedStringResource { "Catch up · \(minutes) min" }
     /// Tonight's session is always ten minutes, and the extras five: plain words, not counts to pluralise.
     static let tonight: LocalizedStringResource = "Tonight · 10 min"

@@ -80,6 +80,52 @@ struct MockRelayTransport: RelayTransport {
         }
     }
 
+    func assistant(_ request: AssistantRequest) -> AsyncThrowingStream<AssistantEvent, Error> {
+        let scale = latencyScale
+        return AsyncThrowingStream { continuation in
+            let task = Task {
+                do {
+                    let question = request.messages.last { $0.role == .user }?.text ?? ""
+                    if question.contains("#quota") { throw Self.quotaError() }
+                    let script = try RelayFixtures.load(AssistantScript.self, request.mockScript)
+                    for step in script.events {
+                        try await Self.sleep(Double(step.delayMs) / 1000 * scale)
+                        if let event = step.assistantEvent { continuation.yield(event) }
+                    }
+                    continuation.finish()
+                } catch {
+                    continuation.finish(throwing: HTTPRelayTransport.map(error))
+                }
+            }
+            continuation.onTermination = { _ in task.cancel() }
+        }
+    }
+
+    func research(_ request: ResearchRequest) -> AsyncThrowingStream<ResearchEvent, Error> {
+        let scale = latencyScale
+        return AsyncThrowingStream { continuation in
+            let task = Task {
+                do {
+                    if request.topic.contains("#quota") { throw Self.quotaError() }
+                    #if DEBUG
+                    // The harness can show what a free account sees: web research is part of Capling Pro.
+                    if ProcessInfo.processInfo.environment["CRAMLESS_RESEARCH"] == "pro" { throw RelayError.entitlementRequired }
+                    #endif
+                    let name = request.topic.lowercased().contains("#fail") ? "research-error" : "research-mitosis"
+                    let script = try RelayFixtures.load(ResearchScript.self, name)
+                    for step in script.events {
+                        try await Self.sleep(Double(step.delayMs) / 1000 * scale)
+                        if let event = step.researchEvent { continuation.yield(event) }
+                    }
+                    continuation.finish()
+                } catch {
+                    continuation.finish(throwing: HTTPRelayTransport.map(error))
+                }
+            }
+            continuation.onTermination = { _ in task.cancel() }
+        }
+    }
+
     func confusions(_ request: ConfusionsRequest) async throws -> ConfusionsResponse {
         try await pause(Latency.confusions)
         try magic(request.mistakes.map(\.given) + [request.course])

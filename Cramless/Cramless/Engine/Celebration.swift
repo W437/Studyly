@@ -94,6 +94,6 @@ enum CelebrationPolicy {
 
     /// The biggest milestone a streak passed going from `before` to `after` days (a repair can jump two).
     static func milestone(from before: Int, to after: Int) -> Int? {
-        streakMilestones.keys.filter { $0 > before && $0 <= after }.max()
+        StreakEngine.milestoneCrossed(from: before, to: after)
     }
 }

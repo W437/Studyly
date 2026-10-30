@@ -18,6 +18,13 @@ final class AskStreams {
         var citations: [Citation] = []
         /// Nil until the first words arrive (Cap is still reading the notes).
         var origin: ItemOrigin?
+        /// What Cap's assistant is doing for this reply (cards being written, a search under way, …).
+        var steps: [AssistantStep] = []
+
+        /// Changes whenever the reply has grown, so the chat can follow it down.
+        var progress: Int {
+            steps.reduce(text.count / 80 + steps.count * 100_000) { $0 &+ $1.growth }
+        }
     }
 
     /// What a finished answer said about itself.
@@ -40,6 +47,8 @@ final class AskStreams {
     #if DEBUG
     /// Harness: stop reading after this many text pieces, so an answer can be shown mid-stream.
     @ObservationIgnored var freezeAfterPieces: Int?
+    /// Harness: hold an assistant reply after this many updates (text, steps), to show a card half way through its work.
+    @ObservationIgnored var freezeAfterUpdates: Int?
     #endif
 
     init() {}
@@ -58,12 +67,51 @@ final class AskStreams {
         let threadID = thread.id
         guard live[threadID] == nil, app.addQuestion(question, to: thread, contextItemID: contextItemID) != nil else { return }
         let input = app.tutorInput(for: thread, context: context, preferring: sourceID, lastQuestionAs: sendAs)
+        // Ask Cap's assistant first (it can make things as well as answer); the tutor when it can't or shouldn't.
+        let assistantWanted = contextItemID == nil && app.ai.assistantAvailable(question: sendAs ?? question, hasContext: context != nil)
+        let assistantInput = assistantWanted ? app.assistantInput(for: thread, lastQuestionAs: sendAs) : nil
         let ticket = UUID()
         tickets[threadID] = ticket
         contextItems[threadID] = contextItemID
         live[threadID] = Live(question: question)
         tasks[threadID] = Task { [weak self, weak app] in
             guard let app else { return }
+            if let assistantInput {
+                var outcome: AssistantOutcome?
+                var declined = false
+                var updates = 0
+                for await update in app.ai.assistant(assistantInput) {
+                    guard let self, self.tickets[threadID] == ticket else { return }
+                    switch update {
+                    case .started:
+                        self.live[threadID]?.origin = .cloud
+                    case .text(let piece):
+                        self.live[threadID]?.text += piece
+                    case .citation(let citation):
+                        self.live[threadID]?.citations.append(citation)
+                    case .step(let step):
+                        self.upsert(step, in: threadID)
+                    case .finished(let finished):
+                        outcome = finished
+                    case .declined:
+                        declined = true
+                    }
+                    updates += 1
+                    #if DEBUG
+                    if let freeze = self.freezeAfterUpdates, updates >= freeze {
+                        try? await Task.sleep(for: .seconds(3600))
+                        return
+                    }
+                    #endif
+                }
+                guard let self, self.tickets[threadID] == ticket else { return }
+                if !declined {
+                    self.finishAssistant(threadID, thread: thread, outcome: outcome, app: app)
+                    return
+                }
+                // Nothing was shown: the tutor answers instead.
+                self.live[threadID]?.steps = []
+            }
             var outcome: TutorOutcome?
             var pieces = 0
             for await update in app.ai.tutor(input) {
@@ -92,6 +140,13 @@ final class AskStreams {
         }
     }
 
+    /// A step began or changed: replaces the one with its id, else is added after the others.
+    private func upsert(_ step: AssistantStep, in threadID: UUID) {
+        guard var current = live[threadID] else { return }
+        if let i = current.steps.firstIndex(where: { $0.id == step.id }) { current.steps[i] = step } else { current.steps.append(step) }
+        live[threadID] = current
+    }
+
     /// Stops the answer being written. What arrived so far is kept, marked as stopped.
     func stop(_ threadID: UUID, app: AppModel) {
         guard let task = tasks[threadID] else { return }
@@ -102,6 +157,15 @@ final class AskStreams {
         guard let current = live[threadID] else { return }
         live[threadID] = nil
         let text = current.text.trimmingCharacters(in: .whitespacesAndNewlines)
+        // What the assistant had made so far stays, as it stood.
+        if !current.steps.isEmpty, let thread = app.thread(threadID) {
+            let outcome = AssistantOutcome(text: text, citations: current.citations, steps: current.steps, model: "", interrupted: true,
+                                           note: String(localized: "You stopped Cap part way. This is what arrived."))
+            if let message = app.saveAssistantAnswer(outcome, to: thread) {
+                notes[message.id] = Note(origin: .cloud, note: outcome.note, suggestion: nil, grounded: !current.citations.isEmpty, interrupted: true)
+            }
+            return
+        }
         guard !text.isEmpty, let thread = app.thread(threadID) else { return }
         let outcome = TutorOutcome(text: text, citations: current.citations, origin: current.origin ?? .rules, model: "",
                                    mode: app.settings.effectiveTutorMode, grounded: !current.citations.isEmpty,
@@ -124,6 +188,24 @@ final class AskStreams {
     /// Waits for a chat's answer to finish (tests).
     func waitForAnswer(_ threadID: UUID) async {
         await tasks[threadID]?.value
+    }
+
+    private func finishAssistant(_ threadID: UUID, thread: ChatThread, outcome: AssistantOutcome?, app: AppModel) {
+        tasks[threadID] = nil
+        tickets[threadID] = nil
+        contextItems[threadID] = nil
+        let current = live[threadID]
+        live[threadID] = nil
+        guard var outcome else { return }
+        if outcome.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, let current, !current.text.isEmpty {
+            outcome.text = current.text
+        }
+        guard let message = app.saveAssistantAnswer(outcome, to: thread) else { return }
+        // A free allowance that ran out is said once, with the way to lift it.
+        let suggestion: AISuggestion? = outcome.limit == "drafts" && !app.ai.plan.isPaid
+            ? .upgrade(.tutor, message: AIFreeLimits.draftsMessage) : nil
+        notes[message.id] = Note(origin: .cloud, note: outcome.note, suggestion: suggestion, grounded: !outcome.citations.isEmpty,
+                                 interrupted: outcome.interrupted)
     }
 
     private func finish(_ threadID: UUID, thread: ChatThread, outcome: TutorOutcome?, app: AppModel, contextItemID: UUID?) {

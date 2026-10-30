@@ -5,13 +5,14 @@ extension AppModel {
     /// What a finished session's summary celebrates (`CelebrationPolicy`). `streakBefore` is the streak when the
     /// session started; `readinessTarget` the exam's goal, when there is an exam.
     func celebration(for summary: SessionSummary, streakBefore: StreakState, readinessTarget: Double?,
-                     mixUpFixed: Bool) -> CelebrationDecision {
+                     mixUpFixed: Bool, badgeEarned: Bool = false) -> CelebrationDecision {
         CelebrationPolicy.decide(celebrationFacts(for: summary, streakBefore: streakBefore,
-                                                  readinessTarget: readinessTarget, mixUpFixed: mixUpFixed))
+                                                  readinessTarget: readinessTarget, mixUpFixed: mixUpFixed,
+                                                  badgeEarned: badgeEarned))
     }
 
     func celebrationFacts(for summary: SessionSummary, streakBefore: StreakState, readinessTarget: Double?,
-                          mixUpFixed: Bool) -> CelebrationFacts {
+                          mixUpFixed: Bool, badgeEarned: Bool = false) -> CelebrationFacts {
         var facts = CelebrationFacts()
         facts.examEve = summary.stopNow || summary.kind == .examEve
         let parts = calendar.dateComponents([.hour, .minute], from: now)
@@ -26,6 +27,7 @@ extension AppModel {
             facts.readinessReachedGoal = before < target && after >= target
         }
         facts.mixUpFixed = mixUpFixed
+        facts.badgeEarned = badgeEarned
         facts.perfect = summary.itemsReviewed >= CelebrationPolicy.perfectFrom
             && summary.correctFirstTry == summary.itemsReviewed
         facts.bigToday = settings.lastBigCelebrationAt.map { calendar.isDate($0, inSameDayAs: now) } ?? false

@@ -39,6 +39,12 @@ struct SkyPlan {
         self.color = color
     }
 
+    /// This plan if it was made for a sky of `scene`'s size, else nil. A scene that has just grown (questions added from Today, with the
+    /// hero still on screen behind the sheet) reaches the canvas a frame before its new plan does; drawing with the old one reads past its end.
+    func fitting(_ scene: SkyScene) -> SkyPlan? {
+        group.count == scene.layout.stars.count ? self : nil
+    }
+
     /// Dim stars spread over steps 0…3 by their brightness, bright ones over 4…7.
     static func step(brightness b: Double, dim: Bool) -> Int {
         let edge = SkyEngine.brightness(recall: ReviewOutcome.fadingRecall)
@@ -129,14 +135,17 @@ struct SkyFrame {
     /// While one constellation is focused or lit, how far (0 to 1) its dim stars, rings and lines are lifted toward full
     /// brightness, so a fading constellation is still easy to see when you have come in to look at it. Today's hero uses it.
     var focusLift = 0.0
+    /// The sky behind the stars (`SkyTheme`): the text on it gets a shadow of its own darkest colour.
+    var palette = SkyPalette.night
 }
 
 // MARK: - Renderer
 
 enum SkyRenderer {
-    /// The sky's background: night, a little lighter towards the horizon.
-    static let top = Color(hex: 0x070D1B)
-    static let bottom = Color(hex: 0x14213D)
+    /// The default sky's background: night, a little lighter towards the horizon. The sky a person has chosen
+    /// (`SkyTheme`) comes with the frame's palette; these are Night's, for what isn't on screen with a theme.
+    static let top = SkyPalette.night.top
+    static let bottom = SkyPalette.night.bottom
 
     static func draw(_ g: inout GraphicsContext, size: CGSize, frame f: SkyFrame) {
         #if DEBUG
@@ -408,7 +417,7 @@ enum SkyRenderer {
             var text = g.resolve(Text(verbatim: region.title.uppercased()).font(.system(size: 10, weight: .semibold)).tracking(1.2).foregroundColor(color.opacity(0.8)))
             text.shading = .color(color.opacity(0.8))
             g.drawLayer { layer in
-                layer.addFilter(.shadow(color: SkyRenderer.top.opacity(0.9), radius: 3))
+                layer.addFilter(.shadow(color: f.palette.top.opacity(0.9), radius: 3))
                 layer.draw(text, at: CGPoint(x: middle.x, y: y), anchor: .bottom)
             }
         }

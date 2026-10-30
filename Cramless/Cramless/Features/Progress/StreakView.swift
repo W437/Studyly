@@ -58,6 +58,10 @@ struct StreakView: View {
                         .padding(.top, 16)
                 }
 
+                CLSectionHeader(title: "Milestones")
+                    .id("milestones")
+                MilestonesCard(current: streak.current, best: streak.best)
+
                 CLSectionHeader(title: "How freezes work")
                     .id("freezes")
                 Explainer(icon: "snowflake", tint: .sky, lines: [
@@ -88,10 +92,9 @@ struct StreakView: View {
         let days = onHold ? run : streak.current
         return VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline, spacing: 10) {
-                Image(systemName: "flame.fill")
-                    .font(.system(size: 30, weight: .bold))
-                    .foregroundStyle(CLColor.tangerine)
-                    .accessibilityHidden(true)
+                // On hold (a missed day that a repair can still join back up) the flame is only an outline.
+                StreakFlame(stage: StreakStage(days: days), size: 44, lit: !onHold)
+                    .alignmentGuide(.firstTextBaseline) { $0[.bottom] - 6 }
                 Text(days == 1 ? "1-day streak" : "\(days)-day streak")
                     .font(.system(size: 34, weight: .heavy, design: .rounded))
                     .foregroundStyle(CLColor.ink)
@@ -116,6 +119,67 @@ struct StreakView: View {
         let ca = calendar.dateComponents([.year, .month], from: a)
         let cb = calendar.dateComponents([.year, .month], from: b)
         return ((cb.year ?? 0) - (ca.year ?? 0)) * 12 + ((cb.month ?? 0) - (ca.month ?? 0))
+    }
+}
+
+/// The milestones, each with the flame it brings: a check on the ones the best streak has reached, and how far the streak
+/// is along to the next. A milestone reached stays reached, whatever the streak does after.
+private struct MilestonesCard: View {
+    let current: Int
+    let best: Int
+
+    @Environment(\.dynamicTypeSize) private var typeSize
+
+    var body: some View {
+        let next = StreakStage.nextMilestone(after: best)
+        VStack(spacing: 14) {
+            ForEach(StreakStage.milestones, id: \.self) { days in
+                row(days, reached: best >= days, isNext: days == next)
+            }
+        }
+        .clCard()
+        .accessibilityElement(children: .contain)
+    }
+
+    private func along(_ days: Int) -> some View {
+        Text("\(min(current, days)) of \(days)")
+            .clFont(.footnoteEmphasis)
+            .foregroundStyle(CLColor.tangerineInk)
+            .monospacedDigit()
+    }
+
+    private func row(_ days: Int, reached: Bool, isNext: Bool) -> some View {
+        let stage = StreakStage(days: days)
+        return VStack(spacing: 8) {
+            HStack(spacing: 12) {
+                StreakFlame(stage: stage, size: 34, lit: reached)
+                    .opacity(reached || isNext ? 1 : 0.7)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("\(days) days")
+                        .clFont(.subheadlineEmphasis)
+                        .foregroundStyle(reached || isNext ? CLColor.ink : CLColor.ink3)
+                    Text(stage.title)
+                        .clFont(.footnote)
+                        .foregroundStyle(CLColor.ink3)
+                    // At the big text sizes the count has no room beside the name: it goes under it.
+                    if isNext, typeSize.isAccessibilitySize { along(days) }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                if reached {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 22, weight: .semibold))
+                        .foregroundStyle(CLColor.mint)
+                } else if isNext, !typeSize.isAccessibilitySize {
+                    along(days)
+                }
+            }
+            if isNext {
+                CLBar(value: Double(min(current, days)) / Double(days), color: CLColor.tangerine, height: 6)
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text("\(days) days, \(String(localized: stage.title))"))
+        .accessibilityValue(reached ? Text("Reached") : isNext ? Text("\(min(current, days)) of \(days)") : Text("Not yet"))
     }
 }
 

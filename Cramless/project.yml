@@ -58,6 +58,8 @@ targets:
         CODE_SIGN_ENTITLEMENTS: Cramless/Resources/Cramless.entitlements
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        # The icons a streak unlocks (`AppIconChoice`; made by scripts/make_alt_icons.py).
+        ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES: "AppIcon-Night AppIcon-Ember AppIcon-Gold AppIcon-Aurora"
         ENABLE_PREVIEWS: YES
 
   # Home and Lock Screen widgets, the Live Activity and the controls. Compiles a blind subset: its own sources

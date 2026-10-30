@@ -27,6 +27,7 @@ struct MemorySkyView: View {
     @Environment(\.clReduceMotion) private var reduceMotion
     @Environment(\.clDifferentiateWithoutColor) private var differentiate
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.skyTheme) private var skyTheme
 
     @State private var plan: SkyPlan?
     @State private var camera: SkyCamera?
@@ -61,7 +62,7 @@ struct MemorySkyView: View {
             let size = geo.size
             let fit = SkyCamera.fit(scene.layout, in: size, top: insetTop, bottom: insetBottom)
             ZStack {
-                LinearGradient(colors: [SkyRenderer.top, SkyRenderer.bottom], startPoint: .top, endPoint: .bottom)
+                LinearGradient(colors: [skyTheme.palette.top, skyTheme.palette.bottom], startPoint: .top, endPoint: .bottom)
                     .ignoresSafeArea()
                 if scene.isEmpty {
                     EmptyView()
@@ -73,7 +74,8 @@ struct MemorySkyView: View {
                             let current = move?.camera(at: time) ?? camera ?? fit
                             SkyRenderer.draw(&g, size: canvasSize, frame: SkyFrame(
                                 scene: scene, plan: plan, camera: current, time: time, animated: twinkles,
-                                differentiate: differentiate, restlessRing: reduceMotion, focus: focus, playback: playback))
+                                differentiate: differentiate, restlessRing: reduceMotion, focus: focus, playback: playback,
+                                palette: skyTheme.palette))
                         }
                     }
                     .gesture(interactive ? dragGesture(size: size, fit: fit) : nil)
@@ -230,7 +232,7 @@ struct MemorySkyView: View {
                     .accessibilityAddTraits(focus == i ? [.isButton, .isSelected] : .isButton)
                     .accessibilityHint(Text("Focuses this constellation"))
                     .accessibilityAction { focus = i }
-                    .accessibilityAction(named: Text("Relight")) { onRelight(i) }
+                    .accessibilityAction(named: Text("Practice")) { onRelight(i) }
                     .accessibilityRotorEntry(id: i, in: rotor)
             }
             ForEach(layout.regions) { region in
@@ -270,14 +272,16 @@ struct SkyStill: View {
     var labels = false
     var differentiate = false
 
+    @Environment(\.skyTheme) private var skyTheme
+
     var body: some View {
         Canvas { g, size in
             let camera = SkyCamera.fit(scene.layout, in: size, top: insetTop, bottom: insetBottom)
             SkyRenderer.draw(&g, size: size, frame: SkyFrame(
                 scene: scene, plan: SkyPlan(scene), camera: camera, time: 0, animated: false,
-                differentiate: differentiate, focus: focus, playback: nil, labels: labels))
+                differentiate: differentiate, focus: focus, playback: nil, labels: labels, palette: skyTheme.palette))
         }
-        .background(LinearGradient(colors: [SkyRenderer.top, SkyRenderer.bottom], startPoint: .top, endPoint: .bottom))
+        .background(LinearGradient(colors: [skyTheme.palette.top, skyTheme.palette.bottom], startPoint: .top, endPoint: .bottom))
         .accessibilityHidden(true)
     }
 }

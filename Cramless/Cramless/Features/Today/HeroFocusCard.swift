@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// The card for a constellation you tapped in Today's world: its name and how it is doing, and the way to relight it, in one
+/// The card for a constellation you tapped in Today's world: its name and how it is doing, and the way to practise it, in one
 /// glass row at the foot of the sky. (The full-screen sky has a taller card that also opens the course; here the world is
 /// the point and the card stays small.)
 struct HeroFocusCard: View {
@@ -16,7 +16,6 @@ struct HeroFocusCard: View {
 
     var body: some View {
         let c = scene.layout.constellations[index]
-        let dim = scene.light.dimCount(c)
         let minutes = scene.minutesToRelight(index)
         HStack(alignment: .center, spacing: 10) {
             VStack(alignment: .leading, spacing: 3) {
@@ -32,12 +31,12 @@ struct HeroFocusCard: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             Button(action: onRelight) {
-                Text(dim > 0 ? "Relight · \(minutes) min" : "Practice · \(minutes) min")
+                Text("Practice · \(minutes) min")
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
             }
             .buttonStyle(.cl(.primary, size: .medium))
-            .accessibilityLabel(Text(dim > 0 ? SkyCopy.relight(c.name, minutes: minutes) : SkyCopy.practice(c.name, minutes: minutes)))
+            .accessibilityLabel(Text(SkyCopy.practice(c.name, minutes: minutes)))
             Button(action: onClose) {
                 Image(systemName: "xmark")
                     .font(.system(size: 13, weight: .semibold))

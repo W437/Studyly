@@ -16,6 +16,7 @@ struct ProgressTabView: View {
             VStack(alignment: .leading, spacing: 0) {
                 ExamsSection(exams: model.exams, calendar: model.calendar).padding(.top, 8)
                 StreakSection(model: model).id("streak")
+                BadgesSection(badges: model.badges).id("badges")
                 WeekSection(model: model).id("week")
                 MemorySection(retention: model.retention, target: model.targetRetention, due: model.due, calendar: model.calendar)
                     .id("memory")
@@ -53,7 +54,7 @@ struct ProgressModel {
     /// A topic as a constellation: its mastery, and its glyph and counts from the sky.
     struct ConstellationLine: Identifiable {
         var topic: ProgressPresentation.TopicEntry
-        /// Its place in `sky.layout.constellations`, for a "Relight" session.
+        /// Its place in `sky.layout.constellations`, for a practice session.
         var index: Int?
         var glyph: SkyGlyph?
         var id: UUID { topic.id }
@@ -80,6 +81,7 @@ struct ProgressModel {
     var strongest: [ConstellationLine]
     var weakest: [ConstellationLine]
     var confusions: [ConfusionLine]
+    var badges: [BadgeStatus]
     var dailyMinutes: Int
     /// The run a repair today would join back up.
     var runBeforeRepair: Int
@@ -126,6 +128,7 @@ struct ProgressModel {
                 .sorted { $0.lastSeenAt > $1.lastSeenAt }
                 .map { ConfusionLine(id: $0.id, name: $0.name, courseName: course.name, misses: $0.missCount) }
         }
+        badges = app.badgeStatuses()
         dailyMinutes = app.settings.dailyMinutes
         runBeforeRepair = streak.repairableDay.map { ProgressPresentation.runBefore($0, cells: cells, calendar: app.calendar) } ?? 0
     }
@@ -221,6 +224,36 @@ private struct ExamReadinessCard: View {
     }
 }
 
+/// A row of badges: the latest earned, then the ones that are close. "See all" opens every badge; a tap opens one.
+private struct BadgesSection: View {
+    let badges: [BadgeStatus]
+    @Environment(AppModel.self) private var app
+    @Environment(\.dynamicTypeSize) private var typeSize
+
+    var body: some View {
+        let earned = badges.filter(\.isEarned).count
+        CLSectionHeader(title: "Badges", actionTitle: "See all") { app.router.push(.badges) }
+        let shown = badges.featured(limit: typeSize.isAccessibilitySize ? 2 : 4)
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .top, spacing: 10) {
+                ForEach(shown) { status in
+                    Button {
+                        CLHaptics.tap()
+                        app.router.present(.badge(status.badge))
+                    } label: {
+                        BadgeCell(status: status, calendar: app.calendar, medalSize: 64, showsDetail: false)
+                    }
+                    .buttonStyle(.pressable)
+                }
+            }
+            Text(BadgeCopy.count(earned: earned, of: badges.count))
+                .clFont(.footnote)
+                .foregroundStyle(CLColor.ink3)
+        }
+        .clCard()
+    }
+}
+
 private struct StreakSection: View {
     let model: ProgressModel
     @Environment(AppModel.self) private var app
@@ -235,10 +268,8 @@ private struct StreakSection: View {
             NavigationLink(value: Route.streak) {
                 VStack(alignment: .leading, spacing: 14) {
                     HStack(alignment: .firstTextBaseline, spacing: 8) {
-                        Image(systemName: "flame.fill")
-                            .font(.system(size: 22, weight: .bold))
-                            .foregroundStyle(CLColor.tangerine)
-                            .accessibilityHidden(true)
+                        StreakFlame(stage: StreakStage(days: onHold ? model.runBeforeRepair : streak.current), size: 30, lit: !onHold)
+                            .alignmentGuide(.firstTextBaseline) { $0[.bottom] - 4 }
                         Text(CLFormat.count(onHold ? model.runBeforeRepair : streak.current, "day"))
                             .font(.system(size: 26, weight: .heavy, design: .rounded))
                             .foregroundStyle(CLColor.ink)
@@ -396,8 +427,8 @@ private struct MemorySection: View {
     }
 }
 
-/// "Topics" as constellations: each with its glyph, how many of its stars are bright and dim, and a way to relight it.
-/// The brightest sit above, the ones that need work below, each with Relight.
+/// "Topics" as constellations: each with its glyph, how many of its stars are bright and dim, and a way to practise it.
+/// The brightest sit above, the ones that are fading below, each with Practice.
 private struct ConstellationsSection: View {
     let sky: SkyScene
     let strongest: [ProgressModel.ConstellationLine]
@@ -419,11 +450,11 @@ private struct ConstellationsSection: View {
                     }
                 }
                 if !weakest.isEmpty {
-                    CLEyebrow(text: "Needs relighting").padding(.leading, 4).padding(.top, 12)
+                    CLEyebrow(text: "Fading").padding(.leading, 4).padding(.top, 12)
                     CLList {
                         ForEach(weakest) { line in
                             Button { relight(line) } label: {
-                                ConstellationRow(line: line, sky: sky, trailing: .relight)
+                                ConstellationRow(line: line, sky: sky, trailing: .practice)
                             }
                             .buttonStyle(LibraryRowButtonStyle())
                             .accessibilityHint(Text("Practises this topic"))
@@ -444,7 +475,7 @@ private struct ConstellationsSection: View {
 }
 
 private struct ConstellationRow: View {
-    enum Trailing { case chevron, relight }
+    enum Trailing { case chevron, practice }
 
     let line: ProgressModel.ConstellationLine
     let sky: SkyScene
@@ -472,8 +503,8 @@ private struct ConstellationRow: View {
             switch trailing {
             case .chevron:
                 CLChevron()
-            case .relight:
-                Text("Relight")
+            case .practice:
+                Text("Practice")
                     .clFont(.footnoteEmphasis)
                     .foregroundStyle(CLColor.tangerineInk)
                     .padding(.horizontal, 12)

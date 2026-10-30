@@ -21,9 +21,15 @@ struct QuestionCard<Content: View>: View {
 
 /// A question's scroll view: readable width on big screens, keyboard dismissed by dragging.
 struct QuestionScroll<Content: View>: View {
+    /// Where the page is scrolled to, for a view that moves it itself (the summary's film hook).
+    var position: Binding<ScrollPosition>?
     @ViewBuilder var content: Content
 
     var body: some View {
+        if let position { scroll.scrollPosition(position) } else { scroll }
+    }
+
+    private var scroll: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) { content }
                 .frame(maxWidth: CLMetrics.readableWidth, alignment: .leading)

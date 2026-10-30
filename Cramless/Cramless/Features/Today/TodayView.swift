@@ -2,11 +2,13 @@ import SwiftUI
 
 /// The Today tab: your memory sky edge to edge with the date, "Today" and the streak on it and Cap on the horizon
 /// (`TodaySkyHero`); under it the day's one button and one caption (`TodayHeroActions`); then the next exam, Cap's note
-/// on the top mix-up, the other exams, ways to add material, and the Squad. With no questions yet the sky is unlit
+/// on the top mix-up, the other exams, ways to add material, and the Squad (and, once a first session is done, today's quests
+/// right under the button: `TodayQuestsCard`). With no questions yet the sky is unlit
 /// outlines, and the button is "Try a sample page".
 ///
 /// DEBUG hooks: `CRAMLESS_TODAY=catchup|examEve|eveDone|done|caughtUp|noMaterial|empty` (see `TodaySnapshot`);
-/// `CRAMLESS_TODAY_SCROLL=1` scrolls down the page and back, to film it; `CRAMLESS_TODAY_OPEN=<ms>` opens the sky
+/// `CRAMLESS_TODAY_SCROLL=1` scrolls down the page and back, to film it; `CRAMLESS_SKY_TOUR=<ms>` shows each sky behind the stars in
+/// turn; `CRAMLESS_TODAY_OPEN=<ms>` opens the sky
 /// that long after launch, as a tap on it would; `CRAMLESS_HERO_PULL=2500:96:500` pulls the page down 96 points at 2.5 s, holds
 /// it 0.5 s and lets go (the readings a finger gives it; the page itself doesn't move), to film the refresh; and
 /// `CRAMLESS_STEP=firstSession|readiness|plan` opens an onboarding step of this lane over Today (with `CRAMLESS_SEED=0` it first
@@ -107,6 +109,16 @@ struct TodayView: View {
             try? await nap(ms)
             open(.sky)
         }
+        .task {
+            // `CRAMLESS_SKY_TOUR=<ms>`: each sky in turn behind the stars, that long each, and Night again at the end.
+            guard let ms = TestHarness.once("CRAMLESS_SKY_TOUR").flatMap(Int.init) else { return }
+            app.debugUnlockAll = true
+            for theme in Array(SkyTheme.allCases.dropFirst()) + [.night] {
+                try? await nap(ms)
+                guard !Task.isCancelled else { return }
+                app.settings.skyTheme = theme
+            }
+        }
         .fullScreenCover(item: $debugStep) { step in
             OnboardingDebugHost(start: step)
         }
@@ -115,9 +127,12 @@ struct TodayView: View {
 
     // MARK: Below the hero
 
-    /// The next exam, Cap's note, the other exams, ways to add material and the Squad, in that order.
+    /// Today's quests, the next exam, Cap's note, the other exams, ways to add material and the Squad, in that order.
     @ViewBuilder
     private func rest(_ snap: TodaySnapshot) -> some View {
+        if !snap.quests.isEmpty {
+            TodayQuestsCard(quests: snap.quests)
+        }
         if showsExams(snap), let next = snap.exams.first {
             TodayExamCard(exam: next) { open(.exam(next.id)) }
         }

@@ -27,7 +27,7 @@ struct SkyScene: Sendable, Equatable {
     func color(of constellation: SkyLayout.Constellation) -> CourseColor { courseColors[constellation.courseID] ?? .sky }
     func courseName(of constellation: SkyLayout.Constellation) -> String { courseNames[constellation.courseID] ?? "" }
 
-    /// The minutes "Relight …" asks for: what its dim stars take to answer, at least two and at most fifteen. With
+    /// The minutes "Practice …" asks for: what its dim stars take to answer, at least two and at most fifteen. With
     /// none dim, a short practice round.
     func minutesToRelight(_ index: Int) -> Int {
         guard layout.constellations.indices.contains(index) else { return 3 }

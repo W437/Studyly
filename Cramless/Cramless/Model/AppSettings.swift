@@ -42,6 +42,12 @@ struct AppSettings: Codable, Equatable, Sendable {
 
     enum Theme: String, Codable, CaseIterable, Sendable { case system, light, dark }
 
+    /// The day's quests, once picked: which, so they stay the same all day however the day changes.
+    struct QuestDay: Codable, Equatable, Sendable {
+        var dayKey: String
+        var kinds: [QuestKind]
+    }
+
     enum AgeBand: String, Codable, Sendable {
         /// Not asked or not shared.
         case unknown
@@ -75,6 +81,8 @@ struct AppSettings: Codable, Equatable, Sendable {
     /// Sending page photos to the cloud is a separate switch.
     var sendPhotos = false
     var tutorMode: TutorMode = .hints
+    /// What Ask Cap's assistant may do on its own (nothing, until the person says so, and never under 18).
+    var assistant = AssistantSettings()
 
     // Accessibility and appearance
     var theme: Theme = .system
@@ -93,6 +101,24 @@ struct AppSettings: Codable, Equatable, Sendable {
     var installedAt: Date?
     /// When the last big celebration played: another one the same day is medium (`CelebrationPolicy`).
     var lastBigCelebrationAt: Date?
+
+    // The game loop (`AppModel+Game.swift`)
+    /// Today's quests (this device's picks; the ones finished are in `DayRecord.questMask`, which syncs).
+    var questDay: QuestDay?
+    /// Weeks in which 12 quests were finished: each lit one of the skies in `SkyTheme.unlockOrder`.
+    var litWeeks = 0
+    /// The first day (its key) of the week that lit the latest sky, so one week lights only one.
+    var lastLitWeek: String?
+    /// The sky behind the stars (Settings ▸ Appearance), one of those unlocked.
+    var skyTheme: SkyTheme = .night
+    /// The app icon the person chose (the icon itself is the system's to switch).
+    var appIcon: AppIconChoice = .standard
+    /// The badges earned and when. nil until the first launch that knows about badges, which notes what is already earned
+    /// without a fuss.
+    var badges: [String: Date]?
+    /// When, and in which version, the app last asked for a rating (`ReviewPromptPolicy`).
+    var reviewPromptedAt: Date?
+    var reviewPromptedVersion: String?
 
     init() {}
 
@@ -114,6 +140,7 @@ struct AppSettings: Codable, Equatable, Sendable {
         cloudConsentVersion = try c.decodeIfPresent(Int.self, forKey: .cloudConsentVersion) ?? d.cloudConsentVersion
         sendPhotos = try c.decodeIfPresent(Bool.self, forKey: .sendPhotos) ?? d.sendPhotos
         tutorMode = try c.decodeIfPresent(TutorMode.self, forKey: .tutorMode) ?? d.tutorMode
+        assistant = (try? c.decodeIfPresent(AssistantSettings.self, forKey: .assistant)) ?? d.assistant
         theme = try c.decodeIfPresent(Theme.self, forKey: .theme) ?? d.theme
         dyslexicFont = try c.decodeIfPresent(Bool.self, forKey: .dyslexicFont) ?? d.dyslexicFont
         readAloud = try c.decodeIfPresent(Bool.self, forKey: .readAloud) ?? d.readAloud
@@ -124,6 +151,15 @@ struct AppSettings: Codable, Equatable, Sendable {
         onboardingCompleted = try c.decodeIfPresent(Bool.self, forKey: .onboardingCompleted) ?? d.onboardingCompleted
         installedAt = try c.decodeIfPresent(Date.self, forKey: .installedAt)
         lastBigCelebrationAt = try c.decodeIfPresent(Date.self, forKey: .lastBigCelebrationAt)
+        questDay = try? c.decodeIfPresent(QuestDay.self, forKey: .questDay)
+        litWeeks = try c.decodeIfPresent(Int.self, forKey: .litWeeks) ?? d.litWeeks
+        lastLitWeek = try c.decodeIfPresent(String.self, forKey: .lastLitWeek)
+        // A choice this version doesn't know (a sky or icon from a later one) falls back to the default.
+        skyTheme = (try? c.decodeIfPresent(SkyTheme.self, forKey: .skyTheme)) ?? d.skyTheme
+        appIcon = (try? c.decodeIfPresent(AppIconChoice.self, forKey: .appIcon)) ?? d.appIcon
+        badges = try c.decodeIfPresent([String: Date].self, forKey: .badges)
+        reviewPromptedAt = try c.decodeIfPresent(Date.self, forKey: .reviewPromptedAt)
+        reviewPromptedVersion = try c.decodeIfPresent(String.self, forKey: .reviewPromptedVersion)
     }
 
     /// Under-18 accounts keep the tutor on hints first and inside the teen-safe scope.

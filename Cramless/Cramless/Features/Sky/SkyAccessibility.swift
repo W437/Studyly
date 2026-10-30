@@ -28,7 +28,7 @@ enum SkyCopy {
 
     // MARK: Buttons
 
-    static func relight(_ name: String, minutes: Int) -> LocalizedStringResource { "Relight \(name) · \(minutes) min" }
+    /// A constellation's button, on screen and for VoiceOver: a practice session on that topic, its dim stars first.
     static func practice(_ name: String, minutes: Int) -> LocalizedStringResource { "Practice \(name) · \(minutes) min" }
 
     // MARK: VoiceOver

@@ -19,6 +19,8 @@ struct HTTPRelayTransport: RelayTransport {
         case lecture
         case cardsFromChat = "cards-from-chat"
         case transcribeImage = "transcribe-image"
+        case assistant
+        case research
         case quota
 
         var method: String { self == .quota ? "GET" : "POST" }
@@ -35,6 +37,8 @@ struct HTTPRelayTransport: RelayTransport {
             case .lecture: 90
             case .cardsFromChat: 30
             case .transcribeImage: 60
+            case .assistant: 45
+            case .research: 70
             case .quota: 10
             }
         }
@@ -113,6 +117,74 @@ struct HTTPRelayTransport: RelayTransport {
                 }
             }
             continuation.onTermination = { _ in task.cancel() }
+        }
+    }
+
+
+    /// The relay's server-sent events for a route, mapped to `Event` by `map`; the stream ends after the event `isLast`
+    /// says is the last. Shares the tutor's rules: an error before the stream starts is an ordinary envelope, `unauthorized`
+    /// is retried once, and cancelling the consuming task cancels the request.
+    private func eventStream<Event: Sendable, Body: Encodable & Sendable>(
+        _ route: Route, body: Body, map: @escaping @Sendable (SSEEvent) -> Event?, isLast: @escaping @Sendable (Event) -> Bool
+    ) -> AsyncThrowingStream<Event, Error> {
+        AsyncThrowingStream { continuation in
+            let task = Task {
+                do {
+                    let data = try JSONEncoder.cramless.encode(body)
+                    var bytes: URLSession.AsyncBytes
+                    var attempt = 0
+                    while true {
+                        attempt += 1
+                        let urlRequest = try await makeRequest(route, body: data, accept: "text/event-stream")
+                        let (opened, response) = try await session.bytes(for: urlRequest)
+                        guard let http = response as? HTTPURLResponse else { throw RelayError.upstream("No response from the relay.") }
+                        if (200..<300).contains(http.statusCode) {
+                            bytes = opened
+                            break
+                        }
+                        var payload = Data()
+                        for try await byte in opened {
+                            payload.append(byte)
+                            if payload.count > 64_000 { break }
+                        }
+                        let error = Self.error(status: http.statusCode, body: payload)
+                        if error == .unauthorized, attempt == 1 { continue }
+                        throw error
+                    }
+                    var parser = SSEParser()
+                    var ended = false
+                    for try await byte in bytes {
+                        guard let sse = parser.feed(byte: byte), let event = map(sse) else { continue }
+                        continuation.yield(event)
+                        if isLast(event) { ended = true }
+                        if ended { break }
+                    }
+                    _ = parser.finish()
+                    if !ended { throw RelayError.upstream("The answer was cut off.") }
+                    continuation.finish()
+                } catch {
+                    continuation.finish(throwing: Self.map(error))
+                }
+            }
+            continuation.onTermination = { _ in task.cancel() }
+        }
+    }
+
+    func assistant(_ request: AssistantRequest) -> AsyncThrowingStream<AssistantEvent, Error> {
+        eventStream(.assistant, body: request, map: Self.assistantEvent(from:)) { event in
+            switch event {
+            case .done, .failure: true
+            default: false
+            }
+        }
+    }
+
+    func research(_ request: ResearchRequest) -> AsyncThrowingStream<ResearchEvent, Error> {
+        eventStream(.research, body: request, map: Self.researchEvent(from:)) { event in
+            switch event {
+            case .done, .failure: true
+            default: false
+            }
         }
     }
 
@@ -214,5 +286,17 @@ struct HTTPRelayTransport: RelayTransport {
         if payload == nil, sse.event == "delta" { return .delta(sse.data) }
         let data = payload ?? TutorScriptEvent.Payload()
         return TutorScriptEvent(event: sse.event, delayMs: 0, data: data).tutorEvent
+    }
+
+    /// The assistant's SSE event as an `AssistantEvent` (same payloads as the fixtures' scripts). Pings are comments and
+    /// never reach here; unknown events are skipped.
+    static func assistantEvent(from sse: SSEEvent) -> AssistantEvent? {
+        guard let data = try? JSONDecoder.cramless.decode(AnyJSON.self, from: Data(sse.data.utf8)) else { return nil }
+        return AssistantScriptEvent(event: sse.event, delayMs: 0, data: data).assistantEvent
+    }
+
+    static func researchEvent(from sse: SSEEvent) -> ResearchEvent? {
+        guard let data = try? JSONDecoder.cramless.decode(AnyJSON.self, from: Data(sse.data.utf8)) else { return nil }
+        return ResearchScriptEvent(event: sse.event, delayMs: 0, data: data).researchEvent
     }
 }

@@ -12,7 +12,7 @@ struct SettingsView: View {
                     .padding(.top, 6)
                 group("You", [.account, .subscription], squad: true)
                 group("Studying", [.study, .notifications])
-                group("Privacy and access", [.aiPrivacy, .accessibility, .appearance])
+                group("Privacy and access", [.aiPrivacy, .assistant, .accessibility, .appearance])
                 #if DEBUG
                 group("More", [.data, .about, .debug])
                 #else
@@ -116,6 +116,7 @@ extension SettingsPage {
         case .study: "Study"
         case .notifications: "Notifications"
         case .aiPrivacy: "AI and privacy"
+        case .assistant: "What Cap can do"
         case .accessibility: "Accessibility"
         case .appearance: "Appearance"
         case .data: "Your data"
@@ -132,6 +133,7 @@ extension SettingsPage {
         case .study: "target"
         case .notifications: "bell.badge"
         case .aiPrivacy: "lock.shield"
+        case .assistant: "wand.and.stars"
         case .accessibility: "accessibility"
         case .appearance: "circle.lefthalf.filled"
         case .data: "square.and.arrow.up.on.square"
@@ -144,6 +146,7 @@ extension SettingsPage {
     var tint: CourseColor {
         switch self {
         case .account, .aiPrivacy: .sky
+        case .assistant: .tangerine
         case .subscription: .tangerine
         case .study: .mint
         case .notifications: .rose
@@ -174,6 +177,11 @@ enum SettingsSummary {
             if !app.ai.cloudAvailableInThisBuild { return "Everything on this iPhone" }
             guard app.hasCloudConsent else { return "Cloud AI off" }
             return s.sendPhotos ? "Cloud AI on, page photos on" : "Cloud AI on, page photos off"
+        case .assistant:
+            if s.isMinor { return String(localized: "Always asks first") }
+            let auto = s.assistantAuto.count
+            return auto == 0 ? String(localized: "Cap asks first")
+                : String(localized: "“Let Cap do it” is on for \(auto) of \(AssistantAutoKind.allCases.count)")
         case .accessibility:
             var on: [String] = []
             if s.dyslexicFont { on.append("dyslexia-friendly font") }
@@ -231,6 +239,7 @@ struct SettingsPageView: View {
         case .study: StudyPage()
         case .notifications: NotificationsPage()
         case .aiPrivacy: AIPrivacyPage()
+        case .assistant: AssistantPage()
         case .accessibility: AccessibilityPage()
         case .appearance: AppearancePage()
         case .data: DataPage()

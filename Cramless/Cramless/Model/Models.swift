@@ -439,10 +439,13 @@ final class DayRecord {
     var frozen: Bool
     /// The day was repaired after the fact (a double session within two days).
     var repaired: Bool
+    /// The daily quests finished, one bit for each `QuestKind`. Bits are only ever added, so two devices' masks join by OR.
+    /// (The default is what lets a store from before quests open: SwiftData fills it in.)
+    var questMask: Int = 0
     var syncedAt: Date?
 
     init(dayKey: String, day: Date, studySeconds: Double = 0, itemsReviewed: Int = 0, sessions: Int = 0,
-         frozen: Bool = false, repaired: Bool = false) {
+         frozen: Bool = false, repaired: Bool = false, questMask: Int = 0) {
         self.dayKey = dayKey
         self.day = day
         self.studySeconds = studySeconds
@@ -450,6 +453,7 @@ final class DayRecord {
         self.sessions = sessions
         self.frozen = frozen
         self.repaired = repaired
+        self.questMask = questMask
     }
 
     /// The day counts for the streak.
@@ -544,9 +548,12 @@ final class ChatMessage {
     /// The item a "Explain my mistake" chat started from.
     var contextItemID: UUID?
     var createdAt: Date
+    /// What Cap's assistant did in this reply (`AssistantStep`s), kept so a draft can still be added, changed or taken back.
+    /// Chats stay on this iPhone, so this never syncs.
+    var actionsData: Data?
 
     init(id: UUID = ModelID.make(), thread: ChatThread?, role: ChatRole, text: String, citations: [Citation] = [],
-         origin: String? = nil, contextItemID: UUID? = nil, now: Date = .now) {
+         origin: String? = nil, contextItemID: UUID? = nil, steps: [AssistantStep] = [], now: Date = .now) {
         self.id = id
         self.thread = thread
         self.roleRaw = role.rawValue
@@ -555,9 +562,15 @@ final class ChatMessage {
         self.origin = origin
         self.contextItemID = contextItemID
         self.createdAt = now
+        self.actionsData = steps.isEmpty ? nil : encodeBlob(steps)
     }
 
     var role: ChatRole { ChatRole(rawValue: roleRaw) ?? .assistant }
+
+    var steps: [AssistantStep] {
+        get { decodeBlob([AssistantStep].self, from: actionsData, default: []) }
+        set { actionsData = newValue.isEmpty ? nil : encodeBlob(newValue) }
+    }
 
     var citations: [Citation] {
         get { decodeBlob([Citation].self, from: citationsData, default: []) }

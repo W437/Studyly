@@ -1,3 +1,4 @@
+import StoreKit
 import SwiftUI
 
 /// The end of a session, inside the cover: Cap celebrating, minutes and answers, first-try accuracy, the next
@@ -6,7 +7,10 @@ import SwiftUI
 /// enough. Sleep is part of studying." A fix ends by saying whether the mix-up is fixed.
 ///
 /// It plays in order: Cap arrives, the session's sound, the numbers count up, the ring climbs, the streak rolls
-/// over, and last the celebration `CelebrationPolicy` picked (confetti, Cap's hop and sparkles), if one is earned.
+/// over, the sky line, the quests the session finished tick off (and a sky they lit says so), and last the celebration
+/// `CelebrationPolicy` picked (confetti, Cap's hop and sparkles), if one is earned. A streak milestone takes over the hero:
+/// its flame, and "30 days.". A good moment (a perfect session, two saves, a milestone) may, rarely, be followed by the
+/// system's rating prompt (`ReviewPromptPolicy`).
 ///
 /// DEBUG: `CRAMLESS_CELEBRATION=none|nudge|small|medium|big|calm` sets the celebration's size (the reason, and so the
 /// title, stays the real one).
@@ -32,6 +36,15 @@ struct SessionSummaryView: View {
     @State private var countStep = 0
     @State private var celebrated = false
     @State private var skyShown = false
+    /// What the session did to the game loop: quests finished, a sky lit, badges earned.
+    @State private var game = GameOutcome()
+    /// Today's quests as they stand after the session; the ones it finished tick off one by one.
+    @State private var quests: [QuestRow] = []
+    @State private var ticked = 0
+    @State private var skyLitShown = false
+    @State private var flameBounce = 0
+    @State private var scroll = ScrollPosition()
+    @Environment(\.requestReview) private var requestReview
 
     struct Info {
         var examTitle: String?
@@ -68,7 +81,7 @@ struct SessionSummaryView: View {
     private var isFix: Bool { summary.kind == .fix }
 
     var body: some View {
-        QuestionScroll {
+        QuestionScroll(position: $scroll) {
             VStack(spacing: 16) {
                 hero
                 if isEve {
@@ -79,6 +92,10 @@ struct SessionSummaryView: View {
                     if summary.readinessBefore != nil, summary.readinessAfter != nil, info?.examTitle != nil {
                         readinessCard
                     }
+                    // A fix shows them only when it finished one (the mix-up's own quest).
+                    if !quests.isEmpty, !isFix || !game.questsDone.isEmpty { questsCard }
+                    if let sky = game.skyLit { skyLitCard(sky) }
+                    if !game.badges.isEmpty { badgesCard }
                     if let mixUp, !mixUpHandled {
                         mixUpCard(mixUp)
                             .transition(.opacity.combined(with: .offset(y: 12)))
@@ -105,8 +122,16 @@ struct SessionSummaryView: View {
     private var hero: some View {
         VStack(spacing: 6) {
             // Cap arrives once the summary knows what it's celebrating (a fix's verdict decides the pose).
-            ZStack {
+            ZStack(alignment: .topTrailing) {
                 if info != nil { CapView(capMoment, size: capSize) }
+                // A streak milestone brings its flame, which pops in with the celebration and bounces once.
+                if let days = milestoneDays {
+                    StreakFlame(stage: StreakStage(days: days), size: 84, bounce: reduceMotion ? nil : flameBounce)
+                        .scaleEffect(celebrated ? 1 : 0.3, anchor: .bottom)
+                        .opacity(celebrated ? 1 : 0)
+                        .offset(x: 54, y: 12)
+                        .animation(reduceMotion ? nil : CLMotion.pop, value: celebrated)
+                }
             }
             .frame(width: capSize, height: capSize)
             Text(title)
@@ -125,6 +150,12 @@ struct SessionSummaryView: View {
     }
 
     private var capSize: CGFloat { isEve ? 200 : 180 }
+
+    /// The streak milestone this session reached, when it is what the summary celebrates.
+    private var milestoneDays: Int? {
+        if case .streakMilestone(let days) = decision.reason { return days }
+        return nil
+    }
 
     /// Cap arrives, then hops (with sparkles for a medium or big celebration) when the celebration plays.
     private var capMoment: CapMoment {
@@ -155,11 +186,12 @@ struct SessionSummaryView: View {
         if isFix { return fixed ? "Mix-up fixed" : "Getting there" }
         switch decision.reason {
         case .firstSession: return "First session done"
-        case .streakMilestone(let days): return "\(days) days in a row"
+        case .streakMilestone(let days): return MilestoneCopy.title(days)
         case .readinessGoal: return "Goal reached"
         case .perfect: return "All right first time"
         case .mixUpFixed: return "Mix-up fixed"
-        case .badge, nil: return "Session done"
+        case .badge: return game.badges.first?.title ?? "New badge"
+        case nil: return "Session done"
         }
     }
 
@@ -171,6 +203,8 @@ struct SessionSummaryView: View {
             return fixed ? "You told \(pair) apart \(summary.correctFirstTry) of \(n) times."
                 : "\(summary.correctFirstTry) of \(n) right. Cap will bring these back in a few days."
         }
+        if let days = milestoneDays { return MilestoneCopy.line(days) }
+        if decision.reason == .badge, let badge = game.badges.first { return badge.blurb }
         if decision.reason == .readinessGoal, let exam = info?.examTitle, let after = summary.readinessAfter {
             return "\(exam) is now \(CLFormat.percent(after)) ready."
         }
@@ -323,6 +357,99 @@ struct SessionSummaryView: View {
         .accessibilityHidden(!skyShown)
         .accessibilityLabel(Text(verbatim: skyText))
         .accessibilityHint(Text("Opens your memory sky"))
+    }
+
+    // MARK: Quests, a new sky and badges
+
+    /// Today's quests, the ones this session finished showing their check as the choreography reaches them.
+    private var shownQuests: [QuestRow] {
+        quests.map { row in
+            guard let index = game.questsDone.firstIndex(of: row.kind), index >= ticked else { return row }
+            var pending = row
+            pending.isDone = false
+            pending.progress = QuestProgress(done: 0, goal: 1)
+            return pending
+        }
+    }
+
+    private var questsCard: some View {
+        let week = min(game.weekAfter, game.weekBefore + ticked)
+        return VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("Today's quests").clFont(.headline).foregroundStyle(CLColor.ink)
+                    .accessibilityAddTraits(.isHeader)
+                Spacer(minLength: 8)
+                Text(QuestCopy.week(week, of: game.weekGoal))
+                    .clFont(.footnoteEmphasis)
+                    .foregroundStyle(CLColor.ink3)
+                    .contentTransition(.numericText(value: Double(week)))
+            }
+            ForEach(shownQuests) { row in
+                QuestRowView(row: row)
+            }
+        }
+        .clCard()
+        .opacity(skyShown ? 1 : 0)
+        .offset(y: skyShown ? 0 : 10)
+        .accessibilityHidden(!skyShown)
+    }
+
+    /// A week of quests lit a sky: a swatch of it, and a button that puts it behind the stars.
+    private func skyLitCard(_ sky: SkyTheme) -> some View {
+        HStack(spacing: 14) {
+            SkySwatch(theme: sky, width: 64, height: 64)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(sky.title).clFont(.headline).foregroundStyle(CLColor.ink)
+                Text("A new sky is lit. A week of 12 quests did it.")
+                    .clFont(.footnote)
+                    .foregroundStyle(CLColor.ink2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            Button("Use it") {
+                CLHaptics.commit()
+                app.setSkyTheme(sky)
+                app.router.toast("Your sky is \(String(localized: sky.title))", systemImage: "sparkles")
+            }
+            .buttonStyle(.cl(.soft, size: .small, fullWidth: false))
+        }
+        .clCard()
+        .opacity(skyLitShown ? 1 : 0)
+        .offset(y: skyLitShown ? 0 : 10)
+        .accessibilityHidden(!skyLitShown)
+    }
+
+    private var badgesCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            CLEyebrow(text: game.badges.count == 1 ? "New badge" : "New badges")
+            ForEach(game.badges) { badge in
+                Button {
+                    CLHaptics.tap()
+                    app.router.present(.badge(badge))
+                } label: {
+                    HStack(spacing: 14) {
+                        BadgeMedal(badge: badge, size: 56)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(badge.title).clFont(.headline).foregroundStyle(CLColor.ink)
+                            Text(badge.blurb).clFont(.footnote).foregroundStyle(CLColor.ink2)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        CLChevron()
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.pressable)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(Text(badge.title))
+                .accessibilityValue(Text(badge.blurb))
+                .accessibilityAddTraits(.isButton)
+            }
+        }
+        .clCard()
+        .opacity(skyShown ? 1 : 0)
+        .offset(y: skyShown ? 0 : 10)
+        .accessibilityHidden(!skyShown)
     }
 
     // MARK: Readiness
@@ -509,6 +636,9 @@ struct SessionSummaryView: View {
         if isFix, let confusionID = runner.request.confusionID ?? runner.built.confusionID {
             fixed = app.resolveFix(confusionID: confusionID, summary: summary)
         }
+        // The quests this session finished, a sky they lit, the badges it earned (after a fix is resolved: that is a quest too).
+        game = app.settleGame()
+        quests = isEve ? [] : app.questsToday().rows
         let made = makeInfo()
         decision = decide(made)
         info = made
@@ -523,10 +653,13 @@ struct SessionSummaryView: View {
             ring = after ?? before
             streakShown = summary.streak.current
             skyShown = true
+            ticked = game.questsDone.count
+            skyLitShown = true
             celebrate()
         } else {
             do { try await playOut(before: before, after: after) } catch { return }
         }
+        await askForRatingIfDue()
         #if DEBUG
         // `CRAMLESS_SUMMARY_SKY=<ms>` opens the sky that long after the choreography ends, as a tap on the strip would,
         // so a film can follow a real session into the sky it relit.
@@ -535,6 +668,30 @@ struct SessionSummaryView: View {
             guard !Task.isCancelled else { return }
             openSky()
             return
+        }
+        #endif
+        #if DEBUG
+        // `CRAMLESS_SUMMARY_SCROLL=<ms>` eases the page down to its end that long after the choreography, so a film or a
+        // screenshot sees the quests, the new sky and the badges under the numbers.
+        if let ms = TestHarness.once("CRAMLESS_SUMMARY_SCROLL").flatMap(Int.init) {
+            try? await nap(ms)
+            withAnimation(.easeInOut(duration: 1.6)) { scroll.scrollTo(edge: .bottom) }
+        }
+        // Then, each that long after the one before: `CRAMLESS_SUMMARY_USE_SKY` puts the sky the week lit behind the stars (as
+        // "Use it" would), `CRAMLESS_SUMMARY_BADGE` opens the new badge's sheet, `CRAMLESS_SUMMARY_DONE` presses Done.
+        if let ms = TestHarness.once("CRAMLESS_SUMMARY_USE_SKY").flatMap(Int.init), let sky = game.skyLit {
+            try? await nap(ms)
+            CLHaptics.commit()
+            app.setSkyTheme(sky)
+            app.router.toast("Your sky is \(String(localized: sky.title))", systemImage: "sparkles")
+        }
+        if let ms = TestHarness.once("CRAMLESS_SUMMARY_BADGE").flatMap(Int.init), let badge = game.badges.first {
+            try? await nap(ms)
+            app.router.present(.badge(badge))
+        }
+        if let ms = TestHarness.once("CRAMLESS_SUMMARY_DONE").flatMap(Int.init) {
+            try? await nap(ms)
+            onDone()
         }
         #endif
         // Nothing is asked of the AI once the summary has gone.
@@ -565,9 +722,22 @@ struct SessionSummaryView: View {
         try await nap(150)
         withAnimation(CLMotion.pop) { streakShown = summary.streak.current }
         try await nap(200)
-        // The sky says what the session did to it, then the celebration.
+        // The sky says what the session did to it, the quests tick off, then the celebration.
         withAnimation(CLMotion.settle) { skyShown = true }
         try await nap(150)
+        if !game.questsDone.isEmpty {
+            try await nap(250)
+            for _ in game.questsDone {
+                withAnimation(CLMotion.pop) { ticked += 1 }
+                CLHaptics.select()
+                try await nap(380)
+            }
+        }
+        if game.skyLit != nil {
+            withAnimation(CLMotion.settle) { skyLitShown = true }
+            CLHaptics.land()
+            try await nap(300)
+        }
         celebrate()
     }
 
@@ -586,7 +756,7 @@ struct SessionSummaryView: View {
     private func decide(_ info: Info) -> CelebrationDecision {
         var decision = app.celebration(for: summary, streakBefore: runner.streakBefore,
                                        readinessTarget: info.examTitle == nil ? nil : info.target,
-                                       mixUpFixed: isFix && fixed)
+                                       mixUpFixed: isFix && fixed, badgeEarned: !game.badges.isEmpty)
         #if DEBUG
         if let size = TestHarness.once("CRAMLESS_CELEBRATION").flatMap(Celebration.init(rawValue:)) {
             decision.size = size
@@ -600,6 +770,24 @@ struct SessionSummaryView: View {
     private func celebrate() {
         app.noteCelebration(decision)
         celebrated = true
+        // A milestone's flame has popped in; a beat later it bounces, once.
+        if milestoneDays != nil, !reduceMotion {
+            Task {
+                try? await nap(320)
+                flameBounce += 1
+            }
+        }
+    }
+
+    /// A good moment, rarely: the system's rating prompt, a beat and a half after the streak has rolled over and the
+    /// celebration has played (`ReviewPromptPolicy`: not in the first days, not on exam eve, never twice in a season).
+    private func askForRatingIfDue() async {
+        let facts = app.reviewPromptFacts(for: summary, milestone: milestoneDays)
+        guard ReviewPromptPolicy.shouldAsk(facts) else { return }
+        try? await nap(1500)
+        guard !Task.isCancelled else { return }
+        app.noteReviewPrompted()
+        requestReview()
     }
 
     private func makeInfo() -> Info {

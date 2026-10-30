@@ -51,7 +51,7 @@ enum TestHarness {
         if value("CRAMLESS_DYSLEXIC") == "1" { app.settings.dyslexicFont = true }
         if app.settings.firstName.isEmpty { app.settings.firstName = "Maya" }
         if value("CRAMLESS_CONSENT") != "0" {
-            app.settings.cloudConsentVersion = max(app.settings.cloudConsentVersion, 1)
+            app.settings.cloudConsentVersion = max(app.settings.cloudConsentVersion, AIConsent.currentVersion)
         }
         if value("CRAMLESS_ONBOARDING") == "1" { app.settings.onboardingCompleted = false }
     }
@@ -63,6 +63,9 @@ enum TestHarness {
             return
         }
         let parts = raw.split(separator: ":", maxSplits: 1).map(String.init)
+        // What Cap "added" earlier (CRAMLESS_ASSISTANT_SEED) is in the library before the Settings page lays out, so a page that starts at
+        // its foot has it.
+        AskDemo.seedAdditions(app)
         apply(route: parts[0], arg: parts.count > 1 ? parts[1] : nil, app: app)
     }
 
@@ -101,6 +104,9 @@ enum TestHarness {
             if let arg, let page = SettingsPage(rawValue: arg) { r.push(.settingsPage(page), on: .today) }
         case "squad": r.push(.squad, on: .today)
         case "streak": r.push(.streak, on: .progress)
+        // Every badge, and one badge up close: `badge:<id>` (see `Badge`), `badge:streak30`.
+        case "badges": r.push(.badges, on: .progress)
+        case "badge": if let id = arg.flatMap(Badge.init(rawValue:)) { r.present(.badge(id)) }
         // The memory sky; `CRAMLESS_SKY=…` (see `SkyDebug`) sets its state.
         case "sky": r.push(.sky, on: .progress)
         case "chat":

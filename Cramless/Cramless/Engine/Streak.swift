@@ -65,6 +65,20 @@ struct StreakEngine: Sendable {
 
     var today: Int { calendar.dayNumber(for: now) }
 
+    // MARK: Milestones
+
+    /// The lengths that mark a moment (`StreakStage.milestones`).
+    static var milestones: [Int] { StreakStage.milestones }
+
+    /// The first milestone after `days`; nil once the last one is behind.
+    static func nextMilestone(after days: Int) -> Int? { StreakStage.nextMilestone(after: days) }
+
+    /// The biggest milestone passed going from `before` to `after` days (a repair can jump over two). Freeze and repair days
+    /// are part of the streak, so they cross a milestone like a studied day does.
+    static func milestoneCrossed(from before: Int, to after: Int) -> Int? {
+        StreakStage.milestoneCrossed(from: before, to: after)
+    }
+
     /// Records by day number (the day key decides the day; the stored date is only a fallback).
     func index(_ records: [DaySnapshot]) -> [Int: DaySnapshot] {
         var out: [Int: DaySnapshot] = [:]
@@ -77,6 +91,7 @@ struct StreakEngine: Sendable {
                 merged.sessions += r.sessions
                 merged.frozen = merged.frozen || r.frozen
                 merged.repaired = merged.repaired || r.repaired
+                merged.questMask |= r.questMask
                 out[day] = merged
             } else {
                 out[day] = r

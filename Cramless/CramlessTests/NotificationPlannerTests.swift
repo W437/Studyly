@@ -207,4 +207,56 @@ final class NotificationPlannerTests: XCTestCase {
         XCTAssertEqual(NotificationPlanner.staleIdentifiers(pending: pending, planned: []),
                        ["capling.daily.2026-10-01", p[0].id], "even with notifications off, trial requests stay")
     }
+
+    // MARK: One session from a milestone
+
+    func testTheDayOneSessionMakesAMilestoneSaysSo() {
+        // 29 days, today not done: today's reminder and nudge name the 30th day. Later days go on as ever.
+        let p = plan {
+            $0.streak = StreakState(current: 29, best: 29, studiedToday: false, freezesAvailable: 1)
+            $0.exams = []
+        }
+        let today = p.filter { cal.isDate($0.date, inSameDayAs: now) }
+        XCTAssertEqual(today.map(\.kind), [.daily, .streak])
+        XCTAssertEqual(today[0].body, "One session today makes it 30 days.")
+        XCTAssertEqual(today[1].body, "15 minutes tonight makes it 30 days.")
+        let tomorrow = p.first { cal.isDate($0.date, inSameDayAs: WidgetTestSupport.date(2026, 10, 23)) }
+        XCTAssertEqual(tomorrow?.body, "Your 15-minute session is ready when you are.", "not a promise about a day that hasn't come")
+    }
+
+    func testOnceTodayIsDoneItIsTomorrowsReminderThatSaysIt() {
+        // 6 days and today done: tomorrow's session makes the 7th.
+        let p = plan {
+            $0.streak = StreakState(current: 6, best: 6, studiedToday: true, freezesAvailable: 0)
+            $0.today.studiedToday = true
+            $0.exams = []
+        }
+        XCTAssertTrue(p.filter { cal.isDate($0.date, inSameDayAs: now) }.isEmpty, "nothing more today")
+        let tomorrow = p.filter { cal.isDate($0.date, inSameDayAs: WidgetTestSupport.date(2026, 10, 23)) }
+        XCTAssertEqual(tomorrow.map(\.kind), [.daily, .streak])
+        XCTAssertEqual(tomorrow[0].body, "One session today makes it 7 days.")
+        XCTAssertEqual(tomorrow[1].body, "15 minutes tonight makes it 7 days.")
+    }
+
+    func testAnOrdinaryStreakKeepsItsOrdinaryWords() {
+        for current in [0, 1, 2 + 1, 4, 12, 28, 30, 98, 365] {
+            let p = plan {
+                $0.streak = StreakState(current: current, best: current, studiedToday: false, freezesAvailable: 0)
+                $0.exams = []
+            }
+            XCTAssertFalse(p.contains { $0.body.contains("makes it") && !StreakStage.milestones.contains(current + 1) },
+                           "a streak of \(current) is not one session from a milestone")
+        }
+        // Every milestone has its day: a streak one short of it.
+        for milestone in StreakStage.milestones where milestone > 3 {
+            let p = plan {
+                $0.streak = StreakState(current: milestone - 1, best: milestone - 1, studiedToday: false, freezesAvailable: 0)
+                $0.exams = []
+            }
+            XCTAssertEqual(p.first?.body, "One session today makes it \(milestone) days.")
+        }
+        XCTAssertEqual(NotificationPlanner.milestoneNext(StreakState(current: 2), studiedToday: false)?.days, 3)
+        XCTAssertNil(NotificationPlanner.milestoneNext(StreakState(current: 0), studiedToday: false))
+        XCTAssertEqual(NotificationPlanner.milestoneNext(StreakState(current: 6), studiedToday: true)?.offset, 1)
+    }
 }

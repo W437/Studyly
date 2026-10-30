@@ -128,6 +128,8 @@ struct DaySnapshot: Sendable, Hashable {
     var sessions: Int = 0
     var frozen = false
     var repaired = false
+    /// The quests finished that day (`DayRecord.questMask`).
+    var questMask = 0
 
     /// Counts for the streak (the same rule as `DayRecord.counts`).
     var counts: Bool { sessions > 0 || frozen || repaired }

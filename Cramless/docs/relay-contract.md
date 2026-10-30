@@ -41,7 +41,7 @@ Every failure is JSON with an HTTP status:
 | code | HTTP | Meaning | App (`RelayError.from`) |
 |---|---|---|---|
 | `unauthorized` | 401 | No token, an expired or invalid one, or a deleted account. | `.unauthorized`: refresh the session, then retry once. |
-| `quota_exceeded` | 429 | A free quota ran out (`quota` names the meter), a paid plan's fair-use ceiling (`retryAfter` in seconds, and a `Retry-After` header), or too many Squad code attempts. | `.quotaExceeded(quota, message)`: fall back to the on-device path; show the message. |
+| `quota_exceeded` | 429 | A free quota ran out (`quota` names the meter), a paid plan's fair-use ceiling (`retryAfter` in seconds, and a `Retry-After` header), the day's cost cap (no meter named), or too many Squad code attempts. | `.quotaExceeded(quota, message)`: fall back to the on-device path; show the message. |
 | `entitlement_required` | 403 | The request needs a paid plan or an active Squad (a scan over 10 pages on free, inviting without a Squad subscription, joining a lapsed Squad). | `.entitlementRequired`: offer the paywall. |
 | `bad_request` | 400, 404, 405, 409, 410, 413, 422 | The body failed validation (the message names the first field: `The request isn't valid: /maxItems is below 1.`), an unknown route or method, a too-large body, a used, expired or unknown invite code, a purchase that failed verification (422). | `.badRequest(message)` |
 | `upstream` | 500, 502, 503, 504, 422 | The model or the database failed, timed out, declined (422), or answered something unusable. `retryAfter` when a retry soon can work. The quota is given back. | `.upstream(message)`: quiet fallback to the offline path. |
@@ -59,6 +59,9 @@ owner's Squad subscription is active; otherwise `free`.
 | `grades` | day | 20 | unlimited (fair use 1,500) | `grade` |
 | `tutor` | day | 10 | unlimited (fair use 300) | `tutor` |
 | `lectures` | week | 1 | unlimited (fair use 40) | `lecture` |
+| `drafts` (hidden) | day | 3 | unlimited (fair use 150) | an `assistant` request that offers draft tools: one is taken before the model is asked, and given back if the reply drafts nothing |
+| `rounds` (hidden) | day | 30 | unlimited (fair use 900) | each round of an `assistant` reply after the first, and only while `rounds` stays within three for each `tutor` message that day |
+| `research` (hidden) | day | none (`entitlement_required`) | 3 | `research` |
 
 - Days and weeks are the person's own: local midnight and Monday in the time zone of their profile (the app
   writes `profiles.timezone`; UTC until it does).
@@ -66,15 +69,24 @@ owner's Squad subscription is active; otherwise `free`.
   that closes them count once, within 30 minutes and 10 pages. A `generate` without transcriptions is one scan.
   On free, a `generate` with more than 10 pages is `entitlement_required`.
 - A request that fails (an `upstream` error, a refusal, a tutor stream that breaks before any text) gives its quota
-  back. A refused request (validation, quota) costs nothing.
-- `check`, `confusions` and `cards-from-chat` share an internal meter (`extras`: 120 a day on free, 800 paid) that
-  the app never shows; Squad code attempts are capped at 10 a day.
+  back. A refused request (validation, quota) costs nothing. One exception for the model routes: a failure the provider
+  **billed** (a reply that could not be read, a search stream that was cut off) or a client that walked away (499) keeps
+  the quota, so errors cannot be farmed for free model time.
+- `check`, `confusions` and `cards-from-chat` share an internal meter (`extras`: 120 a day on free, 800 paid) that the app
+  never shows; Squad code attempts are capped at 10 a day.
+- **The day's cost cap** sits under every meter, on every plan: once a person's model calls since their local midnight have cost the
+  cap (10¢; the `DAILY_COST_CAP_USD` secret, `0` = off), each AI route answers `quota_exceeded` (429, `quota.meters` empty,
+  `retryAfter` to midnight, "That's all the cloud AI for today. It starts again at midnight.") until the day turns, before the body is read
+  and so before any stream starts. `quota` (the report) is never refused. The sum comes from `ai_requests` (`cramless_spent_since`), which
+  is written after each response: a burst can pass the cap by what is in flight. MOCK replies cost nothing and skip it.
 - Reviews are never metered: they happen on the device.
 
 ## AI routes (`ai` function)
 
 Models: Claude Haiku 5.5 (`claude-haiku-5-5`) for everything except the tutor and grading `apply` questions or
-answers over 700 characters, which use Claude Sonnet 5.5 (`claude-sonnet-5-5`). Every reply the app consumes is a
+answers over 700 characters, which use Claude Sonnet 5.5 (`claude-sonnet-5-5`). The tutor is the exception to the
+exception: with `OPENAI_API_KEY` set it answers from OpenAI (`gpt-6.1-terra` at low reasoning, or `OPENAI_TUTOR_MODEL` and
+`OPENAI_TUTOR_EFFORT`), whatever the grading uses. Every reply the app consumes is a
 structured output (a JSON schema derived from `contract.json`, without `model`, which the relay sets to the model
 that answered). Sonnet calls use server-side refusal fallback (`fallbacks: "default"`). Prompts are files in
 `supabase/functions/_shared/prompts/`: grounded only in the given material, material treated as data, no essays
@@ -134,9 +146,82 @@ Reply: `Content-Type: text/event-stream`. Each event is `event: <name>`, one `da
 | `error` | `{code, message}` | The answer stopped (codes as above, usually `upstream`). |
 
 Errors before the stream starts (auth, validation, quota) are ordinary JSON envelopes. The sources go to Sonnet 5.5
-as `search_result` blocks with citations on, split into sentence-sized blocks so citations stay tight. Closing the
-connection stops the model. Meter: `tutor` (given back if the stream fails before any text). MOCK: the
+as `search_result` blocks with citations on, split into sentence-sized blocks so citations stay tight. On OpenAI they go
+as tagged text and the model answers in a strict JSON schema, `{answer, citations: [{source_id, quote}]}`: the answer is
+read out of it as it arrives, and a quote is sent as a `citation` only if it is really in a source (the app checks again).
+Closing the connection stops the model. Meter: `tutor` (given back if the stream fails before any text). MOCK: the
 `tutor-hints` script (or `tutor-explain` when `mode` is `explain` and the person isn't a minor), with its delays.
+
+### `POST ai/assistant` → server-sent events (Ask Cap with tools)
+
+Ask Cap's tutor, plus tools. The relay lets the model choose a tool; the **app runs it** (the notes and the screens are
+there) and calls again. A reply is up to four rounds (`MAX_ROUNDS`); the relay stores nothing between them.
+
+Request `AssistantRequest`: everything in `TutorRequest` except `context`, plus:
+
+- `study` (`StudyState`): the student's courses, topics and exams with short ids the model passes back to tools
+  (`c1`, `t3`, `e1`), `today` (yyyy-MM-dd, their local day) and `currentCourseId`. Capped: 12 courses, 30 topics each,
+  8 exams. Never a uuid. `sources` (the passages found for this message) holds at most 24 across the rounds of a reply.
+- `tools` [`search_notes`, `create_flashcards`, `create_quiz_questions`, `create_note`, `create_exam`, `start_practice`,
+  `open_screen`, `research_web`]: what the app lets the model use this time. The relay removes `research_web` for a `minor`
+  (it takes the app's word for the flag). The draft tools stay on offer when the day's drafts are used up (see `limit`). The
+  model is only ever passed a call to a tool offered in that request; any other is ignored.
+- `turns` [`{continuation, results: [{callId, output}]}`]: the rounds already made. `continuation` is what the relay sent
+  in that round's `done` event, passed back untouched; `output` is a short JSON text the app tells the model
+  (`{"status":"proposed","count":6}`, `{"passages":[…]}`, `{"error":"…"}`). The relay accepts only its own kinds of
+  item in a continuation (reasoning, and calls to tools it knows) and needs exactly one result for each call. At most three
+  turns (a reply is four requests), and a call id is used once across all of them.
+
+Events (those of the tutor, plus the tools'):
+
+| event | data | Meaning |
+|---|---|---|
+| `start` | `{model}` | The round has started. |
+| `delta` | `{text}` | More of Cap's note; append it. Normally only in the final round: words the model writes before it calls a tool are sent too (a lead-in), words after a call are not. |
+| `citation` | `{sourceId, label, quote}` | As the tutor's. |
+| `tool_start` | `{callId, name}` | The model began a call: show a card that is working. |
+| `tool_item` | `{callId, index, item}` | One finished card or question of a `create_flashcards` / `create_quiz_questions` call, as the model wrote it, **before the call as a whole is complete**. |
+| `tool_text` | `{callId, text}` | More of a `create_note` call's body. |
+| `tool_call` | `{callId, name, arguments}` | The call, whole. Run it. |
+| `done` | `{model, stop, continuation?, limit?}` | `stop` is `tool_calls` (run the calls, call again with `continuation` and the results) or `end_turn`. `limit: "drafts"`: the model reached for a draft tool and the day's drafts are used up. The reply ends there, with nothing drafted (the model's stream is closed at the first sign of the call); the app says so in its own words, in the student's language, and on the free plan offers Pro. A plain question, or a lookup, never meets it. |
+| `error` | `{code, message}` | As the tutor's. |
+
+What the app does with each tool, and why it can be trusted: **a draft tool only drafts.** `create_*` returns a proposal
+the student adds, changes or skips (unless they switched "Let Cap do it" on for that kind, never for an account under
+18). Each card or question carries `evidence`, a quote from the notes; the app checks it against the notes and shows an
+item whose quote it can't find as "Cap's own words". A multiple-choice question must have its right option among its
+options (the app shuffles them: models put it first or second). A date must be a real day that hasn't passed. Nothing
+the model reads from the web or from a note can trigger a write.
+
+Models: the tutor's (`gpt-6.1-terra`, low reasoning), with `store: false`, strict function tools, `parallel_tool_calls`,
+and `reasoning.encrypted_content` included so a round's thinking can be passed back without anything stored at OpenAI.
+Meters: the first round is a `tutor` message; later rounds are `rounds`, refused when `rounds` would pass three for each
+`tutor` message that day (so a continuation made up by hand costs what an honest reply does); a request that offers draft
+tools takes a `drafts` count before the model is asked (atomically, so parallel requests cannot all pass) and gives it back if
+the reply drafts nothing; when none is left, a draft attempt ends the reply with `limit: "drafts"` (the message still counts as a tutor message). A round is passed on whole: every call is read and checked before the app is told of any, so a call cut
+off by the token limit fails the round with nothing acted on.
+MOCK: `assistant-*.json` scripts, chosen by what the student asked (`assistantFixture` in `_shared/mock.ts`; the app's
+`AssistantRequest.mockScript` chooses the same way) and then by the tool the model last called; `X-Cramless-Fixture`
+picks any `assistant-*` script.
+
+### `POST ai/research` → server-sent events (web research, Pro)
+
+Request `ResearchRequest`: `minor`, `topic`, `focus?`, `course?`. Refused for a `minor` (403) and on the free plan
+(`entitlement_required`). OpenAI's web search, **limited to a list of study sites** (`RESEARCH_DOMAINS`, built in:
+reference works, open textbooks, universities, public science and health bodies), forced to search at least once, at most
+three searches. Events:
+
+| event | data | Meaning |
+|---|---|---|
+| `start` | `{model}` | |
+| `search` | `{id, phase: started\|searching\|done, queries?, sources?}` | The search as it happens. On `done`: what was searched (plain words, `site:` operators removed) and the pages found `[{url, domain}]`. |
+| `delta` | `{text}` | More of the summary (it is only sent once a search has finished). |
+| `citation` | `{url, title, domain}` | A page the summary rests on (each once; the tracking parameter is removed). |
+| `done` | `{model, searches}` | |
+| `error` | `{code, message}` | |
+
+A summary written without searching is never sent (it fails with a message). Cost: the tokens plus $0.01 a search.
+Meter: `research`. MOCK: `research-mitosis.json`.
 
 ### `POST ai/confusions` → `ConfusionsResponse`
 
@@ -237,6 +322,8 @@ real backend without a model key.
 | `lecture` | `lecture.json` | 2.5 s |
 | `cards-from-chat` | `cards-from-chat.json` | 1.2 s |
 | `transcribe-image` | `transcribe-image.json` | 1.5 s |
+| `assistant` | `assistant-*.json` by what was asked, then by the tool called last, events at the script's `delayMs` | per event |
+| `research` | `research-mitosis.json` (`research-error.json` when the topic holds `#fail`) | per event |
 
 The JSON replies are the fixture files' bytes. The output cleaning of real mode (anchor filtering) doesn't apply:
 the fixtures are the reference answers. A request header `X-Cramless-Fixture: <name>` picks another fixture of the
@@ -249,7 +336,9 @@ One JSON log line per request with an allow-list of fields (route, status, code,
 cost); never bodies, prompts, the person's material, user ids or tokens. Each AI call also writes an `ai_requests`
 row (route, model, plan, status, tokens, cost, latency). Costs are computed in integer nano-dollars from list
 prices: Haiku 5.5 $0.10 / $0.50 per million input / output tokens ($0.50 / $2.50 for prompts over 100K tokens),
-Sonnet 5.5 $2 / $10; cache reads 0.1× and cache writes 1.25× the input price.
+Sonnet 5.5 $2 / $10; cache reads 0.1× and cache writes 1.25× the input price. OpenAI (the tutor): GPT 6.1 Terra $1 / $5
+with cached input at $0.05, Sol $2 / $10 with $0.10, Luna $0.10 / $0.50 with $0.01; thinking is billed as output. A web
+search is $10 per 1,000 on top of the tokens it reads (`Usage.webSearches`).
 
 ## The database (for the Sync client)
 
@@ -279,7 +368,7 @@ Nothing here deploys by itself. With the Supabase CLI logged in (`supabase login
    a 6-digit code (set the "Magic Link" template to show `{{ .Token }}`); set rate limits for anonymous sign-ins
    (Supabase's default of 30 an hour per IP is fine).
 4. Secrets: `supabase secrets set ANTHROPIC_API_KEY=… APPLE_BUNDLE_ID=com.loopware.Capling APPLE_APP_ID=<numeric
-   App Apple ID>` (optional: `CRAMLESS_INVITE_BASE_URL`). Never set `CRAMLESS_MOCK` or `CRAMLESS_ALLOW_XCODE_JWS`
+   App Apple ID>` (optional: `CRAMLESS_INVITE_BASE_URL`; `OPENAI_API_KEY=…` to put Ask Cap's tutor on OpenAI). Never set `CRAMLESS_MOCK` or `CRAMLESS_ALLOW_XCODE_JWS`
    on production.
 5. `supabase functions deploy ai account appstore-notify` (each uses `supabase/functions/deno.json`; JWT
    verification is done inside the functions, so `verify_jwt = false` in `config.toml` is intended).

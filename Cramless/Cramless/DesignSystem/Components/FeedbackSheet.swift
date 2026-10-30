@@ -87,9 +87,14 @@ struct FeedbackPanel<Primary: View, Secondary: View>: View {
     @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .center, spacing: 12) {
-                CapView(feedback.working ? .working : feedback.cap, size: typeSize.isAccessibilitySize ? 44 : 60)
+        // Cap is 82 pt, up from 60, so he reads at a glance. The panel's spacing is tightened by the same amount, so it is no taller
+        // than it was, and nothing overlaps the card above. His art is tall and narrow: the box has empty sides, which the negative
+        // padding takes back. At the accessibility sizes the panel keeps the smaller Cap and the roomier spacing it always had.
+        let accessibility = typeSize.isAccessibilitySize
+        VStack(alignment: .leading, spacing: accessibility ? 12 : 8) {
+            HStack(alignment: .center, spacing: accessibility ? 12 : 6) {
+                CapView(feedback.working ? .working : feedback.cap, size: accessibility ? 44 : 82)
+                    .padding(.horizontal, accessibility ? 0 : -8)
                 VStack(alignment: .leading, spacing: 4) {
                     Text(feedback.headline)
                         .clFont(.brandTitle(28))
@@ -101,18 +106,18 @@ struct FeedbackPanel<Primary: View, Secondary: View>: View {
                 }
                 Spacer(minLength: 0)
             }
-            if !typeSize.isAccessibilitySize {
+            if !accessibility {
                 FeedbackDetails(feedback: feedback)
             }
             primary
-            if !typeSize.isAccessibilitySize {
+            if !accessibility {
                 HStack(spacing: 10) { secondary }
             }
         }
         .frame(maxWidth: CLMetrics.readableWidth, alignment: .leading)
         .padding(.horizontal, CLSpace.gutter)
-        .padding(.top, 18)
-        .padding(.bottom, 8)
+        .padding(.top, accessibility ? 18 : 10)
+        .padding(.bottom, accessibility ? 8 : 6)
         .frame(maxWidth: .infinity)
         .background {
             UnevenRoundedRectangle(topLeadingRadius: 30, topTrailingRadius: 30, style: .continuous)

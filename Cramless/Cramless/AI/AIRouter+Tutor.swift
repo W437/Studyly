@@ -36,18 +36,9 @@ extension AIRouter {
         let asked = input.context.map { "\($0.itemPrompt) \($0.expected) \(question)" } ?? question
         let material = input.material
         let retriever = await Task.detached(priority: .userInitiated) { LocalRetriever(material: material) }.value
-        // A follow-up ("why?", "and in plants?") carries few topic words of its own: when the question alone finds
-        // nothing, or is a few words long, search with the last two questions and Cap's last answer as well.
-        var searchText = asked
-        var hits = retriever.search(asked, limit: 4)
-        let wordCount = question.split(whereSeparator: { $0.isWhitespace }).count
-        if userTurns.count > 1, hits.isEmpty || wordCount <= 4 {
-            let earlier = userTurns.dropLast().suffix(2).joined(separator: " ")
-            let lastAnswer = String((input.messages.last { $0.role == .assistant }?.text ?? "").prefix(400))
-            searchText = [asked, earlier, lastAnswer].filter { !$0.isEmpty }.joined(separator: " ")
-            let widened = retriever.search(searchText, limit: 4)
-            if !widened.isEmpty { hits = widened }
-        }
+        let retrieval = Self.retrieve(retriever, messages: input.messages, context: input.context, limit: 4)
+        let hits = retrieval.hits
+        let searchText = retrieval.searchText
         let terms = retriever.weightedTerms(searchText)
         let sources = hits.enumerated().map { n, hit in
             TutorSource(id: "s\(n + 1)", title: hit.passage.title, label: hit.passage.label, text: hit.passage.text)
@@ -70,6 +61,7 @@ extension AIRouter {
                 switch tier {
                 case .cloud:
                     cloudFailed = true
+                    cloudRefused = false
                     switch await cloudTutor(input, mode: mode, minor: settings.isMinor, sources: sources, sent: sent,
                                             retriever: retriever, fellBack: fellBack, emit: emit) {
                     case .success: return
@@ -112,8 +104,41 @@ extension AIRouter {
         let suggestion = route.suggestion ?? limitReached.map(limitSuggestion)
         emit(.finished(TutorOutcome(text: local.text, citations: citations, origin: .rules, model: LocalGrader.model, mode: mode,
                                     grounded: local.grounded,
-                                    note: cloudFailed && local.grounded ? "Cloud AI couldn't be reached, so Cap answered from your notes on this iPhone." : nil,
+                                    note: cloudFailed && local.grounded ? failureNote(refused: cloudRefused) : nil,
                                     suggestion: local.grounded ? suggestion : nil, limitReached: limitReached, fellBack: fellBack)))
+    }
+
+    /// What the note under an offline answer says when the cloud was tried and didn't answer: the relay's refusal for the day (a paid
+    /// plan's fair use, or the day's cost cap, which every plan has) or, otherwise, that it couldn't be reached.
+    private func failureNote(refused: Bool) -> String {
+        refused
+            ? String(localized: "That's all the cloud AI for today, so Cap answered from your notes on this iPhone. It starts again at midnight.")
+            : "Cloud AI couldn't be reached, so Cap answered from your notes on this iPhone."
+    }
+
+    /// The passages for a chat's last question. A follow-up ("why?", "and in plants?") carries few topic words of its own:
+    /// when the question alone finds nothing, or is a few words long, the last two questions and Cap's last answer are
+    /// searched with it.
+    struct Retrieval {
+        var hits: [LocalRetriever.Hit]
+        var searchText: String
+    }
+
+    static func retrieve(_ retriever: LocalRetriever, messages: [TutorMessage], context: TutorContext?, limit: Int) -> Retrieval {
+        let userTurns = messages.filter { $0.role == .user }.map(\.text)
+        let question = userTurns.last ?? ""
+        let asked = context.map { "\($0.itemPrompt) \($0.expected) \(question)" } ?? question
+        var searchText = asked
+        var hits = retriever.search(asked, limit: limit)
+        let wordCount = question.split(whereSeparator: { $0.isWhitespace }).count
+        if userTurns.count > 1, hits.isEmpty || wordCount <= 4 {
+            let earlier = userTurns.dropLast().suffix(2).joined(separator: " ")
+            let lastAnswer = String((messages.last { $0.role == .assistant }?.text ?? "").prefix(400))
+            searchText = [asked, earlier, lastAnswer].filter { !$0.isEmpty }.joined(separator: " ")
+            let widened = retriever.search(searchText, limit: limit)
+            if !widened.isEmpty { hits = widened }
+        }
+        return Retrieval(hits: hits, searchText: searchText)
     }
 
     // MARK: Cloud

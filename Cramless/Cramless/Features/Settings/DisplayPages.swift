@@ -106,7 +106,8 @@ struct AccessibilityPage: View {
     }
 }
 
-/// Settings ▸ Appearance: match the iPhone, or always light or dark.
+/// Settings ▸ Appearance: match the iPhone, or always light or dark; the sky behind the stars and the app icon, which weeks of
+/// quests and the best streak unlock (`SkyPicker`, `IconPicker`).
 struct AppearancePage: View {
     @Environment(AppModel.self) private var app
     @Environment(\.dynamicTypeSize) private var typeSize
@@ -131,6 +132,9 @@ struct AppearancePage: View {
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.horizontal, 6)
                 .padding(.top, 12)
+            // What the game loop unlocks: skies from weeks of quests, icons from the best streak.
+            SkyPicker()
+            if app.iconSwitcher.supportsAlternates { IconPicker() }
         }
     }
 }

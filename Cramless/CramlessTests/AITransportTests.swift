@@ -145,7 +145,8 @@ final class AITransportTests: XCTestCase {
 
     func testHTTPRoutesAndQuotaIsAGet() async throws {
         XCTAssertEqual(HTTPRelayTransport.Route.allCases.map(\.rawValue),
-                       ["generate", "check", "grade", "tutor", "confusions", "lecture", "cards-from-chat", "transcribe-image", "quota"])
+                       ["generate", "check", "grade", "tutor", "confusions", "lecture", "cards-from-chat", "transcribe-image",
+                        "assistant", "research", "quota"])
         AIStubURLProtocol.handler = { _ in .init(chunks: [self.fixtureData("quota-free")]) }
         let quota = try await http().quota()
         XCTAssertEqual(quota.meter(.scans)?.limit, 3)
@@ -261,6 +262,103 @@ final class AITransportTests: XCTestCase {
             for try await event in http().tutor(try fixtureRequest(TutorRequest.self, "tutor")) { events.append(event) }
             XCTAssertEqual(events, script.events.compactMap(\.tutorEvent), "chunk size \(size)")
             XCTAssertEqual(AIStubURLProtocol.requests.last?.value(forHTTPHeaderField: "Accept"), "text/event-stream")
+        }
+    }
+
+    /// Any script of the relay (assistant or research) as server-sent events, cut into awkward chunks.
+    private func sseChunks(events: [(event: String, data: AnyJSON)], size: Int) throws -> [Data] {
+        var text = ": stream open\n\n"
+        for event in events {
+            let data = String(decoding: try JSONEncoder.cramless.encode(event.data), as: UTF8.self)
+            text += "event: \(event.event)\r\ndata: \(data)\r\n\r\n"
+        }
+        let bytes = Array(text.utf8)
+        return stride(from: 0, to: bytes.count, by: size).map { Data(bytes[$0..<min(bytes.count, $0 + size)]) }
+    }
+
+    func testHTTPAssistantPostsItsTurnsAndEveryEventDecodesAcrossChunks() async throws {
+        let script = try RelayFixtures.load(AssistantScript.self, "assistant-cards")
+        let events = script.events.map { (event: $0.event, data: $0.data) }
+        var request = try fixtureRequest(AssistantRequest.self, "assistant")
+        request.turns = [AssistantTurn(
+            continuation: [.object(["type": .string("function_call"), "call_id": .string("call_1"), "name": .string("search_notes"),
+                                    "arguments": .string("{\"query\":\"mitosis\"}")])],
+            results: [AssistantResult(callId: "call_1", output: "{\"passages\":[]}")])]
+        for size in [1, 13, 97] {
+            let chunks = try sseChunks(events: events, size: size)
+            AIStubURLProtocol.handler = { _ in .init(headers: ["Content-Type": "text/event-stream"], chunks: chunks) }
+            var received: [AssistantEvent] = []
+            for try await event in http().assistant(request) { received.append(event) }
+            XCTAssertEqual(received, script.events.compactMap(\.assistantEvent), "chunk size \(size)")
+        }
+        XCTAssertTrue(script.events.compactMap(\.assistantEvent).contains { if case .toolItem = $0 { true } else { false } },
+                      "the script has the cards as they are written")
+
+        // What was posted: the route, camelCase keys, the study state, the tools and the turn with its continuation.
+        let posted = try XCTUnwrap(AIStubURLProtocol.requests.last)
+        XCTAssertEqual(posted.url?.absoluteString, "https://abcdefgh.supabase.co/functions/v1/ai/assistant")
+        XCTAssertEqual(posted.httpMethod, "POST")
+        XCTAssertEqual(posted.timeoutInterval, HTTPRelayTransport.Route.assistant.timeout)
+        let body = try XCTUnwrap(AIStubURLProtocol.bodies.last)
+        let json = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: Any])
+        XCTAssertNotNil(json["study"])
+        XCTAssertEqual((json["tools"] as? [String])?.count, 8)
+        let turns = try XCTUnwrap(json["turns"] as? [[String: Any]])
+        XCTAssertEqual(turns.count, 1)
+        XCTAssertEqual((turns[0]["continuation"] as? [[String: Any]])?.first?["call_id"] as? String, "call_1",
+                       "the continuation goes back exactly as the relay sent it, snake_case and all")
+        XCTAssertEqual((turns[0]["results"] as? [[String: Any]])?.first?["callId"] as? String, "call_1")
+        XCTAssertEqual(try JSONDecoder.cramless.decode(AssistantRequest.self, from: body), request)
+    }
+
+    func testHTTPResearchDecodesTheSearchTheSourcesAndTheCitations() async throws {
+        let script = try RelayFixtures.load(ResearchScript.self, "research-mitosis")
+        let events = script.events.map { (event: $0.event, data: $0.data) }
+        let request = ResearchRequest(minor: false, topic: "Mitosis and meiosis", focus: nil, course: "Bio 101")
+        for size in [3, 64] {
+            let chunks = try sseChunks(events: events, size: size)
+            AIStubURLProtocol.handler = { _ in .init(headers: ["Content-Type": "text/event-stream"], chunks: chunks) }
+            var received: [ResearchEvent] = []
+            for try await event in http().research(request) { received.append(event) }
+            XCTAssertEqual(received, script.events.compactMap(\.researchEvent), "chunk size \(size)")
+            XCTAssertTrue(received.contains { if case .citation = $0 { true } else { false } })
+        }
+        let posted = try XCTUnwrap(AIStubURLProtocol.requests.last)
+        XCTAssertEqual(posted.url?.absoluteString, "https://abcdefgh.supabase.co/functions/v1/ai/research")
+        let json = try XCTUnwrap(JSONSerialization.jsonObject(with: try XCTUnwrap(AIStubURLProtocol.bodies.last)) as? [String: Any])
+        XCTAssertEqual(json["minor"] as? Bool, false)
+        XCTAssertEqual(json["topic"] as? String, "Mitosis and meiosis")
+        XCTAssertNil(json["focus"], "an absent value is left out, not sent as null")
+    }
+
+    func testHTTPAssistantErrorsMapLikeTheTutors() async throws {
+        let request = try fixtureRequest(AssistantRequest.self, "assistant")
+        AIStubURLProtocol.handler = { _ in .init(status: 429, chunks: [self.fixtureData("error-quota")]) }
+        do {
+            for try await _ in http().assistant(request) {}
+            XCTFail("expected quota")
+        } catch let error as RelayError {
+            guard case .quotaExceeded = error else { return XCTFail("\(error)") }
+        }
+        // A stream that ends with no done or error was cut off, and what arrived is kept by the caller.
+        AIStubURLProtocol.handler = { _ in .init(headers: ["Content-Type": "text/event-stream"],
+                                               chunks: [Data("event: start\ndata: {\"model\":\"m\"}\n\n".utf8)]) }
+        var seen: [AssistantEvent] = []
+        do {
+            for try await event in http().assistant(request) { seen.append(event) }
+            XCTFail("expected a cut-off")
+        } catch let error as RelayError {
+            guard case .upstream = error else { return XCTFail("\(error)") }
+        }
+        XCTAssertEqual(seen, [.start(model: "m")])
+        // A free account asking for web research is told it needs a plan.
+        let envelope = Data(#"{"error":{"code":"entitlement_required","message":"Web research is part of Capling Pro."}}"#.utf8)
+        AIStubURLProtocol.handler = { _ in .init(status: 403, chunks: [envelope]) }
+        do {
+            for try await _ in http().research(ResearchRequest(minor: false, topic: "mitosis", focus: nil, course: nil)) {}
+            XCTFail("expected entitlement")
+        } catch let error as RelayError {
+            XCTAssertEqual(error, .entitlementRequired)
         }
     }
 

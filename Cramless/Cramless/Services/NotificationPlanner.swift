@@ -15,6 +15,9 @@ import Foundation
 /// - **Streak nudge** at 20:30 when the streak is 3 or more and the day isn't done yet: today if not studied (and
 ///   there's something to study), else tomorrow; only when the day's reminder came at least an hour earlier. Never
 ///   when reminders are off. Copy is calm ("15 minutes tonight and your 12-day streak is safe.").
+/// - **The day a milestone is one session away** (a streak of 2, 6, 29, 99 or 364 that today's session would carry to
+///   3, 7, 30, 100 or 365; tomorrow's, when today is done) says so in that day's reminder and nudge: "One session today
+///   makes it 30 days."
 /// - Every time is moved out of quiet hours: to 30 minutes before they start or to when they end, whichever keeps it
 ///   on the same day (and is closer).
 /// - At most 2 a day and at least an hour apart, by priority: exam eve, exam week, reminder, streak.
@@ -103,6 +106,9 @@ enum NotificationPlanner {
 
         func dayOffset(of date: Date) -> Int { days(from: input.now, to: date, calendar: calendar) }
 
+        // The day one session reaches a milestone: today when it isn't done yet, tomorrow when it is.
+        let milestone = milestoneNext(input.streak, studiedToday: studiedToday)
+
         func time(_ minutes: Int, onDay offset: Int) -> Date? {
             let start = calendar.startOfDay(for: input.now)
             guard let day = calendar.date(byAdding: .day, value: offset, to: start) else { return nil }
@@ -146,7 +152,7 @@ enum NotificationPlanner {
             let hasHistory = !nothingToday || !exams.isEmpty || input.streak.current > 0 || input.streak.best > 0
             for offset in 0..<reminderDays {
                 guard let date = time(reminder, onDay: offset) else { continue }
-                let body: String
+                var body: String
                 if offset == 0 {
                     guard !studiedToday, !nothingToday else { continue }
                     body = todayCopy(input, focus: focusExam(after: date, in: exams, calendar: calendar))
@@ -155,6 +161,7 @@ enum NotificationPlanner {
                     body = laterCopy(goal: goal, date: date, focus: focusExam(after: date, in: exams, calendar: calendar),
                                      calendar: calendar)
                 }
+                if let milestone, milestone.offset == offset { body = "One session today makes it \(milestone.days) days." }
                 out.append(Planned(id: "\(prefix)daily.\(dayKey(date, calendar))", kind: .daily, date: date, body: body,
                                    url: CramlessLink.session, category: studyCategory, thread: studyCategory))
             }
@@ -163,12 +170,22 @@ enum NotificationPlanner {
         // The streak nudge: tonight if today isn't done (and there's something to do), else tomorrow night.
         if input.reminderMinutes != nil, input.streak.current >= streakThreshold, studiedToday || !nothingToday,
            let date = time(streakMinutes, onDay: studiedToday ? 1 : 0) {
+            let nudge = milestone.map { "\(goal) minutes tonight makes it \($0.days) days." }
+                ?? "\(goal) minutes tonight and your \(input.streak.current)-day streak is safe."
             out.append(Planned(id: "\(prefix)streak.\(dayKey(date, calendar))", kind: .streak, date: date,
-                               body: "\(goal) minutes tonight and your \(input.streak.current)-day streak is safe.",
+                               body: nudge,
                                url: CramlessLink.session, category: studyCategory, thread: studyCategory))
         }
 
         return capped(out, calendar: calendar)
+    }
+
+    /// The milestone one more session carries the streak to, and the day offset it falls on (0 today, 1 tomorrow). Today's
+    /// session counts when the day isn't done; once it is, the next one is tomorrow's.
+    static func milestoneNext(_ streak: StreakState, studiedToday: Bool) -> (offset: Int, days: Int)? {
+        let reach = streak.current + 1
+        guard streak.current > 0, StreakStage.milestones.contains(reach) else { return nil }
+        return (studiedToday ? 1 : 0, reach)
     }
 
     /// Keeps at most `maxPerDay` a day, an hour apart, by priority. An exam note replaces the day's reminder, and

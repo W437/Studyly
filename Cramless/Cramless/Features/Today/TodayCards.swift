@@ -201,11 +201,13 @@ struct TodayStreakPill: View {
     let streak: StreakState
     let onOpen: () -> Void
 
+    @Environment(\.clReduceMotion) private var reduceMotion
+
     var body: some View {
         Button(action: onOpen) {
             HStack(spacing: 5) {
-                Image(systemName: "flame.fill")
-                    .font(.system(size: 15, weight: .bold))
+                // The flame has the stage the streak has grown to, and bounces once when the streak grows.
+                StreakFlame(stage: StreakStage(days: streak.current), size: 22, bounce: reduceMotion ? nil : streak.current)
                 Text("\(streak.current)")
                     .clFont(.number(17, .heavy))
                 if streak.freezesAvailable > 0 {

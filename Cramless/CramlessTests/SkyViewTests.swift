@@ -181,11 +181,11 @@ final class SkyHitTests: XCTestCase {
 final class SkyRenderingTests: XCTestCase {
     private let start = Date(timeIntervalSince1970: 1_790_000_000)
 
-    private func scene(stability: Double, daysOn: Double) -> (SkyScene, [ItemSnapshot]) {
+    private func scene(stability: Double, daysOn: Double, count: Int = 12) -> (SkyScene, [ItemSnapshot]) {
         let course = SkyCourse(id: StableRandom.uuid("c"), name: "Biology", color: .mint, sortOrder: 0, createdAt: start)
         let topic = TopicSnapshot(id: StableRandom.uuid("t"), courseID: course.id, name: "Meiosis", sortOrder: 0)
         var items: [ItemSnapshot] = []
-        for i in 0..<12 {
+        for i in 0..<count {
             var memory = MemoryState.new
             if i < 9 {
                 memory = MemoryState(state: .review, stability: stability, difficulty: 5, due: start, lastReview: start, reps: 3)
@@ -210,6 +210,18 @@ final class SkyRenderingTests: XCTestCase {
             XCTAssertEqual(decoded.color, SkyPlan.colors.firstIndex(of: .mint))
             XCTAssertGreaterThanOrEqual(decoded.step, SkyPlan.dimSteps, "a fresh memory is a bright star")
         }
+    }
+
+    /// Questions added from Today grow the sky while the hero is still on screen behind the sheet, and the canvas gets the bigger scene a
+    /// frame before it gets the bigger plan. Drawing with the old plan read past its end and crashed the app (found by the first tour that
+    /// really tapped "Add 16 questions"): a plan now says whether it fits.
+    func testAPlanFitsOnlyTheSkyItWasMadeFor() {
+        let (small, _) = scene(stability: 30, daysOn: 0)
+        let (bigger, _) = scene(stability: 30, daysOn: 0, count: 16)
+        let plan = SkyPlan(small)
+        XCTAssertNotNil(plan.fitting(small))
+        XCTAssertNil(plan.fitting(bigger), "a sky with more stars than the plan has entries must not be drawn with it")
+        XCTAssertNotNil(SkyPlan(bigger).fitting(bigger))
     }
 
     func testDimStarsLandInTheDimSteps() {
@@ -344,6 +356,11 @@ final class SkyCopyTests: XCTestCase {
 
     func testTheDetailLineSaysHowAConstellationIsDoing() {
         XCTAssertEqual(SkyCopy.detail(0, in: scene()), "3 of 8 bright · 2 dim · 3 not yet lit")
+    }
+
+    func testTheTopicButtonSaysPracticeWhateverTheStars() {
+        // The tour films tap this label ("Practice Learning"), and VoiceOver reads it: the same words with dim stars or none.
+        XCTAssertEqual(String(localized: SkyCopy.practice("Meiosis", minutes: 4)), "Practice Meiosis · 4 min")
     }
 
     func testMinutesToRelightFollowTheDimStarsAndStayInRange() {

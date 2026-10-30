@@ -23,7 +23,7 @@ struct AIPrivacyPage: View {
                     title: "Use Cloud AI",
                     subtitle: "Better questions from your pages, careful grading of answers in your own words, and Cap explaining in its own words.",
                     isOn: Binding(get: { consent }, set: setCloud),
-                    hintOn: "Asks first. Then the text of your pages, answers you type and your questions to Cap go to \(AIConsent.processor) through Capling's server.",
+                    hintOn: "Asks first. Then the text of your pages, answers you type, your questions to Cap and the names of your courses, topics and exams go to \(AIConsent.processor) through Capling's server.",
                     hintOff: "Stops sending anything to Cloud AI. Capling keeps working on this iPhone.",
                     disabledReason: cloudDisabledReason)
                 SettingsToggleRow(
@@ -63,10 +63,10 @@ struct AIPrivacyPage: View {
             CLSectionHeader(title: "What's sent, and to whom")
             VStack(spacing: 0) {
                 SettingsInfoCard(icon: "doc.text", title: "Only with Cloud AI on",
-                                 text: "The text of your pages and lectures, answers you type when they're graded, and your questions to Cap. Page photos only with their own switch.")
+                                 text: "The text of your pages and lectures, answers you type when they're graded, and your questions to Cap. For Cap's tools it also sees the names of your courses, topics and exams, your exam dates, how ready you are, which topics are fading and how many cards are due; if you ask it to research online, that topic is searched on trusted study sites. Page photos only with their own switch.")
                 divider
                 SettingsInfoCard(icon: "server.rack", title: "\(AIConsent.processor), through Capling's server",
-                                 text: "Requests go to \(AIConsent.processor)'s Claude models through our own server, never straight from your phone to an AI company.")
+                                 text: "Requests go to \(AIConsent.processor) through our own server, never straight from your phone to an AI company.")
                 divider
                 SettingsInfoCard(icon: "hand.raised.fill", tint: .mint, title: "Never used for training",
                                  text: "Your notes and answers are never used to train AI models.")

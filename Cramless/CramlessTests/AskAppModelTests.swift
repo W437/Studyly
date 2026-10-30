@@ -134,6 +134,8 @@ final class AskAppModelTests: AskTestCase {
 
     func testTheMockTutorStreamsAndTheAnswerIsSavedWithCheckedCitations() async throws {
         let app = makeApp(mode: .mock, consent: true)
+        // The tutor's own path: Ask tries the assistant first, so this is the relay having no assistant (it falls back to the tutor).
+        app.ai.assistantRetryAt = app.now.addingTimeInterval(600)
         let bio = makeBio(app)
         let streams = AskStreams()
         let thread = app.startChat(courseID: bio.course.id)

@@ -276,18 +276,19 @@ enum SyncRecords {
     static func row(_ d: DayRecord, now: Date) -> SyncRow {
         ["day_key": .string(d.dayKey), "day": .date(d.day), "study_seconds": .number(d.studySeconds),
          "items_reviewed": .integer(d.itemsReviewed), "sessions": .integer(d.sessions), "frozen": .bool(d.frozen),
-         "repaired": .bool(d.repaired), "updated_at": .date(now)]
+         "repaired": .bool(d.repaired), "quest_mask": .integer(d.questMask), "updated_at": .date(now)]
     }
 
     static func makeDay(_ row: SyncRow) -> DayRecord? {
         guard let key = row.string("day_key"), let day = row.date("day") else { return nil }
         return DayRecord(dayKey: key, day: day, studySeconds: row.double("study_seconds") ?? 0,
                          itemsReviewed: row.int("items_reviewed") ?? 0, sessions: row.int("sessions") ?? 0,
-                         frozen: row.bool("frozen") ?? false, repaired: row.bool("repaired") ?? false)
+                         frozen: row.bool("frozen") ?? false, repaired: row.bool("repaired") ?? false,
+                         questMask: row.int("quest_mask") ?? 0)
     }
 
-    /// Two devices studied the same day: keep the larger of each count and either flag. Returns true when the
-    /// local record changed.
+    /// Two devices studied the same day: keep the larger of each count, either flag, and every quest either finished
+    /// (the masks join by OR, so a bit once set stays). Returns true when the local record changed.
     @discardableResult
     static func merge(_ d: DayRecord, with row: SyncRow) -> Bool {
         let seconds = max(d.studySeconds, row.double("study_seconds") ?? 0)
@@ -295,13 +296,15 @@ enum SyncRecords {
         let sessions = max(d.sessions, row.int("sessions") ?? 0)
         let frozen = d.frozen || (row.bool("frozen") ?? false)
         let repaired = d.repaired || (row.bool("repaired") ?? false)
+        let quests = d.questMask | (row.int("quest_mask") ?? 0)
         let changed = seconds != d.studySeconds || reviewed != d.itemsReviewed || sessions != d.sessions
-            || frozen != d.frozen || repaired != d.repaired
+            || frozen != d.frozen || repaired != d.repaired || quests != d.questMask
         d.studySeconds = seconds
         d.itemsReviewed = reviewed
         d.sessions = sessions
         d.frozen = frozen
         d.repaired = repaired
+        d.questMask = quests
         return changed
     }
 
@@ -309,7 +312,7 @@ enum SyncRecords {
     static func serverIsBehind(_ d: DayRecord, _ row: SyncRow) -> Bool {
         (row.double("study_seconds") ?? 0) < d.studySeconds || (row.int("items_reviewed") ?? 0) < d.itemsReviewed
             || (row.int("sessions") ?? 0) < d.sessions || (row.bool("frozen") ?? false) != d.frozen
-            || (row.bool("repaired") ?? false) != d.repaired
+            || (row.bool("repaired") ?? false) != d.repaired || (row.int("quest_mask") ?? 0) != d.questMask
     }
 
     // MARK: confusions

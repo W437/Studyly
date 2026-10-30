@@ -9,18 +9,21 @@ struct SettingsScroll<Content: View>: View {
     @ViewBuilder var content: Content
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 0) {
-                content
+        ScrollViewReader { proxy in
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    content
+                }
+                .padding(.horizontal, CLSpace.gutter)
+                .padding(.top, 6)
+                .padding(.bottom, 40)
+                .frame(maxWidth: CLMetrics.readableWidth)
+                .frame(maxWidth: .infinity)
             }
-            .padding(.horizontal, CLSpace.gutter)
-            .padding(.top, 6)
-            .padding(.bottom, 40)
-            .frame(maxWidth: CLMetrics.readableWidth)
-            .frame(maxWidth: .infinity)
+            .scrollDismissesKeyboard(.interactively)
+            .defaultScrollAnchor(HarnessScroll.anchor(.top), for: .initialOffset)
+            .harnessScroll(proxy)
         }
-        .scrollDismissesKeyboard(.interactively)
-        .defaultScrollAnchor(HarnessScroll.anchor(.top), for: .initialOffset)
         .clScreenBackground()
         .navigationTitle(Text(title))
         .navigationBarTitleDisplayMode(.inline)

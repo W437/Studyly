@@ -6,7 +6,10 @@ and file names, type names (`CramlessLink`), the DEBUG switches (`CRAMLESS_*`) a
 (`cramless_*`). What people see, and what becomes permanent, says Capling: the display name, the bundle ids
 (`com.loopware.Capling`, `.Widgets`), the App Group, the StoreKit product ids, the `capling://` scheme, the Squad link
 (`capling.app/squad/…`), the notification and defaults key prefixes. `scripts/rename_brand.py <Old> <New>` does a rename like this
-again (dry run first). The domain `capling.app` and an App Store Connect record are still to be registered by the owner.
+again (dry run first). The App Store Connect record exists on the Loopware team (created 2026-10-30: app id 6828649543, `com.loopware.Capling`,
+SKU `capling-ios`, name "Capling"; its header and Search card are placed in all 39 App Store languages, nothing else is filled in, nothing
+submitted; the translations are drafts for a native read: `scripts/store_art/gpt/locales.py`). The domain `capling.app` and the trademark filing
+are still to be done by the owner.
 
 An exam-readiness study coach for iPhone: capture class material (scan, PDF, paste, lectures, Quizlet and Anki
 imports), turn it into checked questions linked to their source, study 10–15 minutes a day with answers graded in
@@ -45,7 +48,19 @@ DERIVED=build-x scripts/xc.sh build                   # another derived-data fol
   - `scripts/local_stack.sh up|env|down`: a local Supabase stack. With it running, the opt-in
     `CramlessTests/LocalStackTests` drive the app's networking against it.
   - `ANTHROPIC_API_KEY=… deno task live`: real Claude through the relay's code path.
+  - `OPENAI_API_KEY=… deno task live-openai` (in `supabase/functions`): Ask Cap's tutor on OpenAI through the relay's code path.
+  - `deno run -A tools/assistant_bakeoff/run.ts [--group cards] [--cases a,b] [--live-research] [--debug]` (in `supabase/functions`): 50 requests
+    to Ask Cap's assistant on the real model through the relay's code path, playing the app's part, with checks and costs (about 13¢;
+    key from `~/.config/capling/openai_key`, else `OPENAI_API_KEY`: a stale shell key has shadowed the file before).
+  - `deno run -A tools/serve_mock_relay.ts` (in `supabase/functions`, port 54990) with
+    `TEST_RUNNER_CRAMLESS_ASSISTANT_RELAY_URL=http://127.0.0.1:54990 SIM_ID=… scripts/xcq.sh test -only-testing:CramlessTests/AssistantWireTests`:
+    the app's real HTTP client against the relay's code in MOCK mode (opt-in; skipped without the address).
+  - `supabase/functions/tools/tutor_bakeoff/run.ts` (flags and the key file in `docs/BUILD.md` ▸ Ask Cap on OpenAI): Ask Cap's
+    tutor on OpenAI models, 33 questions; `report.ts DIR` scores a run.
   - `scripts/device_isolated.sh <udid>`: installs on a phone with the wildcard profile, no capabilities.
+  - `scripts/device_demo.sh <udid>`: opens that build in demo mode on the Ask tab (the seeded world, the mock relay's scripted
+    replies, sounds, the phone's real haptics). Needed because the assistant only runs through a relay, and a build with no Supabase
+    project hides it when opened from its icon. A phone shown as `unavailable` (off, locked or off the network) is skipped.
   - `scripts/device_probe.sh <udid>`: on-device AI, speech, VisionKit, a Live Activity and haptics on the phone, with
     a report.
   - `scripts/device_shots.sh <udid>`: real screenshots.
@@ -58,12 +73,28 @@ DERIVED=build-x scripts/xc.sh build                   # another derived-data fol
     - Films come out as H.264 High at a constant 60 fps, level 5.1. The recorder's own stream is variable-rate at about
       100-120 fps and encodes as level 6.1; the Phase 5 films made that way would not play on the owner's iPhone. Check
       a new film with `ffprobe` (level 51, 60 fps) before it goes on the review page.
+  - `scripts/journey_film.sh <udid> <out> <journey>` (through `simq run media --`): a film of a person using the app with **real taps and
+    typing**, for the tour page a reviewer without an iPhone watches (the `review-tour` skill is the how-to). `scripts/journeys/`:
+    `phone.py` (the driver over `mobilecli`: taps by label, steered scrolling, typing in bursts, marks, stall cuts), `j_*.py` (one file
+    per journey), `moves.py` (what a student does in a session), `tour.py` (`list`, `try <journey> <udid>` rehearses on a fresh install
+    with a screenshot at every mark, `package`), `tour_page.py` + `tour_content.py` (the page, `build/review/anis-tour/`). The app
+    draws a ring under each finger when `CRAMLESS_SHOW_TOUCHES=1` (`App/TouchDots.swift`); the hooks for a journey's start are the
+    usual ones. film.sh gets `FILM_DRIVER` (run the driver instead of sleeping), `FILM_NO_HALF=1` and writes `<name>.marks.json`.
+    The harness shows the welcome on the first launch after an install: journey_film.sh launches once and lets go.
   - `scripts/xcq.sh build|test …`: `scripts/xc.sh`, retried while the Mac's shared build queue (`simq`) has no slot.
+    `xc.sh test` sets `SIMQ_NO_CACHE=1`: simq's shared compile cache rewrites source paths to `/^src/…`, and the tests that
+    find the source folder or `docs/` through `#filePath` (Localization, PaywallCopy, GameRender, WidgetRender) fail on it.
     Get a simulator with `simq sim --udid` (not `simctl create`, which simq shuts down as idle) and give it back with
     `simq sim release`; run heavy ffmpeg and recordings through `simq run media -- …`.
   - `scripts/sound_audition/run.sh`: renders every cue on every palette to `docs/shots/audition/`.
+  - `scripts/make_alt_icons.py`: the four alternate app icons and the picker's previews, drawn from the main icon (Cap cut out of the
+    blue, four new skies; free, repeatable). `scripts/contact_sheet.py out.png a.png b.png …` puts screenshots side by side to look at
+    them together. `scripts/cap_anim/films_game.sh` and `build_game_page.py` make the game loop's films and review page.
   - `scripts/review_server.py`: serves `build/review/<phase>/` with byte ranges (Safari needs them for video),
-    on port 8824, exposed with `tailscale serve`.
+    on port 8824, exposed with `tailscale serve`. Its log has each request's Range header, and `GET /__d?<text>` answers 204 and is
+    logged: a page on the owner's phone can report to it (the tour page does when its address ends in `?log`; the `review-tour` skill's
+    `scripts/video_check.html` is a page that tries the films one at a time). A film that plays in Chromium can still show a black player on the phone: see the
+    tour section of docs/BUILD.md.
   - `scripts/cap_anim/`: the Cap animation work (see docs/BUILD.md). It needs `FAL_KEY`, and each script refuses to pass its
     spend cap (`BUDGET`): `cap_anim.py` (round one: stills on magenta, image-to-video, cut-out), `round2.py` (the character
     sheet, Kling 4.0 with Cap as a character, other directions), `sheet_compose.py`, `build_page.py`, `build_page2.py` and
@@ -126,6 +157,11 @@ sleep 4; xcrun simctl io <udid> screenshot shot.png
     `CRAMLESS_SEARCH=<words>`, `CRAMLESS_GRADE=<n>`.
   - Ask, Settings and Squad: `CRAMLESS_ASK`, `CRAMLESS_CHAT`, `CRAMLESS_AGE`, `CRAMLESS_TUTOR`, `CRAMLESS_CARDS`,
     `CRAMLESS_EXPLAIN`, `CRAMLESS_SYNC`, `CRAMLESS_NOTIFY`, `CRAMLESS_SQUAD`, `CRAMLESS_ACCOUNT=apple|email`.
+  - Ask Cap's assistant (`docs/assistant.md`): `CRAMLESS_ROUTE=ask CRAMLESS_ASSISTANT=cards|quiz|note|exam|practice|research|multi|answer|limit|error`
+    asks Cap in a Bio 101 chat and plays the mock relay's script at its live pace (`AskDemo.assistant`). `CRAMLESS_ASSISTANT_FREEZE=<n>` holds the
+    reply after n updates (a card half way through its work), `_AUTO=cards,notes,exams` switches on "Let Cap do it", `_SEND=<text>` asks
+    something else, `_APPROVE=<ms>` presses Add and `_UNDO=<ms>` takes it back, `_SEED=1` (with `CRAMLESS_ROUTE=settings:assistant`) fills "Added by
+    Cap", `CRAMLESS_RESEARCH=pro` shows a free account's web research. `scripts/cap_anim/films_assistant.sh <udid> <out>` films and shoots them all.
   - Paywall and onboarding: `CRAMLESS_PAYWALL_PLAN`, `CRAMLESS_PAYWALL_STATE=purchasing|pending|cancelled|failed|purchased|restored`,
     `CRAMLESS_PAYWALL_TRIAL=0`, `CRAMLESS_PAYWALL_SCROLL`, `CRAMLESS_ONB_REMINDER=1`.
 - Feel:
@@ -164,6 +200,17 @@ sleep 4; xcrun simctl io <udid> screenshot shot.png
   - `CRAMLESS_ROUTE=sky` opens the memory sky; `CRAMLESS_SKY=still|relight[:n]|flare|age:<days>|lapse:<days>|focus:<n>|tour|list|fill:<n>`
     (comma-separated) sets its state: a still frame, a relight after a session, the save's flare on a loop, the sky
     some days on, a time-lapse of forgetting, a focused constellation or a tour of three, the list, more stars.
+  - The game loop (`AppModel+GameHarness.swift`), all with no taps: `CRAMLESS_SCENARIO=streak:<n>` makes a streak of n days up to
+    yesterday (so a session today makes n + 1: `streak:29` then a session is the 30-day milestone);
+    `CRAMLESS_QUESTS=start|partial|done|weekFull` puts today's quests and the week part way through (`weekFull`: one session from
+    lighting a sky; it makes the week end today), `CRAMLESS_QUEST_PICKS=finishSession,ownWords,learnNew` names today's quests;
+    `CRAMLESS_UNLOCK=all` and `CRAMLESS_SKY_THEME=<night|dusk|aurora|ember|bloom|glacier>` unlock every icon and sky or choose one;
+    `CRAMLESS_SKY_TOUR=<ms>` cycles Today through the six skies; `CRAMLESS_TILT=<pitch>,<roll>` (each -1 to 1) holds a badge medal's
+    tilt. Routes `badges` and `badge:<id>` (`Badge` raw values, `badge:streak30`). Summaries: `CRAMLESS_SESSION_STATE=milestone-summary|
+    badge-summary|quest-summary` answer eight questions and show the summary; then `CRAMLESS_SUMMARY_SCROLL=<ms>` scrolls it to its
+    end, and each that long after the one before `CRAMLESS_SUMMARY_USE_SKY` (puts the sky the week lit behind the stars),
+    `CRAMLESS_SUMMARY_BADGE` (opens the new badge) and `CRAMLESS_SUMMARY_DONE` (presses Done). Films use `CRAMLESS_NOW` in the
+    afternoon: after 22:00 celebrations are calm (no confetti).
   - `CRAMLESS_REDUCE_MOTION=1` and `CRAMLESS_DWC=1` force Reduce Motion and Differentiate Without Color, which the
     Simulator can't switch on.
 - A deeper state (a graded answer, scene N mid-play) is a hook in its own view, read with
@@ -218,7 +265,16 @@ sleep 4; xcrun simctl io <udid> screenshot shot.png
 - **Consent**: cloud AI is opt-in (`settings.cloudConsentVersion`), sending page photos is a separate switch
   (`settings.sendPhotos`). Copy never says "nothing leaves your device" where a cloud path exists.
 - **Under-18**: `settings.isMinor` keeps the tutor on hints first and teen-safe; no essay writing or
-  "humanizing", for anyone.
+  "humanizing", for anyone. It also locks every "Let Cap do it" switch on ask-first and removes web research
+  (`settings.assistantAuto`, `assistantWeb`; the relay refuses `research` and drops `research_web` for `minor` too).
+- **Ask Cap's assistant** (`docs/assistant.md`): the model only *chooses* a tool; the app runs it (`AppModel+Assistant`,
+  `AIRouter+Assistant`). A draft tool returns a proposal in the chat (`AssistantStep`, kept in `ChatMessage.actionsData`) that the student
+  adds, changes or skips, or, with "Let Cap do it" on for that kind, that is added at once and can be undone. The model's claims are checked
+  here before they are shown (`AssistantDrafts`: a quote is evidence only if it is in the notes, else the item says "Cap's own words"; a
+  choice question needs its right option; a date must be a real day). Adding goes through `ItemFactory` / `createSource` / `createExam`, undo
+  is a soft delete of the ids the step made. The tool result the model reads must say what really happened ("proposed" or "added"). Web text
+  is data: the research route has no tools and its result becomes a note only on a tap. Add a tool in `_shared/assistant.ts` (strict
+  schema), `AssistantToolName`, `runDraftTool` or the router, a mock script in `_shared/fixtures`, and the live test's cases.
 - **iOS 27 symbols** sit inside `#if HAS_IOS27_SDK` with `@available(iOS 27.0, *)`; the deployment target is 26.0.
 - **No new package dependencies** unless there is no reasonable alternative; say why in the change.
 - **No secrets in the repo.** Provider keys live only in Supabase function secrets.
@@ -253,6 +309,21 @@ sleep 4; xcrun simctl io <udid> screenshot shot.png
     circle", to decide what belongs to an exam.
 - Celebrations: `CelebrationPolicy` (`Engine/Celebration.swift`) picks one per screen, for learning only (never a
   purchase); `CLConfetti` draws it. Exam eve and quiet hours stay calm.
+- The game loop (`docs/design.md` ▸ The game loop): nothing to lose, no currency.
+  - The flame is `StreakFlame(stage:size:lit:bounce:)` over `StreakStage(days:)` (`Shared/`, drawn in code, so widgets use it too);
+    use it wherever a streak is shown in colour, not `flame.fill`. Milestones are `StreakStage.milestones` (3, 7, 30, 100, 365).
+  - Daily quests are `QuestEngine` (`Engine/Quests.swift`, pure and seeded). A quest's raw value is its bit in `DayRecord.questMask`
+    (stored, synced as `quest_mask`, merged by OR): never renumber `QuestKind`. Progress is read from the day's own answers
+    (`AppModel.questFacts(forDay:)`); `settleQuests()` writes the bits (summary, rollover). 12 in a calendar week light the next
+    `SkyTheme` (`settings.litWeeks`).
+  - Badges are `AchievementEngine` over facts read from the whole log (`achievementFacts()`, cached per revision); `settings.badges`
+    keeps which the person has been told about. `AppModel.settleGame()` is what the summary calls after a session.
+  - A sky is a `SkyPalette` read from the environment (`@Environment(\.skyTheme)`, set at the root): draw with
+    `theme.palette.top`/`.farHills`/…, never the night colours. Icons are `AppIconChoice` (unlocked by the best streak); change one
+    with `app.setAppIcon(_:)`, which asks the system's switcher (a fake in tests).
+  - `ReviewPromptPolicy` decides when to ask for a rating; the summary asks. It never asks in the harness or in tests.
+  - Look at anything with layers in a real screenshot: a `.shadow` + `inset(by:)` + blur + blended sheen on one view drew a second
+    medal beside the first on screen and not in an `ImageRenderer` (`BadgeMedal`).
 - Feel: a moment with a sound plays `CLFeel.play(.right(combo:))`, `.saved`, `.done`, …
   (`DesignSystem/Feel/`), which plays the sound and its paired haptic together.
   - Plain taps, ticks and page turns stay on `CLHaptics` and make no sound.
