@@ -1,14 +1,19 @@
 // Plans and quotas. Free: 3 AI scans a week (up to 10 pages each), 20 graded answers and 10 tutor messages a
 // day, AI notes for 1 lecture a week; reviews are never metered (they're on the device). Paid plans (Pro, Squad,
 // Exam Pass) are unlimited with fair use: a ceiling no student reaches in normal use, never shown as a limit.
+// Under every plan's meters sits one cost cap: what a person's model calls may cost in a day (`dailyCostError`).
 // Days and weeks are the person's local ones (their profile's time zone; weeks start on Monday).
 
 import type { MeterKey, Period, Plan, QuotaMeter, QuotaStatus } from "./contract.ts";
 import { ApiError } from "./errors.ts";
 
-/** The metered things. `extras` covers check, confusions and cards-from-chat, which the app never shows;
- * `redeems` caps Squad invite-code attempts, so codes can't be guessed. */
-export type Meter = MeterKey | "extras" | "redeems";
+/** The metered things. `extras` covers check, confusions and cards-from-chat, which the app never shows; `redeems` caps
+ * Squad invite-code attempts, so codes can't be guessed; `drafts` counts what Cap drafts for the student (cards, questions,
+ * notes, exams): 3 a day on the free plan; `research` counts web research, which is a Pro feature (the free allowance is
+ * none); `rounds` counts the rounds of an assistant reply after its first, which is a `tutor` message: the relay refuses a
+ * round when `rounds` would pass three for each `tutor` message that day, so a request made up by hand, with no first
+ * round behind it, costs the same as an honest reply. */
+export type Meter = MeterKey | "extras" | "redeems" | "drafts" | "research" | "rounds";
 
 export interface MeterRule {
   period: Period;
@@ -23,6 +28,9 @@ export const METERS: Record<Meter, MeterRule> = {
   lectures: { period: "week", free: 1, fairUse: 40 },
   extras: { period: "day", free: 120, fairUse: 800 },
   redeems: { period: "day", free: 10, fairUse: 10 },
+  drafts: { period: "day", free: 3, fairUse: 150 },
+  research: { period: "day", free: 0, fairUse: 3 },
+  rounds: { period: "day", free: 30, fairUse: 900 },
 };
 
 /** The meters the app shows, in this order. */
@@ -139,6 +147,9 @@ const FREE_MESSAGES: Record<Meter, string> = {
     "That's this week's AI notes for 1 lecture on the free plan. Transcripts still work, and it resets on Monday.",
   extras: "That's today's AI requests on the free plan. It resets at midnight.",
   redeems: "That's too many invite codes for today. Check the code with your friend and try again tomorrow.",
+  drafts: "That's today's 3 free drafts on the free plan. Capling Pro lifts the daily limit.",
+  research: "Web research is part of Capling Pro.",
+  rounds: "That's today's 10 tutor messages on the free plan. It resets at midnight.",
 };
 
 const FAIR_USE_NAMES: Record<Meter, string> = {
@@ -148,7 +159,20 @@ const FAIR_USE_NAMES: Record<Meter, string> = {
   lectures: "lecture notes",
   extras: "AI requests",
   redeems: "invite codes",
+  drafts: "drafts",
+  research: "web research",
+  rounds: "tutor messages",
 };
+
+/** The 429 for the day's cost cap (DEFAULT_DAILY_COST_CAP_NANO in cost.ts). No meter ran out, so it names none; `retryAfter` is the time
+ * to the person's local midnight. The words are for every plan: the app shows them on a paid plan and in the chat's note. */
+export function dailyCostError(plan: Plan, now: Date, timeZone: string): ApiError {
+  const retryAfter = Math.max(1, Math.ceil((periodEnd("day", now, timeZone).getTime() - now.getTime()) / 1000));
+  return new ApiError("quota_exceeded", "That's all the cloud AI for today. It starts again at midnight.", {
+    quota: { plan, meters: [] },
+    retryAfter,
+  });
+}
 
 /** The 429 for a meter that ran out. On the free plan it matches the app's copy (fixtures/error-quota.json);
  * on a paid plan it's the fair-use ceiling and says when to retry. */
@@ -156,9 +180,10 @@ export function quotaError(meter: Meter, plan: Plan, used: number, now: Date, ti
   const rule = METERS[meter];
   const shown: QuotaStatus = {
     plan,
-    meters: meter === "extras" || meter === "redeems"
-      ? []
-      : [{ key: meter, used, limit: shownLimit(meter, plan), period: rule.period }],
+    meters:
+      meter === "extras" || meter === "redeems" || meter === "drafts" || meter === "research" || meter === "rounds"
+        ? []
+        : [{ key: meter, used, limit: shownLimit(meter, plan), period: rule.period }],
   };
   if (!isPaid(plan) || meter === "redeems") {
     return new ApiError("quota_exceeded", FREE_MESSAGES[meter], { quota: shown });

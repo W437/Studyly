@@ -44,7 +44,9 @@ function placeholder(route: string): unknown {
 }
 
 function asText(call: JsonCall): string {
-  return call.content.map((block) => ("text" in block && typeof block.text === "string") ? block.text : JSON.stringify(block))
+  return call.content.map((block) =>
+    ("text" in block && typeof block.text === "string") ? block.text : JSON.stringify(block)
+  )
     .join("\n\n");
 }
 
@@ -70,13 +72,18 @@ if (mode === "record" && route.startsWith("tutor-")) {
       b.type === "text"
         ? b.text
         : b.type === "search_result"
-        ? `<source id="${b.source}" title="${b.title}">${(b.content ?? []).map((c: { text: string }) => c.text).join(" ")}</source>`
+        ? `<source id="${b.source}" title="${b.title}">${
+          (b.content ?? []).map((c: { text: string }) => c.text).join(" ")
+        }</source>`
         : JSON.stringify(b)
     );
     return `[${m.role}]\n${parts.join("\n")}`;
   }).join("\n\n");
   const file = new URL(`${route}.call.json`, OUT);
-  await Deno.writeTextFile(file, JSON.stringify({ model: call.model, effort: call.effort, system: call.system, user }, null, 2));
+  await Deno.writeTextFile(
+    file,
+    JSON.stringify({ model: call.model, effort: call.effort, system: call.system, user }, null, 2),
+  );
   console.log(`recorded ${route}: ${file.pathname}`);
   Deno.exit(0);
 }
@@ -86,14 +93,21 @@ if (mode === "record") {
   await (await t.ai(path, { body })).text();
   const call = provider.jsonCalls[0];
   const file = new URL(`${route}.call.json`, OUT);
-  await Deno.writeTextFile(file, JSON.stringify({
-    model: call.model,
-    effort: call.effort,
-    maxTokens: call.maxTokens,
-    system: call.system,
-    user: asText(call),
-    schema: call.schema,
-  }, null, 2));
+  await Deno.writeTextFile(
+    file,
+    JSON.stringify(
+      {
+        model: call.model,
+        effort: call.effort,
+        maxTokens: call.maxTokens,
+        system: call.system,
+        user: asText(call),
+        schema: call.schema,
+      },
+      null,
+      2,
+    ),
+  );
   console.log(`recorded ${route}: ${file.pathname}`);
   Deno.exit(0);
 }

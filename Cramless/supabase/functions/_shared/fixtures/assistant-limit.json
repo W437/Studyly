@@ -1,0 +1,20 @@
+{
+  "events": [
+    {
+      "event": "start",
+      "delayMs": 500,
+      "data": {
+        "model": "mock"
+      }
+    },
+    {
+      "event": "done",
+      "delayMs": 40,
+      "data": {
+        "model": "mock",
+        "stop": "end_turn",
+        "limit": "drafts"
+      }
+    }
+  ]
+}

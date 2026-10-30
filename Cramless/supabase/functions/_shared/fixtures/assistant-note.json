@@ -1,0 +1,328 @@
+{
+  "events": [
+    {
+      "event": "start",
+      "delayMs": 700,
+      "data": {
+        "model": "mock"
+      }
+    },
+    {
+      "event": "tool_start",
+      "delayMs": 120,
+      "data": {
+        "callId": "call_mock_note",
+        "name": "create_note"
+      }
+    },
+    {
+      "event": "tool_text",
+      "delayMs": 60,
+      "data": {
+        "callId": "call_mock_note",
+        "text": "Mitosis is the process"
+      }
+    },
+    {
+      "event": "tool_text",
+      "delayMs": 60,
+      "data": {
+        "callId": "call_mock_note",
+        "text": " by which one eukaryot"
+      }
+    },
+    {
+      "event": "tool_text",
+      "delayMs": 60,
+      "data": {
+        "callId": "call_mock_note",
+        "text": "ic cell divides to mak"
+      }
+    },
+    {
+      "event": "tool_text",
+      "delayMs": 60,
+      "data": {
+        "callId": "call_mock_note",
+        "text": "e two genetically iden"
+      }
+    },
+    {
+      "event": "tool_text",
+      "delayMs": 60,
+      "data": {
+        "callId": "call_mock_note",
+        "text": "tical daughter cells.\n"
+      }
+    },
+    {
+      "event": "tool_text",
+      "delayMs": 60,
+      "data": {
+        "callId": "call_mock_note",
+        "text": "\nThe four phases\n• Pro"
+      }
+    },
+    {
+      "event": "tool_text",
+      "delayMs": 60,
+      "data": {
+        "callId": "call_mock_note",
+        "text": "phase: chromosomes con"
+      }
+    },
+    {
+      "event": "tool_text",
+      "delayMs": 60,
+      "data": {
+        "callId": "call_mock_note",
+        "text": "dense and become visib"
+      }
+    },
+    {
+      "event": "tool_text",
+      "delayMs": 60,
+      "data": {
+        "callId": "call_mock_note",
+        "text": "le; the nuclear envelo"
+      }
+    },
+    {
+      "event": "tool_text",
+      "delayMs": 60,
+      "data": {
+        "callId": "call_mock_note",
+        "text": "pe breaks down.\n• Meta"
+      }
+    },
+    {
+      "event": "tool_text",
+      "delayMs": 60,
+      "data": {
+        "callId": "call_mock_note",
+        "text": "phase: chromosomes lin"
+      }
+    },
+    {
+      "event": "tool_text",
+      "delayMs": 60,
+      "data": {
+        "callId": "call_mock_note",
+        "text": "e up at the equator of"
+      }
+    },
+    {
+      "event": "tool_text",
+      "delayMs": 60,
+      "data": {
+        "callId": "call_mock_note",
+        "text": " the cell; spindle fib"
+      }
+    },
+    {
+      "event": "tool_text",
+      "delayMs": 60,
+      "data": {
+        "callId": "call_mock_note",
+        "text": "res attach to the cent"
+      }
+    },
+    {
+      "event": "tool_text",
+      "delayMs": 60,
+      "data": {
+        "callId": "call_mock_note",
+        "text": "romeres.\n• Anaphase: s"
+      }
+    },
+    {
+      "event": "tool_text",
+      "delayMs": 60,
+      "data": {
+        "callId": "call_mock_note",
+        "text": "ister chromatids are p"
+      }
+    },
+    {
+      "event": "tool_text",
+      "delayMs": 60,
+      "data": {
+        "callId": "call_mock_note",
+        "text": "ulled to opposite pole"
+      }
+    },
+    {
+      "event": "tool_text",
+      "delayMs": 60,
+      "data": {
+        "callId": "call_mock_note",
+        "text": "s; each chromatid beco"
+      }
+    },
+    {
+      "event": "tool_text",
+      "delayMs": 60,
+      "data": {
+        "callId": "call_mock_note",
+        "text": "mes a separate chromos"
+      }
+    },
+    {
+      "event": "tool_text",
+      "delayMs": 60,
+      "data": {
+        "callId": "call_mock_note",
+        "text": "ome.\n• Telophase: new "
+      }
+    },
+    {
+      "event": "tool_text",
+      "delayMs": 60,
+      "data": {
+        "callId": "call_mock_note",
+        "text": "nuclear envelopes form"
+      }
+    },
+    {
+      "event": "tool_text",
+      "delayMs": 60,
+      "data": {
+        "callId": "call_mock_note",
+        "text": " around each set of ch"
+      }
+    },
+    {
+      "event": "tool_text",
+      "delayMs": 60,
+      "data": {
+        "callId": "call_mock_note",
+        "text": "romosomes; chromosomes"
+      }
+    },
+    {
+      "event": "tool_text",
+      "delayMs": 60,
+      "data": {
+        "callId": "call_mock_note",
+        "text": " unwind.\n\nAfter mitosi"
+      }
+    },
+    {
+      "event": "tool_text",
+      "delayMs": 60,
+      "data": {
+        "callId": "call_mock_note",
+        "text": "s\nCytokinesis divides "
+      }
+    },
+    {
+      "event": "tool_text",
+      "delayMs": 60,
+      "data": {
+        "callId": "call_mock_note",
+        "text": "the cytoplasm, giving "
+      }
+    },
+    {
+      "event": "tool_text",
+      "delayMs": 60,
+      "data": {
+        "callId": "call_mock_note",
+        "text": "two separate daughter "
+      }
+    },
+    {
+      "event": "tool_text",
+      "delayMs": 60,
+      "data": {
+        "callId": "call_mock_note",
+        "text": "cells.\n\nWhy it matters"
+      }
+    },
+    {
+      "event": "tool_text",
+      "delayMs": 60,
+      "data": {
+        "callId": "call_mock_note",
+        "text": "\nGrowth and developmen"
+      }
+    },
+    {
+      "event": "tool_text",
+      "delayMs": 60,
+      "data": {
+        "callId": "call_mock_note",
+        "text": "t, replacing old or da"
+      }
+    },
+    {
+      "event": "tool_text",
+      "delayMs": 60,
+      "data": {
+        "callId": "call_mock_note",
+        "text": "maged cells (such as s"
+      }
+    },
+    {
+      "event": "tool_text",
+      "delayMs": 60,
+      "data": {
+        "callId": "call_mock_note",
+        "text": "kin cells), healing af"
+      }
+    },
+    {
+      "event": "tool_text",
+      "delayMs": 60,
+      "data": {
+        "callId": "call_mock_note",
+        "text": "ter injury, and asexua"
+      }
+    },
+    {
+      "event": "tool_text",
+      "delayMs": 60,
+      "data": {
+        "callId": "call_mock_note",
+        "text": "l reproduction in sing"
+      }
+    },
+    {
+      "event": "tool_text",
+      "delayMs": 60,
+      "data": {
+        "callId": "call_mock_note",
+        "text": "le-celled organisms."
+      }
+    },
+    {
+      "event": "tool_call",
+      "delayMs": 300,
+      "data": {
+        "callId": "call_mock_note",
+        "name": "create_note",
+        "arguments": {
+          "course_id": "c1",
+          "title": "Mitosis in short",
+          "body": "Mitosis is the process by which one eukaryotic cell divides to make two genetically identical daughter cells.\n\nThe four phases\n• Prophase: chromosomes condense and become visible; the nuclear envelope breaks down.\n• Metaphase: chromosomes line up at the equator of the cell; spindle fibres attach to the centromeres.\n• Anaphase: sister chromatids are pulled to opposite poles; each chromatid becomes a separate chromosome.\n• Telophase: new nuclear envelopes form around each set of chromosomes; chromosomes unwind.\n\nAfter mitosis\nCytokinesis divides the cytoplasm, giving two separate daughter cells.\n\nWhy it matters\nGrowth and development, replacing old or damaged cells (such as skin cells), healing after injury, and asexual reproduction in single-celled organisms."
+        }
+      }
+    },
+    {
+      "event": "done",
+      "delayMs": 60,
+      "data": {
+        "model": "mock",
+        "stop": "tool_calls",
+        "continuation": [
+          {
+            "type": "function_call",
+            "call_id": "call_mock_note",
+            "name": "create_note",
+            "arguments": "{\"course_id\": \"c1\", \"title\": \"Mitosis in short\", \"body\": \"Mitosis is the process by which one eukaryotic cell divides to make two genetically identical daughter cells.\\n\\nThe four phases\\n• Prophase: chromosomes condense and become visible; the nuclear envelope breaks down.\\n• Metaphase: chromosomes line up at the equator of the cell; spindle fibres attach to the centromeres.\\n• Anaphase: sister chromatids are pulled to opposite poles; each chromatid becomes a separate chromosome.\\n• Telophase: new nuclear envelopes form around each set of chromosomes; chromosomes unwind.\\n\\nAfter mitosis\\nCytokinesis divides the cytoplasm, giving two separate daughter cells.\\n\\nWhy it matters\\nGrowth and development, replacing old or damaged cells (such as skin cells), healing after injury, and asexual reproduction in single-celled organisms.\"}"
+          }
+        ]
+      }
+    }
+  ]
+}

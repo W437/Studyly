@@ -1,0 +1,40 @@
+{
+  "events": [
+    {
+      "event": "start",
+      "delayMs": 500,
+      "data": {
+        "model": "mock"
+      }
+    },
+    {
+      "event": "delta",
+      "delayMs": 55,
+      "data": {
+        "text": "I couldn't do that one. "
+      }
+    },
+    {
+      "event": "delta",
+      "delayMs": 55,
+      "data": {
+        "text": "I can still help "
+      }
+    },
+    {
+      "event": "delta",
+      "delayMs": 55,
+      "data": {
+        "text": "from your notes."
+      }
+    },
+    {
+      "event": "done",
+      "delayMs": 40,
+      "data": {
+        "model": "mock",
+        "stop": "end_turn"
+      }
+    }
+  ]
+}

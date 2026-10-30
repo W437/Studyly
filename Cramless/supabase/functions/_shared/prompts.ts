@@ -4,6 +4,7 @@
 
 import type Anthropic from "@anthropic-ai/sdk";
 import type {
+  AssistantRequest,
   CardsFromChatRequest,
   ConfusionsRequest,
   GeneratedItem,
@@ -11,6 +12,7 @@ import type {
   GradeRequest,
   LectureRequest,
   PageInput,
+  ResearchRequest,
   TranscribeImageRequest,
   TutorRequest,
 } from "./contract.ts";
@@ -35,8 +37,38 @@ export function tutorSystem(req: TutorRequest): string {
   const hints = req.minor || req.mode === "hints";
   parts.push(prompt(hints ? "tutor-hints" : "tutor-explain"));
   if (req.minor) parts.push(prompt("tutor-minor"));
-  if (req.course) parts.push(`The student's course: ${req.course}.`);
+  if (req.course) parts.push(`The student's course: ${oneLine(req.course)}.`);
   return parts.join("\n\n");
+}
+
+/** The assistant's system prompt: the tutor's, plus what the tools add. The quick-check ending of "explain" mode is for
+ * answers; after an action Cap's note is short, and the assistant prompt says so. */
+export function assistantSystem(req: AssistantRequest): string {
+  const parts = [prompt("rules"), prompt("tutor"), prompt("assistant")];
+  const hints = req.minor || req.mode === "hints";
+  parts.push(prompt(hints ? "tutor-hints" : "tutor-explain"));
+  if (req.minor) parts.push(prompt("tutor-minor"));
+  if (req.course) parts.push(`The student's course: ${oneLine(req.course)}.`);
+  return parts.join("\n\n");
+}
+
+/** Text from the student's own device as one short line, so a course name cannot add instructions of its own. */
+function oneLine(text: string): string {
+  return text.replace(/[\r\n\t`<>]+/g, " ").replace(/\s+/g, " ").trim().slice(0, 120);
+}
+
+/** The web research prompt. */
+export function researchSystem(): string {
+  return `${prompt("rules")}\n\n${prompt("research")}`;
+}
+
+/** What the research is asked, from the student's topic and focus. */
+export function researchInput(req: ResearchRequest): string {
+  const parts = [`Topic: ${req.topic.trim()}`];
+  if (req.focus?.trim()) parts.push(`Focus: ${req.focus.trim()}`);
+  if (req.course?.trim()) parts.push(`Course: ${req.course.trim()}`);
+  parts.push("Research it and write the study summary.");
+  return parts.join("\n");
 }
 
 /** The media type of a base64 image, from its first bytes (the contract sends JPEG; PNG and others are read). */

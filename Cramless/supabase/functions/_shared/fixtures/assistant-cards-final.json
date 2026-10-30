@@ -1,0 +1,40 @@
+{
+  "events": [
+    {
+      "event": "start",
+      "delayMs": 500,
+      "data": {
+        "model": "mock"
+      }
+    },
+    {
+      "event": "delta",
+      "delayMs": 55,
+      "data": {
+        "text": "I drafted 6 flashcards on mitosis "
+      }
+    },
+    {
+      "event": "delta",
+      "delayMs": 55,
+      "data": {
+        "text": "for you to look over. "
+      }
+    },
+    {
+      "event": "delta",
+      "delayMs": 55,
+      "data": {
+        "text": "One isn't from your notes, so I marked it."
+      }
+    },
+    {
+      "event": "done",
+      "delayMs": 40,
+      "data": {
+        "model": "mock",
+        "stop": "end_turn"
+      }
+    }
+  ]
+}

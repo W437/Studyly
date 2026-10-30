@@ -3,6 +3,7 @@
 // up, against PostgresStore, so the two can't drift.
 
 import type { Plan } from "../_shared/contract.ts";
+import { parseUsd } from "../_shared/cost.ts";
 import type { Meter } from "../_shared/plans.ts";
 import {
   type AiRequestRow,
@@ -181,6 +182,14 @@ export class MemoryStore implements Store {
   logRequest(row: AiRequestRow): Promise<void> {
     this.requests.push(row);
     return Promise.resolve();
+  }
+
+  spentSince(userId: string, since: Date): Promise<bigint> {
+    let total = 0n;
+    for (const row of this.requests) {
+      if (row.userId === userId && Date.parse(row.createdAt) >= since.getTime()) total += parseUsd(row.costUsd) ?? 0n;
+    }
+    return Promise.resolve(total);
   }
 
   // ---- Entitlements ----

@@ -3,6 +3,7 @@
 // 500, 504). Messages are short, safe to show and never carry the person's content.
 
 import type { QuotaStatus } from "./contract.ts";
+import type { Usage } from "./cost.ts";
 
 export type ErrorCode = "unauthorized" | "quota_exceeded" | "entitlement_required" | "bad_request" | "upstream";
 
@@ -25,6 +26,8 @@ export class ApiError extends Error {
   readonly code: ErrorCode;
   readonly status: number;
   readonly extra: ErrorExtra;
+  /** Tokens a call was billed for even though it failed (a reply that could not be read), so the cost is still recorded. */
+  usage?: Usage;
 
   constructor(code: ErrorCode, message: string, extra: ErrorExtra = {}, status?: number) {
     super(message);

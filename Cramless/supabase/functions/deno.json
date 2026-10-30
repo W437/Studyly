@@ -11,7 +11,8 @@
     "fmt": "deno fmt",
     "bundle": "deno run --allow-read=. --allow-write=_shared/generated.ts _shared/bundle.ts",
     "mock-anthropic": "deno run --allow-net tests/_mock_anthropic.ts",
-    "live": "deno run -A tools/live_check.ts"
+    "live": "deno run -A tools/live_check.ts",
+    "live-openai": "deno run -A tools/live_openai.ts"
   },
   "fmt": {
     "lineWidth": 120,

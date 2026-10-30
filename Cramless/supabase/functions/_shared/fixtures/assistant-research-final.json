@@ -1,0 +1,33 @@
+{
+  "events": [
+    {
+      "event": "start",
+      "delayMs": 500,
+      "data": {
+        "model": "mock"
+      }
+    },
+    {
+      "event": "delta",
+      "delayMs": 55,
+      "data": {
+        "text": "I found a short summary on OpenStax, Britannica and Khan Academy. "
+      }
+    },
+    {
+      "event": "delta",
+      "delayMs": 55,
+      "data": {
+        "text": "Save it as a note if it helps."
+      }
+    },
+    {
+      "event": "done",
+      "delayMs": 40,
+      "data": {
+        "model": "mock",
+        "stop": "end_turn"
+      }
+    }
+  ]
+}

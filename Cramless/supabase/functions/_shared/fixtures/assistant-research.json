@@ -1,0 +1,47 @@
+{
+  "events": [
+    {
+      "event": "start",
+      "delayMs": 700,
+      "data": {
+        "model": "mock"
+      }
+    },
+    {
+      "event": "tool_start",
+      "delayMs": 120,
+      "data": {
+        "callId": "call_mock_research",
+        "name": "research_web"
+      }
+    },
+    {
+      "event": "tool_call",
+      "delayMs": 500,
+      "data": {
+        "callId": "call_mock_research",
+        "name": "research_web",
+        "arguments": {
+          "topic": "Mitosis and meiosis: the differences",
+          "focus": null
+        }
+      }
+    },
+    {
+      "event": "done",
+      "delayMs": 60,
+      "data": {
+        "model": "mock",
+        "stop": "tool_calls",
+        "continuation": [
+          {
+            "type": "function_call",
+            "call_id": "call_mock_research",
+            "name": "research_web",
+            "arguments": "{\"topic\": \"Mitosis and meiosis: the differences\", \"focus\": null}"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "events": [
+    {
+      "event": "start",
+      "delayMs": 500,
+      "data": {
+        "model": "mock"
+      }
+    },
+    {
+      "event": "delta",
+      "delayMs": 55,
+      "data": {
+        "text": "Here's a 10-minute practice session. "
+      }
+    },
+    {
+      "event": "delta",
+      "delayMs": 55,
+      "data": {
+        "text": "Start it when you're ready."
+      }
+    },
+    {
+      "event": "done",
+      "delayMs": 40,
+      "data": {
+        "model": "mock",
+        "stop": "end_turn"
+      }
+    }
+  ]
+}

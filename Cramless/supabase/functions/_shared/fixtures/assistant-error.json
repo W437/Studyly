@@ -1,0 +1,19 @@
+{
+  "events": [
+    {
+      "event": "start",
+      "delayMs": 400,
+      "data": {
+        "model": "mock"
+      }
+    },
+    {
+      "event": "error",
+      "delayMs": 300,
+      "data": {
+        "code": "upstream",
+        "message": "Cap is busy right now. Try again in a moment."
+      }
+    }
+  ]
+}

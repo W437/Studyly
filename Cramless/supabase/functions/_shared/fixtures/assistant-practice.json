@@ -1,0 +1,48 @@
+{
+  "events": [
+    {
+      "event": "start",
+      "delayMs": 700,
+      "data": {
+        "model": "mock"
+      }
+    },
+    {
+      "event": "tool_start",
+      "delayMs": 120,
+      "data": {
+        "callId": "call_mock_practice",
+        "name": "start_practice"
+      }
+    },
+    {
+      "event": "tool_call",
+      "delayMs": 500,
+      "data": {
+        "callId": "call_mock_practice",
+        "name": "start_practice",
+        "arguments": {
+          "course_id": "c1",
+          "topic_id": null,
+          "minutes": 10
+        }
+      }
+    },
+    {
+      "event": "done",
+      "delayMs": 60,
+      "data": {
+        "model": "mock",
+        "stop": "tool_calls",
+        "continuation": [
+          {
+            "type": "function_call",
+            "call_id": "call_mock_practice",
+            "name": "start_practice",
+            "arguments": "{\"course_id\": \"c1\", \"topic_id\": null, \"minutes\": 10}"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -5,6 +5,9 @@
 
 export type TutorEventName = "start" | "delta" | "citation" | "done" | "error";
 
+/** Every event the relay streams: the tutor's, the assistant's tool events and web research's search events. */
+export type EventName = TutorEventName | "tool_start" | "tool_item" | "tool_text" | "tool_call" | "search";
+
 export interface TutorEventData {
   text?: string;
   model?: string;
@@ -64,7 +67,7 @@ export class EventStream {
     this.#cancelHandlers.push(handler);
   }
 
-  send(event: TutorEventName, data: TutorEventData): void {
+  send(event: EventName, data: object): void {
     this.#write(formatEvent(event, data));
   }
 

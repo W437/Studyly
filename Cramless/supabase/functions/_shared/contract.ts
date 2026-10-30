@@ -155,6 +155,132 @@ export interface TutorScript {
   events: TutorScriptEvent[];
 }
 
+// ---- The assistant (streamed) and web research (streamed) ----
+
+/** The tools Ask Cap can call. The app runs them; the relay only lets the model choose. */
+export type AssistantToolName =
+  | "search_notes"
+  | "create_flashcards"
+  | "create_quiz_questions"
+  | "create_note"
+  | "create_exam"
+  | "start_practice"
+  | "open_screen"
+  | "research_web";
+
+export const ASSISTANT_TOOLS: readonly AssistantToolName[] = [
+  "search_notes",
+  "create_flashcards",
+  "create_quiz_questions",
+  "create_note",
+  "create_exam",
+  "start_practice",
+  "open_screen",
+  "research_web",
+];
+
+export interface StudyTopic {
+  id: string;
+  name: string;
+  /** Fading: recall is low. */
+  weak?: boolean;
+}
+
+export interface StudyCourse {
+  id: string;
+  name: string;
+  sources: number;
+  questions: number;
+  due: number;
+  topics: StudyTopic[];
+}
+
+export interface StudyExam {
+  id: string;
+  courseId: string;
+  title: string;
+  /** yyyy-MM-dd, the student's local day. */
+  date: string;
+  /** 0 to 100. */
+  readiness: number;
+}
+
+/** A compact picture of the student's study, with short ids the model passes back to tools (c1, t3, e1). */
+export interface StudyState {
+  /** yyyy-MM-dd, the student's local day. */
+  today: string;
+  currentCourseId?: string;
+  courses: StudyCourse[];
+  exams: StudyExam[];
+}
+
+export interface AssistantResult {
+  callId: string;
+  /** What the app tells the model about the call: a short JSON text ("proposed", "added", passages found, …). */
+  output: string;
+}
+
+/** One round of tool calls already made in this reply: what the relay sent back as `continuation` (opaque to the
+ * app) and the results of those calls. */
+export interface AssistantTurn {
+  continuation: Record<string, unknown>[];
+  results: AssistantResult[];
+}
+
+export interface AssistantRequest {
+  mode: "hints" | "explain";
+  minor: boolean;
+  course?: string;
+  messages: TutorMessage[];
+  sources: TutorSource[];
+  context?: TutorContext;
+  study: StudyState;
+  /** The tools the app lets the model use this time. */
+  tools: AssistantToolName[];
+  turns: AssistantTurn[];
+}
+
+export type AssistantEventName =
+  | "start"
+  | "delta"
+  | "citation"
+  | "tool_start"
+  | "tool_item"
+  | "tool_text"
+  | "tool_call"
+  | "done"
+  | "error";
+
+export interface AssistantScriptEvent {
+  event: AssistantEventName;
+  delayMs: number;
+  data: Record<string, unknown>;
+}
+
+export interface AssistantScript {
+  events: AssistantScriptEvent[];
+}
+
+export interface ResearchRequest {
+  /** An under-18 account: web research is refused. */
+  minor: boolean;
+  topic: string;
+  focus?: string;
+  course?: string;
+}
+
+export type ResearchEventName = "start" | "search" | "delta" | "citation" | "done" | "error";
+
+export interface ResearchScriptEvent {
+  event: ResearchEventName;
+  delayMs: number;
+  data: Record<string, unknown>;
+}
+
+export interface ResearchScript {
+  events: ResearchScriptEvent[];
+}
+
 export interface MistakeInput {
   itemId: string;
   topic: string;

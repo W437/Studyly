@@ -41,6 +41,8 @@ export interface AiRequestRow {
   /** Decimal dollars, "0.000123450". */
   costUsd: string;
   latencyMs: number;
+  /** When the request began (ISO 8601): the day's cost is summed from these. */
+  createdAt: string;
 }
 
 export type Environment = "Production" | "Sandbox" | "Xcode";
@@ -108,6 +110,8 @@ export interface Store {
   refundScan(userId: string, kind: ScanKind, pages: number, period: string, counted: boolean): Promise<void>;
   usage(userId: string, keys: { meter: Meter; period: string }[]): Promise<Partial<Record<Meter, number>>>;
   logRequest(row: AiRequestRow): Promise<void>;
+  /** What the person's model calls have cost since `since`, in nano-dollars, from the request log (MOCK rows cost nothing). */
+  spentSince(userId: string, since: Date): Promise<bigint>;
   saveEntitlements(userId: string, rows: EntitlementRow[], now: Date): Promise<void>;
   applyNotification(update: NotificationUpdate, now: Date): Promise<"applied" | "stale" | "unknown">;
   squadInvite(ownerId: string, code: string, expiresAt: Date, now: Date): Promise<InviteResult>;

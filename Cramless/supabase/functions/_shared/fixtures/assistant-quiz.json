@@ -1,0 +1,171 @@
+{
+  "events": [
+    {
+      "event": "start",
+      "delayMs": 700,
+      "data": {
+        "model": "mock"
+      }
+    },
+    {
+      "event": "tool_start",
+      "delayMs": 120,
+      "data": {
+        "callId": "call_mock_quiz",
+        "name": "create_quiz_questions"
+      }
+    },
+    {
+      "event": "tool_item",
+      "delayMs": 520,
+      "data": {
+        "callId": "call_mock_quiz",
+        "index": 0,
+        "item": {
+          "type": "multiple_choice",
+          "question": "What does cytokinesis divide?",
+          "options": [
+            "The nucleus",
+            "The cytoplasm",
+            "The DNA",
+            "The chromosomes"
+          ],
+          "correct_index": 1,
+          "answer": "The cytoplasm",
+          "key_ideas": null,
+          "explanation": "After mitosis, cytokinesis divides the cytoplasm into two separate daughter cells.",
+          "evidence": {
+            "source_id": "s1",
+            "quote": "After mitosis, cytokinesis takes place. This is the division of the cytoplasm, producing two separate daughter cells."
+          }
+        }
+      }
+    },
+    {
+      "event": "tool_item",
+      "delayMs": 520,
+      "data": {
+        "callId": "call_mock_quiz",
+        "index": 1,
+        "item": {
+          "type": "short_answer",
+          "question": "In your own words: what is mitosis good for?",
+          "options": null,
+          "correct_index": null,
+          "answer": "It lets organisms grow, replaces old or damaged cells and helps with healing; in single-celled organisms it is how they reproduce.",
+          "key_ideas": [
+            "growth",
+            "replace damaged cells",
+            "healing",
+            "asexual reproduction"
+          ],
+          "explanation": "Mitosis lets multicellular organisms grow and repair themselves.",
+          "evidence": {
+            "source_id": "s1",
+            "quote": "Mitosis is essential for growth and development, allowing multicellular organisms to increase their number of cells."
+          }
+        }
+      }
+    },
+    {
+      "event": "tool_item",
+      "delayMs": 520,
+      "data": {
+        "callId": "call_mock_quiz",
+        "index": 2,
+        "item": {
+          "type": "fill_blank",
+          "question": "Each daughter cell is genetically {{identical}} to the parent cell.",
+          "options": null,
+          "correct_index": null,
+          "answer": "identical",
+          "key_ideas": null,
+          "explanation": "Mitosis copies the DNA exactly.",
+          "evidence": {
+            "source_id": "s1",
+            "quote": "Each daughter cell is genetically identical to the parent cell, with the same number of chromosomes."
+          }
+        }
+      }
+    },
+    {
+      "event": "tool_call",
+      "delayMs": 500,
+      "data": {
+        "callId": "call_mock_quiz",
+        "name": "create_quiz_questions",
+        "arguments": {
+          "course_id": "c1",
+          "topic": "Mitosis",
+          "questions": [
+            {
+              "type": "multiple_choice",
+              "question": "What does cytokinesis divide?",
+              "options": [
+                "The nucleus",
+                "The cytoplasm",
+                "The DNA",
+                "The chromosomes"
+              ],
+              "correct_index": 1,
+              "answer": "The cytoplasm",
+              "key_ideas": null,
+              "explanation": "After mitosis, cytokinesis divides the cytoplasm into two separate daughter cells.",
+              "evidence": {
+                "source_id": "s1",
+                "quote": "After mitosis, cytokinesis takes place. This is the division of the cytoplasm, producing two separate daughter cells."
+              }
+            },
+            {
+              "type": "short_answer",
+              "question": "In your own words: what is mitosis good for?",
+              "options": null,
+              "correct_index": null,
+              "answer": "It lets organisms grow, replaces old or damaged cells and helps with healing; in single-celled organisms it is how they reproduce.",
+              "key_ideas": [
+                "growth",
+                "replace damaged cells",
+                "healing",
+                "asexual reproduction"
+              ],
+              "explanation": "Mitosis lets multicellular organisms grow and repair themselves.",
+              "evidence": {
+                "source_id": "s1",
+                "quote": "Mitosis is essential for growth and development, allowing multicellular organisms to increase their number of cells."
+              }
+            },
+            {
+              "type": "fill_blank",
+              "question": "Each daughter cell is genetically {{identical}} to the parent cell.",
+              "options": null,
+              "correct_index": null,
+              "answer": "identical",
+              "key_ideas": null,
+              "explanation": "Mitosis copies the DNA exactly.",
+              "evidence": {
+                "source_id": "s1",
+                "quote": "Each daughter cell is genetically identical to the parent cell, with the same number of chromosomes."
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "event": "done",
+      "delayMs": 60,
+      "data": {
+        "model": "mock",
+        "stop": "tool_calls",
+        "continuation": [
+          {
+            "type": "function_call",
+            "call_id": "call_mock_quiz",
+            "name": "create_quiz_questions",
+            "arguments": "{\"course_id\": \"c1\", \"topic\": \"Mitosis\", \"questions\": [{\"type\": \"multiple_choice\", \"question\": \"What does cytokinesis divide?\", \"options\": [\"The nucleus\", \"The cytoplasm\", \"The DNA\", \"The chromosomes\"], \"correct_index\": 1, \"answer\": \"The cytoplasm\", \"key_ideas\": null, \"explanation\": \"After mitosis, cytokinesis divides the cytoplasm into two separate daughter cells.\", \"evidence\": {\"source_id\": \"s1\", \"quote\": \"After mitosis, cytokinesis takes place. This is the division of the cytoplasm, producing two separate daughter cells.\"}}, {\"type\": \"short_answer\", \"question\": \"In your own words: what is mitosis good for?\", \"options\": null, \"correct_index\": null, \"answer\": \"It lets organisms grow, replaces old or damaged cells and helps with healing; in single-celled organisms it is how they reproduce.\", \"key_ideas\": [\"growth\", \"replace damaged cells\", \"healing\", \"asexual reproduction\"], \"explanation\": \"Mitosis lets multicellular organisms grow and repair themselves.\", \"evidence\": {\"source_id\": \"s1\", \"quote\": \"Mitosis is essential for growth and development, allowing multicellular organisms to increase their number of cells.\"}}, {\"type\": \"fill_blank\", \"question\": \"Each daughter cell is genetically {{identical}} to the parent cell.\", \"options\": null, \"correct_index\": null, \"answer\": \"identical\", \"key_ideas\": null, \"explanation\": \"Mitosis copies the DNA exactly.\", \"evidence\": {\"source_id\": \"s1\", \"quote\": \"Each daughter cell is genetically identical to the parent cell, with the same number of chromosomes.\"}}]}"
+          }
+        ]
+      }
+    }
+  ]
+}

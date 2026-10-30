@@ -1,0 +1,50 @@
+{
+  "events": [
+    {
+      "event": "start",
+      "delayMs": 700,
+      "data": {
+        "model": "mock"
+      }
+    },
+    {
+      "event": "tool_start",
+      "delayMs": 120,
+      "data": {
+        "callId": "call_mock_exam",
+        "name": "create_exam"
+      }
+    },
+    {
+      "event": "tool_call",
+      "delayMs": 500,
+      "data": {
+        "callId": "call_mock_exam",
+        "name": "create_exam",
+        "arguments": {
+          "course_id": "c1",
+          "title": "Bio 101 midterm",
+          "date": "2026-11-12",
+          "time": "09:00",
+          "topic_ids": null
+        }
+      }
+    },
+    {
+      "event": "done",
+      "delayMs": 60,
+      "data": {
+        "model": "mock",
+        "stop": "tool_calls",
+        "continuation": [
+          {
+            "type": "function_call",
+            "call_id": "call_mock_exam",
+            "name": "create_exam",
+            "arguments": "{\"course_id\": \"c1\", \"title\": \"Bio 101 midterm\", \"date\": \"2026-11-12\", \"time\": \"09:00\", \"topic_ids\": null}"
+          }
+        ]
+      }
+    }
+  ]
+}

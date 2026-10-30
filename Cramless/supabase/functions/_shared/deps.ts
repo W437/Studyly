@@ -1,9 +1,12 @@
 // Everything a function needs, injectable, so tests swap the clock, the sleeper, the store, the authenticator,
 // the model provider (or only its base URL) and the App Store roots.
 
-import { AnthropicProvider, MissingKeyProvider, type Provider } from "./anthropic.ts";
+import { AnthropicProvider, type Effort, MissingKeyProvider, type Provider } from "./anthropic.ts";
 import { type Authenticate, goTrueAuthenticator } from "./auth.ts";
+import { SONNET } from "./cost.ts";
 import { type Env, envFromDeno } from "./env.ts";
+import { withTutor } from "./openai.ts";
+import { OpenAIAssistantProvider } from "./openai_assistant.ts";
 import { createAdmin, PostgresStore } from "./store_postgres.ts";
 import type { Store } from "./store.ts";
 import { appleRoots, buildVerifiers, type Verifiers } from "./appstore/verifier.ts";
@@ -12,6 +15,9 @@ export interface Deps {
   env: Env;
   store: Store;
   provider: Provider;
+  /** The model that answers the tutor and how hard it thinks: OpenAI's when the key is set, else Claude Sonnet. */
+  tutorModel: string;
+  tutorEffort: Effort;
   authenticate: Authenticate;
   verifiers: Verifiers;
   now: () => Date;
@@ -55,14 +61,21 @@ export function cryptoRandom(): number {
 export function defaultDeps(overrides: Partial<Deps> = {}): Deps {
   const env = overrides.env ?? envFromDeno();
   const admin = createAdmin(env.supabaseUrl, env.serviceRoleKey);
+  const claude = env.anthropicApiKey
+    ? new AnthropicProvider({ apiKey: env.anthropicApiKey, baseURL: env.anthropicBaseUrl || undefined })
+    : new MissingKeyProvider();
+  // With an OpenAI key the tutor, the assistant and web research run on OpenAI; every other route stays on Claude.
+  const openai = env.openaiApiKey !== "";
   const provider = overrides.provider ??
-    (env.anthropicApiKey
-      ? new AnthropicProvider({ apiKey: env.anthropicApiKey, baseURL: env.anthropicBaseUrl || undefined })
-      : new MissingKeyProvider());
+    (openai
+      ? withTutor(claude, new OpenAIAssistantProvider({ apiKey: env.openaiApiKey, baseURL: env.openaiBaseUrl }))
+      : claude);
   return {
     env,
     store: overrides.store ?? new PostgresStore(admin),
     provider,
+    tutorModel: overrides.tutorModel ?? (openai ? env.tutorModel : SONNET),
+    tutorEffort: overrides.tutorEffort ?? (openai ? env.tutorEffort : "low"),
     authenticate: overrides.authenticate ?? goTrueAuthenticator(admin),
     verifiers: overrides.verifiers ??
       buildVerifiers({

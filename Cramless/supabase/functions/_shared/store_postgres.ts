@@ -127,8 +127,15 @@ export class PostgresStore implements Store {
       cache_write_tokens: row.cacheWriteTokens,
       cost_usd: row.costUsd,
       latency_ms: row.latencyMs,
+      created_at: row.createdAt,
     });
     if (error) throw dbError("ai_requests", error.code);
+  }
+
+  async spentSince(userId: string, since: Date): Promise<bigint> {
+    const r = await this.#rpc("cramless_spent_since", { p_user: userId, p_since: since.toISOString() });
+    const nano = Number(r ?? 0);
+    return Number.isFinite(nano) && nano > 0 ? BigInt(Math.floor(nano)) : 0n;
   }
 
   async saveEntitlements(userId: string, rows: EntitlementRow[], now: Date): Promise<void> {

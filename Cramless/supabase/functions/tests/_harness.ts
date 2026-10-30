@@ -4,15 +4,20 @@
 
 import {
   AnthropicProvider,
+  type AssistantCall,
+  type AssistantStreamEvent,
   type JsonCall,
   type JsonResult,
   type Provider,
+  type ResearchCall,
+  type ResearchStreamEvent,
   type TutorCall,
   type TutorStreamEvent,
 } from "../_shared/anthropic.ts";
 import type { Authenticate, Caller } from "../_shared/auth.ts";
 import type { QuotaStatus } from "../_shared/contract.ts";
-import { ZERO_USAGE } from "../_shared/cost.ts";
+import { SONNET, ZERO_USAGE } from "../_shared/cost.ts";
+import type { Effort } from "../_shared/anthropic.ts";
 import type { Deps } from "../_shared/deps.ts";
 import { type Env, envFrom } from "../_shared/env.ts";
 import { ApiError } from "../_shared/errors.ts";
@@ -73,8 +78,12 @@ export function tokenAuthenticator(anonymous: Set<string> = new Set()): Authenti
 export class ScriptedProvider implements Provider {
   readonly jsonCalls: JsonCall[] = [];
   readonly tutorCalls: TutorCall[] = [];
+  readonly assistantCalls: AssistantCall[] = [];
+  readonly researchCalls: ResearchCall[] = [];
   readonly #json: (JsonResult<unknown> | Error)[] = [];
   readonly #tutor: (TutorStreamEvent | Error)[][] = [];
+  readonly #assistant: (AssistantStreamEvent | Error)[][] = [];
+  readonly #research: (ResearchStreamEvent | Error)[][] = [];
 
   replyJson(value: unknown, model = "claude-haiku-5-5"): void {
     this.#json.push({
@@ -89,6 +98,12 @@ export class ScriptedProvider implements Provider {
   replyTutor(events: (TutorStreamEvent | Error)[]): void {
     this.#tutor.push(events);
   }
+  replyAssistant(events: (AssistantStreamEvent | Error)[]): void {
+    this.#assistant.push(events);
+  }
+  replyResearch(events: (ResearchStreamEvent | Error)[]): void {
+    this.#research.push(events);
+  }
 
   json<T>(call: JsonCall): Promise<JsonResult<T>> {
     this.jsonCalls.push(call);
@@ -101,6 +116,24 @@ export class ScriptedProvider implements Provider {
   async *tutor(call: TutorCall): AsyncGenerator<TutorStreamEvent> {
     this.tutorCalls.push(call);
     for (const event of this.#tutor.shift() ?? []) {
+      await Promise.resolve();
+      if (event instanceof Error) throw event;
+      yield event;
+    }
+  }
+
+  async *assistant(call: AssistantCall): AsyncGenerator<AssistantStreamEvent> {
+    this.assistantCalls.push(call);
+    for (const event of this.#assistant.shift() ?? []) {
+      await Promise.resolve();
+      if (event instanceof Error) throw event;
+      yield event;
+    }
+  }
+
+  async *research(call: ResearchCall): AsyncGenerator<ResearchStreamEvent> {
+    this.researchCalls.push(call);
+    for (const event of this.#research.shift() ?? []) {
       await Promise.resolve();
       if (event instanceof Error) throw event;
       yield event;
@@ -134,6 +167,9 @@ export interface RequestOptions {
 export interface RigOptions {
   env?: Record<string, string>;
   provider?: Provider;
+  /** The model that answers the tutor (Claude Sonnet unless a test says otherwise) and how hard it thinks. */
+  tutorModel?: string;
+  tutorEffort?: Effort;
   verifiers?: Verifiers;
   random?: () => number;
   anonymous?: Set<string>;
@@ -150,6 +186,8 @@ export function rig(o: RigOptions = {}): TestRig {
     env: testEnv(o.env),
     store,
     provider,
+    tutorModel: o.tutorModel ?? SONNET,
+    tutorEffort: o.tutorEffort ?? "low",
     authenticate: tokenAuthenticator(o.anonymous),
     verifiers: o.verifiers ??
       buildVerifiers({ roots: [], bundleId: BUNDLE_ID, appAppleId: APP_APPLE_ID, allowXcode: false }),
@@ -214,8 +252,10 @@ export function fixtureJson(name: string): any {
 }
 
 /** The SSE events of a response, data parsed. */
-export async function sseEvents(res: Response): Promise<{ event: string; data: Record<string, string> }[]> {
-  const out: { event: string; data: Record<string, string> }[] = [];
+// deno-lint-ignore no-explicit-any
+export async function sseEvents(res: Response): Promise<{ event: string; data: Record<string, any> }[]> {
+  // deno-lint-ignore no-explicit-any
+  const out: { event: string; data: Record<string, any> }[] = [];
   for await (const message of parseSse(res.body!)) {
     out.push({ event: message.event ?? "message", data: JSON.parse(message.data) });
   }

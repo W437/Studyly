@@ -29,7 +29,8 @@ Deno.test("only log.ts writes to the console", async () => {
     const path = url.pathname;
     // tools/ holds developer commands (deno task live) that print their reports; they're never deployed.
     if (
-      path.endsWith("_shared/log.ts") || path.endsWith("tests/_mock_anthropic.ts") || path.endsWith("hygiene.test.ts") ||
+      path.endsWith("_shared/log.ts") || path.endsWith("tests/_mock_anthropic.ts") ||
+      path.endsWith("hygiene.test.ts") ||
       path.includes("/tools/")
     ) {
       continue;
@@ -50,6 +51,7 @@ Deno.test("no secrets in supabase/", async () => {
   for (const url of await files(SUPABASE, (n) => /\.(ts|sql|toml|json|md|example)$/.test(n))) {
     const text = await Deno.readTextFile(url);
     assert(!/sk-ant-[A-Za-z0-9_-]{10,}/.test(text), `${url.pathname} holds an Anthropic key`);
+    assert(!/\bsk-(proj-)?[A-Za-z0-9_-]{20,}/.test(text), `${url.pathname} holds an OpenAI key`);
     assert(!/eyJ[A-Za-z0-9_-]{20,}\.eyJ[A-Za-z0-9_-]{20,}/.test(text), `${url.pathname} holds a JWT`);
     assert(!/-----BEGIN [A-Z ]*PRIVATE KEY-----/.test(text), `${url.pathname} holds a private key`);
   }

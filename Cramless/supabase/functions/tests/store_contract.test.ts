@@ -277,6 +277,36 @@ function suite(label: string, make: () => Subject, ignore = false) {
     assertEquals(await store.squadRedeem(late, c2, later), { ok: false, reason: "owner_lapsed" });
   });
 
+  t("the day's spending: the calls since a moment, per person, in whole nano-dollars", async ({ store, user }) => {
+    const id = await user();
+    const other = await user();
+    const row = (userId: string, createdAt: string, costUsd: string, mock = false) => ({
+      userId,
+      route: "tutor",
+      model: "gpt-6.1-terra",
+      plan: "pro" as const,
+      status: 200,
+      mock,
+      inputTokens: 100,
+      outputTokens: 50,
+      cacheReadTokens: 0,
+      cacheWriteTokens: 0,
+      costUsd,
+      latencyMs: 400,
+      createdAt,
+    });
+    const since = new Date("2026-10-22T07:00:00Z");
+    assertEquals(await store.spentSince(id, since), 0n, "nothing yet");
+    await store.logRequest(row(id, "2026-10-22T06:59:59Z", "0.500000000")); // before the moment
+    await store.logRequest(row(id, "2026-10-22T07:00:00Z", "0.012345678"));
+    await store.logRequest(row(id, "2026-10-22T08:00:00Z", "0.000000001"));
+    await store.logRequest(row(id, "2026-10-22T08:30:00Z", "0.000000000", true)); // a MOCK reply costs nothing
+    await store.logRequest(row(other, "2026-10-22T08:00:00Z", "0.200000000"));
+    assertEquals(await store.spentSince(id, since), 12_345_679n);
+    assertEquals(await store.spentSince(other, since), 200_000_000n);
+    assertEquals(await store.spentSince(id, new Date("2026-10-22T08:00:01Z")), 0n);
+  });
+
   t("deletion: AI data, then everything", async ({ store, user }) => {
     const id = await user();
     await store.logRequest({
@@ -292,6 +322,7 @@ function suite(label: string, make: () => Subject, ignore = false) {
       cacheWriteTokens: 0,
       costUsd: "0.000003500",
       latencyMs: 900,
+      createdAt: "2026-10-22T09:00:00Z",
     });
     await store.consume(id, "grades", DAY, 1, 20);
     await store.deleteAiData(id);

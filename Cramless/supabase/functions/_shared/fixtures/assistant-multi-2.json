@@ -1,0 +1,121 @@
+{
+  "events": [
+    {
+      "event": "start",
+      "delayMs": 500,
+      "data": {
+        "model": "mock"
+      }
+    },
+    {
+      "event": "tool_start",
+      "delayMs": 120,
+      "data": {
+        "callId": "call_mock_cards2",
+        "name": "create_flashcards"
+      }
+    },
+    {
+      "event": "tool_item",
+      "delayMs": 420,
+      "data": {
+        "callId": "call_mock_cards2",
+        "index": 0,
+        "item": {
+          "front": "What gets pulled apart in anaphase I?",
+          "back": "Homologous pairs.",
+          "evidence": {
+            "source_id": "s1",
+            "quote": "Anaphase I separates homologous pairs; anaphase II separates sister chromatids."
+          }
+        }
+      }
+    },
+    {
+      "event": "tool_item",
+      "delayMs": 420,
+      "data": {
+        "callId": "call_mock_cards2",
+        "index": 1,
+        "item": {
+          "front": "What gets pulled apart in anaphase II?",
+          "back": "Sister chromatids.",
+          "evidence": {
+            "source_id": "s1",
+            "quote": "Anaphase I separates homologous pairs; anaphase II separates sister chromatids."
+          }
+        }
+      }
+    },
+    {
+      "event": "tool_item",
+      "delayMs": 420,
+      "data": {
+        "callId": "call_mock_cards2",
+        "index": 2,
+        "item": {
+          "front": "What happens to the sister chromatids in anaphase?",
+          "back": "They get pulled apart to opposite poles.",
+          "evidence": {
+            "source_id": "s1",
+            "quote": "This one will be on the midterm, by the way: anaphase is where the sister chromatids get pulled apart."
+          }
+        }
+      }
+    },
+    {
+      "event": "tool_call",
+      "delayMs": 500,
+      "data": {
+        "callId": "call_mock_cards2",
+        "name": "create_flashcards",
+        "arguments": {
+          "course_id": "c1",
+          "topic": "Anaphase",
+          "cards": [
+            {
+              "front": "What gets pulled apart in anaphase I?",
+              "back": "Homologous pairs.",
+              "evidence": {
+                "source_id": "s1",
+                "quote": "Anaphase I separates homologous pairs; anaphase II separates sister chromatids."
+              }
+            },
+            {
+              "front": "What gets pulled apart in anaphase II?",
+              "back": "Sister chromatids.",
+              "evidence": {
+                "source_id": "s1",
+                "quote": "Anaphase I separates homologous pairs; anaphase II separates sister chromatids."
+              }
+            },
+            {
+              "front": "What happens to the sister chromatids in anaphase?",
+              "back": "They get pulled apart to opposite poles.",
+              "evidence": {
+                "source_id": "s1",
+                "quote": "This one will be on the midterm, by the way: anaphase is where the sister chromatids get pulled apart."
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "event": "done",
+      "delayMs": 60,
+      "data": {
+        "model": "mock",
+        "stop": "tool_calls",
+        "continuation": [
+          {
+            "type": "function_call",
+            "call_id": "call_mock_cards2",
+            "name": "create_flashcards",
+            "arguments": "{\"course_id\": \"c1\", \"topic\": \"Anaphase\", \"cards\": [{\"front\": \"What gets pulled apart in anaphase I?\", \"back\": \"Homologous pairs.\", \"evidence\": {\"source_id\": \"s1\", \"quote\": \"Anaphase I separates homologous pairs; anaphase II separates sister chromatids.\"}}, {\"front\": \"What gets pulled apart in anaphase II?\", \"back\": \"Sister chromatids.\", \"evidence\": {\"source_id\": \"s1\", \"quote\": \"Anaphase I separates homologous pairs; anaphase II separates sister chromatids.\"}}, {\"front\": \"What happens to the sister chromatids in anaphase?\", \"back\": \"They get pulled apart to opposite poles.\", \"evidence\": {\"source_id\": \"s1\", \"quote\": \"This one will be on the midterm, by the way: anaphase is where the sister chromatids get pulled apart.\"}}]}"
+          }
+        ]
+      }
+    }
+  ]
+}

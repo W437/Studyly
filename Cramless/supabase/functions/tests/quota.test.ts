@@ -1,9 +1,11 @@
 // Plans and quotas: the free limits, scans as capture sessions, refunds, fair use, local days and weeks.
 
-import { assert, assertEquals } from "@std/assert";
-import { localMidnight, periodEnd, periodStart, quotaStatus } from "../_shared/plans.ts";
+import { assert, assertEquals, assertStringIncludes } from "@std/assert";
+import { DEFAULT_DAILY_COST_CAP_NANO, formatUsd, parseUsd } from "../_shared/cost.ts";
+import { localMidnight, METERS, periodEnd, periodStart, quotaStatus } from "../_shared/plans.ts";
 import { ApiError } from "../_shared/errors.ts";
-import { errorOf, fixtureJson, rig, ScriptedProvider } from "./_harness.ts";
+import type { AiRequestRow } from "../_shared/store.ts";
+import { errorOf, fixtureJson, logLines, rig, ScriptedProvider, testEnv } from "./_harness.ts";
 
 const MOCK = { CRAMLESS_MOCK: "1" };
 const page = (n: number) => ({
@@ -201,4 +203,151 @@ Deno.test("the quota report never shows a paid plan's fair-use ceiling", () => {
   const status = quotaStatus("squad", { scans: 40, grades: 300 });
   assert(status.meters.every((m) => m.limit === null));
   assertEquals(status.meters.map((m) => m.key), ["scans", "grades", "tutor", "lectures"]);
+});
+
+// ---- The day's cost cap: what a person's model calls may cost in a day, under the meters that count requests ----
+
+/** One scripted reply (`replyJson`) bills 1,000 tokens in and 500 out on Haiku: 0.035¢, in nano-dollars. */
+const REPLY_COST = 350_000n;
+const READ = { lines: [{ id: "x", text: "Mitosis notes" }] };
+
+function spent(user: string, createdAt: string, costUsd: string): AiRequestRow {
+  return {
+    userId: user,
+    route: "tutor",
+    model: "gpt-6.1-terra",
+    plan: "pro",
+    status: 200,
+    mock: false,
+    inputTokens: 0,
+    outputTokens: 0,
+    cacheReadTokens: 0,
+    cacheWriteTokens: 0,
+    costUsd,
+    latencyMs: 100,
+    createdAt,
+  };
+}
+
+Deno.test("cost cap: once a day's calls have cost the cap, no AI route answers until the person's midnight", async () => {
+  const provider = new ScriptedProvider();
+  const r = rig({ provider, env: { DAILY_COST_CAP_USD: "0.0007" } }); // two replies' worth
+  r.store.addUser("user-1");
+  r.store.addUser("user-2");
+  pro(r);
+  for (let i = 0; i < 2; i++) {
+    provider.replyJson(READ);
+    assertEquals((await r.ai("transcribe-image", { body: transcribe(i) })).status, 200, `reply ${i + 1}`);
+    await r.settle();
+  }
+  assertEquals(await r.store.spentSince("user-1", localMidnight("2026-10-22", "UTC")), REPLY_COST * 2n);
+
+  // The third request, of any kind, is refused before a model is asked; a stream's route answers with plain JSON.
+  const asked = provider.jsonCalls.length;
+  const refused = await r.ai("transcribe-image", { body: transcribe(2) });
+  assertEquals(refused.status, 429);
+  const error = await errorOf(refused);
+  assertEquals(error.message, "That's all the cloud AI for today. It starts again at midnight.");
+  assertEquals(error.quota, { plan: "pro", meters: [] }, "no meter ran out");
+  assertEquals(error.retryAfter, 15 * 3600, "until midnight UTC");
+  assertEquals(refused.headers.get("retry-after"), String(15 * 3600));
+  const tutor = await r.ai("tutor", { body: fixtureJson("requests/tutor") });
+  assertEquals(tutor.status, 429);
+  assertStringIncludes(tutor.headers.get("content-type") ?? "", "application/json");
+  assertEquals((await r.ai("assistant", { body: { ...fixtureJson("requests/assistant") } })).status, 429);
+  assertEquals((await r.ai("research", { body: fixtureJson("requests/research") })).status, 429);
+  assertEquals(provider.jsonCalls.length, asked, "the model was not asked");
+  assertEquals(provider.tutorCalls.length + provider.assistantCalls.length + provider.researchCalls.length, 0);
+
+  // The quota report, other people and the next day are untouched.
+  assertEquals((await r.ai("quota")).status, 200);
+  provider.replyJson(READ);
+  assertEquals((await r.ai("transcribe-image", { user: "user-2", body: transcribe(0) })).status, 200);
+  r.clock.set("2026-10-23T00:00:01Z");
+  provider.replyJson(READ);
+  assertEquals((await r.ai("transcribe-image", { body: transcribe(3) })).status, 200, "the new day");
+});
+
+Deno.test("cost cap: the day is the person's own, and the cap is the sum of the day's calls", async () => {
+  const r = rig({ env: { DAILY_COST_CAP_USD: "0.10" } });
+  r.store.addUser("user-1", "", "America/Los_Angeles"); // 09:00 UTC is 02:00 on the 22nd there; its midnight is 07:00 UTC
+  pro(r);
+  r.store.requests.push(spent("user-1", "2026-10-22T06:59:00Z", "0.500000000")); // yesterday evening there
+  r.store.requests.push(spent("user-2", "2026-10-22T08:00:00Z", "0.500000000")); // someone else
+  const provider = r.provider as ScriptedProvider;
+  provider.replyJson(READ);
+  assertEquals(
+    (await r.ai("transcribe-image", { body: transcribe(0) })).status,
+    200,
+    "yesterday's spending doesn't count",
+  );
+  await r.settle();
+
+  r.store.requests.push(spent("user-1", "2026-10-22T07:00:00Z", "0.060000000"));
+  r.store.requests.push(spent("user-1", "2026-10-22T08:30:00Z", "0.039000000"));
+  provider.replyJson(READ);
+  assertEquals(
+    (await r.ai("transcribe-image", { body: transcribe(1) })).status,
+    200,
+    "9.9¢ and 0.035¢ so far is under 10¢",
+  );
+  await r.settle();
+  assertEquals(await r.store.spentSince("user-1", localMidnight("2026-10-22", "America/Los_Angeles")), 99_700_000n);
+  r.store.requests.push(spent("user-1", "2026-10-22T08:45:00Z", "0.000300000"));
+  assertEquals((await r.ai("transcribe-image", { body: transcribe(2) })).status, 429, "10¢ exactly is the cap");
+});
+
+Deno.test("cost cap: 0 turns it off, a bad value falls back to 10¢, and MOCK replies are never capped", async () => {
+  assertEquals(testEnv().dailyCostCapNano, DEFAULT_DAILY_COST_CAP_NANO);
+  assertEquals(DEFAULT_DAILY_COST_CAP_NANO, 100_000_000n, "10¢");
+  assertEquals(testEnv({ DAILY_COST_CAP_USD: " 0.25 " }).dailyCostCapNano, 250_000_000n);
+  assertEquals(testEnv({ DAILY_COST_CAP_USD: "0" }).dailyCostCapNano, 0n);
+  for (const bad of ["ten cents", "-1", "1e-3", ".5", "0.1234567891", "$0.10"]) {
+    const env = testEnv({ DAILY_COST_CAP_USD: bad });
+    assertEquals(env.dailyCostCapNano, DEFAULT_DAILY_COST_CAP_NANO, bad);
+    assert(env.faults.includes("daily_cost_cap_invalid"), bad);
+  }
+  assertEquals(testEnv().faults.includes("daily_cost_cap_invalid"), false);
+
+  const off = rig({ env: { DAILY_COST_CAP_USD: "0" } });
+  off.store.addUser("user-1");
+  off.store.requests.push(spent("user-1", "2026-10-22T08:00:00Z", "99.000000000"));
+  (off.provider as ScriptedProvider).replyJson(READ);
+  assertEquals((await off.ai("transcribe-image", { body: transcribe(0) })).status, 200, "off");
+
+  const mock = rig({ env: { ...MOCK, DAILY_COST_CAP_USD: "0.0000001" } });
+  mock.store.addUser("user-1");
+  mock.store.requests.push(spent("user-1", "2026-10-22T08:00:00Z", "99.000000000"));
+  assertEquals((await mock.ai("grade", { body: fixtureJson("requests/grade") })).status, 200, "MOCK costs nothing");
+});
+
+Deno.test("cost cap: if the day's sum can't be read the request goes ahead, and the failure is logged", async () => {
+  const provider = new ScriptedProvider();
+  const r = rig({ provider });
+  r.store.addUser("user-1");
+  r.store.spentSince = () => Promise.reject(new Error("function cramless_spent_since does not exist"));
+  provider.replyJson(READ);
+  logLines.length = 0;
+  assertEquals((await r.ai("transcribe-image", { body: transcribe(0) })).status, 200, "the meters still hold");
+  assert(logLines.some((line) => line.includes("daily_cost_check_failed")), "the failure is in the logs");
+  assert(!logLines.some((line) => line.includes("does not exist")), "the database's words are not");
+});
+
+Deno.test("cost cap: money is counted in whole nano-dollars", () => {
+  assertEquals(parseUsd("0.10"), 100_000_000n);
+  assertEquals(parseUsd("5"), 5_000_000_000n);
+  assertEquals(parseUsd("0.000000001"), 1n);
+  assertEquals(parseUsd("12.5"), 12_500_000_000n);
+  assertEquals(parseUsd("0.1234567891"), null, "ten places");
+  assertEquals(parseUsd("-1"), null);
+  assertEquals(parseUsd(""), null);
+  for (const nano of [0n, 1n, 1234n, 350_000n, 100_000_000n, 12_345_678_901n]) {
+    assertEquals(parseUsd(formatUsd(nano)), nano, String(nano));
+  }
+});
+
+Deno.test("meters: research is three a day on Pro and none on the free plan", () => {
+  assertEquals(METERS.research.fairUse, 3);
+  assertEquals(METERS.research.free, 0);
+  assertEquals(METERS.drafts.free, 3);
 });

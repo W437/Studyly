@@ -1,0 +1,144 @@
+{
+  "events": [
+    {
+      "event": "start",
+      "delayMs": 500,
+      "data": {
+        "model": "mock"
+      }
+    },
+    {
+      "event": "search",
+      "delayMs": 300,
+      "data": {
+        "id": "ws_mock_1",
+        "phase": "started"
+      }
+    },
+    {
+      "event": "search",
+      "delayMs": 700,
+      "data": {
+        "id": "ws_mock_1",
+        "phase": "searching"
+      }
+    },
+    {
+      "event": "search",
+      "delayMs": 1600,
+      "data": {
+        "id": "ws_mock_1",
+        "phase": "done",
+        "queries": [
+          "mitosis meiosis differences two divisions chromosomes"
+        ],
+        "sources": [
+          {
+            "url": "https://openstax.org/books/biology/pages/11-1-the-process-of-meiosis",
+            "domain": "openstax.org"
+          },
+          {
+            "url": "https://openstax.org/books/biology-2e/pages/11-chapter-summary",
+            "domain": "openstax.org"
+          },
+          {
+            "url": "https://www.britannica.com/science/meiosis",
+            "domain": "britannica.com"
+          },
+          {
+            "url": "https://www.khanacademy.org/science/ap-biology/heredity/meiosis-and-genetic-diversity/a/phases-of-meiosis",
+            "domain": "khanacademy.org"
+          },
+          {
+            "url": "https://en.wikipedia.org/wiki/Meiosis",
+            "domain": "wikipedia.org"
+          }
+        ]
+      }
+    },
+    {
+      "event": "delta",
+      "delayMs": 70,
+      "data": {
+        "text": "**Mitosis** and **meiosis** both copy a cell's DNA and divide its nucleus. "
+      }
+    },
+    {
+      "event": "delta",
+      "delayMs": 70,
+      "data": {
+        "text": "Mitosis involves one division and usually produces two genetically identical cells "
+      }
+    },
+    {
+      "event": "delta",
+      "delayMs": 70,
+      "data": {
+        "text": "with the same number of chromosomes as the original. It helps organisms grow and repair tissues.\n\n"
+      }
+    },
+    {
+      "event": "delta",
+      "delayMs": 70,
+      "data": {
+        "text": "**Meiosis** involves two divisions and usually produces four genetically different cells, "
+      }
+    },
+    {
+      "event": "delta",
+      "delayMs": 70,
+      "data": {
+        "text": "each with half the original number of chromosomes. In animals it makes sex cells such as sperm and eggs. "
+      }
+    },
+    {
+      "event": "delta",
+      "delayMs": 70,
+      "data": {
+        "text": "During meiosis, matching chromosomes can swap pieces of DNA, which creates genetic variation.\n\n"
+      }
+    },
+    {
+      "event": "delta",
+      "delayMs": 70,
+      "data": {
+        "text": "The short version: mitosis makes copies, meiosis makes variety."
+      }
+    },
+    {
+      "event": "citation",
+      "delayMs": 40,
+      "data": {
+        "url": "https://openstax.org/books/biology/pages/11-1-the-process-of-meiosis",
+        "title": "11.1 The Process of Meiosis - Biology | OpenStax",
+        "domain": "openstax.org"
+      }
+    },
+    {
+      "event": "citation",
+      "delayMs": 40,
+      "data": {
+        "url": "https://www.britannica.com/science/meiosis",
+        "title": "Meiosis | Definition, Stages & Function | Britannica",
+        "domain": "britannica.com"
+      }
+    },
+    {
+      "event": "citation",
+      "delayMs": 40,
+      "data": {
+        "url": "https://www.khanacademy.org/science/ap-biology/heredity/meiosis-and-genetic-diversity/a/phases-of-meiosis",
+        "title": "Phases of meiosis | Khan Academy",
+        "domain": "khanacademy.org"
+      }
+    },
+    {
+      "event": "done",
+      "delayMs": 40,
+      "data": {
+        "model": "mock",
+        "searches": 1
+      }
+    }
+  ]
+}

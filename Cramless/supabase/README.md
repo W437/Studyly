@@ -7,7 +7,10 @@ Notifications). The contract the app speaks is in `../docs/relay-contract.md`.
 ```
 supabase/
   config.toml                 local settings (ports 584xx, project_id cramless)
-  migrations/                 schema + RLS + storage bucket, then the service-role RPCs
+  migrations/                 schema + RLS + storage bucket, then the service-role RPCs, then day_records.quest_mask (the quests
+                              a day finished, one bit each; the app joins two devices' masks by OR), the assistant's meters, and
+                              `cramless_spent_since` (what a person's AI calls cost today: the relay's daily cost cap, 10¢,
+                              `DAILY_COST_CAP_USD`). Apply the migrations before deploying the functions that use them.
   tests/database/             pgTAP: RLS, grants and the RPCs (supabase test db)
   seed.sql
   functions/
@@ -21,8 +24,9 @@ supabase/
       appstore/               App Store signed-data verifier (WebCrypto port: ASN.1, X.509, OCSP)
       generated.ts            fixtures, prompts, schemas and roots bundled for deploys (deno task bundle)
       anthropic.ts            the Claude calls (structured outputs, streamed citations, fallback)
+      openai.ts               Ask Cap's tutor on OpenAI (streamed JSON answer, quotes checked against the passages)
       plans.ts items.ts mock.ts prompts.ts store*.ts entitlements.ts …
-    tests/                    deno test: handlers in-process, mock Anthropic API, test PKI, in-memory store
+    tests/                    deno test: handlers in-process, mock Anthropic and OpenAI APIs, test PKI, in-memory store
 ```
 
 ## Tests
@@ -61,7 +65,7 @@ supabase functions serve --env-file supabase/functions/.env
 
 - MOCK mode: `CRAMLESS_MOCK=1` in `.env`. The AI routes answer with the fixtures after real auth, validation and
   quotas; `X-Cramless-Fixture: grade-incorrect` (or `tutor-error`, …) picks another reply.
-- Real mode: `ANTHROPIC_API_KEY=…`. To test against the mock API instead, `deno task mock-anthropic` and
+- Real mode: `ANTHROPIC_API_KEY=…`; add `OPENAI_API_KEY=…` to put Ask Cap's tutor on OpenAI. To test against the mock API instead, `deno task mock-anthropic` and
   `ANTHROPIC_BASE_URL=http://host.docker.internal:58499` with `ANTHROPIC_API_KEY=test-anthropic-key`.
 - StoreKit testing in Xcode (`Cramless.storekit`): `CRAMLESS_ALLOW_XCODE_JWS=1` (honoured only on a local stack).
 - Point the app at it: `Secrets.xcconfig` → `CRAMLESS_SUPABASE_HOST = http:/$()/127.0.0.1:58421` (the simulator;
@@ -102,7 +106,7 @@ scripts/local_stack.sh down                     # stops the functions, supabase 
 ## Deploying
 
 See "Deploying" in `../docs/relay-contract.md`: link the project, `supabase db push`, set the Auth providers, set
-the secrets (`ANTHROPIC_API_KEY`, `APPLE_BUNDLE_ID`, `APPLE_APP_ID`), `supabase functions deploy ai account
+the secrets (`ANTHROPIC_API_KEY`, optionally `OPENAI_API_KEY`, `APPLE_BUNDLE_ID`, `APPLE_APP_ID`), `supabase functions deploy ai account
 appstore-notify`, and register the notifications URL in App Store Connect. Nothing in this folder deploys itself.
 
 ## Notes
@@ -126,6 +130,20 @@ the app would show, a PASS/FAIL per check (enough questions, three formats, real
 choice question, expected verdicts, quotes that are the student's words, citations, hints asking a question back)
 and the cost. Run it after any change in `_shared/prompts/` (then `deno task bundle`) and before launch.
 `ANTHROPIC_BASE_URL=http://127.0.0.1:58499` with `deno task mock-anthropic` dry-runs the script's plumbing only.
+
+## Real OpenAI, once
+
+```bash
+cd supabase/functions
+OPENAI_API_KEY=sk-… deno task live-openai      # a fraction of a cent; nothing stored; the key never written anywhere
+```
+
+`tools/live_openai.ts` runs the `ai` handler in-process with the real OpenAI provider (GPT 6.1 Terra at low reasoning
+unless `OPENAI_TUTOR_MODEL` / `OPENAI_TUTOR_EFFORT` say otherwise) and asks the tutor four questions about the sample page:
+hints, explain, a question the page can't answer and an under-18 account. It prints what the app would show, a PASS/FAIL
+per check (a quote that is on the page, hints ending on a question, no source id in the answer, no outside knowledge) and
+the cost. Run it before the tutor goes live on OpenAI and after changing the tutor's prompts. The 33-question comparison
+that chose the model is `tools/tutor_bakeoff/` (docs/BUILD.md ▸ Ask Cap on OpenAI).
 
 ## Checking prompts with a model answered elsewhere
 

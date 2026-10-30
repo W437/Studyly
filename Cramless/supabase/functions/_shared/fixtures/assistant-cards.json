@@ -1,0 +1,187 @@
+{
+  "events": [
+    {
+      "event": "start",
+      "delayMs": 700,
+      "data": {
+        "model": "mock"
+      }
+    },
+    {
+      "event": "tool_start",
+      "delayMs": 120,
+      "data": {
+        "callId": "call_mock_cards",
+        "name": "create_flashcards"
+      }
+    },
+    {
+      "event": "tool_item",
+      "delayMs": 420,
+      "data": {
+        "callId": "call_mock_cards",
+        "index": 0,
+        "item": {
+          "front": "What is mitosis?",
+          "back": "One eukaryotic cell divides to make two identical daughter cells.",
+          "evidence": {
+            "source_id": "s1",
+            "quote": "Mitosis is the process by which a single eukaryotic cell divides to produce two identical daughter cells."
+          }
+        }
+      }
+    },
+    {
+      "event": "tool_item",
+      "delayMs": 420,
+      "data": {
+        "callId": "call_mock_cards",
+        "index": 1,
+        "item": {
+          "front": "What happens after mitosis?",
+          "back": "Cytokinesis: the cytoplasm divides, giving two separate daughter cells.",
+          "evidence": {
+            "source_id": "s1",
+            "quote": "After mitosis, cytokinesis takes place. This is the division of the cytoplasm, producing two separate daughter cells."
+          }
+        }
+      }
+    },
+    {
+      "event": "tool_item",
+      "delayMs": 420,
+      "data": {
+        "callId": "call_mock_cards",
+        "index": 2,
+        "item": {
+          "front": "How do the daughter cells compare to the parent cell?",
+          "back": "They are genetically identical, with the same number of chromosomes.",
+          "evidence": {
+            "source_id": "s1",
+            "quote": "Each daughter cell is genetically identical to the parent cell, with the same number of chromosomes."
+          }
+        }
+      }
+    },
+    {
+      "event": "tool_item",
+      "delayMs": 420,
+      "data": {
+        "callId": "call_mock_cards",
+        "index": 3,
+        "item": {
+          "front": "Why does the body need mitosis?",
+          "back": "To grow, to replace old or damaged cells (like skin cells) and to heal after injury.",
+          "evidence": {
+            "source_id": "s1",
+            "quote": "It also replaces old or damaged cells, such as skin cells, and helps with healing after injury."
+          }
+        }
+      }
+    },
+    {
+      "event": "tool_item",
+      "delayMs": 420,
+      "data": {
+        "callId": "call_mock_cards",
+        "index": 4,
+        "item": {
+          "front": "What is cytokinesis?",
+          "back": "The division of the cytoplasm.",
+          "evidence": {
+            "source_id": "s1",
+            "quote": "Key term: Cytokinesis - the division of the cytoplasm."
+          }
+        }
+      }
+    },
+    {
+      "event": "tool_item",
+      "delayMs": 420,
+      "data": {
+        "callId": "call_mock_cards",
+        "index": 5,
+        "item": {
+          "front": "Which structure organises the spindle fibres?",
+          "back": "The centrosome (centrioles in animal cells).",
+          "evidence": null
+        }
+      }
+    },
+    {
+      "event": "tool_call",
+      "delayMs": 500,
+      "data": {
+        "callId": "call_mock_cards",
+        "name": "create_flashcards",
+        "arguments": {
+          "course_id": "c1",
+          "topic": "Mitosis",
+          "cards": [
+            {
+              "front": "What is mitosis?",
+              "back": "One eukaryotic cell divides to make two identical daughter cells.",
+              "evidence": {
+                "source_id": "s1",
+                "quote": "Mitosis is the process by which a single eukaryotic cell divides to produce two identical daughter cells."
+              }
+            },
+            {
+              "front": "What happens after mitosis?",
+              "back": "Cytokinesis: the cytoplasm divides, giving two separate daughter cells.",
+              "evidence": {
+                "source_id": "s1",
+                "quote": "After mitosis, cytokinesis takes place. This is the division of the cytoplasm, producing two separate daughter cells."
+              }
+            },
+            {
+              "front": "How do the daughter cells compare to the parent cell?",
+              "back": "They are genetically identical, with the same number of chromosomes.",
+              "evidence": {
+                "source_id": "s1",
+                "quote": "Each daughter cell is genetically identical to the parent cell, with the same number of chromosomes."
+              }
+            },
+            {
+              "front": "Why does the body need mitosis?",
+              "back": "To grow, to replace old or damaged cells (like skin cells) and to heal after injury.",
+              "evidence": {
+                "source_id": "s1",
+                "quote": "It also replaces old or damaged cells, such as skin cells, and helps with healing after injury."
+              }
+            },
+            {
+              "front": "What is cytokinesis?",
+              "back": "The division of the cytoplasm.",
+              "evidence": {
+                "source_id": "s1",
+                "quote": "Key term: Cytokinesis - the division of the cytoplasm."
+              }
+            },
+            {
+              "front": "Which structure organises the spindle fibres?",
+              "back": "The centrosome (centrioles in animal cells).",
+              "evidence": null
+            }
+          ]
+        }
+      }
+    },
+    {
+      "event": "done",
+      "delayMs": 60,
+      "data": {
+        "model": "mock",
+        "stop": "tool_calls",
+        "continuation": [
+          {
+            "type": "function_call",
+            "call_id": "call_mock_cards",
+            "name": "create_flashcards",
+            "arguments": "{\"course_id\": \"c1\", \"topic\": \"Mitosis\", \"cards\": [{\"front\": \"What is mitosis?\", \"back\": \"One eukaryotic cell divides to make two identical daughter cells.\", \"evidence\": {\"source_id\": \"s1\", \"quote\": \"Mitosis is the process by which a single eukaryotic cell divides to produce two identical daughter cells.\"}}, {\"front\": \"What happens after mitosis?\", \"back\": \"Cytokinesis: the cytoplasm divides, giving two separate daughter cells.\", \"evidence\": {\"source_id\": \"s1\", \"quote\": \"After mitosis, cytokinesis takes place. This is the division of the cytoplasm, producing two separate daughter cells.\"}}, {\"front\": \"How do the daughter cells compare to the parent cell?\", \"back\": \"They are genetically identical, with the same number of chromosomes.\", \"evidence\": {\"source_id\": \"s1\", \"quote\": \"Each daughter cell is genetically identical to the parent cell, with the same number of chromosomes.\"}}, {\"front\": \"Why does the body need mitosis?\", \"back\": \"To grow, to replace old or damaged cells (like skin cells) and to heal after injury.\", \"evidence\": {\"source_id\": \"s1\", \"quote\": \"It also replaces old or damaged cells, such as skin cells, and helps with healing after injury.\"}}, {\"front\": \"What is cytokinesis?\", \"back\": \"The division of the cytoplasm.\", \"evidence\": {\"source_id\": \"s1\", \"quote\": \"Key term: Cytokinesis - the division of the cytoplasm.\"}}, {\"front\": \"Which structure organises the spindle fibres?\", \"back\": \"The centrosome (centrioles in animal cells).\", \"evidence\": null}]}"
+          }
+        ]
+      }
+    }
+  ]
+}

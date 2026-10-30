@@ -1,0 +1,49 @@
+{
+  "events": [
+    {
+      "event": "start",
+      "delayMs": 650,
+      "data": {
+        "model": "mock"
+      }
+    },
+    {
+      "event": "delta",
+      "delayMs": 55,
+      "data": {
+        "text": "**Mitosis** copies a cell into two identical cells, "
+      }
+    },
+    {
+      "event": "delta",
+      "delayMs": 55,
+      "data": {
+        "text": "and **meiosis** makes four cells with half the chromosomes. "
+      }
+    },
+    {
+      "event": "delta",
+      "delayMs": 55,
+      "data": {
+        "text": "Meiosis divides twice; mitosis divides once."
+      }
+    },
+    {
+      "event": "citation",
+      "delayMs": 30,
+      "data": {
+        "sourceId": "s1",
+        "label": "Textbook p. 87",
+        "quote": "Mitosis is the process by which a single eukaryotic cell divides to produce two identical daughter cells."
+      }
+    },
+    {
+      "event": "done",
+      "delayMs": 40,
+      "data": {
+        "model": "mock",
+        "stop": "end_turn"
+      }
+    }
+  ]
+}

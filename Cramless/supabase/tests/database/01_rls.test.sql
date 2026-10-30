@@ -1,7 +1,7 @@
 -- Row-level security and grants, as the app's roles see them. Run with `supabase test db` against the local stack.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(37);
+select plan(40);
 
 -- Two people (the profile trigger gives each a profile) and one anonymous session.
 insert into auth.users (id, email, aud, role, is_anonymous)
@@ -47,6 +47,12 @@ select throws_ok($$ update public.review_logs set rating = 4 $$, '42501', null, 
 select throws_ok($$ delete from public.review_logs $$, '42501', null, 'reviews cannot be deleted by clients');
 
 select lives_ok($$ insert into public.day_records (day_key, day, sessions) values ('2026-10-22', '2026-10-22', 1) $$, 'A records a day');
+select is((select quest_mask::int from public.day_records where day_key = '2026-10-22'), 0, 'a day starts with no quests finished');
+select lives_ok($$ insert into public.day_records (day_key, day, sessions, quest_mask) values ('2026-10-22', '2026-10-22', 1, 7)
+                   on conflict (user_id, day_key) do update set quest_mask = excluded.quest_mask $$,
+                'A pushes the quests she finished');
+select throws_ok($$ update public.day_records set quest_mask = 2048 where day_key = '2026-10-22' $$,
+                 '23514', null, 'a quest mask stays within the bits that exist');
 select lives_ok($$ insert into public.profiles (id, display_name, timezone) values ('11111111-1111-4111-8111-111111111111', 'Maya', 'America/Los_Angeles')
                    on conflict (id) do update set display_name = excluded.display_name, timezone = excluded.timezone $$,
                 'A sets her own name and time zone');

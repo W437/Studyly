@@ -1,16 +1,20 @@
 // The `ai` function: the relay the app's HTTP transport calls. One function, routed by path:
 //   POST /ai/generate, /ai/check, /ai/grade, /ai/tutor (server-sent events), /ai/confusions, /ai/lecture,
-//        /ai/cards-from-chat, /ai/transcribe-image
+//        /ai/cards-from-chat, /ai/transcribe-image, /ai/assistant (server-sent events: Ask Cap with tools),
+//        /ai/research (server-sent events: web research, Pro)
 //   GET  /ai/quota
 // Every route checks the caller's Supabase session (anonymous users allowed), resolves their plan (an active
 // entitlement or Squad membership), validates the body, meters the free quotas (scans, grades, tutor, lectures;
 // a failed request gives its quota back) and answers in the contract's shapes and error envelope. MOCK mode
-// (CRAMLESS_MOCK=1) answers with the fixtures; real mode calls Claude (Haiku 5.5, Sonnet 5.5 for the tutor and
-// for grading `apply` and long answers) and cleans every reply (items must anchor to real line or segment ids).
+// (CRAMLESS_MOCK=1) answers with the fixtures; real mode calls Claude (Haiku 5.5, Sonnet 5.5 for grading `apply` and
+// long answers, and for the tutor unless OPENAI_API_KEY puts the tutor on OpenAI) and cleans every reply (items must
+// anchor to real line or segment ids).
 
 import { type JsonResult, providerError } from "../_shared/anthropic.ts";
 import { unauthorized } from "../_shared/auth.ts";
 import type {
+  AssistantRequest,
+  AssistantScript,
   CardsFromChatRequest,
   CardsFromChatResponse,
   CheckRequest,
@@ -24,11 +28,21 @@ import type {
   ItemKind,
   LectureRequest,
   LectureResponse,
+  ResearchRequest,
+  ResearchScript,
   TranscribeImageRequest,
   TranscribeImageResponse,
   TutorRequest,
   TutorScript,
 } from "../_shared/contract.ts";
+import {
+  allowedTools,
+  assistantInput,
+  checkTurns,
+  DRAFT_TOOLS,
+  MAX_ROUNDS,
+  toolDefinitions,
+} from "../_shared/assistant.ts";
 import { addUsage, costNano, formatUsd, HAIKU, SONNET, type Usage, ZERO_USAGE } from "../_shared/cost.ts";
 import type { Deps } from "../_shared/deps.ts";
 import { ApiError, badRequest, errorResponse, toApiError } from "../_shared/errors.ts";
@@ -45,10 +59,20 @@ import {
   sanitizeVerdicts,
 } from "../_shared/items.ts";
 import { log } from "../_shared/log.ts";
-import { fixtureOverride, fixtureText, gradeFixture, MOCK_LATENCY_MS, tutorFixture } from "../_shared/mock.ts";
 import {
+  assistantFixture,
+  fixtureOverride,
+  fixtureText,
+  gradeFixture,
+  MOCK_LATENCY_MS,
+  researchFixture,
+  tutorFixture,
+} from "../_shared/mock.ts";
+import {
+  dailyCostError,
   enforcedLimit,
   isPaid,
+  localMidnight,
   type Meter,
   METERS,
   PAGES_PER_SCAN,
@@ -60,12 +84,15 @@ import {
   usageKeys,
 } from "../_shared/plans.ts";
 import {
+  assistantSystem,
   cardsContent,
   checkContent,
   confusionsContent,
   generateContent,
   gradeContent,
   lectureContent,
+  researchInput,
+  researchSystem,
   systemFor,
   transcribeContent,
   tutorMessages,
@@ -85,6 +112,8 @@ type RouteName =
   | "lecture"
   | "cards-from-chat"
   | "transcribe-image"
+  | "assistant"
+  | "research"
   | "quota";
 
 const KB = 1024;
@@ -99,6 +128,8 @@ const ROUTES: Record<RouteName, { method: "GET" | "POST"; schema?: string; maxBy
   lecture: { method: "POST", schema: "LectureRequest", maxBytes: 4 * MB },
   "cards-from-chat": { method: "POST", schema: "CardsFromChatRequest", maxBytes: MB },
   "transcribe-image": { method: "POST", schema: "TranscribeImageRequest", maxBytes: 12 * MB },
+  assistant: { method: "POST", schema: "AssistantRequest", maxBytes: 2 * MB },
+  research: { method: "POST", schema: "ResearchRequest", maxBytes: 16 * KB },
   quota: { method: "GET", maxBytes: 0 },
 };
 
@@ -190,8 +221,27 @@ function record(c: Ctx, model: string, usage: Usage, status: number): void {
       cacheWriteTokens: usage.cacheWriteTokens,
       costUsd: formatUsd(cost),
       latencyMs: Math.round(performance.now() - c.startedAt),
+      createdAt: c.now.toISOString(),
     }).catch(() => {}),
   );
+}
+
+/** The day's cost cap: once the person's model calls today have cost the cap, no AI route answers until their local midnight. A safety
+ * net under the meters, which count requests and not money. The sum is read from the request log, which is written after each
+ * response, so what is still running isn't in it yet: a burst can pass the cap by what is in flight. MOCK replies cost nothing. If
+ * the sum can't be read the request goes ahead (the meters still hold) and the failure is logged. */
+async function checkDailyCost(c: Ctx): Promise<void> {
+  const cap = c.deps.env.dailyCostCapNano;
+  if (cap <= 0n || c.deps.env.mock) return;
+  let spent: bigint;
+  try {
+    const since = localMidnight(periodStart("day", c.now, c.user.timeZone), c.user.timeZone);
+    spent = await c.deps.store.spentSince(c.caller.userId, since);
+  } catch {
+    log({ fn: "ai", route: `/${c.route}`, status: 500, code: "daily_cost_check_failed", plan: c.user.plan });
+    return;
+  }
+  if (spent >= cap) throw dailyCostError(c.user.plan, c.now, c.user.timeZone);
 }
 
 interface RealResult<T> {
@@ -534,13 +584,13 @@ async function realTutor(c: Ctx, body: TutorRequest, stream: EventStream, signal
   const sources = new Map(body.sources.map((s) => [s.id, s]));
   const cited = new Set<string>();
   let sentDelta = false;
-  let model = SONNET;
+  let model = c.deps.tutorModel;
   let usage = ZERO_USAGE;
   let status = 200;
   try {
     const events = c.deps.provider.tutor({
-      model: SONNET,
-      effort: "low",
+      model: c.deps.tutorModel,
+      effort: c.deps.tutorEffort,
       maxTokens: 8_000,
       system: tutorSystem(body),
       messages: tutorMessages(body),
@@ -584,7 +634,330 @@ async function realTutor(c: Ctx, body: TutorRequest, stream: EventStream, signal
   } catch (error) {
     const err = providerError(error);
     status = err.status;
+    if (err.usage) usage = err.usage;
     if (!sentDelta) await refund(c, charge);
+    stream.send("error", { code: err.code, message: err.message });
+  } finally {
+    stream.close();
+    finishTutor(c, model, usage, status);
+  }
+}
+
+// ---- The assistant (server-sent events): Ask Cap with tools ----
+
+/** One reply is up to MAX_ROUNDS requests. The first is a tutor message; each round after tool calls counts against `rounds`,
+ * and the relay refuses one when `rounds` would pass three for each tutor message that day, so a request made up by hand (a
+ * forged or replayed continuation, with no first round behind it) costs what an honest reply does. Drafting (cards, questions,
+ * notes, exams) is its own daily allowance: 3 on the free plan, taken before the model is asked, so parallel requests cannot all
+ * pass, and given back if the reply drafts nothing. When the allowance is spent the draft tools stay on offer: the model reaching
+ * for one is how we know the student asked for something, and that ends the reply with `limit: "drafts"` (a plain question
+ * never meets the limit). Web research is a separate route and a Pro feature. */
+async function assistant(c: Ctx, body: AssistantRequest): Promise<Response> {
+  if (body.messages[body.messages.length - 1].role !== "user") {
+    throw badRequest("The last message must be the student's.");
+  }
+  const turns = checkTurns(body.turns);
+  const ids = new Set<string>();
+  body.sources = body.sources.filter((s) => !ids.has(s.id) && ids.add(s.id));
+  const charge = await chargeRound(c, turns.length);
+  let reserved = false;
+  try {
+    // The app asking for no drafting tools needs no draft; with them, it takes one of the day's drafts (or learns there is none).
+    if (body.tools.some((t) => DRAFT_TOOLS.has(t))) reserved = await reserveDraft(c);
+  } catch (error) {
+    await refund(c, charge);
+    throw error;
+  }
+  const tools = allowedTools(body.tools, { minor: body.minor });
+
+  const stream = new EventStream(c.deps.pingIntervalMs);
+  const abort = new AbortController();
+  stream.onCancel(() => abort.abort());
+  c.req.signal?.addEventListener("abort", () => abort.abort(), { once: true });
+  const run = c.deps.env.mock
+    ? mockAssistant(c, { ...body, turns }, stream, abort.signal, charge, { reserved })
+    : realAssistant(c, { ...body, turns }, tools, stream, abort.signal, charge, { reserved });
+  c.deps.background(run);
+  return stream.response;
+}
+
+/** A round after a reply's first: it counts against `rounds`, and only while `rounds` stays within three for each tutor
+ * message counted today (the tutor message is what the first round pays). */
+async function chargeRound(c: Ctx, round: number): Promise<Charge> {
+  if (round === 0) return await consume(c, { meter: "tutor" });
+  const period = periodStart("day", c.now, c.user.timeZone);
+  const used = await c.deps.store.usage(c.caller.userId, [{ meter: "tutor", period }, { meter: "rounds", period }]);
+  const first = used.tutor ?? 0;
+  if ((used.rounds ?? 0) >= (MAX_ROUNDS - 1) * first) {
+    throw quotaError("tutor", c.user.plan, first, c.now, c.user.timeZone);
+  }
+  return await consume(c, { meter: "rounds" });
+}
+
+/** Takes one of the day's drafts for this request, if there is one (atomic: the database decides). */
+async function reserveDraft(c: Ctx): Promise<boolean> {
+  const period = periodStart(METERS.drafts.period, c.now, c.user.timeZone);
+  const r = await c.deps.store.consume(c.caller.userId, "drafts", period, 1, enforcedLimit("drafts", c.user.plan));
+  return r.allowed;
+}
+
+async function releaseDraft(c: Ctx): Promise<void> {
+  try {
+    const period = periodStart(METERS.drafts.period, c.now, c.user.timeZone);
+    await c.deps.store.refund(c.caller.userId, "drafts", period, 1);
+  } catch {
+    // The student loses one draft for today at worst.
+  }
+}
+
+interface Drafts {
+  /** One of the day's drafts was taken for this request. */
+  reserved: boolean;
+}
+
+/** What the reply says when the model reaches for a draft tool and the day's drafts are used up: the app writes the words
+ * (in the student's language) and, on the free plan, offers Pro. */
+const DRAFTS_LIMIT = { stop: "end_turn", limit: "drafts" } as const;
+
+/** An error that needs no quota back: the model was asked and billed, or the student walked away. */
+function keepsCharge(err: ApiError): boolean {
+  return err.status === 499 || err.usage !== undefined;
+}
+
+async function mockAssistant(
+  c: Ctx,
+  body: AssistantRequest,
+  stream: EventStream,
+  signal: AbortSignal,
+  charge: Charge,
+  drafts: Drafts,
+) {
+  const name = fixtureOverride(c.req, "assistant") ?? assistantFixture(body);
+  const script = JSON.parse(fixtureText(name)) as AssistantScript;
+  let shown = false;
+  let status = 200;
+  let drafted = false;
+  try {
+    for (const event of script.events) {
+      await c.deps.sleep(event.delayMs, signal);
+      if (signal.aborted || stream.closed) break;
+      if (event.event === "error") {
+        status = 502;
+        if (!shown) await refund(c, charge);
+      } else if (event.event !== "start") {
+        shown = true;
+      }
+      // The script reaches for a draft the day's allowance doesn't cover: the reply ends here, as the real one does.
+      if (event.event === "tool_start" && !drafts.reserved && DRAFT_TOOLS.has(event.data.name as never)) {
+        stream.send("done", { model: "mock", ...DRAFTS_LIMIT });
+        break;
+      }
+      if (event.event === "tool_call" && DRAFT_TOOLS.has(event.data.name as never)) drafted = true;
+      stream.send(event.event, event.data);
+    }
+  } finally {
+    // A draft taken for a reply that made none is given back.
+    if (drafts.reserved && !drafted) await releaseDraft(c);
+    stream.close();
+    finishTutor(c, "mock", ZERO_USAGE, status);
+  }
+}
+
+async function realAssistant(
+  c: Ctx,
+  body: AssistantRequest,
+  tools: ReturnType<typeof allowedTools>,
+  stream: EventStream,
+  signal: AbortSignal,
+  charge: Charge,
+  drafts: Drafts,
+) {
+  const sources = new Map(body.sources.map((s) => [s.id, s]));
+  const cited = new Set<string>();
+  let shown = false;
+  let drafted = false;
+  let limited = false;
+  let model = c.deps.tutorModel;
+  let usage = ZERO_USAGE;
+  let status = 200;
+  try {
+    const { input, passages } = assistantInput(body);
+    const events = c.deps.provider.assistant({
+      model: c.deps.tutorModel,
+      effort: c.deps.tutorEffort,
+      maxTokens: 8_000,
+      system: assistantSystem(body),
+      input,
+      tools: toolDefinitions(tools),
+      passages,
+      signal,
+    });
+    for await (const event of events) {
+      if (stream.closed) break;
+      switch (event.type) {
+        case "start":
+          model = event.model || model;
+          stream.send("start", { model });
+          break;
+        case "delta":
+          shown = true;
+          stream.send("delta", { text: event.text });
+          break;
+        case "citation": {
+          const source = sources.get(event.source);
+          const key = `${event.source}\u0000${event.quote}`;
+          if (!source || cited.has(key)) break;
+          cited.add(key);
+          stream.send("citation", { sourceId: source.id, label: source.label, quote: event.quote });
+          break;
+        }
+        case "tool_start":
+          if (!drafts.reserved && DRAFT_TOOLS.has(event.name as never)) {
+            // The student asked for something to be made and the day's drafts are used up: stop the model here (it was
+            // not told it could not) and let the app say so.
+            limited = true;
+            break;
+          }
+          shown = true;
+          stream.send("tool_start", { callId: event.callId, name: event.name });
+          break;
+        case "tool_item":
+          stream.send("tool_item", { callId: event.callId, index: event.index, item: event.item });
+          break;
+        case "tool_text":
+          stream.send("tool_text", { callId: event.callId, text: event.text });
+          break;
+        case "tool_call":
+          if (DRAFT_TOOLS.has(event.name as never)) drafted = true;
+          stream.send("tool_call", { callId: event.callId, name: event.name, arguments: event.arguments });
+          break;
+        case "done":
+          model = event.model || model;
+          usage = event.usage;
+          if (event.stop === "refusal") {
+            status = 422;
+            if (!shown) await refund(c, charge);
+            stream.send("error", {
+              code: "upstream",
+              message: "Cap can't help with that one. Try asking about your notes.",
+            });
+          } else {
+            stream.send("done", {
+              model,
+              stop: event.stop === "tool_calls" ? "tool_calls" : "end_turn",
+              ...(event.continuation ? { continuation: event.continuation } : {}),
+            });
+          }
+          break;
+      }
+      if (limited) break; // (leaving the loop closes the model's stream)
+    }
+    if (limited) stream.send("done", { model, ...DRAFTS_LIMIT });
+  } catch (error) {
+    const err = providerError(error);
+    status = err.status;
+    if (err.usage) usage = err.usage;
+    if (!shown && !keepsCharge(err)) await refund(c, charge);
+    stream.send("error", { code: err.code, message: err.message });
+  } finally {
+    // A draft taken for a reply that made none (an answer, a failure) is given back.
+    if (drafts.reserved && !drafted) await releaseDraft(c);
+    stream.close();
+    finishTutor(c, model, usage, status);
+  }
+}
+
+// ---- Web research (server-sent events): Pro only, trusted study sites only ----
+
+async function research(c: Ctx, body: ResearchRequest): Promise<Response> {
+  if (body.minor) throw badRequest("Web research isn't available for this account.", 403);
+  if (!isPaid(c.user.plan)) throw new ApiError("entitlement_required", "Web research is part of Capling Pro.");
+  const charge = await consume(c, { meter: "research" });
+  const stream = new EventStream(c.deps.pingIntervalMs);
+  const abort = new AbortController();
+  stream.onCancel(() => abort.abort());
+  c.req.signal?.addEventListener("abort", () => abort.abort(), { once: true });
+  const run = c.deps.env.mock
+    ? mockResearch(c, body, stream, abort.signal, charge)
+    : realResearch(c, body, stream, abort.signal, charge);
+  c.deps.background(run);
+  return stream.response;
+}
+
+async function mockResearch(c: Ctx, body: ResearchRequest, stream: EventStream, signal: AbortSignal, charge: Charge) {
+  const name = fixtureOverride(c.req, "research") ?? researchFixture(body.topic);
+  const script = JSON.parse(fixtureText(name)) as ResearchScript;
+  let shown = false;
+  let status = 200;
+  try {
+    for (const event of script.events) {
+      await c.deps.sleep(event.delayMs, signal);
+      if (signal.aborted || stream.closed) break;
+      if (event.event === "error") {
+        status = 502;
+        if (!shown) await refund(c, charge);
+      } else if (event.event !== "start") {
+        shown = true;
+      }
+      stream.send(event.event, event.data);
+    }
+  } finally {
+    stream.close();
+    finishTutor(c, "mock", ZERO_USAGE, status);
+  }
+}
+
+async function realResearch(c: Ctx, body: ResearchRequest, stream: EventStream, signal: AbortSignal, charge: Charge) {
+  let shown = false;
+  let model = c.deps.tutorModel;
+  let usage = ZERO_USAGE;
+  let status = 200;
+  try {
+    const events = c.deps.provider.research({
+      model: c.deps.tutorModel,
+      effort: c.deps.tutorEffort,
+      maxTokens: 4_000,
+      system: researchSystem(),
+      input: researchInput(body),
+      domains: c.deps.env.researchDomains,
+      maxSearches: 3,
+      signal,
+    });
+    for await (const event of events) {
+      if (stream.closed) break;
+      switch (event.type) {
+        case "start":
+          model = event.model || model;
+          stream.send("start", { model });
+          break;
+        case "search":
+          shown = true;
+          stream.send("search", {
+            id: event.id,
+            phase: event.phase,
+            ...(event.queries ? { queries: event.queries } : {}),
+            ...(event.sources ? { sources: event.sources } : {}),
+          });
+          break;
+        case "delta":
+          shown = true;
+          stream.send("delta", { text: event.text });
+          break;
+        case "citation":
+          stream.send("citation", { url: event.url, title: event.title, domain: event.domain });
+          break;
+        case "done":
+          model = event.model || model;
+          usage = event.usage;
+          stream.send("done", { model, searches: event.searches });
+          break;
+      }
+    }
+  } catch (error) {
+    const err = providerError(error);
+    status = err.status;
+    if (err.usage) usage = err.usage;
+    if (!shown && !keepsCharge(err)) await refund(c, charge);
     stream.send("error", { code: err.code, message: err.message });
   } finally {
     stream.close();
@@ -596,7 +969,7 @@ function finishTutor(c: Ctx, model: string, usage: Usage, status: number): void 
   record(c, model, usage, status);
   log({
     fn: "ai",
-    route: "/tutor/done",
+    route: `/${c.route}/done`,
     status,
     latency_ms: Math.round(performance.now() - c.startedAt),
     plan: c.user.plan,
@@ -631,6 +1004,8 @@ async function handle(req: Request, deps: Deps, name: string, meta: Meta, starte
     return json(quotaStatus(user.plan, usage));
   }
 
+  await checkDailyCost(c);
+
   const body = requireValid<unknown>(spec.schema!, await readJson(req, spec.maxBytes));
   switch (route) {
     case "generate":
@@ -649,6 +1024,10 @@ async function handle(req: Request, deps: Deps, name: string, meta: Meta, starte
       return await cardsFromChat(c, body as CardsFromChatRequest);
     case "transcribe-image":
       return await transcribeImage(c, body as TranscribeImageRequest);
+    case "assistant":
+      return await assistant(c, body as AssistantRequest);
+    case "research":
+      return await research(c, body as ResearchRequest);
   }
   throw notFound();
 }

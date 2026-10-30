@@ -1,0 +1,47 @@
+{
+  "events": [
+    {
+      "event": "start",
+      "delayMs": 700,
+      "data": {
+        "model": "mock"
+      }
+    },
+    {
+      "event": "tool_start",
+      "delayMs": 120,
+      "data": {
+        "callId": "call_mock_search",
+        "name": "search_notes"
+      }
+    },
+    {
+      "event": "tool_call",
+      "delayMs": 500,
+      "data": {
+        "callId": "call_mock_search",
+        "name": "search_notes",
+        "arguments": {
+          "query": "anaphase",
+          "course_id": "c1"
+        }
+      }
+    },
+    {
+      "event": "done",
+      "delayMs": 60,
+      "data": {
+        "model": "mock",
+        "stop": "tool_calls",
+        "continuation": [
+          {
+            "type": "function_call",
+            "call_id": "call_mock_search",
+            "name": "search_notes",
+            "arguments": "{\"query\": \"anaphase\", \"course_id\": \"c1\"}"
+          }
+        ]
+      }
+    }
+  ]
+}
