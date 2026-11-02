@@ -3,7 +3,7 @@
 // scripted provider where only what the route does matters. Plus the MOCK-mode scripts against the real tool schemas.
 
 import { assert, assertEquals, assertStringIncludes, assertThrows } from "@std/assert";
-import type { AssistantCall, AssistantStreamEvent } from "../_shared/anthropic.ts";
+import type { AssistantCall, AssistantStreamEvent } from "../_shared/provider.ts";
 import {
   ASSISTANT_TOOLS,
   type AssistantScript,
@@ -1219,7 +1219,7 @@ Deno.test("production wiring: with the key set the assistant and research run on
     await mock.close();
   }
 
-  const without = defaultDeps({ env: testEnv({}), store: new MemoryStore() });
+  const without = defaultDeps({ env: testEnv({ OPENAI_API_KEY: "" }), store: new MemoryStore() });
   let message = "";
   try {
     for await (const _ of without.provider.assistant({} as never)) { /* nothing */ }

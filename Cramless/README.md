@@ -58,7 +58,7 @@ The owner provides these, and nothing in the repo invents them:
 1. **A Supabase project.** Put its host and anon key in `Secrets.xcconfig`. Apply the migrations with
    `supabase db push` and deploy the functions with `supabase functions deploy ai account appstore-notify`.
 2. **Function secrets:**
-   - `ANTHROPIC_API_KEY`
+   - `OPENAI_API_KEY` (every AI route runs on OpenAI)
    - `APPLE_APP_ID` (the numeric App Store id)
    - the App Store Connect values listed in `supabase/README.md`
 3. **In Supabase:**
@@ -72,7 +72,7 @@ The owner provides these, and nothing in the repo invents them:
      both for subscriptions
 5. **Run the two checks that need you** (see `docs/BUILD.md`, "Verified against real services", for what is
    already proven on this Mac and on a local Supabase stack):
-   - `ANTHROPIC_API_KEY=… deno task live`, in `supabase/functions`: real Claude on the sample page, with verdicts
+   - `OPENAI_API_KEY=… deno task live`, in `supabase/functions`: real OpenAI on the sample page, with verdicts
      and cost.
    - With your iPhone unlocked, `scripts/device_probe.sh <udid>`. The debug build is already installed on your
      iPhone 15 Pro. It covers the phone's own AI, speech round trip, VisionKit, a Live Activity and haptics hardware.

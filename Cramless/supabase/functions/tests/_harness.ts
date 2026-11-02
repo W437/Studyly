@@ -1,11 +1,11 @@
 // Shared test setup. The handlers run in-process with injected dependencies: a fixed clock, a sleeper that
 // records instead of waiting, the in-memory store, an authenticator that knows test tokens, and either a scripted
-// provider or the real Anthropic SDK pointed at the local mock server.
+// provider or the real OpenAI provider pointed at the local mock server.
 
 import {
-  AnthropicProvider,
   type AssistantCall,
   type AssistantStreamEvent,
+  type Effort,
   type JsonCall,
   type JsonResult,
   type Provider,
@@ -13,11 +13,10 @@ import {
   type ResearchStreamEvent,
   type TutorCall,
   type TutorStreamEvent,
-} from "../_shared/anthropic.ts";
+} from "../_shared/provider.ts";
 import type { Authenticate, Caller } from "../_shared/auth.ts";
 import type { QuotaStatus } from "../_shared/contract.ts";
-import { SONNET, ZERO_USAGE } from "../_shared/cost.ts";
-import type { Effort } from "../_shared/anthropic.ts";
+import { TERRA, ZERO_USAGE } from "../_shared/cost.ts";
 import type { Deps } from "../_shared/deps.ts";
 import { type Env, envFrom } from "../_shared/env.ts";
 import { ApiError } from "../_shared/errors.ts";
@@ -29,7 +28,8 @@ import { aiHandler } from "../ai/handler.ts";
 import { accountHandler } from "../account/handler.ts";
 import { appstoreNotifyHandler } from "../appstore-notify/handler.ts";
 import { MemoryStore } from "./_memory_store.ts";
-import { TEST_API_KEY } from "./_mock_anthropic.ts";
+import { TEST_OPENAI_KEY } from "./_mock_openai.ts";
+import { OpenAIAssistantProvider } from "../_shared/openai_assistant.ts";
 
 /** Thursday 22 October 2026, 09:00 UTC. The week started on Monday the 19th. */
 export const NOW = "2026-10-22T09:00:00Z";
@@ -58,7 +58,7 @@ export function testEnv(vars: Record<string, string> = {}): Env {
   const all: Record<string, string> = {
     SUPABASE_URL: "http://127.0.0.1:58421",
     SUPABASE_SERVICE_ROLE_KEY: "service-role-key",
-    ANTHROPIC_API_KEY: TEST_API_KEY,
+    OPENAI_API_KEY: TEST_OPENAI_KEY,
     ...vars,
   };
   return envFrom((name) => all[name] ?? "");
@@ -85,7 +85,7 @@ export class ScriptedProvider implements Provider {
   readonly #assistant: (AssistantStreamEvent | Error)[][] = [];
   readonly #research: (ResearchStreamEvent | Error)[][] = [];
 
-  replyJson(value: unknown, model = "claude-haiku-5-5"): void {
+  replyJson(value: unknown, model = TERRA): void {
     this.#json.push({
       value,
       model,
@@ -167,7 +167,7 @@ export interface RequestOptions {
 export interface RigOptions {
   env?: Record<string, string>;
   provider?: Provider;
-  /** The model that answers the tutor (Claude Sonnet unless a test says otherwise) and how hard it thinks. */
+  /** The model that answers the tutor (Terra unless a test says otherwise) and how hard it thinks. */
   tutorModel?: string;
   tutorEffort?: Effort;
   verifiers?: Verifiers;
@@ -186,7 +186,7 @@ export function rig(o: RigOptions = {}): TestRig {
     env: testEnv(o.env),
     store,
     provider,
-    tutorModel: o.tutorModel ?? SONNET,
+    tutorModel: o.tutorModel ?? TERRA,
     tutorEffort: o.tutorEffort ?? "low",
     authenticate: tokenAuthenticator(o.anonymous),
     verifiers: o.verifiers ??
@@ -236,8 +236,14 @@ export function rig(o: RigOptions = {}): TestRig {
 }
 
 /** The relay's real provider pointed at the mock server; no retries, short timeout. */
-export function mockedProvider(baseURL: string): AnthropicProvider {
-  return new AnthropicProvider({ apiKey: TEST_API_KEY, baseURL, maxRetries: 0, timeoutMs: 10_000 });
+export function mockedProvider(mockUrl: string): OpenAIAssistantProvider {
+  return new OpenAIAssistantProvider({
+    apiKey: TEST_OPENAI_KEY,
+    baseURL: `${mockUrl}/v1`,
+    maxRetries: 0,
+    retryDelayMs: 0,
+    timeoutMs: 10_000,
+  });
 }
 
 export function fixture(name: string): string {

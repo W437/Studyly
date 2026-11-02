@@ -5,6 +5,14 @@ Every fact below was read from the code, and the file is named; what only a prov
 publish" at the end. Nothing here is legal advice. After a change, `python3 scripts/cap_anim/build_privacy_page.py` rebuilds the page
 version, with a button that copies the policy section (`build/review/ask-cap-assistant/privacy.html`).
 
+**Correction, 2026-11-01.** Every age limit below (under 13: no Cloud AI; under 18: no web research, no "Let Cap do it", hints first)
+is in the code, but nothing sets the age band yet: `AgeRange.refresh` has no caller and `settings.level` is only set in the demo
+data, so in a real build `ageBand` stays unknown and none of those limits applies. Do not publish them as facts until the age check
+is wired in. Loopware's privacy page (the Capling section drafted on the `capling-privacy` branch of the loopware-landing repo) says
+only "made for students 13 and up", and the age-rating answer `ageAssurance` is false. The same reading of the code found that a
+deleted item stays on the server, marked deleted, until the account is deleted, and that signing in makes a new account and leaves
+the anonymous one behind.
+
 ## 1. The privacy policy: a section for Ask Cap
 
 > ### Ask Cap, our study assistant
@@ -16,8 +24,8 @@ version, with a button that copies the policy section (`build/review/ask-cap-ass
 > When you use it, Capling's server sends your request to an AI provider to be answered. That includes your message and the recent
 > messages in the chat, a few passages from your notes that match your question, and an overview of your study, so that Cap can pick
 > the right course: the names of your courses, topics and exams, your exam dates, how ready you are, which topics are fading and how
-> many cards are due. If you turn on "Also send page photos", photos of the pages you scan go too. Ask Cap's answers, its tools and
-> web research use OpenAI; making questions from scans, grading and lecture notes use Anthropic. Your phone never talks to an AI company
+> many cards are due. If you turn on "Also send page photos", photos of the pages you scan go too. Capling uses OpenAI for all of it: Ask Cap's
+> answers, its tools, web research, questions made from scans, grading and lecture notes. Your phone never talks to an AI company
 > directly: requests go through our own server.
 >
 > What Cap makes is shown to you first. Nothing is added to your library until you approve it, unless you switch on "Let Cap do it"
@@ -43,7 +51,7 @@ Where each fact comes from:
 |---|---|
 | Cloud AI is off until allowed; under 13 never; photos are a second switch | `AI/AIConsent.swift`, `AI/AIRouting.swift`, `Features/Settings/ConsentSheet.swift` |
 | What the model is sent: the messages, up to 24 passages, and the study overview (course, topic and exam names, exam dates, readiness, fading topics, due counts) | `supabase/functions/_shared/assistant.ts` (`studyBlock`), `_shared/contract.ts` (`AssistantRequest`) |
-| OpenAI for the tutor, the assistant and web research; Anthropic for the rest | `_shared/deps.ts`, `_shared/openai.ts` (`withTutor`), `docs/BUILD.md` "Ask Cap on OpenAI". Change the sentence if the wiring changes |
+| OpenAI for every AI route (the tutor, the assistant, web research, questions from scans, grading, lecture notes) | `_shared/deps.ts`, `_shared/openai.ts`, `AI/AIConsent.swift` (`processor`), `docs/BUILD.md` "Every route on OpenAI". Change the sentence if the wiring changes |
 | Drafts are shown first; "Let Cap do it" per kind; never for under 18; undo | `Features/Settings/AssistantPage.swift`, `App/AppModel+Assistant.swift` |
 | Web research: Pro only, never under 18, about 50 trusted sites, summary with links, saved only on a tap, no site learns anything | `_shared/assistant.ts` (`RESEARCH_DOMAINS`), `_shared/plans.ts`, `AI/AIRouter+Assistant.swift`, `Features/Ask/Assistant/WebSourceTile.swift` (logos drawn in code) |
 | Content is never stored or logged on our server; OpenAI is called with `store: false` | `_shared/log.ts` (an allow-list of fields), `_shared/openai.ts` |
@@ -102,16 +110,16 @@ questionnaire is in front of you, and tell me what it asks.
 ## 5. The words inside the app
 
 Kept in step with this page on 2026-10-27: the consent sheet (`ConsentSheet.swift`), Settings ▸ AI and privacy (`AIPrivacyPage.swift`),
-and `AIConsent.swift`'s version note. They now say Cap also sees exam dates, readiness and fading topics. Consent version 3 has not
-shipped, so it didn't need a fourth; once it has, a change in what is sent is version 4.
+and `AIConsent.swift`'s version note. They now say Cap also sees exam dates, readiness and fading topics, and that OpenAI is the only processor (2026-11-02). Consent
+version 3 has not shipped, so it didn't need a fourth; once it has, a change in what is sent is version 4.
 
 ## Check before you publish
 
-1. **OpenAI and Anthropic terms.** The app promises "never used to train AI models" and the section above repeats it. Both companies'
-   API terms say API data isn't used for training by default, and both keep requests for a limited time to detect abuse; read the
-   current terms and, if you want the stronger sentence ("not kept"), ask each for zero data retention.
+1. **OpenAI terms.** The app promises "never used to train AI models" and the section above repeats it. OpenAI's API terms say API
+   data isn't used for training by default, and it keeps requests for a limited time to detect abuse; read the current terms and,
+   if you want the stronger sentence ("not kept"), ask for zero data retention.
 2. **OpenAI web search.** Read what its terms say about the queries it makes on a student's behalf.
 3. **13 to 17.** OpenAI's rules for these ages are unchecked (web research is off for them; the rest is on, asking first).
-4. **If the wiring changes** (everything on OpenAI, or Private Cloud Compute), change the processors sentence, `AIConsent.processor`,
+4. **If the wiring changes** (another provider, or Private Cloud Compute), change the processors sentence, `AIConsent.processor`,
    and bump the consent version.
 5. **The URLs.** App Review needs the Privacy Policy and Terms URLs reachable (`AppLinks`; the paywall hides the links until set).

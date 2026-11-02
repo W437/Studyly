@@ -4,18 +4,18 @@ import Foundation
 /// goes to the relay only while it is at least `currentVersion`. Sending page photos is a separate switch
 /// (`settings.sendPhotos`) that only counts together with this consent.
 enum AIConsent {
-    /// Version 3: as version 2 (page text, typed answers and tutor questions go to Anthropic's or OpenAI's models through
-    /// Capling's relay, Ask Cap's to OpenAI; page photos only with the second switch; nothing is used for training), and
+    /// Version 3: page text, typed answers and tutor questions go to OpenAI's models through Capling's relay; page photos only
+    /// with the second switch; nothing is used for training; and
     /// Ask Cap's tools: Cap now also sees the names of your courses, topics and exams, the exam dates and how ready you are, which
     /// topics are fading and how many cards are due, so it can make things for the right course, and, when you ask it to research
     /// something, the topic is searched on trusted study sites on the web. (Version 3 has not shipped, so its words could still be
-    /// made to say all of this; once it has, a change to what is sent is version 4.) Version 2 named Anthropic and OpenAI for the tutor; version 1 Anthropic alone. **Bump it when a request
+    /// made to say all of this; once it has, a change to what is sent is version 4.) **Bump it when a request
     /// starts to carry a new kind of data or reaches a new processor** (for example switching on Private Cloud Compute), so
     /// everyone is asked again under the new terms.
     static let currentVersion = 3
 
     /// Who processes cloud requests, named in the consent sheet. Change it with the relay's wiring (`deps.ts`).
-    static let processor = "Anthropic and OpenAI"
+    static let processor = "OpenAI"
 
     static func isGranted(_ settings: AppSettings) -> Bool {
         settings.cloudConsentVersion >= currentVersion

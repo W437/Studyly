@@ -1,6 +1,7 @@
-// A local stand-in for OpenAI's Responses API, for testing the tutor's OpenAI path without a key: the provider's base
-// URL points here. It refuses a request the way the API would (the key, the model, the instructions, a strict JSON schema,
-// nothing stored, streaming), records it, and answers with the next canned reply: a server-sent event stream or an error.
+// A local stand-in for OpenAI's Responses API, for testing the OpenAI path without a key: the provider's base URL points
+// here (`deno task mock-openai` runs it on its own). It refuses a request the way the API would (the key, the model, the
+// instructions, a strict JSON schema, nothing stored, streaming or not), records it, and answers with the next canned
+// reply: a server-sent event stream, a whole response (the JSON routes) or an error.
 
 export const TEST_OPENAI_KEY = "test-openai-key";
 
@@ -13,6 +14,8 @@ export interface RecordedOpenAI {
 
 export type MockOpenAIAnswer =
   | { sse: { event: string; data: unknown }[]; hang?: boolean }
+  /** A whole (not streamed) response, for the JSON routes. */
+  | { response: unknown; status?: number }
   | { status: number; error: { message: string; type: string; code?: string }; headers?: Record<string, string> };
 
 export interface MockOpenAI {
@@ -42,7 +45,69 @@ function strictProblem(schema: any, path: string): string | null {
     }
   }
   if (types.includes("array")) return strictProblem(schema.items, `${path}[]`);
+  for (const [k, v] of Object.entries(schema.$defs ?? {})) {
+    const inner = strictProblem(v, `${path}.$defs.${k}`);
+    if (inner) return inner;
+  }
+  for (const [i, v] of (schema.anyOf ?? []).entries()) {
+    const inner = strictProblem(v, `${path}.anyOf[${i}]`);
+    if (inner) return inner;
+  }
   return null;
+}
+
+/** The keywords strict mode does not take; the relay's reply schemas must not carry them. */
+const UNSTRICT = ["minLength", "maxLength", "pattern", "format", "minItems", "maxItems", "minimum", "maximum"];
+
+// deno-lint-ignore no-explicit-any
+function unsupportedKeyword(schema: any, path: string): string | null {
+  if (schema === null || typeof schema !== "object") return null;
+  if (Array.isArray(schema)) {
+    for (const [i, v] of schema.entries()) {
+      const inner = unsupportedKeyword(v, `${path}[${i}]`);
+      if (inner) return inner;
+    }
+    return null;
+  }
+  // A property or definition NAMED like a keyword is not one: look at the keywords of schema nodes only.
+  for (const key of UNSTRICT) {
+    if (key in schema && typeof schema[key] !== "object") return `${path}: ${key} is not supported`;
+  }
+  const children: [string, unknown][] = [
+    ...Object.entries(schema.properties ?? {}).map(([k, v]): [string, unknown] => [`${path}.${k}`, v]),
+    ...Object.entries(schema.$defs ?? {}).map(([k, v]): [string, unknown] => [`${path}.$defs.${k}`, v]),
+    [`${path}[]`, schema.items],
+    ...(schema.anyOf ?? []).map((v: unknown, i: number): [string, unknown] => [`${path}.anyOf[${i}]`, v]),
+  ];
+  for (const [where, child] of children) {
+    const inner = unsupportedKeyword(child, where);
+    if (inner) return inner;
+  }
+  return null;
+}
+
+/** A JSON route's request: not streamed, one user turn of text and image parts, a strict structured output. */
+// deno-lint-ignore no-explicit-any
+function jsonProblem(body: any): string | null {
+  if (body.input.length !== 1 || body.input[0].role !== "user") return "input: one user message";
+  const parts = body.input[0].content;
+  if (!Array.isArray(parts) || parts.length === 0) return "input: the user message needs content parts";
+  for (const part of parts) {
+    if (part?.type === "input_text") {
+      if (typeof part.text !== "string") return "input: input_text needs text";
+    } else if (part?.type === "input_image") {
+      if (typeof part.image_url !== "string" || !/^data:image\/(jpeg|png|gif|webp);base64,/.test(part.image_url)) {
+        return "input: input_image needs a base64 data URL";
+      }
+    } else {
+      return "input: parts must be input_text or input_image";
+    }
+  }
+  const format = body.text?.format;
+  if (format?.type !== "json_schema" || format.strict !== true || typeof format.name !== "string") {
+    return "text.format: expected a strict json_schema with a name";
+  }
+  return strictProblem(format.schema, "schema") ?? unsupportedKeyword(format.schema, "schema");
 }
 
 /** What the real API would refuse, as a message; null when the request is well formed. */
@@ -53,10 +118,11 @@ export function shapeProblem(headers: Record<string, string>, body: any): string
   if (typeof body.instructions !== "string" || !body.instructions) return "instructions: required";
   if (!Array.isArray(body.input) || body.input.length === 0) return "input: required";
   if (body.store !== false) return "store: the relay keeps nothing at OpenAI";
-  if (body.stream !== true) return "stream: the relay streams";
+  if (body.stream !== undefined && body.stream !== true) return "stream: true or left out";
   if (!EFFORTS.includes(body.reasoning?.effort)) return "reasoning.effort: unknown";
   if (!Number.isInteger(body.max_output_tokens) || body.max_output_tokens < 1) return "max_output_tokens: required";
   for (const key of ["temperature", "top_p"]) if (key in body) return `${key}: not supported with reasoning`;
+  if (body.stream === undefined) return jsonProblem(body);
   const search = (body.tools ?? []).some((t: { type?: string }) => t.type === "web_search");
   if (search) return researchProblem(body);
   if (Array.isArray(body.tools) || body.include !== undefined) return assistantProblem(body);
@@ -133,7 +199,7 @@ function apiError(
   return new Response(JSON.stringify({ error }), { status, headers: { "content-type": "application/json", ...extra } });
 }
 
-export function startMockOpenAI(port = 0): MockOpenAI {
+export function startMockOpenAI(port = 0, defaultAnswer?: () => MockOpenAIAnswer): MockOpenAI {
   const queue: MockOpenAIAnswer[] = [];
   const requests: RecordedOpenAI[] = [];
   let dropped = 0;
@@ -154,9 +220,15 @@ export function startMockOpenAI(port = 0): MockOpenAI {
     }
     const problem = shapeProblem(headers, body);
     if (problem) return apiError(400, { message: problem, type: "invalid_request_error" });
-    const next = queue.shift();
+    const next = queue.shift() ?? defaultAnswer?.();
     if (!next) return apiError(500, { message: "The mock has no reply queued.", type: "server_error" });
     if ("error" in next) return apiError(next.status, next.error, next.headers);
+    if ("response" in next) {
+      return new Response(JSON.stringify(next.response), {
+        status: next.status ?? 200,
+        headers: { "content-type": "application/json" },
+      });
+    }
     const text = next.sse.map((e) => `event: ${e.event}\ndata: ${JSON.stringify(e.data)}\n\n`).join("");
     if (!next.hang) return new Response(text, { headers: { "content-type": "text/event-stream" } });
     // Sends the events, then stays open until the reader leaves.
@@ -262,6 +334,39 @@ export function replyStream(
     sse.push(completed(model, o));
   }
   return { sse };
+}
+
+export interface JsonReplyOptions {
+  model?: string;
+  usage?: MockUsage;
+  /** An incomplete response, with this reason ("max_output_tokens", "content_filter"). */
+  reason?: string;
+  /** A refusal in place of the JSON. */
+  refusal?: string;
+  /** The text as is, instead of the value as JSON. */
+  raw?: string;
+}
+
+/** A whole Responses reply for a JSON route: one message holding the value as JSON text. */
+export function replyJsonResponse(value: unknown, o: JsonReplyOptions = {}): MockOpenAIAnswer {
+  const model = o.model ?? "gpt-6.1-terra";
+  const content = o.refusal !== undefined
+    ? [{ type: "refusal", refusal: o.refusal }]
+    : [{ type: "output_text", text: o.raw ?? JSON.stringify(value), annotations: [] }];
+  return {
+    response: {
+      id: "resp_mock",
+      object: "response",
+      model,
+      status: o.reason ? "incomplete" : "completed",
+      ...(o.reason ? { incomplete_details: { reason: o.reason } } : {}),
+      output: [
+        { type: "reasoning", id: "rs_mock", summary: [] },
+        { type: "message", id: "msg_mock", role: "assistant", status: "completed", content },
+      ],
+      usage: usageOf(o.usage),
+    },
+  };
 }
 
 /** A reply that never starts and ends in an error event. */
@@ -456,4 +561,12 @@ export function replyWebSearch(
   sse.push(itemEvent("done", index, { id: "msg_mock", type: "message", status: "completed", role: "assistant" }));
   sse.push(completed(model, { usage: o.usage ?? { input: 8000, output: 200 } }));
   return { sse };
+}
+
+if (import.meta.main) {
+  const generate = JSON.parse(await Deno.readTextFile(new URL("../_shared/fixtures/generate.json", import.meta.url)));
+  delete generate.model;
+  const mock = startMockOpenAI(58499, () => replyJsonResponse(generate));
+  // deno-lint-ignore no-console
+  console.log(`Mock OpenAI API on ${mock.url}/v1 (key ${TEST_OPENAI_KEY}); every call gets the generate fixture.`);
 }

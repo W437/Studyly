@@ -170,7 +170,7 @@ final class AILectureTests: XCTestCase {
         app.withdrawCloudAI()
         XCTAssertFalse(app.hasCloudConsent)
         XCTAssertFalse(app.settings.sendPhotos, "photos go off with Cloud AI")
-        // The harness grants the current version. Version 2 named OpenAI next to Anthropic, so everyone was asked again.
+        // The harness grants the current version; a change to what is sent or who processes it is a new version, so everyone is asked again.
         XCTAssertEqual(AIConsent.currentVersion, 3)
     }
 }

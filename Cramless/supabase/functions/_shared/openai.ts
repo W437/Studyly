@@ -1,26 +1,28 @@
-// Ask Cap's tutor on OpenAI (GPT 6.1 Terra at low reasoning by default; docs/BUILD.md ▸ Ask Cap on OpenAI). It speaks
-// the same normalized events as the Claude provider, so the app, the quota and the logs don't change.
-//
-// What differs from Claude: OpenAI has nothing like search_result blocks, which keep the notes on our side and make the
-// model cite spans of them. So the passages go in as tagged text and the model answers in a strict JSON schema,
-// {answer, citations: [{source_id, quote}]}. `answer` comes first: its text is read out of the JSON as it arrives and
+// The relay's OpenAI provider: the JSON routes (generate, check, grade, confusions, lecture, cards, photo transcription)
+// and Ask Cap's tutor (GPT 6.1 Terra; docs/BUILD.md ▸ Ask Cap on OpenAI), all on the Responses API with nothing stored.
+// OpenAI has no passage type that keeps the notes on our side and makes the model cite spans of them, so the tutor's
+// passages go in as tagged text and the model answers in a strict JSON schema, {answer, citations: [{source_id, quote}]}. `answer` comes first: its text is read out of the JSON as it arrives and
 // sent on as deltas. The quotes are checked here against the passages (a quote that is in none of them is dropped, one
 // that is in another passage is credited to that one), and the app checks them again.
-// Only the tutor runs here; every other route stays on Claude. Nothing is stored at OpenAI (`store: false`) and
-// nothing here logs or keeps the person's content.
+// The JSON routes ask for a strict structured output (strictSchema) and read it back through the contract's own schema.
+// Nothing is stored at OpenAI (`store: false`) and nothing here logs or keeps the person's content.
 
 import type {
   AssistantCall,
   AssistantStreamEvent,
+  ContentBlock,
+  JsonCall,
   JsonResult,
+  Message,
   Provider,
   ResearchCall,
   ResearchStreamEvent,
   TutorCall,
   TutorStreamEvent,
-} from "./anthropic.ts";
+} from "./provider.ts";
 import type { Usage } from "./cost.ts";
 import { ApiError } from "./errors.ts";
+import { describeIssues, type Schema, validate } from "./schema.ts";
 import { StringFieldStream } from "./argstream.ts";
 import { parseSse } from "./sse.ts";
 
@@ -49,20 +51,7 @@ export const FORMAT = `Reply as JSON with two fields and nothing else:
 - "citations": the quotes that support what you said. Each has "source_id" (the id of the source) and "quote": a stretch of that source's text copied exactly, character for character, 6 to 30 words long. Give one or two. Use an empty list when the sources don't cover the question or you are only steering the student back to their studies.
 Never write a source id (like s1) in the answer. If you point to a source, use its page label (for example "your textbook, p. 87") or say your notes, slides or lecture.`;
 
-// ---- The conversation, from Claude's shape to OpenAI's ----
-
-interface ClaudeBlock {
-  type: string;
-  text?: string;
-  source?: string;
-  title?: string;
-  content?: { text?: string }[];
-}
-
-interface ClaudeMessage {
-  role: "user" | "assistant";
-  content: string | ClaudeBlock[];
-}
+// ---- The conversation, as OpenAI input ----
 
 export interface Passage {
   id: string;
@@ -119,24 +108,26 @@ export function taggedSources(
   return { text: "<sources>\n" + blocks.join("\n") + "\n</sources>", passages };
 }
 
-/** The relay's tutor messages (earlier turns as text; the last turn with the passages as search results) as OpenAI input:
+/** The relay's tutor messages (earlier turns as text; the last turn with the passages as sources) as OpenAI input:
  * the passages become tagged text ahead of the rest of the turn, as in the test that chose this model. */
-export function fromClaude(messages: unknown): { input: { role: string; content: string }[]; passages: Passage[] } {
+export function fromMessages(messages: Message[]): { input: { role: string; content: string }[]; passages: Passage[] } {
   const input: { role: string; content: string }[] = [];
   const passages: Passage[] = [];
-  for (const m of messages as ClaudeMessage[]) {
+  for (const m of messages) {
     if (typeof m.content === "string") {
       input.push({ role: m.role, content: m.content });
       continue;
     }
-    const found = m.content.filter((b) => b.type === "search_result");
-    const texts = m.content.filter((b) => b.type === "text").map((b) => b.text ?? "");
+    const found = m.content.filter((b): b is Extract<ContentBlock, { type: "search_result" }> =>
+      b.type === "search_result"
+    );
+    const texts = m.content.flatMap((b) => b.type === "text" ? [b.text] : []);
     let sources = "";
     if (found.length > 0) {
       const tagged = taggedSources(found.map((b) => ({
-        id: b.source ?? "",
-        title: b.title ?? "",
-        text: (b.content ?? []).map((c) => c.text ?? "").join(" "),
+        id: b.source,
+        title: b.title,
+        text: b.content.map((c) => c.text).join(" "),
       })));
       sources = tagged.text;
       passages.push(...tagged.passages);
@@ -270,6 +261,69 @@ export function thrown(error: unknown, caller?: AbortSignal): ApiError {
   return NETWORK;
 }
 
+// ---- Structured output ----
+
+/** A request part from the relay's content block: text, or a photo as a data URL. */
+function inputPart(block: ContentBlock): Record<string, unknown> {
+  if (block.type === "image") {
+    return { type: "input_image", image_url: `data:${block.mediaType};base64,${block.data}` };
+  }
+  if (block.type === "text") return { type: "input_text", text: block.text };
+  return { type: "input_text", text: block.content.map((c) => c.text).join(" ") };
+}
+
+/** The usage object of a Responses reply in our shape (cached tokens are part of input_tokens there). */
+// deno-lint-ignore no-explicit-any
+export function readUsage(u: any): Usage {
+  const n = (v: unknown) => (typeof v === "number" && Number.isFinite(v) && v >= 0 ? Math.floor(v) : 0);
+  const cached = Math.min(n(u?.input_tokens_details?.cached_tokens), n(u?.input_tokens));
+  return {
+    inputTokens: n(u?.input_tokens) - cached,
+    outputTokens: n(u?.output_tokens),
+    cacheReadTokens: cached,
+    cacheWriteTokens: 0,
+  };
+}
+
+/** The contract's schema in the form OpenAI's strict mode takes: every property required, and the ones the contract
+ * leaves optional may also be null (the reply is read back without its nulls, so they come out absent). The keywords
+ * the contract's reply schemas use (type, properties, required, additionalProperties, items, enum, $ref, $defs) are
+ * all strict-mode ones; the reply is still checked against the original schema. */
+export function strictSchema(schema: Schema): Schema {
+  const walk = (node: unknown): unknown => {
+    if (Array.isArray(node)) return node.map(walk);
+    if (!node || typeof node !== "object") return node;
+    const out: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(node)) {
+      out[key] = key === "properties" || key === "$defs"
+        ? Object.fromEntries(Object.entries(value as Record<string, unknown>).map(([k, v]) => [k, walk(v)]))
+        : walk(value);
+    }
+    const props = out.properties as Record<string, unknown> | undefined;
+    if (props) {
+      const required = new Set(Array.isArray(out.required) ? out.required as string[] : []);
+      for (const key of Object.keys(props)) {
+        if (!required.has(key)) props[key] = { anyOf: [props[key], { type: "null" }] };
+      }
+      out.required = Object.keys(props);
+      out.additionalProperties = false;
+    }
+    return out;
+  };
+  return walk(schema) as Schema;
+}
+
+/** A value without its null-valued object properties (the optional ones OpenAI had to write out). */
+export function withoutNulls(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(withoutNulls);
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).filter(([, v]) => v !== null).map(([k, v]) => [k, withoutNulls(v)]),
+    );
+  }
+  return value;
+}
+
 // ---- The provider ----
 
 export interface OpenAIOptions {
@@ -300,8 +354,69 @@ export class OpenAIProvider implements Provider {
     this.fetcher = options.fetch ?? fetch;
   }
 
-  json<T>(): Promise<JsonResult<T>> {
-    return Promise.reject(new ApiError("upstream", "Cloud AI isn't set up for this on this server.", {}, 503));
+  /** One structured-output request: the content as the user turn, the schema strict, the reply read back through the
+   * contract's own schema. A refusal, a cut-off or an unreadable answer is an `upstream` error that still carries the
+   * tokens OpenAI billed for it. */
+  async json<T>(call: JsonCall): Promise<JsonResult<T>> {
+    const body = JSON.stringify({
+      model: call.model,
+      instructions: call.system,
+      input: [{ role: "user", content: call.content.map(inputPart) }],
+      reasoning: { effort: call.effort },
+      text: { format: { type: "json_schema", name: "result", strict: true, schema: strictSchema(call.schema) } },
+      max_output_tokens: call.maxTokens,
+      store: false,
+    });
+    let result: JsonResult<T> | undefined;
+    for await (const r of this.attempts(call.signal, (signal) => this.#jsonOnce<T>(body, signal, call))) result = r;
+    if (!result) throw NETWORK;
+    return result;
+  }
+
+  async *#jsonOnce<T>(body: string, signal: AbortSignal, call: JsonCall): AsyncGenerator<JsonResult<T>> {
+    const stream = await this.open(body, signal);
+    let text: string;
+    try {
+      text = await new Response(stream).text();
+    } catch (error) {
+      throw thrown(error, signal);
+    }
+    // deno-lint-ignore no-explicit-any
+    let r: any;
+    try {
+      r = JSON.parse(text);
+    } catch {
+      throw NETWORK;
+    }
+    if (r?.status === "failed" || r?.error) throw streamError(r?.error?.code);
+    const usage = readUsage(r?.usage);
+    const model = typeof r?.model === "string" && r.model ? r.model : call.model;
+    const fail = (message: string, status = 502): never => {
+      const error = new ApiError("upstream", message, {}, status);
+      error.usage = usage; // OpenAI billed it all the same
+      throw error;
+    };
+    // deno-lint-ignore no-explicit-any
+    const parts: any[] = (Array.isArray(r?.output) ? r.output : []).flatMap((o: any) =>
+      o?.type === "message" && Array.isArray(o.content) ? o.content : []
+    );
+    if (parts.some((p) => p?.type === "refusal") || r?.incomplete_details?.reason === "content_filter") {
+      return fail("Cap can't help with that request.", 422);
+    }
+    if (r?.status === "incomplete" || r?.incomplete_details?.reason === "max_output_tokens") {
+      return fail("The answer came back cut off. Try again.");
+    }
+    const out = parts.find((p) => p?.type === "output_text" && typeof p.text === "string");
+    if (!out) return fail("The answer came back empty. Try again.");
+    let value: unknown;
+    try {
+      value = withoutNulls(JSON.parse(out.text));
+    } catch {
+      return fail("The answer came back unreadable. Try again.");
+    }
+    const issues = validate(call.schema, value);
+    if (issues.length > 0) return fail(`The answer didn't match the contract (${describeIssues(issues)}).`);
+    yield { value: value as T, model, usage };
   }
 
   // The assistant and web research are OpenAIAssistantProvider's (openai_assistant.ts).
@@ -316,7 +431,7 @@ export class OpenAIProvider implements Provider {
   }
 
   async *tutor(call: TutorCall): AsyncGenerator<TutorStreamEvent> {
-    const { input, passages } = fromClaude(call.messages);
+    const { input, passages } = fromMessages(call.messages);
     const body = JSON.stringify({
       model: call.model,
       instructions: `${call.system}\n\n${FORMAT}`,
@@ -457,7 +572,7 @@ export class OpenAIProvider implements Provider {
       : status === "max_output_tokens"
       ? "max_tokens"
       : "end_turn";
-    // An answer cut off by the token limit keeps the part that arrived, as it does on Claude.
+    // An answer cut off by the token limit keeps the part that arrived.
     if (reply === null && stop !== "refusal" && !(stop === "max_tokens" && streamed !== "")) {
       const unreadable = new ApiError("upstream", "The answer came back unreadable. Try again.", {}, 502);
       unreadable.usage = usage; // OpenAI billed it all the same
@@ -468,29 +583,4 @@ export class OpenAIProvider implements Provider {
     if (reply !== null) yield* answerEvents(reply, streamed, passages);
     yield { type: "done", model, usage, stop };
   }
-}
-
-/** The tutor on one provider and every other route on another. */
-class SplitProvider implements Provider {
-  constructor(private readonly base: Provider, private readonly tutorProvider: Provider) {}
-
-  json<T>(call: Parameters<Provider["json"]>[0]): Promise<JsonResult<T>> {
-    return this.base.json<T>(call);
-  }
-
-  tutor(call: TutorCall): AsyncGenerator<TutorStreamEvent> {
-    return this.tutorProvider.tutor(call);
-  }
-
-  assistant(call: AssistantCall): AsyncGenerator<AssistantStreamEvent> {
-    return this.tutorProvider.assistant(call);
-  }
-
-  research(call: ResearchCall): AsyncGenerator<ResearchStreamEvent> {
-    return this.tutorProvider.research(call);
-  }
-}
-
-export function withTutor(base: Provider, tutorProvider: Provider): Provider {
-  return new SplitProvider(base, tutorProvider);
 }

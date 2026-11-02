@@ -312,7 +312,7 @@ function suite(label: string, make: () => Subject, ignore = false) {
     await store.logRequest({
       userId: id,
       route: "grade",
-      model: "claude-haiku-5-5",
+      model: "gpt-6.1-terra",
       plan: "free",
       status: 200,
       mock: false,

@@ -2,7 +2,6 @@
 // The person's material goes in as data, in tagged blocks; ids are written exactly as the app sent them so the
 // model can only cite real ones.
 
-import type Anthropic from "@anthropic-ai/sdk";
 import type {
   AssistantRequest,
   CardsFromChatRequest,
@@ -17,6 +16,7 @@ import type {
   TutorRequest,
 } from "./contract.ts";
 import { PROMPTS } from "./generated.ts";
+import type { ContentBlock, Message } from "./provider.ts";
 
 export type Task = "generate" | "check" | "grade" | "confusions" | "lecture" | "cards" | "transcribe";
 
@@ -79,15 +79,15 @@ export function imageMediaType(base64: string): "image/jpeg" | "image/png" | "im
   return "image/jpeg";
 }
 
-function imageBlock(base64: string): Anthropic.ImageBlockParam {
-  return { type: "image", source: { type: "base64", media_type: imageMediaType(base64), data: base64 } };
+function imageBlock(base64: string): ContentBlock {
+  return { type: "image", mediaType: imageMediaType(base64), data: base64 };
 }
 
 const attr = (value: string) => value.replace(/["<>]/g, "");
 
 /** The pages as numbered lines, each page after its photo when there is one. */
-export function pagesContent(pages: PageInput[], onlyLines?: ReadonlySet<string>): Anthropic.ContentBlockParam[] {
-  const out: Anthropic.ContentBlockParam[] = [];
+export function pagesContent(pages: PageInput[], onlyLines?: ReadonlySet<string>): ContentBlock[] {
+  const out: ContentBlock[] = [];
   for (const page of pages) {
     const lines = onlyLines ? page.lines.filter((l) => onlyLines.has(l.id)) : page.lines;
     if (onlyLines && lines.length === 0) continue;
@@ -98,7 +98,7 @@ export function pagesContent(pages: PageInput[], onlyLines?: ReadonlySet<string>
   return out;
 }
 
-export function generateContent(req: GenerateRequest): Anthropic.ContentBlockParam[] {
+export function generateContent(req: GenerateRequest): ContentBlock[] {
   return [
     ...pagesContent(req.pages),
     {
@@ -131,7 +131,7 @@ function itemForCheck(item: GeneratedItem): Record<string, unknown> {
   };
 }
 
-export function checkContent(pages: PageInput[], items: GeneratedItem[]): Anthropic.ContentBlockParam[] {
+export function checkContent(pages: PageInput[], items: GeneratedItem[]): ContentBlock[] {
   const anchored = new Set(items.flatMap((i) => i.anchors ?? []));
   return [
     ...pagesContent(pages, anchored),
@@ -142,7 +142,7 @@ export function checkContent(pages: PageInput[], items: GeneratedItem[]): Anthro
   ];
 }
 
-export function gradeContent(req: GradeRequest): Anthropic.ContentBlockParam[] {
+export function gradeContent(req: GradeRequest): ContentBlock[] {
   const parts = [
     `<question kind="${req.kind}">${req.prompt}</question>`,
     `<model_answer>${req.modelAnswer}</model_answer>`,
@@ -154,7 +154,7 @@ export function gradeContent(req: GradeRequest): Anthropic.ContentBlockParam[] {
   return [{ type: "text", text: parts.join("\n\n") }];
 }
 
-export function confusionsContent(req: ConfusionsRequest): Anthropic.ContentBlockParam[] {
+export function confusionsContent(req: ConfusionsRequest): ContentBlock[] {
   return [{
     type: "text",
     text: `Course: ${req.course}\n\n<mistakes>\n${JSON.stringify(req.mistakes, null, 1)}\n</mistakes>\n\n` +
@@ -170,7 +170,7 @@ export function clock(seconds: number): string {
   return h > 0 ? `${h}:${String(m).padStart(2, "0")}:${ss}` : `${m}:${ss}`;
 }
 
-export function lectureContent(req: LectureRequest): Anthropic.ContentBlockParam[] {
+export function lectureContent(req: LectureRequest): ContentBlock[] {
   const transcript = req.segments.map((s) => `[${s.id} ${clock(s.start)}–${clock(s.end)}] ${s.text}`).join("\n");
   const flags = req.flags.length > 0
     ? req.flags.map((f) => `[${clock(f.time)} = ${Math.round(f.time)} s] ${f.text}`).join("\n")
@@ -183,7 +183,7 @@ export function lectureContent(req: LectureRequest): Anthropic.ContentBlockParam
   }];
 }
 
-export function cardsContent(req: CardsFromChatRequest): Anthropic.ContentBlockParam[] {
+export function cardsContent(req: CardsFromChatRequest): ContentBlock[] {
   const chat = req.messages.map((m) => `${m.role === "user" ? "Student" : "Cap"}: ${m.text}`).join("\n\n");
   return [{
     type: "text",
@@ -192,15 +192,15 @@ export function cardsContent(req: CardsFromChatRequest): Anthropic.ContentBlockP
   }];
 }
 
-export function transcribeContent(req: TranscribeImageRequest): Anthropic.ContentBlockParam[] {
+export function transcribeContent(req: TranscribeImageRequest): ContentBlock[] {
   return [
     imageBlock(req.image),
     { type: "text", text: `Page index ${req.page}, labelled "${attr(req.label)}". Transcribe it.` },
   ];
 }
 
-/** A source's text in sentence-sized blocks: the model cites whole blocks, so smaller blocks cite tighter. */
-export function citableBlocks(text: string, maxBlocks = 80): Anthropic.TextBlockParam[] {
+/** A source's text in sentence-sized blocks, so a quote can be located in the passage. */
+export function citableBlocks(text: string, maxBlocks = 80): { type: "text"; text: string }[] {
   const pieces = text
     .replace(/\r\n?/g, "\n")
     .split(/(?<=[.!?])\s+|\n+/)
@@ -223,20 +223,18 @@ export function citableBlocks(text: string, maxBlocks = 80): Anthropic.TextBlock
   return (blocks.length > 0 ? blocks : [text]).map((t) => ({ type: "text", text: t }));
 }
 
-/** The conversation for the tutor: the earlier turns as text, and the last question with the passages (search
- * results with citations on) and, for "Explain my mistake", the question the student got wrong. */
-export function tutorMessages(req: TutorRequest): Anthropic.MessageParam[] {
+/** The conversation for the tutor: the earlier turns as text, and the last question with the passages (as sources) and, for "Explain my mistake", the question the student got wrong. */
+export function tutorMessages(req: TutorRequest): Message[] {
   const turns = [...req.messages];
   while (turns.length > 0 && turns[0].role !== "user") turns.shift();
   const last = turns.pop();
   if (!last || last.role !== "user") return [];
-  const out: Anthropic.MessageParam[] = turns.map((m) => ({ role: m.role, content: m.text }));
-  const content: Anthropic.ContentBlockParam[] = req.sources.map((s): Anthropic.SearchResultBlockParam => ({
+  const out: Message[] = turns.map((m) => ({ role: m.role, content: m.text }));
+  const content: ContentBlock[] = req.sources.map((s): ContentBlock => ({
     type: "search_result",
     source: s.id,
     title: s.label ? `${s.title} · ${s.label}` : s.title,
     content: citableBlocks(s.text),
-    citations: { enabled: true },
   }));
   if (req.sources.length === 0) {
     content.push({ type: "text", text: "(No passages from the student's material matched this question.)" });

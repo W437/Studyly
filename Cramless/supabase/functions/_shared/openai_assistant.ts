@@ -10,7 +10,7 @@
 // once. It reports the search as it happens (started, searching, the sources found), then the summary as text with the
 // pages it rests on.
 
-import type { AssistantCall, AssistantStreamEvent, ResearchCall, ResearchStreamEvent } from "./anthropic.ts";
+import type { AssistantCall, AssistantStreamEvent, ResearchCall, ResearchStreamEvent } from "./provider.ts";
 import { ArrayItemStream, StringFieldStream } from "./argstream.ts";
 import { isToolName, MAX_CALLS_PER_ROUND, TOOL_SPECS } from "./assistant.ts";
 import type { AssistantToolName } from "./contract.ts";

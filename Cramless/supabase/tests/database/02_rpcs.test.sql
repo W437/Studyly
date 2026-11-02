@@ -13,7 +13,7 @@ where id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 insert into public.ai_requests (user_id, route, model, plan, status, cost_usd, created_at) values
   ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'tutor', 'gpt-6.1-terra', 'free', 200, 0.500000000, '2026-10-22T06:59:59Z'),
   ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'tutor', 'gpt-6.1-terra', 'free', 200, 0.012345678, '2026-10-22T07:00:00Z'),
-  ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'grade', 'claude-haiku-5-5', 'free', 200, 0.000000001, '2026-10-22T08:00:00Z'),
+  ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'grade', 'gpt-6.1-terra', 'free', 200, 0.000000001, '2026-10-22T08:00:00Z'),
   ('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', 'tutor', 'gpt-6.1-terra', 'free', 200, 0.200000000, '2026-10-22T08:00:00Z');
 
 set local role service_role;

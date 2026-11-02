@@ -1,13 +1,9 @@
 // What a model call cost, from its token usage, in exact integer nano-dollars (no floating-point money).
-// List prices per million tokens (October 2026): Claude Haiku 5.5 $0.10 in / $0.50 out for prompts up to 100K
-// tokens ($0.50 / $2.50 above), Claude Sonnet 5.5 $2 / $10. Cache reads cost 0.1× input, 5-minute cache writes
-// 1.25× input. Ask Cap's tutor on OpenAI (standard tier, prompts up to 272K tokens): GPT 6.1 Terra $1 / $5 with cached
-// input at $0.05, GPT 6.1 Sol $2 / $10 with $0.10, GPT 6 Luna $0.10 / $0.50 with $0.01; thinking tokens are billed as
-// output, and a cache write costs the same as other input. A web search costs $10 per 1,000 on top of the tokens it
-// reads. Mock replies cost nothing.
+// List prices per million tokens on OpenAI (standard tier, prompts up to 272K tokens): GPT 6.1 Terra $1 / $5 with
+// cached input at $0.05, GPT 6.1 Sol $2 / $10 with $0.10, GPT 6 Luna $0.10 / $0.50 with $0.01; thinking tokens are
+// billed as output, and a cache write costs the same as other input. A web search costs $10 per 1,000 on top of the
+// tokens it reads. Mock replies cost nothing.
 
-export const HAIKU = "claude-haiku-5-5";
-export const SONNET = "claude-sonnet-5-5";
 export const TERRA = "gpt-6.1-terra";
 export const SOL = "gpt-6.1-sol";
 export const LUNA = "gpt-6-luna";
@@ -20,16 +16,6 @@ interface Rates {
   cacheWrite: bigint;
 }
 
-function rates(inputPerMillion: number, outputPerMillion: number): Rates {
-  const n = (dollars: number) => BigInt(Math.round(dollars * 1000));
-  return {
-    input: n(inputPerMillion),
-    output: n(outputPerMillion),
-    cacheRead: n(inputPerMillion * 0.1),
-    cacheWrite: n(inputPerMillion * 1.25),
-  };
-}
-
 function openaiRates(inputPerMillion: number, cachedPerMillion: number, outputPerMillion: number): Rates {
   const n = (dollars: number) => BigInt(Math.round(dollars * 1000));
   return {
@@ -40,9 +26,7 @@ function openaiRates(inputPerMillion: number, cachedPerMillion: number, outputPe
   };
 }
 
-const PRICES: Record<string, { standard: Rates; longPrompt?: Rates; longFrom?: number }> = {
-  [HAIKU]: { standard: rates(0.10, 0.50), longPrompt: rates(0.50, 2.50), longFrom: 100_000 },
-  [SONNET]: { standard: rates(2, 10) },
+const PRICES: Record<string, { standard: Rates }> = {
   [TERRA]: { standard: openaiRates(1, 0.05, 5) },
   [SOL]: { standard: openaiRates(2, 0.10, 10) },
   [LUNA]: { standard: openaiRates(0.10, 0.01, 0.50) },
@@ -62,18 +46,6 @@ export const WEB_SEARCH_NANO = 10_000_000n;
 
 export const ZERO_USAGE: Usage = { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 };
 
-/** The SDK's usage object (input_tokens excludes cached tokens) in our shape. */
-// deno-lint-ignore no-explicit-any
-export function readUsage(usage: any): Usage {
-  const n = (v: unknown) => (typeof v === "number" && Number.isFinite(v) && v >= 0 ? Math.floor(v) : 0);
-  return {
-    inputTokens: n(usage?.input_tokens),
-    outputTokens: n(usage?.output_tokens),
-    cacheReadTokens: n(usage?.cache_read_input_tokens),
-    cacheWriteTokens: n(usage?.cache_creation_input_tokens),
-  };
-}
-
 export function addUsage(a: Usage, b: Usage): Usage {
   return {
     inputTokens: a.inputTokens + b.inputTokens,
@@ -86,14 +58,11 @@ export function addUsage(a: Usage, b: Usage): Usage {
   };
 }
 
-/** The cost in nano-dollars. Unknown models (a server-side fallback to another model) are priced as Sonnet. */
+/** The cost in nano-dollars. A model not in the table (a dated snapshot's name, say) is priced by the table entry its
+ * name starts with, and an unknown one as Terra, the model the routes use. */
 export function costNano(model: string, u: Usage): bigint {
-  const price = PRICES[model] ?? PRICES[Object.keys(PRICES).find((m) => model.startsWith(m)) ?? SONNET] ??
-    PRICES[SONNET];
-  const prompt = u.inputTokens + u.cacheReadTokens + u.cacheWriteTokens;
-  const r = price.longPrompt && price.longFrom !== undefined && prompt > price.longFrom
-    ? price.longPrompt
-    : price.standard;
+  const price = PRICES[model] ?? PRICES[Object.keys(PRICES).find((m) => model.startsWith(m)) ?? TERRA];
+  const r = price.standard;
   return BigInt(u.inputTokens) * r.input + BigInt(u.outputTokens) * r.output +
     BigInt(u.cacheReadTokens) * r.cacheRead + BigInt(u.cacheWriteTokens) * r.cacheWrite +
     BigInt(Math.max(0, Math.floor(u.webSearches ?? 0))) * WEB_SEARCH_NANO;

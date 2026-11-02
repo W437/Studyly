@@ -14,7 +14,7 @@ supabase/
   tests/database/             pgTAP: RLS, grants and the RPCs (supabase test db)
   seed.sql
   functions/
-    deno.json                 import map (pinned: @anthropic-ai/sdk 1.1.0, supabase-js 2.118.0) and tasks
+    deno.json                 import map (pinned: supabase-js 2.118.0) and tasks
     ai/ account/ appstore-notify/     index.ts (wiring) + handler.ts (the routes)
     _shared/
       fixtures/               canned replies: the app bundles this folder; MOCK mode serves it byte for byte
@@ -23,10 +23,11 @@ supabase/
       apple/                  Apple's root certificates (public)
       appstore/               App Store signed-data verifier (WebCrypto port: ASN.1, X.509, OCSP)
       generated.ts            fixtures, prompts, schemas and roots bundled for deploys (deno task bundle)
-      anthropic.ts            the Claude calls (structured outputs, streamed citations, fallback)
-      openai.ts               Ask Cap's tutor on OpenAI (streamed JSON answer, quotes checked against the passages)
+      provider.ts             the call and event types every route uses, and the Provider interface
+      openai.ts               every route on OpenAI: strict structured outputs for the JSON routes, the tutor's streamed JSON answer with its quotes checked against the passages
+      openai_assistant.ts     the assistant (tools) and web research
       plans.ts items.ts mock.ts prompts.ts store*.ts entitlements.ts …
-    tests/                    deno test: handlers in-process, mock Anthropic and OpenAI APIs, test PKI, in-memory store
+    tests/                    deno test: handlers in-process, a mock of OpenAI's Responses API, test PKI, in-memory store
 ```
 
 ## Tests
@@ -39,9 +40,9 @@ deno task lint
 deno task bundle      # after editing fixtures, prompts, schemas or apple/: regenerates _shared/generated.ts
 ```
 
-No Anthropic key is needed: real mode is tested by pointing the SDK at `tests/_mock_anthropic.ts`, which checks
-each request's shape and answers with canned provider replies (`deno task mock-anthropic` runs it on
-127.0.0.1:58499 for manual use).
+No OpenAI key is needed to test: real mode is tested by pointing the provider at `tests/_mock_openai.ts`, which checks
+each request's shape (a strict structured output, nothing stored) and answers with canned replies (`deno task mock-openai`
+runs it on 127.0.0.1:58499 for manual use).
 
 With the local stack running, the same suite also runs the store contract against the real SQL functions and an
 end-to-end pass through Auth, PostgREST and Storage:
@@ -65,8 +66,8 @@ supabase functions serve --env-file supabase/functions/.env
 
 - MOCK mode: `CRAMLESS_MOCK=1` in `.env`. The AI routes answer with the fixtures after real auth, validation and
   quotas; `X-Cramless-Fixture: grade-incorrect` (or `tutor-error`, …) picks another reply.
-- Real mode: `ANTHROPIC_API_KEY=…`; add `OPENAI_API_KEY=…` to put Ask Cap's tutor on OpenAI. To test against the mock API instead, `deno task mock-anthropic` and
-  `ANTHROPIC_BASE_URL=http://host.docker.internal:58499` with `ANTHROPIC_API_KEY=test-anthropic-key`.
+- Real mode: `OPENAI_API_KEY=…` (every AI route runs on OpenAI). To test against the mock API instead, `deno task mock-openai` and
+  `OPENAI_BASE_URL=http://host.docker.internal:58499/v1` with `OPENAI_API_KEY=test-openai-key`.
 - StoreKit testing in Xcode (`Cramless.storekit`): `CRAMLESS_ALLOW_XCODE_JWS=1` (honoured only on a local stack).
 - Point the app at it: `Secrets.xcconfig` → `CRAMLESS_SUPABASE_HOST = http:/$()/127.0.0.1:58421` (the simulator;
   `$()` stops xcconfig reading `//` as a comment, and `AppConfig` keeps an explicit `http` scheme) and
@@ -106,7 +107,7 @@ scripts/local_stack.sh down                     # stops the functions, supabase 
 ## Deploying
 
 See "Deploying" in `../docs/relay-contract.md`: link the project, `supabase db push`, set the Auth providers, set
-the secrets (`ANTHROPIC_API_KEY`, optionally `OPENAI_API_KEY`, `APPLE_BUNDLE_ID`, `APPLE_APP_ID`), `supabase functions deploy ai account
+the secrets (`OPENAI_API_KEY`, `APPLE_BUNDLE_ID`, `APPLE_APP_ID`), `supabase functions deploy ai account
 appstore-notify`, and register the notifications URL in App Store Connect. Nothing in this folder deploys itself.
 
 ## Notes
@@ -117,19 +118,19 @@ appstore-notify`, and register the notifications URL in App Store Connect. Nothi
 - Logs are one allow-listed JSON line per request; nothing the person wrote or scanned is logged or stored by the
   relay. `ai_requests` keeps route, model, tokens and cost.
 
-## Real Claude, once
+## Real OpenAI, every route, once
 
 ```bash
 cd supabase/functions
-ANTHROPIC_API_KEY=sk-ant-… deno task live      # a few cents; nothing stored; the key never written anywhere
+OPENAI_API_KEY=sk-… deno task live      # a few cents; nothing stored; the key never written anywhere
 ```
 
-`tools/live_check.ts` runs the `ai` handler in-process with the real Anthropic provider on the sample page:
-generate (Haiku 5.5), check, grade three answers, and the streamed tutor in both modes (Sonnet 5.5), printing what
-the app would show, a PASS/FAIL per check (enough questions, three formats, real line anchors, one right answer per
-choice question, expected verdicts, quotes that are the student's words, citations, hints asking a question back)
-and the cost. Run it after any change in `_shared/prompts/` (then `deno task bundle`) and before launch.
-`ANTHROPIC_BASE_URL=http://127.0.0.1:58499` with `deno task mock-anthropic` dry-runs the script's plumbing only.
+`tools/live_check.ts` runs the `ai` handler in-process with the real OpenAI provider on the sample page (GPT 6.1 Terra on
+every route): generate, check, grade three answers, and the streamed tutor in both modes, printing what the app would show, a
+PASS/FAIL per check (enough questions, three formats, real line anchors, one right answer per choice question, expected
+verdicts, quotes that are the student's words, citations, hints asking a question back) and the cost. `LIVE_ONLY=grade,check`
+runs some of them. Run it after any change in `_shared/prompts/` (then `deno task bundle`) and before launch.
+`OPENAI_BASE_URL=http://127.0.0.1:58499/v1` with `deno task mock-openai` dry-runs the script's plumbing only.
 
 ## Real OpenAI, once
 
@@ -142,17 +143,17 @@ OPENAI_API_KEY=sk-… deno task live-openai      # a fraction of a cent; nothing
 unless `OPENAI_TUTOR_MODEL` / `OPENAI_TUTOR_EFFORT` say otherwise) and asks the tutor four questions about the sample page:
 hints, explain, a question the page can't answer and an under-18 account. It prints what the app would show, a PASS/FAIL
 per check (a quote that is on the page, hints ending on a question, no source id in the answer, no outside knowledge) and
-the cost. Run it before the tutor goes live on OpenAI and after changing the tutor's prompts. The 33-question comparison
+the cost. Run it before the tutor changes and after changing the tutor's prompts. The 33-question comparison
 that chose the model is `tools/tutor_bakeoff/` (docs/BUILD.md ▸ Ask Cap on OpenAI).
 
 ## Checking prompts with a model answered elsewhere
 
-`tools/prompt_replay.ts` records the relay's exact Claude calls (model, system prompt, user content, the reply's
+`tools/prompt_replay.ts` records the relay's exact model calls (model, system prompt, user content, the reply's
 JSON schema) and replays a reply through the relay's own validation and cleaning:
 
 ```bash
 deno run -A tools/prompt_replay.ts record generate        # → ../../build/prompt_replay/generate.call.json
-# … have the model answer the call (the API, or a Claude session given the call file) into generate.reply.json …
+# … have the model answer the call (the API, or another model session given the call file) into generate.reply.json …
 deno run -A tools/prompt_replay.ts replay generate ../../build/prompt_replay/generate.reply.json
 ```
 

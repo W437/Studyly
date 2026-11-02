@@ -6,11 +6,11 @@
 // Every route checks the caller's Supabase session (anonymous users allowed), resolves their plan (an active
 // entitlement or Squad membership), validates the body, meters the free quotas (scans, grades, tutor, lectures;
 // a failed request gives its quota back) and answers in the contract's shapes and error envelope. MOCK mode
-// (CRAMLESS_MOCK=1) answers with the fixtures; real mode calls Claude (Haiku 5.5, Sonnet 5.5 for grading `apply` and
-// long answers, and for the tutor unless OPENAI_API_KEY puts the tutor on OpenAI) and cleans every reply (items must
-// anchor to real line or segment ids).
+// (CRAMLESS_MOCK=1) answers with the fixtures; real mode calls OpenAI (GPT 6.1 Terra for every route; the reasoning
+// effort is lower for the quick ones and higher for grading `apply` questions and long answers) and cleans every reply
+// (items must anchor to real line or segment ids).
 
-import { type JsonResult, providerError } from "../_shared/anthropic.ts";
+import { type JsonResult, providerError } from "../_shared/provider.ts";
 import { unauthorized } from "../_shared/auth.ts";
 import type {
   AssistantRequest,
@@ -43,7 +43,7 @@ import {
   MAX_ROUNDS,
   toolDefinitions,
 } from "../_shared/assistant.ts";
-import { addUsage, costNano, formatUsd, HAIKU, SONNET, type Usage, ZERO_USAGE } from "../_shared/cost.ts";
+import { addUsage, costNano, formatUsd, TERRA, type Usage, ZERO_USAGE } from "../_shared/cost.ts";
 import type { Deps } from "../_shared/deps.ts";
 import { ApiError, badRequest, errorResponse, toApiError } from "../_shared/errors.ts";
 import { json, methodNotAllowed, notFound, rawJson, readJson, routeOf } from "../_shared/http.ts";
@@ -274,6 +274,8 @@ async function jsonRoute<T>(
   } catch (error) {
     if (charged) await refund(c, charged);
     const err = providerError(error);
+    // A reply that could not be used was billed all the same: the cost still counts toward the day's cap.
+    if (err.usage) c.meta.usage = addUsage(c.meta.usage ?? ZERO_USAGE, err.usage);
     if (c.meta.model) record(c, c.meta.model, c.meta.usage ?? ZERO_USAGE, err.status);
     throw err;
   }
@@ -304,11 +306,11 @@ async function generate(c: Ctx, body: GenerateRequest): Promise<Response> {
     { scan: "generate", pages: body.pages.length },
     () => "generate",
     async () => {
-      c.meta.model = HAIKU;
+      c.meta.model = TERRA;
       const res = call(
         c,
         await c.deps.provider.json<Omit<GenerateResponse, "model">>({
-          model: HAIKU,
+          model: TERRA,
           effort: "medium",
           maxTokens: 16_000,
           system: systemFor("generate"),
@@ -357,11 +359,11 @@ async function check(c: Ctx, body: CheckRequest): Promise<Response> {
         usage: ZERO_USAGE,
       };
     }
-    c.meta.model = HAIKU;
+    c.meta.model = TERRA;
     const res = call(
       c,
       await c.deps.provider.json<Omit<CheckResponse, "model">>({
-        model: HAIKU,
+        model: TERRA,
         effort: "medium",
         maxTokens: 12_000,
         system: systemFor("check"),
@@ -378,9 +380,9 @@ async function check(c: Ctx, body: CheckRequest): Promise<Response> {
   });
 }
 
-/** Long answers and `apply` questions are graded by Claude Sonnet 5.5; the rest by Claude Haiku 5.5. */
-export function gradeModel(body: GradeRequest): string {
-  return body.kind === "apply" || body.response.length > 700 ? SONNET : HAIKU;
+/** Long answers and `apply` questions are graded with more thought than the rest. */
+export function gradeEffort(body: GradeRequest): "low" | "medium" {
+  return body.kind === "apply" || body.response.length > 700 ? "medium" : "low";
 }
 
 async function grade(c: Ctx, body: GradeRequest): Promise<Response> {
@@ -400,15 +402,14 @@ async function grade(c: Ctx, body: GradeRequest): Promise<Response> {
     );
   }
   return await jsonRoute<GradeResponse>(c, { meter: "grades" }, () => gradeFixture(body), async () => {
-    const model = gradeModel(body);
-    const sonnet = model === SONNET;
-    c.meta.model = model;
+    const effort = gradeEffort(body);
+    c.meta.model = TERRA;
     const res = call(
       c,
       await c.deps.provider.json<Omit<GradeResponse, "model">>({
-        model,
-        effort: sonnet ? "medium" : "low",
-        maxTokens: sonnet ? 8_000 : 4_000,
+        model: TERRA,
+        effort,
+        maxTokens: effort === "medium" ? 8_000 : 6_000,
         system: systemFor("grade"),
         content: gradeContent(body),
         schema: providerSchema("GradeResponse"),
@@ -421,11 +422,11 @@ async function grade(c: Ctx, body: GradeRequest): Promise<Response> {
 
 async function confusions(c: Ctx, body: ConfusionsRequest): Promise<Response> {
   return await jsonRoute<ConfusionsResponse>(c, { meter: "extras" }, () => "confusions", async () => {
-    c.meta.model = HAIKU;
+    c.meta.model = TERRA;
     const res = call(
       c,
       await c.deps.provider.json<Omit<ConfusionsResponse, "model">>({
-        model: HAIKU,
+        model: TERRA,
         effort: "low",
         maxTokens: 10_000,
         system: systemFor("confusions"),
@@ -445,11 +446,11 @@ async function confusions(c: Ctx, body: ConfusionsRequest): Promise<Response> {
 
 async function lecture(c: Ctx, body: LectureRequest): Promise<Response> {
   return await jsonRoute<LectureResponse>(c, { meter: "lectures" }, () => "lecture", async () => {
-    c.meta.model = HAIKU;
+    c.meta.model = TERRA;
     const res = call(
       c,
       await c.deps.provider.json<Omit<LectureResponse, "model">>({
-        model: HAIKU,
+        model: TERRA,
         effort: "medium",
         maxTokens: 16_000,
         system: systemFor("lecture"),
@@ -485,11 +486,11 @@ async function lecture(c: Ctx, body: LectureRequest): Promise<Response> {
 
 async function cardsFromChat(c: Ctx, body: CardsFromChatRequest): Promise<Response> {
   return await jsonRoute<CardsFromChatResponse>(c, { meter: "extras" }, () => "cards-from-chat", async () => {
-    c.meta.model = HAIKU;
+    c.meta.model = TERRA;
     const res = call(
       c,
       await c.deps.provider.json<Omit<CardsFromChatResponse, "model">>({
-        model: HAIKU,
+        model: TERRA,
         effort: "low",
         maxTokens: 6_000,
         system: systemFor("cards"),
@@ -515,11 +516,11 @@ async function transcribeImage(c: Ctx, body: TranscribeImageRequest): Promise<Re
     { scan: "transcribe", pages: 1 },
     () => "transcribe-image",
     async () => {
-      c.meta.model = HAIKU;
+      c.meta.model = TERRA;
       const res = call(
         c,
         await c.deps.provider.json<Omit<TranscribeImageResponse, "model">>({
-          model: HAIKU,
+          model: TERRA,
           effort: "low",
           maxTokens: 6_000,
           system: systemFor("transcribe"),

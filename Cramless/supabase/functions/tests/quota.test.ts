@@ -207,8 +207,8 @@ Deno.test("the quota report never shows a paid plan's fair-use ceiling", () => {
 
 // ---- The day's cost cap: what a person's model calls may cost in a day, under the meters that count requests ----
 
-/** One scripted reply (`replyJson`) bills 1,000 tokens in and 500 out on Haiku: 0.035¢, in nano-dollars. */
-const REPLY_COST = 350_000n;
+/** One scripted reply (`replyJson`) bills 1,000 tokens in and 500 out on Terra: 0.35¢, in nano-dollars. */
+const REPLY_COST = 3_500_000n;
 const READ = { lines: [{ id: "x", text: "Mitosis notes" }] };
 
 function spent(user: string, createdAt: string, costUsd: string): AiRequestRow {
@@ -231,7 +231,7 @@ function spent(user: string, createdAt: string, costUsd: string): AiRequestRow {
 
 Deno.test("cost cap: once a day's calls have cost the cap, no AI route answers until the person's midnight", async () => {
   const provider = new ScriptedProvider();
-  const r = rig({ provider, env: { DAILY_COST_CAP_USD: "0.0007" } }); // two replies' worth
+  const r = rig({ provider, env: { DAILY_COST_CAP_USD: "0.007" } }); // two replies' worth
   r.store.addUser("user-1");
   r.store.addUser("user-2");
   pro(r);
@@ -283,17 +283,17 @@ Deno.test("cost cap: the day is the person's own, and the cap is the sum of the 
   );
   await r.settle();
 
-  r.store.requests.push(spent("user-1", "2026-10-22T07:00:00Z", "0.060000000"));
-  r.store.requests.push(spent("user-1", "2026-10-22T08:30:00Z", "0.039000000"));
+  r.store.requests.push(spent("user-1", "2026-10-22T07:00:00Z", "0.050000000"));
+  r.store.requests.push(spent("user-1", "2026-10-22T08:30:00Z", "0.040000000"));
   provider.replyJson(READ);
   assertEquals(
     (await r.ai("transcribe-image", { body: transcribe(1) })).status,
     200,
-    "9.9¢ and 0.035¢ so far is under 10¢",
+    "9.35¢ so far is under 10¢",
   );
   await r.settle();
-  assertEquals(await r.store.spentSince("user-1", localMidnight("2026-10-22", "America/Los_Angeles")), 99_700_000n);
-  r.store.requests.push(spent("user-1", "2026-10-22T08:45:00Z", "0.000300000"));
+  assertEquals(await r.store.spentSince("user-1", localMidnight("2026-10-22", "America/Los_Angeles")), 97_000_000n);
+  r.store.requests.push(spent("user-1", "2026-10-22T08:45:00Z", "0.003000000"));
   assertEquals((await r.ai("transcribe-image", { body: transcribe(2) })).status, 429, "10¢ exactly is the cap");
 });
 

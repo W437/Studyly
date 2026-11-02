@@ -83,12 +83,12 @@ owner's Squad subscription is active; otherwise `free`.
 
 ## AI routes (`ai` function)
 
-Models: Claude Haiku 5.5 (`claude-haiku-5-5`) for everything except the tutor and grading `apply` questions or
-answers over 700 characters, which use Claude Sonnet 5.5 (`claude-sonnet-5-5`). The tutor is the exception to the
-exception: with `OPENAI_API_KEY` set it answers from OpenAI (`gpt-6.1-terra` at low reasoning, or `OPENAI_TUTOR_MODEL` and
-`OPENAI_TUTOR_EFFORT`), whatever the grading uses. Every reply the app consumes is a
-structured output (a JSON schema derived from `contract.json`, without `model`, which the relay sets to the model
-that answered). Sonnet calls use server-side refusal fallback (`fallbacks: "default"`). Prompts are files in
+Models: every route runs on OpenAI's Responses API with `store: false`: `gpt-6.1-terra` for the JSON routes, and for the tutor
+and the assistant at low reasoning unless `OPENAI_TUTOR_MODEL` and `OPENAI_TUTOR_EFFORT` say otherwise. The reasoning effort of
+each JSON route is given with it below. Every reply the app consumes is a structured output (a strict JSON schema derived from
+`contract.json`, without `model`, which the relay sets to the model that answered; properties the contract leaves optional are
+sent as nullable and read back without their nulls, and the reply is validated against the contract's own schema). Without
+`OPENAI_API_KEY` every AI route answers `upstream`. Prompts are files in
 `supabase/functions/_shared/prompts/`: grounded only in the given material, material treated as data, no essays
 or "humanizing", hints first and teen-safe for minors, "Your material doesn't cover that" when ungrounded.
 
@@ -107,8 +107,7 @@ per blank), `diagramLabels?` (line ids of the labels to hide), `anchors` (the li
 The relay drops any item whose anchors aren't line ids of the request (or that has none), any item not in
 `formats`, and any item malformed for its kind (a multiple choice without exactly one correct choice, a cloze
 without a blank, a diagram whose labels aren't real lines, an own-words item without key ideas), and keeps at most
-`maxItems`. If nothing survives, the answer is `upstream` and the scan is given back. Meter: `scans`. Haiku 5.5,
-effort medium.
+`maxItems`. If nothing survives, the answer is `upstream` and the scan is given back. Meter: `scans`. Effort medium.
 
 ### `POST ai/check` → `CheckResponse`
 
@@ -116,7 +115,7 @@ Request `CheckRequest`: `pages` (as above) and `items` (generated items). Reply:
 per request item, in request order: `id`, `verdict` (`supported`, `fixed`: use `fixedAnswer?` / `fixedChoices?`,
 `unsupported`: drop it), `reason` (a sentence the person can read). Items whose anchors aren't in the pages are
 `unsupported` without reaching the model (and `model` is `relay` when none are left); an item the model skipped is
-`unsupported`. Meter: `extras`. Haiku 5.5, effort medium.
+`unsupported`. Meter: `extras`. Effort medium.
 
 ### `POST ai/grade` → `GradeResponse`
 
@@ -125,7 +124,7 @@ Request `GradeRequest`: `kind`, `level?`, `prompt`, `modelAnswer`, `keyIdeas`, `
 below 0.6 the app offers "Grade again"), `hits` [`{ideaId, quote}`: words copied from the answer; the app highlights
 a quote only where it finds it verbatim], `missing` (the key ideas without a hit), `feedback`, `fix` (one sentence
 that completes the answer; empty when nothing is missing). An empty answer is graded `incorrect` without a model
-call or a quota. Meter: `grades`. Haiku 5.5 at low effort; Sonnet 5.5 at medium for `apply` and long answers.
+call or a quota. Meter: `grades`. Low effort; medium for `apply` and long answers.
 
 ### `POST ai/tutor` → server-sent events
 
@@ -145,8 +144,7 @@ Reply: `Content-Type: text/event-stream`. Each event is `event: <name>`, one `da
 | `done` | `{model}` | The answer is complete. |
 | `error` | `{code, message}` | The answer stopped (codes as above, usually `upstream`). |
 
-Errors before the stream starts (auth, validation, quota) are ordinary JSON envelopes. The sources go to Sonnet 5.5
-as `search_result` blocks with citations on, split into sentence-sized blocks so citations stay tight. On OpenAI they go
+Errors before the stream starts (auth, validation, quota) are ordinary JSON envelopes. The sources go
 as tagged text and the model answers in a strict JSON schema, `{answer, citations: [{source_id, quote}]}`: the answer is
 read out of it as it arrives, and a quote is sent as a `citation` only if it is really in a source (the app checks again).
 Closing the connection stops the model. Meter: `tutor` (given back if the stream fails before any text). MOCK: the
@@ -228,28 +226,26 @@ Meter: `research`. MOCK: `research-mitosis.json`.
 Request `ConfusionsRequest`: `course`, `mistakes` [`{itemId, topic, prompt, expected, given, misses}`]. Reply:
 `model`, `confusions` (0–3) [`{name, explanation, itemIds, lesson, questions}`]: `itemIds` are request item ids
 (others are removed; a confusion without any is dropped); `questions` are generated items without anchors (the
-request has no line ids). Meter: `extras`. Haiku 5.5, effort low.
+request has no line ids). Meter: `extras`. Effort low.
 
 ### `POST ai/lecture` → `LectureResponse`
 
 Request `LectureRequest`: `course`, `title`, `segments` [`{id, start, end, text}`, seconds], `flags` [`{time,
 text}`: moments the person tapped], `maxItems`. Reply: `model`, `title`, `summary`, `sections` [`{id, title,
 start, end, bullets}`], `keyTerms`, `examFlags` [`{time, text, why}`], `items` (anchored to segment ids; others
-dropped). Times are clamped to the recording. Meter: `lectures` (AI notes for one lecture a week on free). Haiku 5.5,
-effort medium.
+dropped). Times are clamped to the recording. Meter: `lectures` (AI notes for one lecture a week on free). Effort medium.
 
 ### `POST ai/cards-from-chat` → `CardsFromChatResponse`
 
 Request `CardsFromChatRequest`: `course?`, `messages` (the tutor chat), `maxItems` (1–20). Reply: `model`, `items`
 (flashcards, multiple choice, recall or cloze, with empty `anchors`: an item claiming line ids is dropped, since a
-chat has none). Meter: `extras`. Haiku 5.5, effort low.
+chat has none). Meter: `extras`. Effort low.
 
 ### `POST ai/transcribe-image` → `TranscribeImageResponse`
 
 Request `TranscribeImageRequest`: `image` (base64 JPEG; PNG is detected too), `page`, `label`. Reply: `model`,
 `lines` [`{id, text}`] in reading order, ids `p<page>.c<n>` assigned by the relay. Cloud lines have no geometry:
-they can be cited and searched, never boxed on the page. Meter: `scans` (one page of the open scan). Haiku 5.5,
-effort low.
+they can be cited and searched, never boxed on the page. Meter: `scans` (one page of the open scan). Effort low.
 
 ### `GET ai/quota` → `QuotaStatus`
 
@@ -335,9 +331,8 @@ app's own mock transport covers them offline.
 One JSON log line per request with an allow-list of fields (route, status, code, latency, plan, model, tokens,
 cost); never bodies, prompts, the person's material, user ids or tokens. Each AI call also writes an `ai_requests`
 row (route, model, plan, status, tokens, cost, latency). Costs are computed in integer nano-dollars from list
-prices: Haiku 5.5 $0.10 / $0.50 per million input / output tokens ($0.50 / $2.50 for prompts over 100K tokens),
-Sonnet 5.5 $2 / $10; cache reads 0.1× and cache writes 1.25× the input price. OpenAI (the tutor): GPT 6.1 Terra $1 / $5
-with cached input at $0.05, Sol $2 / $10 with $0.10, Luna $0.10 / $0.50 with $0.01; thinking is billed as output. A web
+prices (a call that could not be used, such as a refusal or an off-contract reply, still costs what OpenAI billed), per million
+input / output tokens: GPT 6.1 Terra $1 / $5 with cached input at $0.05, Sol $2 / $10 with $0.10, Luna $0.10 / $0.50 with $0.01; thinking is billed as output. A web
 search is $10 per 1,000 on top of the tokens it reads (`Usage.webSearches`).
 
 ## The database (for the Sync client)
@@ -367,8 +362,8 @@ Nothing here deploys by itself. With the Supabase CLI logged in (`supabase login
    `com.loopware.Capling` as an authorized client ID (native sign-in needs no secret); keep email sign-in on with
    a 6-digit code (set the "Magic Link" template to show `{{ .Token }}`); set rate limits for anonymous sign-ins
    (Supabase's default of 30 an hour per IP is fine).
-4. Secrets: `supabase secrets set ANTHROPIC_API_KEY=… APPLE_BUNDLE_ID=com.loopware.Capling APPLE_APP_ID=<numeric
-   App Apple ID>` (optional: `CRAMLESS_INVITE_BASE_URL`; `OPENAI_API_KEY=…` to put Ask Cap's tutor on OpenAI). Never set `CRAMLESS_MOCK` or `CRAMLESS_ALLOW_XCODE_JWS`
+4. Secrets: `supabase secrets set OPENAI_API_KEY=… APPLE_BUNDLE_ID=com.loopware.Capling APPLE_APP_ID=<numeric
+   App Apple ID>` (optional: `CRAMLESS_INVITE_BASE_URL`, `DAILY_COST_CAP_USD`). Never set `CRAMLESS_MOCK` or `CRAMLESS_ALLOW_XCODE_JWS`
    on production.
 5. `supabase functions deploy ai account appstore-notify` (each uses `supabase/functions/deno.json`; JWT
    verification is done inside the functions, so `verify_jwt = false` in `config.toml` is intended).

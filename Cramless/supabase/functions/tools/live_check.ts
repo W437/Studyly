@@ -1,28 +1,29 @@
-// Real Claude through the relay's real code path: `ANTHROPIC_API_KEY=… deno task live`.
+// Real OpenAI through the relay's real code path: `OPENAI_API_KEY=… deno task live`.
 //
 // Runs the `ai` handler in-process (the same handler the deployed function serves; the test rig supplies the auth
-// and an in-memory store) with the real Anthropic provider. It asks for questions from the sample page (Haiku 5.5),
-// checks them against the page (Haiku 5.5), grades three answers (Haiku 5.5) and asks the tutor two questions
-// (Sonnet 5.5, streamed with citations), printing what the app would show and a verdict per check. It spends a few
-// cents and stores nothing. The key is read from the environment only and never written anywhere.
+// and an in-memory store) with the real OpenAI provider. It asks for questions from the sample page, checks them
+// against the page, grades three answers and asks the tutor two questions (streamed with citations), all on GPT 6.1
+// Terra, printing what the app would show and a verdict per check. It spends a few cents and stores nothing. The key is
+// read from the environment only and never written anywhere. `LIVE_ONLY=generate,check,grade,tutor` runs some of them.
 //
 // Use it after changing a prompt in _shared/prompts/ (then `deno task bundle`), and once before launch.
 
-import { AnthropicProvider } from "../_shared/anthropic.ts";
+import { OpenAIAssistantProvider } from "../_shared/openai_assistant.ts";
 import { parseSse } from "../_shared/sse.ts";
 import { fixtureJson, logLines, rig } from "../tests/_harness.ts";
 
-const key = Deno.env.get("ANTHROPIC_API_KEY") ?? "";
+const key = Deno.env.get("OPENAI_API_KEY") ?? "";
 if (!key) {
-  console.error("Set ANTHROPIC_API_KEY in the environment (never commit it). Nothing was sent.");
+  console.error("Set OPENAI_API_KEY in the environment (never commit it). Nothing was sent.");
   Deno.exit(2);
 }
 
-// ANTHROPIC_BASE_URL points it at the mock server instead (`deno task mock-anthropic`), for a dry run of this script.
-const baseURL = Deno.env.get("ANTHROPIC_BASE_URL") ?? undefined;
+// OPENAI_BASE_URL points it at the mock server instead (`deno task mock-openai`), for a dry run of this script.
+const baseURL = Deno.env.get("OPENAI_BASE_URL") || undefined;
+const only = new Set((Deno.env.get("LIVE_ONLY") ?? "generate,check,grade,tutor").split(",").map((p) => p.trim()));
 const t = rig({
-  env: { ANTHROPIC_API_KEY: key, DAILY_COST_CAP_USD: "0" }, // many requests as one person: no daily cost cap
-  provider: new AnthropicProvider({ apiKey: key, baseURL, maxRetries: 1, timeoutMs: 120_000 }),
+  env: { OPENAI_API_KEY: key, DAILY_COST_CAP_USD: "0" }, // many requests as one person: no daily cost cap
+  provider: new OpenAIAssistantProvider({ apiKey: key, baseURL, maxRetries: 1, timeoutMs: 120_000 }),
 });
 t.store.addUser("user-1", "Live check", "UTC");
 if (baseURL) console.log(`(dry run against ${baseURL}: canned replies, the quality checks don't mean anything)`);
@@ -49,7 +50,7 @@ const generateRequest = fixtureJson("requests/generate");
 const lineIds = new Set<string>(
   generateRequest.pages.flatMap((p: { lines: { id: string }[] }) => p.lines.map((l) => l.id)),
 );
-const generated = await post("generate", generateRequest);
+const generated = only.has("generate") ? await post("generate", generateRequest) : null;
 if (generated) {
   // deno-lint-ignore no-explicit-any
   const items: any[] = generated.items;
@@ -80,13 +81,14 @@ if (generated) {
 
   // 2. The check pass on what was generated.
   console.log("\n== check (against the page)");
-  const checked = await post("check", { pages: generateRequest.pages, items });
-  if (checked) {
+  const checked = only.has("check") ? await post("check", { pages: generateRequest.pages, items }) : null;
+  if (!only.has("check")) console.log("  (skipped)");
+  else if (checked) {
     // deno-lint-ignore no-explicit-any
     for (const v of checked.verdicts as any[]) console.log(`  ${v.id}: ${v.verdict} — ${v.reason}`);
     verdict(checked.verdicts.length === items.length, "a verdict for every question");
   } else verdict(false, "the check answered");
-} else verdict(false, "generate answered");
+} else if (only.has("generate")) verdict(false, "generate answered");
 
 // 3. Grading three answers to "why do cells divide by mitosis?".
 console.log("\n== grade");
@@ -99,7 +101,7 @@ const answers: [string, string][] = [
   ],
   ["To make sex cells with half the chromosomes.", "incorrect"],
 ];
-for (const [response, expected] of answers) {
+for (const [response, expected] of only.has("grade") ? answers : []) {
   const graded = await post("grade", { ...gradeBase, response });
   if (!graded) {
     verdict(false, `graded "${response}"`);
@@ -117,7 +119,7 @@ for (const [response, expected] of answers) {
 }
 
 // 4. The tutor, streamed with citations.
-for (const mode of ["hints", "explain"]) {
+for (const mode of only.has("tutor") ? ["hints", "explain"] : []) {
   console.log(`\n== tutor (${mode})`);
   const body = { ...fixtureJson("requests/tutor"), mode };
   const res = await t.ai("tutor", { body });

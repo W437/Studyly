@@ -40,27 +40,27 @@ function tutorRig() {
 Deno.test("the tutor streams start, deltas, citations (with the source's label) and done", async () => {
   const { r, provider } = tutorRig();
   provider.replyTutor([
-    { type: "start", model: "claude-sonnet-5-5" },
+    { type: "start", model: "gpt-6.1-terra" },
     { type: "delta", text: "Mitosis splits the nucleus, " },
     { type: "citation", source: "s1", quote: "During mitosis, the genetic material (DNA) is copied." },
     { type: "citation", source: "s1", quote: "During mitosis, the genetic material (DNA) is copied." },
     { type: "citation", source: "not-sent", quote: "Invented." },
     { type: "delta", text: "cytokinesis splits the cell." },
-    { type: "done", model: "claude-sonnet-5-5", usage: USAGE, stop: "end_turn" },
+    { type: "done", model: "gpt-6.1-terra", usage: USAGE, stop: "end_turn" },
   ]);
   const res = await r.ai("tutor", { body: fixtureJson("requests/tutor") });
   assertEquals(res.headers.get("content-type"), "text/event-stream; charset=utf-8");
   const events = await sseEvents(res);
   await r.settle();
   assertEquals(events, [
-    { event: "start", data: { model: "claude-sonnet-5-5" } },
+    { event: "start", data: { model: "gpt-6.1-terra" } },
     { event: "delta", data: { text: "Mitosis splits the nucleus, " } },
     {
       event: "citation",
       data: { sourceId: "s1", label: "Textbook p. 87", quote: "During mitosis, the genetic material (DNA) is copied." },
     },
     { event: "delta", data: { text: "cytokinesis splits the cell." } },
-    { event: "done", data: { model: "claude-sonnet-5-5" } },
+    { event: "done", data: { model: "gpt-6.1-terra" } },
   ]);
   // The fixture scripts use the same event names and payload fields.
   const names = new Set(fixtureJson("tutor-explain").events.map((e: { event: string }) => e.event));
@@ -68,18 +68,18 @@ Deno.test("the tutor streams start, deltas, citations (with the source's label) 
   const row = r.store.requests[0];
   assertEquals([row.route, row.model, row.status, row.inputTokens, row.outputTokens], [
     "tutor",
-    "claude-sonnet-5-5",
+    "gpt-6.1-terra",
     200,
     2400,
     180,
   ]);
-  assertEquals(row.costUsd, "0.006600000", "2,400 in and 180 out on Sonnet 5.5");
+  assertEquals(row.costUsd, "0.003300000", "2,400 in and 180 out on Terra");
   assertEquals(r.store.used("user-1", "tutor", "2026-10-22"), 1);
 });
 
 Deno.test("the tutor asks for hints first, teen-safe for a minor", async () => {
   const { r, provider } = tutorRig();
-  provider.replyTutor([{ type: "done", model: "claude-sonnet-5-5", usage: USAGE, stop: "end_turn" }]);
+  provider.replyTutor([{ type: "done", model: "gpt-6.1-terra", usage: USAGE, stop: "end_turn" }]);
   await sseEvents(await r.ai("tutor", { body: { ...fixtureJson("requests/tutor"), mode: "explain", minor: true } }));
   await r.settle();
   const system = provider.tutorCalls[0].system;
@@ -93,7 +93,7 @@ Deno.test("the tutor asks for hints first, teen-safe for a minor", async () => {
 Deno.test("an upstream failure before any text is an error event, and the message is given back", async () => {
   const { r, provider } = tutorRig();
   provider.replyTutor([
-    { type: "start", model: "claude-sonnet-5-5" },
+    { type: "start", model: "gpt-6.1-terra" },
     new ApiError("upstream", "Cap is busy right now. Try again in a moment.", { retryAfter: 15 }, 503),
   ]);
   const events = await sseEvents(await r.ai("tutor", { body: fixtureJson("requests/tutor") }));
@@ -111,7 +111,7 @@ Deno.test("a failure after text keeps the message counted; a refusal is an error
   provider.replyTutor([{ type: "delta", text: "Partly " }, new Error("socket closed")]);
   const failed = await sseEvents(await r.ai("tutor", { body: fixtureJson("requests/tutor") }));
   assertEquals(failed.map((e) => e.event), ["delta", "error"]);
-  provider.replyTutor([{ type: "done", model: "claude-sonnet-5-5", usage: USAGE, stop: "refusal" }]);
+  provider.replyTutor([{ type: "done", model: "gpt-6.1-terra", usage: USAGE, stop: "refusal" }]);
   const refused = await sseEvents(await r.ai("tutor", { body: fixtureJson("requests/tutor") }));
   await r.settle();
   assertEquals(refused, [{
@@ -136,7 +136,7 @@ Deno.test("when the person leaves, the stream stops reading from the model", asy
   r.store.addUser("user-1");
   let pulled = 0;
   provider.tutor = async function* () {
-    yield { type: "start", model: "claude-sonnet-5-5" };
+    yield { type: "start", model: "gpt-6.1-terra" };
     for (let i = 0; i < 1000; i++) {
       pulled++;
       await new Promise((resolve) => setTimeout(resolve, 1));

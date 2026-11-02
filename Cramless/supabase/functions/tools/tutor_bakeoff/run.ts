@@ -6,8 +6,8 @@
 //
 // What is the same as production: `tutorSystem()` (the rules, the tutor, hints or explain, the under-18 part), the
 // student's passages in the last user turn, the earlier turns as text, "Explain my mistake" context, four passages a
-// question. What has to differ: Claude cites through search_result blocks; OpenAI has nothing like it that keeps the
-// notes on our side, so the model is asked for {answer, citations: [{source_id, quote}]} in a strict JSON schema and the
+// question. What has to differ: OpenAI has no passage type that keeps the notes on our side and makes the model cite
+// them, so the model is asked for {answer, citations: [{source_id, quote}]} in a strict JSON schema and the
 // app's own rule decides which quotes count (see report.ts). Nothing is stored at OpenAI (`store: false`).
 //
 // The key is read from ~/.config/capling/openai_key, or OPENAI_API_KEY; it is never printed or written anywhere.

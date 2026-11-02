@@ -108,7 +108,7 @@ final class AISSEParserTests: XCTestCase {
     }
 
     func testTutorEventMapping() {
-        XCTAssertEqual(HTTPRelayTransport.tutorEvent(from: SSEEvent(event: "start", data: "{\"model\":\"claude\"}")), .start(model: "claude"))
+        XCTAssertEqual(HTTPRelayTransport.tutorEvent(from: SSEEvent(event: "start", data: "{\"model\":\"gpt-6.1-terra\"}")), .start(model: "gpt-6.1-terra"))
         XCTAssertEqual(HTTPRelayTransport.tutorEvent(from: SSEEvent(event: "delta", data: "{\"text\":\"Hi\"}")), .delta("Hi"))
         XCTAssertEqual(HTTPRelayTransport.tutorEvent(from: SSEEvent(event: "delta", data: "plain words")), .delta("plain words"))
         XCTAssertEqual(HTTPRelayTransport.tutorEvent(from: SSEEvent(event: "citation", data: "{\"sourceId\":\"s1\",\"label\":\"Textbook p. 87\",\"quote\":\"q\"}")),

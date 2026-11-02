@@ -157,7 +157,7 @@ Deno.test("generate: the reply is cleaned, and an all-dropped reply refunds the 
   assertEquals(res.status, 200);
   const body = await res.json();
   assertEquals(validate(contractSchema("GenerateResponse"), body), []);
-  assertEquals(body.model, "claude-haiku-5-5");
+  assertEquals(body.model, "gpt-6.1-terra");
   assertEquals(body.items.length, 16, "the item with a made-up anchor is dropped");
   assertEquals(
     body.items.map((i: GeneratedItem) => i.id),
@@ -288,7 +288,7 @@ Deno.test("lecture, confusions, cards and transcription replies are cleaned too"
     await (await r.ai("transcribe-image", { body: { image: "iVBORw0KGgoAAAANSUhEUgAA", page: 2, label: "3" } })).json();
   assertEquals(lines.lines, [{ id: "p2.c0", text: "Mitosis notes" }, { id: "p2.c1", text: "PMAT" }]);
   assertEquals(
-    (provider.jsonCalls.at(-1)!.content[0] as { source: { media_type: string } }).source.media_type,
+    (provider.jsonCalls.at(-1)!.content[0] as { mediaType: string }).mediaType,
     "image/png",
   );
 });

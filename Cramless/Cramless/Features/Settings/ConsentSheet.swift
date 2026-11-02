@@ -4,7 +4,7 @@ import SwiftUI
 /// carries `AISuggestion.allowCloud` or `.allowPhotos`; the router never presents it. Allow records the consent
 /// version (`AIConsent.currentVersion`); the screen then runs the job again, and the router reads the new settings.
 ///
-/// The copy says what is sent (page text; photos only with their own switch), who processes it (Anthropic and OpenAI,
+/// The copy says what is sent (page text; photos only with their own switch), who processes it (OpenAI,
 /// through Capling's server), that notes never train models, and how to turn it off. It never says nothing leaves the
 /// device: with Cloud AI on, things do.
 ///

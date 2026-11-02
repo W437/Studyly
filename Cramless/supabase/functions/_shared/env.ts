@@ -9,10 +9,7 @@ export const DEFAULT_INVITE_BASE_URL = "https://capling.app/squad/";
 export interface Env {
   supabaseUrl: string;
   serviceRoleKey: string;
-  anthropicApiKey: string;
-  /** Tests and local mocks only. Empty: the SDK's default (https://api.anthropic.com). */
-  anthropicBaseUrl: string;
-  /** With it, Ask Cap's tutor answers from OpenAI; every other route stays on Claude. */
+  /** The OpenAI key every AI route runs on; without it (and without MOCK) they answer `upstream`. */
   openaiApiKey: string;
   /** Tests and local mocks only. Empty: https://api.openai.com/v1. */
   openaiBaseUrl: string;
@@ -71,8 +68,8 @@ export function envFrom(get: (name: string) => string): Env {
   const supabaseUrl = get("SUPABASE_URL");
   const localProject = isLocalUrl(supabaseUrl);
   const mock = get("CRAMLESS_MOCK") === "1";
-  const anthropicApiKey = get("ANTHROPIC_API_KEY");
-  if (!mock && !anthropicApiKey) faults.push("anthropic_key_missing");
+  const openaiApiKey = get("OPENAI_API_KEY");
+  if (!mock && !openaiApiKey) faults.push("openai_key_missing");
   const asked = get("OPENAI_TUTOR_EFFORT");
   const tutorEffort = asked === "medium" || asked === "high" ? asked : "low";
   if (asked && asked !== tutorEffort) faults.push("openai_tutor_effort_invalid");
@@ -92,9 +89,7 @@ export function envFrom(get: (name: string) => string): Env {
   return {
     supabaseUrl,
     serviceRoleKey: serviceKey(get),
-    anthropicApiKey,
-    anthropicBaseUrl: get("ANTHROPIC_BASE_URL").replace(/\/+$/, ""),
-    openaiApiKey: get("OPENAI_API_KEY"),
+    openaiApiKey,
     openaiBaseUrl: get("OPENAI_BASE_URL").replace(/\/+$/, ""),
     tutorModel: get("OPENAI_TUTOR_MODEL") || TERRA,
     tutorEffort,

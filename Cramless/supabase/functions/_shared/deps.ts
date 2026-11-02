@@ -1,11 +1,9 @@
 // Everything a function needs, injectable, so tests swap the clock, the sleeper, the store, the authenticator,
 // the model provider (or only its base URL) and the App Store roots.
 
-import { AnthropicProvider, type Effort, MissingKeyProvider, type Provider } from "./anthropic.ts";
+import { type Effort, MissingKeyProvider, type Provider } from "./provider.ts";
 import { type Authenticate, goTrueAuthenticator } from "./auth.ts";
-import { SONNET } from "./cost.ts";
 import { type Env, envFromDeno } from "./env.ts";
-import { withTutor } from "./openai.ts";
 import { OpenAIAssistantProvider } from "./openai_assistant.ts";
 import { createAdmin, PostgresStore } from "./store_postgres.ts";
 import type { Store } from "./store.ts";
@@ -15,7 +13,7 @@ export interface Deps {
   env: Env;
   store: Store;
   provider: Provider;
-  /** The model that answers the tutor and how hard it thinks: OpenAI's when the key is set, else Claude Sonnet. */
+  /** The model that answers the tutor and how hard it thinks: OpenAI's (the model and effort the environment names). */
   tutorModel: string;
   tutorEffort: Effort;
   authenticate: Authenticate;
@@ -61,21 +59,18 @@ export function cryptoRandom(): number {
 export function defaultDeps(overrides: Partial<Deps> = {}): Deps {
   const env = overrides.env ?? envFromDeno();
   const admin = createAdmin(env.supabaseUrl, env.serviceRoleKey);
-  const claude = env.anthropicApiKey
-    ? new AnthropicProvider({ apiKey: env.anthropicApiKey, baseURL: env.anthropicBaseUrl || undefined })
-    : new MissingKeyProvider();
-  // With an OpenAI key the tutor, the assistant and web research run on OpenAI; every other route stays on Claude.
+  // Every AI route runs on OpenAI; without a key they answer `upstream` (a cold-start fault says so).
   const openai = env.openaiApiKey !== "";
   const provider = overrides.provider ??
     (openai
-      ? withTutor(claude, new OpenAIAssistantProvider({ apiKey: env.openaiApiKey, baseURL: env.openaiBaseUrl }))
-      : claude);
+      ? new OpenAIAssistantProvider({ apiKey: env.openaiApiKey, baseURL: env.openaiBaseUrl })
+      : new MissingKeyProvider());
   return {
     env,
     store: overrides.store ?? new PostgresStore(admin),
     provider,
-    tutorModel: overrides.tutorModel ?? (openai ? env.tutorModel : SONNET),
-    tutorEffort: overrides.tutorEffort ?? (openai ? env.tutorEffort : "low"),
+    tutorModel: overrides.tutorModel ?? env.tutorModel,
+    tutorEffort: overrides.tutorEffort ?? env.tutorEffort,
     authenticate: overrides.authenticate ?? goTrueAuthenticator(admin),
     verifiers: overrides.verifiers ??
       buildVerifiers({

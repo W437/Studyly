@@ -24,7 +24,7 @@ export const SCHEMA = {
   additionalProperties: false,
 };
 
-// Claude cites through search_result blocks; here the model is asked for the quotes and the app's own rule judges them.
+// The model is asked for the quotes it relies on, and the app's own rule judges them.
 const FORMAT = `Reply as JSON with two fields and nothing else:
 - "answer": your reply to the student, following all the rules above.
 - "citations": the quotes that support what you said. Each has "source_id" (the id of the source) and "quote": a stretch of that source's text copied exactly, character for character, 6 to 30 words long. Give one or two. Use an empty list when the sources don't cover the question or you are only steering the student back to their studies.
@@ -63,7 +63,7 @@ export function instructionsFor(req: TutorRequest): string {
   return `${tutorSystem(req)}\n\n${FORMAT}`;
 }
 
-/** The conversation as the relay sends it to Claude, with the passages as tagged text instead of search results. */
+/** The conversation as the relay sends it, with the passages as tagged text. */
 export function inputFor(req: TutorRequest) {
   const turns = [...req.messages];
   const last = turns.pop()!;

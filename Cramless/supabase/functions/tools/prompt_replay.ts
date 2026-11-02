@@ -1,4 +1,4 @@
-// Record the relay's exact Claude calls, and replay a real model's replies through the relay's own validation and
+// Record the relay's exact model calls, and replay a real model's replies through the relay's own validation and
 // cleaning. For checking prompt quality with a model answered elsewhere (no API key needed here):
 //
 //   deno run -A tools/prompt_replay.ts record generate            → build/prompt_replay/generate.call.json
@@ -8,7 +8,7 @@
 //
 // A call file holds the model, the system prompt, the user content as text and the JSON schema the reply must match.
 
-import type { JsonCall } from "../_shared/anthropic.ts";
+import type { JsonCall } from "../_shared/provider.ts";
 import { fixtureJson, rig, ScriptedProvider } from "../tests/_harness.ts";
 
 const OUT = new URL("../../../build/prompt_replay/", import.meta.url);
