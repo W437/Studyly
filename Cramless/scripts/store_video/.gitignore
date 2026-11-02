@@ -1,0 +1,10 @@
+node_modules/
+out/
+renders/
+*.log
+.DS_Store
+# Apple's system fonts are copied here by scripts/fonts.sh and are not redistributed
+public/fonts/SFNS*.ttf
+sources/music/*.mp3
+# Cap's clip frames, decoded from the app's clips by scripts/capclips.sh (about 110 MB of PNG)
+public/capclips/

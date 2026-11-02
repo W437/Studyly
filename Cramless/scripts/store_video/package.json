@@ -1,0 +1,31 @@
+{
+  "name": "app-video-ads",
+  "version": "1.0.0",
+  "description": "Capling's App Store preview (Remotion): five beats of motion built from the app's own pieces. Renders go to renders/.",
+  "private": true,
+  "config": {
+    "appSlug": "Capling"
+  },
+  "scripts": {
+    "studio": "remotion studio src/entries/preview.tsx",
+    "typecheck": "tsc --noEmit",
+    "frames": "node tools/frames.mjs",
+    "preview": "scripts/one-at-a-time.sh remotion render src/entries/preview.tsx Preview out/preview.mp4 --scale=0.5 --crf=28 --concurrency=4 --muted",
+    "render": "scripts/one-at-a-time.sh remotion render src/entries/preview.tsx Preview renders/capling-preview-silent.mp4 --codec=h264 --crf=14 --pixel-format=yuv420p --image-format=png --color-space=bt709 --concurrency=4 --muted"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.529",
+    "@remotion/layout-utils": "4.0.529",
+    "@remotion/media-utils": "4.0.529",
+    "@remotion/motion-blur": "4.0.529",
+    "@remotion/noise": "4.0.529",
+    "@remotion/paths": "4.0.529",
+    "@remotion/shapes": "4.0.529",
+    "@remotion/transitions": "4.0.529",
+    "@types/react": "19.3.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "remotion": "4.0.529",
+    "typescript": "7.0.2"
+  }
+}

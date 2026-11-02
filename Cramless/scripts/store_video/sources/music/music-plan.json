@@ -1,0 +1,38 @@
+{
+  "name": "capling-preview",
+  "base": [
+    "instrumental",
+    "warm, bright, optimistic modern pop for a friendly study app",
+    "120 bpm",
+    "soft marimba and kalimba plucks carry the melody",
+    "gentle finger snaps and a light shaker groove with a soft kick",
+    "round warm bass",
+    "airy shimmering pads",
+    "clean, polished, playful, uplifting, light mix",
+    "made for a joyful app preview video"
+  ],
+  "avoid": [
+    "vocals", "singing", "voice", "humming", "whistling", "lyrics", "spoken words",
+    "lo-fi hiss", "distortion", "abrupt cut", "dark", "sad", "aggressive", "heavy drops", "guitar solo"
+  ],
+  "chunks": [
+    {"text": "[Hook]", "seconds": 4.0,
+     "add": ["the groove is already running on the very first beat", "a bright catchy marimba hook", "a quick kalimba arpeggio", "soft kick on every beat and a shaker on the off-beats"],
+     "avoid": ["intro build-up", "silence", "slow start"]},
+    {"text": "[Verse]", "seconds": 6.0,
+     "add": ["the same groove, a little fuller", "warm bass joins", "soft claps on beats two and four", "marimba plays a simple playful call and response with the kalimba"],
+     "avoid": ["breakdown", "silence"]},
+    {"text": "[Lift]", "seconds": 4.0,
+     "add": ["the energy lifts", "a bright pad swells in", "a rising arpeggio", "a cheerful confident feeling as if a goal is being reached", "a short upward sweep in the last beat"],
+     "avoid": ["breakdown", "silence"]},
+    {"text": "[Breakdown]", "seconds": 4.0,
+     "add": ["the drums drop out", "sparse twinkling glassy bells and celesta over a soft pad", "a calm, wondrous, starry night feeling", "a gentle rising shimmer in the last bar that leads into the next section"],
+     "avoid": ["full drums", "bass drop", "loud"]},
+    {"text": "[Final]", "seconds": 4.0,
+     "add": ["the full bright groove returns on the very first beat", "triumphant but friendly", "marimba melody in the higher register", "warm bass, claps and shaker", "sunrise feeling, confident and joyful"],
+     "avoid": ["breakdown", "slow", "sad"]},
+    {"text": "[Ending]", "seconds": 4.0,
+     "styles": ["instrumental", "one final full-band hit on the very first beat with a bright marimba chord, kick and soft cymbal", "then the chord rings out warmly and decays to complete silence"],
+     "avoid": ["groove continues", "drums after the first beat", "melody continues", "vocals", "abrupt cut"]}
+  ]
+}
