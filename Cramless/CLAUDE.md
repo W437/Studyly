@@ -7,9 +7,11 @@ and file names, type names (`CramlessLink`), the DEBUG switches (`CRAMLESS_*`) a
 (`com.loopware.Capling`, `.Widgets`), the App Group, the StoreKit product ids, the `capling://` scheme, the Squad link
 (`capling.app/squad/…`), the notification and defaults key prefixes. `scripts/rename_brand.py <Old> <New>` does a rename like this
 again (dry run first). The App Store Connect record exists on the Loopware team (created 2026-10-30: app id 6828649543, `com.loopware.Capling`,
-SKU `capling-ios`, name "Capling"; its header and Search card are placed in all 39 App Store languages, nothing else is filled in, nothing
-submitted; the translations are drafts for a native read: `scripts/store_art/gpt/locales.py`). The domain `capling.app` and the trademark filing
-are still to be done by the owner.
+SKU `capling-ios`, name "Capling"). By 2026-11-01 its listing text in 39 languages (the translations are drafts for a native read), the
+English screenshots, the header and Search card, the price (Free), categories, age rating, purchases and App Privacy are filled in, and build
+1.0 (1) is uploaded; nothing is submitted. `docs/BUILD.md` ▸ "App Store Connect" says what is done and what is open, and
+`node scripts/asc/capling_asc.mjs --account loopware ready` lists what the version still lacks. The domain `capling.app` and the trademark
+filing are still to be done by the owner.
 
 An exam-readiness study coach for iPhone: capture class material (scan, PDF, paste, lectures, Quizlet and Anki
 imports), turn it into checked questions linked to their source, study 10–15 minutes a day with answers graded in
@@ -35,6 +37,37 @@ DERIVED=build-x scripts/xc.sh build                   # another derived-data fol
 - Success signals: `** BUILD SUCCEEDED **`; `** TEST SUCCEEDED **` plus the `Executed N tests` line. If the helper
   and the log disagree, trust the log (`build/xc-*.log`).
 - Tests are app-hosted: the whole app must compile before any test runs.
+- Which tests: the global rule ("Test in proportion to the change", `~/.claude/CLAUDE.md`) applies. The suite is about 1,100 tests and
+  needs a simulator slot on a shared Mac (a half-hour queue is normal), so it is a gate, not a per-change check.
+  - Run classes, not files: `-only-testing:CramlessTests/<Class>`, as many as needed (`xc.sh test` passes them on). A file can hold
+    several classes (`TodayHeroTests.swift` has `TodayHeroContentTests` and `TodaySkySnapshotTests`; `SkyCopyTests` is in
+    `SkyViewTests.swift`). `grep -n "class .*TestCase" CramlessTests/<File>.swift` lists a file's classes, and
+    `grep -l -w -E "TypeA|TypeB" CramlessTests/*.swift` finds the files that use the types you changed.
+  - No tests: wording, comments, docs, art, `scripts/`. Words a test asserts (`TodayHeroContentTests`, `SkyCopyTests`,
+    `PaywallCopyTests`) are updated along with the words. A string-catalog edit has `LocalizationTests` (the catalogs parse, plural
+    forms resolve, `docs/l10n/plurals.json` names only keys the app uses).
+  - Test files by area (in `CramlessTests/`, without `.swift`; `Ask*`, `Capture*`, `Import*`, `Library*` and `Widget*` stand for the
+    files with that prefix):
+    - Today: `TodayHeroTests`, `TodayTests`, `HeroWorldTests`, `HeroRefreshTests`, `WelcomeSkyTests`. The memory sky: `SkyEngineTests`,
+      `SkyViewTests`, `SkyDerivedTests`, `SkyAppModelTests`.
+    - A session and the engines (`Engine/`): `SessionTests`, `SessionFeelTests`, `EngineFSRSTests`, `EngineSchedulerTests`,
+      `EngineSessionBuilderTests`, `EngineReadinessTests`, `EngineStreakTests`.
+    - The game loop (quests, badges, skies, icons, celebrations): `GameEngineTests`, `GameAppModelTests`, `GameRenderTests`,
+      `CelebrationTests`. Cap and the feel: `CapClipTests`, `CapTouchTests`, `FeelTests`.
+    - Progress, exams, library: `ProgressPresentationTests`, `ExamPresentationTests`, `Library*Tests`, `DraftTests`,
+      `StudyAppModelTests`, `StudyDemoWorldTests`.
+    - Capture, imports, lectures: `Capture*Tests`, `Import*Tests`, `OCRTests`, `GeneratorTests`, `LectureTests`, `AILectureTests`.
+    - Ask Cap and the AI layer (`AI/`): `Ask*Tests`, `AssistantTests`, `TutorTests`, `GraderTests`, `AITransportTests`,
+      `AISSEParserTests`, `AIOnDeviceTests`, `RelayContractTests`.
+    - Paywall, sync, Squad: `StoreEntitlementTests`, `StoreReminderAndOfferTests`, `PaywallCopyTests`, `SyncEngineTests`,
+      `SyncAccountServiceTests`, `BackendClientTests`, `SquadTests`.
+    - Onboarding, routes, settings, widgets: `OnboardingMachineTests`, `OnboardingQuizTests`, `RouterTests`, `DeepLinkTests`,
+      `SettingsExportTests`, `NotificationPlannerTests`, `IntentTests`, `Widget*Tests`.
+    - Opt-in (skipped unless switched on): `LocalStackTests`, `StorePurchaseFlowTests`, `AssistantWireTests`.
+  - The whole suite (`SIM_ID=<udid> scripts/xcq.sh test`), once, only at a gate: before a TestFlight or App Store upload; at the end of a
+    build phase (BUILD.md gets its "Verified" line); after a change to a shared base (`Model/`, `Engine/`, `App/AppModel.swift`,
+    `Shared/`, `project.yml`, the relay contract, the sync wire format); when asked. Not after each round of fixes, not for wording,
+    and a commit or push is not a gate by itself: the commit message says what ran.
 - Simulators: other sessions share this Mac. Create your own (`xcrun simctl create "Cramless <You>"
   com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro com.apple.CoreSimulator.SimRuntime.iOS-27-0`), use only its
   id, shut it down when you stop using it, and never boot, shut down or erase anyone else's.
@@ -47,8 +80,8 @@ DERIVED=build-x scripts/xc.sh build                   # another derived-data fol
   - `scripts/speech_live/run.sh`: lecture transcription on this Mac's speech models.
   - `scripts/local_stack.sh up|env|down`: a local Supabase stack. With it running, the opt-in
     `CramlessTests/LocalStackTests` drive the app's networking against it.
-  - `ANTHROPIC_API_KEY=… deno task live`: real Claude through the relay's code path.
-  - `OPENAI_API_KEY=… deno task live-openai` (in `supabase/functions`): Ask Cap's tutor on OpenAI through the relay's code path.
+  - `OPENAI_API_KEY=… deno task live` (in `supabase/functions`): every route on OpenAI through the relay's code path
+    (`LIVE_ONLY=grade,check` runs some); `deno task live-openai` does the same for Ask Cap's tutor alone.
   - `deno run -A tools/assistant_bakeoff/run.ts [--group cards] [--cases a,b] [--live-research] [--debug]` (in `supabase/functions`): 50 requests
     to Ask Cap's assistant on the real model through the relay's code path, playing the app's part, with checks and costs (about 13¢;
     key from `~/.config/capling/openai_key`, else `OPENAI_API_KEY`: a stale shell key has shadowed the file before).

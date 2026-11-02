@@ -64,12 +64,11 @@ Shared rule: notification requests whose identifier starts with `trial.` belong 
     (How ready am I, scan, record, start) and shortcuts, the notification planner (quiet hours, 2 a day,
     `trial.` untouched), deep links, read-aloud, Declared Age Range (entitlement added); 65 tests.
   - [x] Backend (merged 2026-10-22): schema with RLS and explicit grants (pgTAP 53 checks against a local stack),
-    the `ai` relay (9 routes, quotas with refunds, anchor cleaning, MOCK = fixtures byte for byte, real mode via
-    `@anthropic-ai/sdk` 1.1.0 with structured outputs and tutor citations over search results; tested against a
-    mock Anthropic server, never a real key), `account` (StoreKit JWS verification ported from plainsum, Squad,
+    the `ai` relay (9 routes, quotas with refunds, anchor cleaning, MOCK = fixtures byte for byte, real mode on
+    OpenAI's Responses API with strict structured outputs; tested against a mock OpenAI server), `account` (StoreKit JWS verification ported from plainsum, Squad,
     deletes), `appstore-notify`; Swift `Sync/` (GoTrue auth incl. anonymous and Apple, Keychain session, PostgREST
     sync with a ledger, BackendClient). Deno 95 tests (+11 with the local stack), Swift 50.
-    Owner must provide: a Supabase project (host + anon key in Secrets.xcconfig), `ANTHROPIC_API_KEY` and
+    Owner must provide: a Supabase project (host + anon key in Secrets.xcconfig), `OPENAI_API_KEY` and
     `APPLE_APP_ID` secrets, the Apple provider's client id, the email code template, the App Store notifications
     URL, the `capling.app/squad/<code>` domain. Follow-up: `StudySession`, `DayRecord`, `SourcePage` have no
     `updatedAt`; sync approximates with the parent's stamp or `syncedAt == nil`.
@@ -179,29 +178,17 @@ Mac has.
   flows passed on a freshly booted simulator.
   - **Bug found and fixed:** someone who bought while anonymous and then signed in was metered as free until the
     next launch (`PurchaseStore.resyncEntitlements()` after sign-in). The same gap after sign-out is closed too.
-- **Claude models on the relay's own prompts.** There's no API key on this Mac, so
-  `supabase/functions/tools/prompt_replay.ts` recorded the relay's exact calls on the sample page: model, system
-  prompt, user content and JSON schema. Claude Haiku 5.5 and Sonnet 5.5 answered them as Claude Code subagents.
-  Their replies went back through the relay's own validation and cleaning (`replay`). The files are in
-  `build/prompt_replay/`.
-  - Generate (Haiku 5.5): all 12 items passed validation (4 recall, 4 multiple choice, 2 flashcards, 1 cloze,
-    1 apply). Every anchor was a real line, and every multiple choice question had exactly one right answer.
-  - Check (Haiku 5.5): all 12 supported, each with a reason naming what the page says. A second set mixed 4 of
-    those items with 3 planted errors. All three were caught, and the 4 real items stayed supported:
-    - Anaphase was marked as the phase where chromosomes line up: fixed, with Metaphase marked correct.
-    - Mitosis's purpose was given as making sex cells: unsupported.
-    - Cytokinesis was defined as dividing the nucleus: fixed to "the division of the cytoplasm".
-  - Grade (Haiku 5.5), three answers to one question: partial (2 of 3 ideas), correct (3 of 3) and incorrect (an
-    answer about sex cells). Every hit quoted the student's exact words.
-  - Tutor (Sonnet 5.5): hints mode gave 46 words pointing to the right lines, ending on a question. Explain mode
-    gave 54 words with two citations, both verbatim from the page, and a check question. These were read by
-    script, not replayed: the replay tool doesn't stream.
-  - What this doesn't cover: the subagents had their own agent context, the API didn't enforce the schema, and
-    no tokens or cost were measured.
-- **Claude through the relay, over the API.** `ANTHROPIC_API_KEY=… deno task live`
-  (`supabase/functions/tools/live_check.ts`) runs the relay's real code path on the sample page, through generate,
-  check, grade and the streamed tutor, with verdicts and cost. It hasn't been run, for lack of a key. A dry run
-  against the mock server (`ANTHROPIC_BASE_URL`) exercises the plumbing only.
+- **The relay's own prompts, replayed (before the move to OpenAI).** `supabase/functions/tools/prompt_replay.ts` records the
+  relay's exact calls on the sample page (model, system prompt, user content, JSON schema) and replays a model's replies
+  through the relay's own validation and cleaning (`replay`; files in `build/prompt_replay/`). The replies then came from a
+  different model family, answered as subagents: generate passed validation (12 items, every anchor a real line, one right
+  answer per multiple choice), check caught all three planted errors and kept the real items, grade scored three answers
+  right with the student's own words as quotes, and the tutor's hints ended on a question with verbatim citations. It
+  didn't cover schema enforcement or cost.
+- **OpenAI through the relay, over the API.** `OPENAI_API_KEY=… deno task live` (`supabase/functions/tools/live_check.ts`) runs
+  the relay's real code path on the sample page through generate, check, grade and the streamed tutor, with verdicts and
+  cost (`LIVE_ONLY=grade,check` runs some). A dry run against the mock server (`deno task mock-openai`, `OPENAI_BASE_URL`)
+  exercises the plumbing only.
 
 ## Featuring plan (approved 2026-10-22)
 
@@ -949,28 +936,26 @@ WebKit and Chromium.
 ### Ask Cap on OpenAI (2026-10-26)
 
 The owner asked whether the cloud tutor should be OpenAI, leaned to GPT 6.1 Sol at medium reasoning, saw the test below and chose
-**GPT 6.1 Terra at low reasoning** for Ask Cap. Only the tutor moved: every other cloud route is still written for Claude and was
-not tested on OpenAI. Set `OPENAI_API_KEY` on the relay and the tutor answers from OpenAI; without it, from Claude Sonnet as before.
+**GPT 6.1 Terra at low reasoning** for Ask Cap. At first only the tutor moved; on 2026-11-02 every other cloud route followed (see
+"Every route on OpenAI" below). Set `OPENAI_API_KEY` on the relay and all AI routes answer from OpenAI; without it they answer `upstream`.
 
 - **Built:** `_shared/openai.ts` (`OpenAIProvider.tutor`: the Responses API with a strict JSON schema, `store: false`, one retry
   before any text, abort and timeout; `AnswerStream`, which reads the answer out of the JSON as it arrives; quotes checked against
-  the passages before they go out as `citation` events; `withTutor`, the tutor on one provider and the rest on another).
-  `Deps.tutorModel` and `tutorEffort` (OpenAI's when the key is set, else Sonnet at low), the settings `OPENAI_API_KEY`,
+  the passages before they go out as `citation` events; `withTutor`, the tutor on one provider and the rest on another; since replaced by one OpenAI provider for every route).
+  `Deps.tutorModel` and `tutorEffort`, the settings `OPENAI_API_KEY`,
   `OPENAI_TUTOR_MODEL`, `OPENAI_TUTOR_EFFORT` and `OPENAI_BASE_URL` (tests), the prices in `cost.ts`. The app's contract is
   unchanged. The server suite is green (119 tests, 24 of them new: `tests/openai.test.ts` against `tests/_mock_openai.ts`), and
   79 app tests on consent, the tutor, routing and the string catalog. A reviewer who hadn't seen the code found that a cut-off answer
   lost its cost and that the retry and early-stop guards were untested; both are fixed and covered.
-- **Consent:** it now names both companies. `AIConsent.processor` is "Anthropic and OpenAI" and `currentVersion` is 2, so everyone
-  is asked again, as the rule in `AIConsent` says for a new processor; the harness grants the current version. Change the
-  processor line with the relay's wiring if everything moves to OpenAI. The privacy policy and the App Store privacy answers
-  still have to say the same.
+- **Consent:** `AIConsent.processor` follows the relay's wiring (now "OpenAI"; version 3 has not shipped, so no one was asked
+  twice). The privacy policy and the App Store privacy answers have to say the same.
 - **First real call (2026-10-27):** `OPENAI_API_KEY=… deno task live-openai` ran the relay's code path against OpenAI with
   Terra at low reasoning. Hints, explain, a question the page can't answer and an under-18 account all passed: quotes on the
   page, hints and explain ending on a question, no outside facts, no source id in the answer. 0.64¢ for the four answers; first
   words after 0.7 to 1.2 s (3 s for the very first, a cold connection).
-- **Not done:** a per-user spend cap (proposed: a monthly dollar cap near 15% of what the plan nets, then Cap answers on the iPhone;
-  the paid tutor ceiling cut from 300 to about 60 a day), the other cloud routes on OpenAI, and a check of OpenAI's rules for
-  apps used by 13 to 17 year olds.
+- **Not done:** a per-user spend cap beyond the daily 10¢ one (proposed: a monthly dollar cap near 15% of what the plan nets, then
+  Cap answers on the iPhone; the paid tutor ceiling cut from 300 to about 60 a day), and a check of OpenAI's rules for apps used
+  by 13 to 17 year olds.
 
 The test that chose it: `supabase/functions/tools/tutor_bakeoff/` sends 33 Ask Cap questions to the OpenAI Responses API with the
 relay's own tutor prompt (`tutorSystem`) and four passages from the demo notes each: explain and hints mode, under-18 accounts,
@@ -980,7 +965,7 @@ follow-ups, "Explain my mistake", questions the notes can't answer, an essay req
   tools/tutor_bakeoff/run.ts [--configs sol-medium,terra-low] [--cases ...]`, then `report.ts DIR`. The key comes from
   `~/.config/capling/openai_key` or `OPENAI_API_KEY` and is written nowhere; `store: false` is sent. The runs are in
   `build/bakeoff/run1` to `run4` (gitignored); about 640 calls cost $0.88.
-- Citations: OpenAI has nothing like Claude's `search_result` blocks that keeps the notes on our side, so the model returns
+- Citations: OpenAI has no passage type that keeps the notes on our side and makes the model cite them, so the model returns
   `{answer, citations: [{source_id, quote}]}` in a strict JSON schema, and the app's own rule (`HighlightMark.locate`) judges
   the quotes. 787 of 787 quotes were kept, every one naming the right passage.
 - Per answer, at list prices of 2026-10-26 (per million tokens: Sol $2 in / $10 out, Terra $1 / $5, Luna $0.10 / $0.50), about
@@ -995,7 +980,27 @@ follow-ups, "Explain my mistake", questions the notes can't answer, an essay req
   30%, 67%, 57%, 63%, 30%. Sol also ended on a statement, not a question, in 10% of them. Luna with no reasoning once kept
   writing after its JSON ended.
 - Recommended, and chosen: Terra at low reasoning (Luna at medium for the free plan if its cost matters more). Not tested:
-  Claude (no key), real students' wording, the app's own retriever, a stronger hints prompt for Sol.
+  other providers, real students' wording, the app's own retriever, a stronger hints prompt for Sol.
+
+### Every route on OpenAI (2026-11-02)
+
+The owner decided the app uses OpenAI only. The seven JSON routes (generate, check, grade, confusions, lecture, cards-from-chat,
+transcribe-image) moved to the Responses API on GPT 6.1 Terra, so there is no second provider any more.
+
+- **Built:** `OpenAIProvider.json()` (`_shared/openai.ts`): one non-streamed request, the pages and photos as `input_text` and
+  `input_image` parts, a strict `json_schema` output, `store: false`, the tutor's timeout, one retry and error mapping, and the
+  reply read back through the contract's own schema. Strict mode needs every property required, so `strictSchema()` makes the
+  contract's optional properties nullable and `withoutNulls()` drops those nulls from the reply. The neutral call types live in
+  `_shared/provider.ts`; the first provider's class, SDK import, env vars and mock server, and `withTutor`, are gone; a missing key is the cold-start fault `openai_key_missing` and the routes answer `upstream`.
+- **Models and effort:** Terra on every route; effort medium for generate, check and lecture, low for the rest, and grading is
+  medium for `apply` questions and answers over 700 characters, low otherwise. A reply that could not be used (refusal, cut off,
+  unreadable, off-contract) still costs what OpenAI billed, and that now counts toward the day's 10¢ cap.
+- **Cost:** Terra is $1 / $5 per million tokens against $0.10 / $0.50 for the small model the cheap routes used before, and
+  reasoning tokens bill as output, so the free-plan routes cost about ten times what they did. The 10¢ daily cap and the meters still hold; a
+  normal day should be re-measured after launch (`ai_requests` has the tokens and cost of every call).
+- **Tested:** the relay suite (179 tests; `tests/openai_json.test.ts` is new) against `tests/_mock_openai.ts`, which now also
+  answers whole responses and refuses what strict mode refuses. Live, with the real key: a grade, a photo transcription and a
+  check (it has optional properties, so it proves the nullable form) all returned 200 with valid replies, 0.48¢ for the three.
 
 ### Ask Cap as an assistant (2026-10-27)
 
@@ -1081,11 +1086,64 @@ trust rules and the screens are in `docs/assistant.md`, the wire format in `docs
   so the app never tells a site what the student is researching); the privacy policy and App Store privacy answers have to name the web
   step and the new data; OpenAI's rules for 13 to 17 year olds are unchecked.
 
+## App Store Connect (2026-11-01)
+
+The Capling record on the Loopware team (app 6828649543) is filled in by `scripts/asc/`. Every command is re-runnable and has
+`--dry-run`; `capling_asc.mjs --account loopware ready` lists what the version still lacks.
+
+- **Listing** (`capling_asc.mjs listing`): the English words are in `capling_copy.json`, the other 38 languages in
+  `capling_copy_locales.json` (machine drafts for a native read; en-AU, en-CA and en-GB reuse the English words). Support URL
+  `loopware.app/support`, privacy URL `loopware.app/privacy`, Education and Productivity, age rating 4+, content rights, App Review
+  notes, eight iPhone screenshots (en-US only; the other languages fall back to them), the header and Search card in all 39 languages.
+- **Preview video** (`scripts/store_video/`, README there): a 25 s portrait motion piece drawn from the app's own pieces, 886 x 1920 at 30 fps
+  with a synthesized score from the app's sound palettes; Cap plays his own animation clips from the app (`CapClips/*.mov`, decoded to frames
+  by `scripts/capclips.sh`; a clip's last picture dissolves onto his drawing, so two of them stop a few pictures early). It meets Apple's
+  preview spec (audio required) but is drawn, not a screen capture (App Review 2.3.4). Uploaded 2026-11-02 to the en-US App Previews (Asset Library,
+  `scripts/asc/capling_preview.mjs`, poster frame 00:00:01:20, ACTIVE; not submitted). A review page is on tshare as `capling-app-store-preview-video`.
+- **Price** (`capling_asc.mjs price`): Free, 175 territories.
+- **Purchases** (`capling_products.mjs`): the group "Capling Pro" with Squad Yearly $99.99, Pro Yearly $49.99 (one-week trial) and Pro
+  Monthly $9.99, and the Exam Pass $14.99 (30 days, non-renewing). The ids are the ones in `Cramless.storekit` and `StoreCatalog`.
+  Each has its own App Review screenshot, taken from the harness (`paywall` with `CRAMLESS_PAYWALL_PLAN`, `examPass`).
+- **App Privacy**: published (nine data types, each for App Functionality, linked to the person, no tracking). It has no API: it was
+  done in the browser, see the app-store-connect skill.
+- **Signing**: App IDs `com.loopware.Capling` and `.Widgets` with the App Group `group.com.loopware.Capling`, Sign in with Apple and
+  Declared Age Range; the App Store profiles come from the skill's `asc-sign.mjs`.
+- **Gate**: the full suite, 1,082 tests run, 24 skipped (the opt-in ones), 0 failures (2026-11-01), run again after the
+  `project.yml` change below.
+- **Backend (2026-11-02)**: Supabase project `capling` (ref `xwzhopcsdqjvgqntatel`, free plan, org Amplified): the five migrations
+  applied, `ai`, `account` and `appstore-notify` deployed, `OPENAI_API_KEY` set (lockbox `OPENAI_KEY_CAPLING_APP-PROD`) with
+  `APPLE_APP_ID` and `APPLE_BUNDLE_ID`, anonymous and Apple sign-in on (the bundle ID is Apple's authorized client ID; the native
+  ID-token flow needs no client secret). Checked live with one anonymous test user, deleted afterwards: every `ai/*` route (generate
+  14 items in 46 s for about 2¢, check, grade, confusions, lecture, cards-from-chat, transcribe-image, the tutor and assistant streams,
+  research refused on the free plan), `account/entitlements` (free; a fake purchase is refused), the Squad error paths, `delete-ai-data`
+  and `delete` (the token is refused afterwards). Not checked live: the Squad happy path, a real purchase, Sign in with Apple on a
+  device, and a real Apple notification.
+- **Server notifications (2026-11-02)**: App Store Connect has Version 2 with
+  `https://xwzhopcsdqjvgqntatel.supabase.co/functions/v1/appstore-notify` for both Production and Sandbox (set with `PATCH /v1/apps/<id>`
+  and the four `subscriptionStatusUrl*` attributes; a read straight after the PATCH can show null for a few seconds).
+- **Before real users**: the free Supabase plan pauses a project after a week idle, so upgrade it; set a spend limit on the OpenAI
+  project; register `capling.app` (Squad invite links point at it); wire the age check.
+- **Build 1.0 (2)**: the full suite passed on a blank `Secrets.xcconfig` (1,082 run, 24 skipped, 0 failures), then the Release archive
+  was made with the real host and anon key compiled in, uploaded and attached to version 1.0 (`VALID`). Build 1 is superseded.
+- **Build 1.0 (1)**: a Release archive for iPhone only, signed with the Loopware distribution certificate and the two App Store
+  profiles, uploaded with altool and processed to `VALID` in about three minutes; `capling_asc.mjs build` attached it to version 1.0.
+  TestFlight's internal state is `READY_FOR_BETA_TESTING`. No relay is compiled in (see below).
+- **Found on the way**:
+  - `Secrets.xcconfig` is blank, so a store build has no relay: no Cloud AI, Ask Cap's assistant, sync, sign-in or Squad (`AppConfig`
+    mode `local`, "On this iPhone only"). The listing describes them, so either the backend is up before submission or the text is trimmed.
+  - `AgeRange.refresh` has no caller and `settings.level` is only set in demo data, so `ageBand` stays unknown and nothing that
+    depends on it engages: the under-13 and teen limits (hints first, no web research, "Let Cap do it" locked) never apply. The privacy
+    policy and the App Review notes make no such claim, and the age-rating answer `ageAssurance` is false until it is wired in.
+  - XcodeGen gives an app target the device family "1,2" unless the target sets its own, whatever the project-wide value says, and an
+    iPhone-only, portrait-only app then fails upload with 90474. `project.yml` now sets "1" on both targets.
+  - Loopware's privacy page had no Capling section. It is drafted on the branch `capling-privacy` of the loopware-landing repo
+    (commit e92c033), not pushed.
+
 ## Left for the owner
 
 - Accounts and keys (see README "Before the App Store"):
   - a Supabase project
-  - the Anthropic key, and the OpenAI key for Ask Cap's tutor (see "Ask Cap on OpenAI")
+  - the OpenAI key every AI route runs on (see "Ask Cap on OpenAI")
   - App Store Connect products and URLs
   - the Squad link domain
   - a trademark check on the name
