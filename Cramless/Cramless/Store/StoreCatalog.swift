@@ -87,10 +87,11 @@ enum StoreCatalog {
     /// The trial reminder fires this many days before the trial ends ("Day 5" of a 7-day trial).
     static let trialReminderLeadDays = 2
 
-    /// Terms of Use and Privacy Policy. Nil until the owner provides the real pages: the paywall shows a link only
-    /// when one exists, and nobody invents a URL. (App Review needs both before a subscription ships.)
-    static let termsURL: URL? = nil
-    static let privacyURL: URL? = nil
+    /// Terms of Use and Privacy Policy, the same two pages the App Store listing links to: Apple's standard licence agreement
+    /// and Loopware's privacy policy. The paywall and Settings show a link only when one exists. (App Review needs both before
+    /// a subscription ships.)
+    static let termsURL: URL? = URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")
+    static let privacyURL: URL? = URL(string: "https://loopware.app/privacy")
 
     /// What the free plan keeps, as the paywall says it. The meters themselves live in the relay's quota.
     static let freePlanLine = "Free includes unlimited flashcard reviews, 3 scans a week and 20 graded answers a day."
