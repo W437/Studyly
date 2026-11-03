@@ -4,8 +4,9 @@
 import { assert, assertEquals } from "@std/assert";
 import type { GeneratedItem } from "../_shared/contract.ts";
 import { sanitizeGrade, sanitizeItem, sanitizeItems, sanitizeVerdicts } from "../_shared/items.ts";
-import { contractSchema } from "../_shared/schemas.ts";
+import { contractSchema, MAX_SOURCE_CHARS } from "../_shared/schemas.ts";
 import { validate } from "../_shared/schema.ts";
+import { GENERATE_TIMEOUT_MS } from "../ai/handler.ts";
 import { errorOf, fixtureJson, rig, ScriptedProvider } from "./_harness.ts";
 
 const LINES = new Set(["p0.l1", "p0.l2", "p0.l3", "p0.l8", "p0.l9"]);
@@ -27,6 +28,156 @@ function item(over: Partial<GeneratedItem> = {}): GeneratedItem {
   };
 }
 
+const checkBody = () => ({
+  pages: fixtureJson("requests/generate").pages,
+  items: fixtureJson("generate").items.slice(0, 2),
+});
+const tutorSource = () => fixtureJson("requests/tutor").sources[0];
+
+Deno.test("the new optional request fields are accepted at their limits, and a request without them still validates", async () => {
+  const r = rig({ env: { CRAMLESS_MOCK: "1" } });
+  r.store.addUser("user-1");
+  r.store.entitlements.push({
+    userId: "user-1",
+    plan: "pro",
+    productId: "com.loopware.Capling.pro.yearly",
+    originalTransactionId: "otid",
+    transactionId: "t1",
+    purchaseDate: "2026-10-01T00:00:00Z",
+    expiresAt: "2027-10-29T00:00:00Z",
+    revokedAt: null,
+    environment: "Production",
+  });
+  const ok: [string, unknown][] = [
+    ["check", checkBody()],
+    ["check", {
+      ...checkBody(),
+      sourceTitle: "x".repeat(200),
+      headings: Array(60).fill("h".repeat(120)),
+      lenient: true,
+    }],
+    ["check", { ...checkBody(), sourceTitle: "", headings: [], lenient: false }],
+    ["tutor", fixtureJson("requests/tutor")],
+    ["tutor", { ...fixtureJson("requests/tutor"), materials: Array(20).fill("m".repeat(120)) }],
+    ["tutor", { ...fixtureJson("requests/tutor"), materials: [] }],
+    ["tutor", { ...fixtureJson("requests/tutor"), sources: Array(100).fill(tutorSource()) }],
+    ["assistant", fixtureJson("requests/assistant")],
+    ["assistant", { ...fixtureJson("requests/assistant"), materials: ["Lecture 7 (38 min)"] }],
+    ["assistant", { ...fixtureJson("requests/assistant"), sources: Array(100).fill(tutorSource()) }],
+    [
+      "lecture",
+      { course: "B", title: "L", segments: [{ id: "s1", start: 0, end: 1, text: "x" }], flags: [], maxItems: 10 },
+    ],
+  ];
+  for (const [route, body] of ok) {
+    const res = await r.ai(route, { body });
+    assertEquals(res.status, 200, route);
+    await res.body?.cancel();
+    r.store.counters.clear();
+  }
+  const tooMany = await r.ai("assistant", {
+    body: { ...fixtureJson("requests/assistant"), sources: Array(101).fill(tutorSource()) },
+  });
+  assertEquals((await errorOf(tooMany)).message, "The request isn't valid: /sources has more than 100 items.");
+});
+
+Deno.test("the passages of one tutor or assistant request hold at most 200,000 characters in all, refused before anything is metered", async () => {
+  assertEquals(MAX_SOURCE_CHARS, 200_000);
+  const provider = new ScriptedProvider();
+  const r = rig({ provider });
+  r.store.addUser("user-1");
+  const passage = (n: number, chars: number) => ({
+    id: `s${n}`,
+    title: "Notes",
+    label: `p. ${n}`,
+    text: "x".repeat(chars),
+  });
+  const passages = (count: number, chars: number) => Array.from({ length: count }, (_, i) => passage(i + 1, chars));
+  const message = "That's more of your notes than Cap can read in one question. Try asking about one part of them.";
+  for (const route of ["tutor", "assistant"]) {
+    const base = fixtureJson(`requests/${route}`);
+    const used = () =>
+      (["tutor", "rounds", "drafts"] as const).map((meter) => r.store.used("user-1", meter, "2026-10-22"));
+
+    // Ten passages at the 20,000-character limit are 200,000 in all: allowed.
+    const ok = await r.ai(route, { body: { ...base, sources: passages(10, 20_000) } });
+    assertEquals(ok.status, 200, route);
+    await ok.body?.cancel();
+    await r.settle();
+    r.store.counters.clear();
+
+    // One character more is not: a plain bad_request, nothing metered, the model never asked.
+    const calls = provider.tutorCalls.length + provider.assistantCalls.length;
+    const over = await r.ai(route, { body: { ...base, sources: [...passages(10, 20_000), passage(11, 1)] } });
+    assertEquals(over.status, 413, route);
+    const error = await errorOf(over);
+    assertEquals([error.code, error.message], ["bad_request", message], route);
+    assertEquals(used(), [0, 0, 0], `${route}: a refused request costs nothing`);
+    assertEquals(provider.tutorCalls.length + provider.assistantCalls.length, calls, `${route}: no model call`);
+
+    // The hand-built worst case under the body limit (100 passages of 20,000) is refused the same way.
+    const worst = await r.ai(route, { body: { ...base, sources: passages(100, 20_000) } });
+    assertEquals(worst.status, 413, route);
+
+    // Passages that repeat an id count once, and real notes (a hundred of sixty words) are nowhere near it.
+    const repeated = await r.ai(route, { body: { ...base, sources: Array(20).fill(passage(1, 20_000)) } });
+    assertEquals(repeated.status, 200, route);
+    await repeated.body?.cancel();
+    await r.settle();
+    r.store.counters.clear();
+    const real = await r.ai(route, { body: { ...base, sources: passages(100, 400) } });
+    assertEquals(real.status, 200, route);
+    await real.body?.cancel();
+    await r.settle();
+    r.store.counters.clear();
+  }
+});
+
+Deno.test("model calls: generate has its own, longer time limit; every other route keeps the provider's", async () => {
+  assertEquals(GENERATE_TIMEOUT_MS, 115_000, "the app waits 120 s, the platform ends a function at about 150 s");
+  const provider = new ScriptedProvider();
+  const r = rig({ provider });
+  r.store.addUser("user-1");
+  r.store.entitlements.push({
+    userId: "user-1",
+    plan: "pro",
+    productId: "com.loopware.Capling.pro.yearly",
+    originalTransactionId: "otid",
+    transactionId: "t1",
+    purchaseDate: "2026-10-01T00:00:00Z",
+    expiresAt: "2027-10-29T00:00:00Z",
+    revokedAt: null,
+    environment: "Production",
+  });
+  const generate = fixtureJson("generate");
+  delete generate.model;
+  provider.replyJson(generate);
+  await (await r.ai("generate", { body: fixtureJson("requests/generate") })).text();
+
+  const check = { verdicts: [{ id: "i1", verdict: "supported", reason: "On the page." }] };
+  provider.replyJson(check);
+  await (await r.ai("check", {
+    body: { pages: fixtureJson("requests/generate").pages, items: generate.items.slice(0, 1) },
+  }))
+    .text();
+  const grade = fixtureJson("grade-partial");
+  delete grade.model;
+  provider.replyJson(grade);
+  await (await r.ai("grade", { body: fixtureJson("requests/grade") })).text();
+  const lecture = fixtureJson("lecture");
+  delete lecture.model;
+  provider.replyJson(lecture);
+  const segments = [{ id: "s5", start: 0, end: 30, text: "…" }];
+  await (await r.ai("lecture", { body: { course: "Bio", title: "L6", segments, flags: [], maxItems: 10 } })).text();
+
+  assertEquals(provider.jsonCalls.map((call) => call.timeoutMs), [
+    GENERATE_TIMEOUT_MS,
+    undefined,
+    undefined,
+    undefined,
+  ]);
+});
+
 Deno.test("validation names the first problem, never a value", async () => {
   const r = rig({ env: { CRAMLESS_MOCK: "1" } });
   r.store.addUser("user-1");
@@ -42,6 +193,23 @@ Deno.test("validation names the first problem, never a value", async () => {
     ["tutor", { ...fixtureJson("requests/tutor"), mode: "essay" }, "/mode isn't one of the allowed values"],
     ["tutor", { ...fixtureJson("requests/tutor"), messages: [] }, "/messages has fewer than 1 items"],
     ["transcribe-image", { page: 0, label: "1" }, "/image is required"],
+    ["check", { ...checkBody(), sourceTitle: "x".repeat(201) }, "/sourceTitle is longer than 200"],
+    ["check", { ...checkBody(), headings: Array(61).fill("h") }, "/headings has more than 60 items"],
+    ["check", { ...checkBody(), headings: ["x".repeat(121)] }, "/headings/0 is longer than 120"],
+    ["check", { ...checkBody(), headings: "Facts" }, "/headings expected array"],
+    ["check", { ...checkBody(), lenient: "yes" }, "/lenient expected boolean"],
+    [
+      "tutor",
+      { ...fixtureJson("requests/tutor"), materials: Array(21).fill("Deck") },
+      "/materials has more than 20 items",
+    ],
+    ["tutor", { ...fixtureJson("requests/tutor"), materials: ["x".repeat(121)] }, "/materials/0 is longer than 120"],
+    ["tutor", { ...fixtureJson("requests/tutor"), materials: "Deck" }, "/materials expected array"],
+    [
+      "tutor",
+      { ...fixtureJson("requests/tutor"), sources: Array(101).fill(tutorSource()) },
+      "/sources has more than 100 items",
+    ],
     ["lecture", {
       course: "B",
       title: "L",
@@ -144,6 +312,13 @@ Deno.test("formats, maxItems and unique ids", () => {
   assertEquals(items.map((i) => i.id), ["i1", "i1-2", "i3"]);
 });
 
+Deno.test("a set of forty questions is kept whole, and a forty-first is not", () => {
+  const items = Array.from({ length: 45 }, (_, n) => item({ id: `i${n + 1}`, prompt: `Question ${n + 1}` }));
+  const kept = sanitizeItems(items, { ...rules, maxItems: 40 });
+  assertEquals(kept.length, 40);
+  assertEquals(kept.at(-1)!.id, "i40");
+});
+
 Deno.test("generate: the reply is cleaned, and an all-dropped reply refunds the scan", async () => {
   const provider = new ScriptedProvider();
   const r = rig({ provider });
@@ -236,6 +411,31 @@ Deno.test("grade: an empty answer is graded without a model call or a quota", as
   assertEquals([body.verdict, body.missing], ["incorrect", ["k1", "k2", "k3"]]);
   assertEquals(provider.jsonCalls.length, 0);
   assertEquals(r.store.used("user-1", "grades", "2026-10-22"), 0);
+});
+
+Deno.test("lecture: leftOut is cleaned to a whole number from 1 to 99, and nothing is sent when there are none", async () => {
+  const provider = new ScriptedProvider();
+  const r = rig({ provider });
+  r.store.addUser("user-1");
+  const segments = ["s3", "s4"].map((id, i) => ({ id, start: i * 300, end: i * 300 + 290, text: "…" }));
+  const ask = async (leftOut: unknown) => {
+    r.store.counters.clear();
+    const reply = fixtureJson("lecture");
+    delete reply.model;
+    if (leftOut !== undefined) reply.leftOut = leftOut;
+    provider.replyJson(reply);
+    const res = await r.ai("lecture", {
+      body: { course: "Bio", title: "Lecture 6", segments, flags: [], maxItems: 10 },
+    });
+    assertEquals(res.status, 200);
+    return await res.json();
+  };
+  assertEquals((await ask(3)).leftOut, 3);
+  assertEquals((await ask(120)).leftOut, 99);
+  for (const none of [0, -2, null, undefined, "many"]) {
+    const body = await ask(none);
+    assertEquals("leftOut" in body, false, String(none));
+  }
 });
 
 Deno.test("lecture, confusions, cards and transcription replies are cleaned too", async () => {

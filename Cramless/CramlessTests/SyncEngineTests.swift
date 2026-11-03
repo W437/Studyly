@@ -166,6 +166,23 @@ final class SyncEngineTests: XCTestCase {
         XCTAssertEqual(server.requests("POST", "/rest/v1/review_logs").count, 1, "append-only: never sent again")
     }
 
+    /// An own-words answer the person marked themselves is logged as "self": the column is free text, so it goes up as it is.
+    func testAnAnswerTheyMarkedThemselvesSyncsAsSelf() async throws {
+        let server = StubServer()
+        let app = signedInApp(server)
+        let log = ReviewLog(itemID: UUID(), courseID: nil, sessionID: nil, reviewedAt: Date(), rating: .good, score: 0.9,
+                            answer: "so they can grow", gradedBy: "self", durationMs: 30_000, before: .new,
+                            after: MemoryState(stability: 2.3, difficulty: 6.1), elapsedDays: 0, scheduledDays: 1)
+        app.context.insert(log)
+        try app.context.save()
+
+        await app.sync.pushNow()
+
+        let row = try XCTUnwrap(server.requests("POST", "/rest/v1/review_logs").first?.rows.first)
+        XCTAssertEqual(row["graded_by"] as? String, "self")
+        XCTAssertEqual(row["score"] as? Double, 0.9)
+    }
+
     func testSourcesGoUpWithTheirPages() async throws {
         let server = StubServer()
         let app = signedInApp(server)

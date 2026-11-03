@@ -86,7 +86,7 @@ Deno.test("the tutor asks for hints first, teen-safe for a minor", async () => {
   assert(system.includes("Mode: hints first."));
   assert(!system.includes("Mode: explain."));
   assert(system.includes("This student is under 18."));
-  assert(system.includes("Your material doesn't cover that."));
+  assert(system.includes("I couldn't find that in what you've added."));
   assert(system.includes("Never write the student's essay"));
 });
 

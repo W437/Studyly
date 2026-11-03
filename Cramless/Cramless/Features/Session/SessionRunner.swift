@@ -146,6 +146,8 @@ final class SessionRunner: Identifiable {
 
     /// The run of right answers so far (`ComboRun`), counting the current question as `outcome` when given.
     func combo(adding outcome: Outcome? = nil, kind: ItemKind? = nil) -> Int {
+        // An answer the person marked themselves counts like any other: right when the rating they came to is Good or better, which is
+        // what the quests read from the log (`AppModel.questFacts`), so the run on screen and the run the quests see are one.
         var steps = answers.map { ComboRun.Step(counts: $0.entry.kind != .flashcard, right: $0.outcome == .right) }
         if let outcome, let kind { steps.append(ComboRun.Step(counts: kind != .flashcard, right: outcome == .right)) }
         return ComboRun.length(steps)
@@ -211,7 +213,9 @@ final class SessionRunner: Identifiable {
         hasUnsavedAnswer = outcome != nil || hasUnsavedAnswer
     }
 
-    /// Records the current question's answer through the engine. Idempotent per entry.
+    /// Records the current question's answer through the engine. Idempotent per entry. `gradedBy` says who graded it: "rules",
+    /// "onDevice", "cloud", "person" for a rating the person gave (a flashcard, or another rating than the grade's), and "self" for an
+    /// own-words answer the person marked against the model answer because no model graded it.
     @discardableResult
     func record(rating: Rating, score: Double, answer: String?, gradedBy: String, durationMs: Int,
                 outcome: Outcome) -> ReviewOutcome? {

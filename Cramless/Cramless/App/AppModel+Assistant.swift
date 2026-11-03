@@ -49,6 +49,9 @@ final class AssistantSession {
     let retriever: LocalRetriever
     let currentCourseID: UUID?
     private(set) var sent: [String: LocalRetriever.Passage] = [:]
+    /// The most passages a request carries. The relay takes `TutorSelection.assistant.maxPassages`; a relay from before that
+    /// took 24, and once it has said so (`restart`) the reply stays within it in every round, whatever the lookups add.
+    private(set) var limit = AssistantSession.maxSources
 
     init(index: StudyIndex, retriever: LocalRetriever, currentCourseID: UUID?) {
         self.index = index
@@ -56,26 +59,48 @@ final class AssistantSession {
         self.currentCourseID = currentCourseID
     }
 
-    /// Gives passages the ids "s1", "s2", … the model cites them by.
+    /// Gives passages the ids "s1", "s2", … the model cites them by. A passage the model already has keeps its id, also when it
+    /// went inside a longer one (neighbouring passages are joined when a material has more than a request holds).
     @discardableResult
     func send(_ passages: [LocalRetriever.Passage]) -> [(id: String, passage: LocalRetriever.Passage)] {
         passages.map { passage in
-            if let known = sent.first(where: { $0.value.key == passage.key }) { return (known.key, known.value) }
+            if let known = sent.first(where: { $0.value.key == passage.key || $0.value.members.contains(passage.key) }) {
+                return (known.key, known.value)
+            }
             let id = "s\(sent.count + 1)"
             sent[id] = passage
             return (id, passage)
         }
     }
 
-    /// The passages to send with a request: the ones the app found first, and the newest of those a lookup added, never more
-    /// than the relay takes (`AssistantRequest.sources`).
+    /// Starts again from these passages (their ids "s1", "s2", … from the top), for at most `limit` in a request from here on: a
+    /// reply that has shown nothing yet, asked again of a relay that takes fewer.
+    func restart(with passages: [LocalRetriever.Passage], limit: Int) {
+        sent = [:]
+        self.limit = limit
+        send(passages)
+    }
+
+    /// The passages to send with a request, in the order of their ids: the ones the app found first, and the newest of those a
+    /// lookup added, never more than the relay takes (`limit`). The ids and their order stay as they were from one round to the
+    /// next, so the start of the request is the same and the provider's prompt cache can pay for it once.
     var sources: [TutorSource] {
         let ordered = sent.sorted { (Int($0.key.dropFirst()) ?? 0) < (Int($1.key.dropFirst()) ?? 0) }
-        let kept = ordered.count > Self.maxSources ? Array(ordered.prefix(6)) + Array(ordered.suffix(Self.maxSources - 6)) : ordered
+        let head = min(6, limit)
+        var kept = ordered.count > limit ? Array(ordered.prefix(head)) + Array(ordered.suffix(limit - head)) : ordered
+        // And never more text than the relay takes in all (a language written without spaces has long passages): the oldest
+        // lookups go first.
+        var total = kept.reduce(0) { $0 + $1.value.text.utf16.count }
+        while total > AssistantSession.maxCharacters, kept.count > head + 1 {
+            total -= kept[head].value.text.utf16.count
+            kept.remove(at: head)
+        }
         return kept.map { id, p in TutorSource(id: id, title: p.title, label: p.label, text: p.text) }
     }
 
-    static let maxSources = 24
+    static let maxSources = TutorSelection.assistant.maxPassages
+    /// The relay takes 200,000 characters of passages in a request; this leaves room for the clipping of a long one.
+    static let maxCharacters = 195_000
 }
 
 // MARK: - What the model is told
@@ -371,9 +396,11 @@ extension AppModel {
     private func evidenceChecker(_ session: AssistantSession) -> AssistantDrafts.EvidenceChecker {
         { [weak self] sourceID, quote in
             guard let self else { return nil }
-            let named = sourceID.flatMap { session.sent[$0] }
-            let candidates = (named.map { [$0] } ?? []) + session.sent.values.sorted { $0.key < $1.key } + session.retriever.passages
-            guard let passage = candidates.first(where: { AssistantDrafts.contains(quote, in: $0.text) }) else { return nil }
+            // The passage the model named wins when it holds the quote; a passage sent joined from several is searched among those
+            // it was made of, so the page, the moment in a lecture and the lines are the exact ones.
+            guard let passage = TutorSelection.passage(named: sourceID.flatMap { session.sent[$0] }, sent: session.sent,
+                                                       retriever: session.retriever,
+                                                       holding: { AssistantDrafts.contains(quote, in: $0.text) }) else { return nil }
             let spaced = quote.split(whereSeparator: \.isWhitespace).joined(separator: " ")
             var anchors = passage.anchorIDs
             if let source = self.source(passage.sourceID), source.deletedAt == nil {

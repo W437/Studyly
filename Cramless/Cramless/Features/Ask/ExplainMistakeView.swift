@@ -179,8 +179,10 @@ struct ExplainMistakeView: View {
 
     @ViewBuilder
     private func citationDestination(_ group: CitationGroup) -> some View {
-        if let first = group.citations.first, let id = first.sourceID, app.source(id) != nil {
-            if first.pageIndex == nil, first.start != nil {
+        if let first = group.citations.first, let id = first.sourceID, let source = app.source(id) {
+            if source.kind.isDeck {
+                DeckCardView(sourceID: id, quote: first.quote, label: first.label)
+            } else if first.pageIndex == nil, first.start != nil {
                 LectureNotesView(sourceID: id, focusTime: first.start)
             } else {
                 SourcePageView(sourceID: id, pageIndex: first.pageIndex ?? 0, highlight: CitationOpener.anchors(group, app: app))

@@ -9,7 +9,8 @@ import Foundation
 // T1 this iPhone's model, T2 Private Cloud Compute (dormant), T3 the relay (cloud).
 //
 // The rules it keeps:
-//   • a free limit reached for a metered job stops every model tier (the rules still answer) and asks for the paywall;
+//   • a free limit reached for a metered job takes the cloud away (and private cloud), and asks for the paywall. The limit
+//     pays for Cloud AI, so this iPhone's own model (which costs nothing) keeps the jobs it can do, and the rules always answer;
 //   • the cloud needs a relay (or the mock), the person's consent, an account that isn't under 13, and for a
 //     photo job the photos switch;
 //   • this iPhone's model needs to be available, the job to be one it does, and the text to be English and fit;
@@ -109,10 +110,12 @@ struct AIRoute: Equatable, Sendable {
     /// Model tiers to try, in order, after the instant offline answer. Empty: the rules' answer is final.
     var tiers: [AITier]
     var suggestion: AISuggestion?
-    /// A free limit stopped the model tiers.
+    /// A free limit took the cloud away from this job (this iPhone's model is still on the route when it can do the job).
     var limitReached: QuotaMeter.Key?
     /// The tutor's mode when it is forced (hints first for under-18 accounts).
     var forcedTutorMode: TutorMode?
+    /// With no model tier on the route: why none will answer, for the line that tells a person they mark an answer themselves.
+    var whyNoModel: SelfCheckReason?
 
     var usesCloud: Bool { tiers.contains(.cloud) }
 }
@@ -122,20 +125,19 @@ enum AIRouting {
     static func route(_ c: AIRouteContext) -> AIRoute {
         let forced: TutorMode? = c.job == .tutor && c.age != .adult ? .hints : nil
 
-        // 1. A free limit stops every model tier of a metered job. The rules still answer; the UI shows the paywall.
-        if let meter = c.job.meter, !c.plan.isPaid, c.quota == .exhausted {
-            return AIRoute(tiers: [], suggestion: .upgrade(meter, message: AIFreeLimits.message(for: meter)),
-                           limitReached: meter, forcedTutorMode: forced)
-        }
+        // 1. A free limit takes the cloud away from a metered job and asks for the paywall. It does not touch this iPhone's own
+        // model: a limit pays for Cloud AI, and the iPhone's model is free to run, so it keeps the jobs it can do (and the rules
+        // always answer).
+        let limited: QuotaMeter.Key? = c.plan.isPaid || c.quota != .exhausted ? nil : c.job.meter
 
         // 2. Who could answer.
         let hasRelay = c.mode == .relay || c.mode == .mock
         let cloudPossible = hasRelay && c.age != .child
         let photosOK = c.job != .transcribeImage || c.sendPhotos
-        let cloudOK = cloudPossible && c.consent && photosOK
+        let cloudOK = cloudPossible && c.consent && photosOK && limited == nil
         let deviceOK = c.job.runsOnDevice && c.onDevice == .available && c.fitsOnDevice
         let privateCloudOK = AIBuild.privateCloudEnabled && c.privateCloud && c.consent && c.age != .child
-            && c.job.runsOnDevice && !deviceOK
+            && c.job.runsOnDevice && !deviceOK && limited == nil
 
         // 3. In what order.
         let order: [AITier]
@@ -156,16 +158,32 @@ enum AIRouting {
             }
         }
 
-        // 4. What the UI may offer: consent, when that is all that keeps a cloud that would help out of the route.
+        // 4. What the UI may offer: the paywall for a limit that was reached, else consent, when that is all that keeps a cloud that
+        // would help out of the route.
         var suggestion: AISuggestion?
-        if cloudPossible, !tiers.contains(.cloud), cloudWouldHelp(c, deviceOK: deviceOK) {
+        if let limited {
+            suggestion = .upgrade(limited, message: AIFreeLimits.cardLine(for: limited, deviceKeepsWorking: tiers.contains(.onDevice)))
+        } else if cloudPossible, !tiers.contains(.cloud), cloudWouldHelp(c, deviceOK: deviceOK) {
             if !c.consent {
                 suggestion = .allowCloud(feature: c.job.feature)
             } else if !photosOK {
                 suggestion = .allowPhotos
             }
         }
-        return AIRoute(tiers: tiers, suggestion: suggestion, limitReached: nil, forcedTutorMode: forced)
+
+        // 5. With no model at all, why: what a person who has to do the job themselves is told. Cloud AI being off comes first (it is
+        // theirs to turn on), then a free limit; a build with no relay and a child's account never had the cloud to turn on.
+        var whyNoModel: SelfCheckReason?
+        if tiers.isEmpty {
+            if cloudPossible && !c.consent {
+                whyNoModel = .cloudOff
+            } else if limited != nil {
+                whyNoModel = .freeLimit
+            } else {
+                whyNoModel = .deviceUnavailable
+            }
+        }
+        return AIRoute(tiers: tiers, suggestion: suggestion, limitReached: limited, forcedTutorMode: forced, whyNoModel: whyNoModel)
     }
 
     /// Offering Cloud AI is worth it: always for the jobs it does far better; for grading only when this iPhone

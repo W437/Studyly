@@ -26,6 +26,9 @@ final class AIRouter {
     /// Replaces `config.aiMode`.
     @ObservationIgnored var modeOverride: AppConfig.AIMode?
     @ObservationIgnored var probe: any OnDeviceProbe
+    /// How the offline tutor searches the notes (`OfflineSearch`): tests turn the system's models off so that an answer does not depend
+    /// on which models the machine they run on has.
+    @ObservationIgnored var offlineSearch = OfflineSearch.Options()
     /// T1. Never reached unless the route chose it.
     @ObservationIgnored var onDevice: any OnDeviceBackend = FoundationModelsBackend()
     /// T2: nil in this release (`AIBuild.privateCloudEnabled`).
@@ -41,12 +44,15 @@ final class AIRouter {
     /// The relay refused the last cloud request for a limit that isn't a free meter: a paid plan's fair use, or the day's cost cap.
     /// The tutor says so in its note, instead of "couldn't be reached". Cleared before each cloud attempt.
     @ObservationIgnored var cloudRefused = false
+    /// The relay's scan window as this run has seen it (`ScanWindow`): a page reading and the question-writing after it are one scan.
+    @ObservationIgnored var scanWindow = ScanWindow()
 
     // MARK: State the UI can read
 
     /// The server's last word on the free limits (nil before the first refresh, and without a relay).
     private(set) var serverQuota: QuotaStatus?
-    /// This iPhone's own model use, counted against the free limits.
+    /// Cloud requests sent from this iPhone (counted against the free limits), and this iPhone's own model use (kept on the side,
+    /// never counted against them).
     private(set) var usage: AIUsageLedger
     /// The latest suggestion a job made.
     private(set) var lastSuggestion: AISuggestion?
@@ -60,6 +66,14 @@ final class AIRouter {
         let isTests = app.config.environment["XCTestConfigurationFilePath"] != nil
         self.probe = SystemOnDeviceProbe(allowed: !isTests)
         self.usage = AIUsageLedger.load(from: app.defaults)
+        #if DEBUG
+        // `CRAMLESS_DEVICE_AI=off` says this iPhone's own model isn't there, whatever the Simulator or the phone has, so a screenshot of an
+        // answer with no model to grade it (the self-check) repeats.
+        if app.config.environment["CRAMLESS_DEVICE_AI"] == "off" { probe = FixedOnDeviceProbe(.unavailable(.deviceNotEligible)) }
+        // `CRAMLESS_MOCK_LATENCY=<scale>` multiplies the mock relay's waits, so a screenshot can catch "Double-checking…" (and the model
+        // being let go after `SelfCheck.modelWait`).
+        if let scale = app.config.environment["CRAMLESS_MOCK_LATENCY"].flatMap(Double.init) { mockLatencyScale = scale }
+        #endif
     }
 
     // MARK: Mode, transport, consent
@@ -123,7 +137,7 @@ final class AIRouter {
         var route = AIRouting.route(routeContext(job, content: content, promptFits: promptFits, strongest: strongest,
                                                  preferCloud: preferCloud))
         // A limit the relay already reported keeps the relay's words.
-        if let key = route.limitReached { route.suggestion = limitSuggestion(key) }
+        if let key = route.limitReached { route.suggestion = limitSuggestion(key, deviceKeepsWorking: route.tiers.contains(.onDevice)) }
         if let suggestion = route.suggestion, suggestion != lastSuggestion { lastSuggestion = suggestion }
         return route
     }
@@ -152,37 +166,68 @@ final class AIRouter {
         return serverQuota?.plan ?? .free
     }
 
-    /// Whether a job's free limit is reached: cloud use (the server's count, or this iPhone's own when that is
-    /// larger: before the first fetch, or after midnight made it stale) plus this iPhone's model use.
-    /// Reading it changes nothing (safe from a view's body).
+    /// Whether a job's free limit is reached: Cloud AI use only (the server's count, or this iPhone's own count of the cloud requests
+    /// it sent when that is larger: before the first fetch, or after midnight made the server's stale). A limit pays for Cloud AI, so
+    /// this iPhone's own model never counts. Reading it changes nothing (safe from a view's body).
     func quotaState(for job: AIJob) -> AIQuotaState {
         guard let key = job.meter else { return .unmetered }
         if plan.isPaid { return .unmetered }
         let server = currentServerMeter(key)
         if let server, server.limit == nil { return .unmetered }
         let limit = server?.limit ?? AIFreeLimits.limit(key)
-        let used = used(key, server: server, ledger: currentUsage)
+        let used = cloudUsed(key, server: server, ledger: currentUsage)
+        // Writing questions rides for free on a scan window a page reading just opened, even with the week's scans used up.
+        if used >= limit, job == .generate, canRideOpenScanWindow { return .available(remaining: 0) }
         return used >= limit ? .exhausted : .available(remaining: limit - used)
     }
 
-    /// The limits as the UI shows them: each meter's cloud and on-device use together.
+    /// A question-writing request would ride on the scan window that is still open (a page reading made a moment ago).
+    var canRideOpenScanWindow: Bool {
+        guard let app else { return false }
+        return scanWindow.canRideGenerate(at: app.now, week: AIUsageLedger.weekKey(app.now, calendar: app.calendar))
+    }
+
+    /// Counts a successful scan-metered cloud request the way the relay does: a new scan only when it opens a window.
+    func recordScanRequest(_ kind: ScanWindow.Kind, pages: Int) {
+        guard let app else { return }
+        let week = AIUsageLedger.weekKey(app.now, calendar: app.calendar)
+        if scanWindow.record(kind, pages: pages, at: app.now, week: week, pageCap: AIFreeLimits.pagesPerScan(plan)) {
+            recordCloudUse(.scans)
+        }
+    }
+
+    /// How many free Cloud AI uses of a metered job are left in this period, when that is worth telling the person: the free plan, with
+    /// Cloud AI allowed on this build for an account that may use it. Nil otherwise (a paid plan, Cloud AI off or not in this build, a
+    /// child's account, a job with no meter). 0 once they are used up. Reading it changes nothing (safe from a view's body).
+    func freeCloudUsesLeft(for job: AIJob) -> Int? {
+        guard cloudAvailableInThisBuild, hasCloudConsent, let app, AIAgeGate(app.settings) != .child else { return nil }
+        switch quotaState(for: job) {
+        case .available(let remaining): return remaining
+        case .exhausted: return 0
+        case .unmetered: return nil
+        }
+    }
+
+    /// The limits as the UI shows them: each meter's Cloud AI use.
     var quotaStatus: QuotaStatus {
         let paid = plan.isPaid
         let ledger = currentUsage
         let meters = AIFreeLimits.keys.map { key -> QuotaMeter in
             let server = currentServerMeter(key)
             let limit: Int? = paid ? nil : (server != nil ? server!.limit : AIFreeLimits.limit(key))
-            return QuotaMeter(key: key, used: used(key, server: server, ledger: ledger), limit: limit,
+            return QuotaMeter(key: key, used: cloudUsed(key, server: server, ledger: ledger), limit: limit,
                               period: AIFreeLimits.period(key))
         }
         return QuotaStatus(plan: plan, meters: meters)
     }
 
-    private func used(_ key: QuotaMeter.Key, server: QuotaMeter?, ledger: AIUsageLedger) -> Int {
-        max(server?.used ?? 0, ledger.cloudUsed(key)) + ledger.used(key)
+    /// Cloud requests in the current period: the server's count and this iPhone's own are combined with `max`, never added (the
+    /// server's, when current, already includes this iPhone's).
+    private func cloudUsed(_ key: QuotaMeter.Key, server: QuotaMeter?, ledger: AIUsageLedger) -> Int {
+        max(server?.used ?? 0, ledger.cloudUsed(key))
     }
 
-    /// This iPhone's model use with ended periods cleared, without writing anything.
+    /// This iPhone's usage ledger with ended periods cleared, without writing anything.
     private var currentUsage: AIUsageLedger {
         guard let app else { return usage }
         var ledger = usage
@@ -199,7 +244,8 @@ final class AIRouter {
         return same ? meter : QuotaMeter(key: key, used: 0, limit: meter.limit, period: meter.period)
     }
 
-    /// One use of this iPhone's model for a metered job. The rules are never counted.
+    /// One use of this iPhone's model for a metered job, kept on the side (`AIUsageLedger.counts`). It never counts against a free
+    /// limit: the model costs nothing to run, and a limit exists to pay for Cloud AI. The rules are never counted either.
     func recordOnDeviceUse(_ key: QuotaMeter.Key?) {
         guard let key, let app, !plan.isPaid else { return }
         usage.record(key, now: app.now, calendar: app.calendar)
@@ -244,9 +290,15 @@ final class AIRouter {
         return key
     }
 
-    /// The paywall suggestion for a reached limit: the relay's words when it said them, else the app's.
+    /// The paywall suggestion for a reached limit: the relay's words when it said them, else the app's, which say that the person marks
+    /// or the iPhone's AI carries on. This one is for a job with no iPhone model to carry on.
     func limitSuggestion(_ key: QuotaMeter.Key) -> AISuggestion {
-        limitMessages[key] ?? .upgrade(key, message: AIFreeLimits.message(for: key))
+        limitSuggestion(key, deviceKeepsWorking: false)
+    }
+
+    /// The same, in words that say whether this iPhone's own AI keeps the job going.
+    func limitSuggestion(_ key: QuotaMeter.Key, deviceKeepsWorking: Bool) -> AISuggestion {
+        limitMessages[key] ?? .upgrade(key, message: AIFreeLimits.cardLine(for: key, deviceKeepsWorking: deviceKeepsWorking))
     }
 
     /// Fetches the server's meters (only once Cloud AI is allowed: asking needs an account) and returns the

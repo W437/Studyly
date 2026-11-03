@@ -276,6 +276,15 @@ export function sanitizeExamFlags(raw: LectureExamFlag[], duration: number): Lec
     .sort((a, b) => a.time - b.time);
 }
 
+/** How many exam-relevant ideas a lecture's questions left out, as a whole number from 1 to 99. Nothing when the model said
+ * none (or said something that is not a number): the field is left out of the reply, as the contract's other optional fields
+ * are. */
+export function sanitizeLeftOut(raw: unknown): number | undefined {
+  if (typeof raw !== "number" || !Number.isFinite(raw)) return undefined;
+  const n = Math.min(99, Math.round(raw));
+  return n > 0 ? n : undefined;
+}
+
 /** Transcribed lines with the relay's own ids (p<page>.c<n>): cloud transcription has no geometry. */
 export function sanitizeLines(raw: LineInput[], page: number): LineInput[] {
   return (raw ?? [])

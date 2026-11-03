@@ -21,6 +21,8 @@ enum AITestSupport {
         app.ai.mockLatencyScale = 0
         app.ai.streamPause = .zero
         app.ai.probe = FixedOnDeviceProbe(.unavailable(.notChecked))
+        // The offline tutor reads notes with the system's models when it has them; a test must not depend on which ones this machine has.
+        app.ai.offlineSearch.useContextualModel = false
         return app
     }
 

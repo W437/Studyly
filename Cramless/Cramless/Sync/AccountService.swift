@@ -41,6 +41,22 @@ final class AccountService: AccessTokenProvider {
     /// A signed-in state without a session (mock mode and the harness hook): no token, no network.
     @ObservationIgnored private(set) var isSimulatedAccount = false
 
+    // The first anonymous account is made in the background and retried (see "The first account" below).
+    /// Where the first anonymous account stands: nothing needed yet, being made (a sign-up was refused or the network is out),
+    /// or made.
+    enum Readiness: Equatable, Sendable { case idle, gettingReady, ready }
+    private(set) var readiness: Readiness = .idle
+    @ObservationIgnored private var bootstrap: Task<Void, Never>?
+    /// Which background try is current, so one that was cancelled (a sign-out) can't clear the next one.
+    @ObservationIgnored private var bootstrapTicket = 0
+    /// Why the last background try gave up for good (sign-ups switched off, say), told to the next caller.
+    @ObservationIgnored private var bootstrapFailure: RelayError?
+    /// Pauses between tries; tests replace it.
+    @ObservationIgnored var sleep: @Sendable (Duration) async throws -> Void = { try await Task.sleep(for: $0) }
+    @ObservationIgnored var jitter: @Sendable () -> Double = { Double.random(in: 0...1) }
+    /// How long a cloud call waits for the account to be made before it falls back and says Cloud AI is getting ready.
+    @ObservationIgnored var firstCallWait: Duration = .seconds(10)
+
     static let profileDefaultsKey = "capling.sync.profile"
 
     convenience init(app: AppModel) {
@@ -80,7 +96,11 @@ final class AccountService: AccessTokenProvider {
         #endif
         guard mode == .relay, client != nil else { return }
         restoreSession()
-        guard session != nil else { return }
+        guard session != nil else {
+            // Cloud AI was allowed in an earlier launch but no account was made (offline, rate limited): make it now.
+            if let app, app.hasCloudConsent, app.settings.ageBand != .under13 { prepare() }
+            return
+        }
         Task { [weak self] in
             guard let self else { return }
             _ = try? await self.validSession(createIfNeeded: false)
@@ -98,9 +118,25 @@ final class AccountService: AccessTokenProvider {
     // MARK: Tokens
 
     /// A Supabase access token, creating an anonymous session on first need.
+    ///
+    /// With no account yet the call doesn't fail at the first refusal: the account is made in the background with retries
+    /// (`prepare`), and the call waits for it a little. When it isn't there in time the call throws
+    /// `RelayError.accountPending`, and the cloud job falls back to the next tier and says Cloud AI is getting ready.
     func accessToken() async throws -> String {
         guard mode == .relay, client != nil, !isSimulatedAccount else { throw RelayError.notConfigured }
-        return try await validSession(createIfNeeded: true).accessToken
+        if session == nil {
+            prepare()
+            _ = await waitForAccount()
+            guard session != nil else { throw bootstrapFailure ?? RelayError.accountPending }
+        }
+        do {
+            return try await validSession(createIfNeeded: true).accessToken
+        } catch let error as RelayError where session == nil && error.isTransientForAccount {
+            // The stored session was refused and a new account couldn't be made just now: keep trying in the background.
+            prepare()
+            guard await waitForAccount(), let token = session?.accessToken else { throw RelayError.accountPending }
+            return token
+        }
     }
 
     /// The current session's token, refreshed if needed, never creating one (sync and profile use this).
@@ -143,6 +179,59 @@ final class AccountService: AccessTokenProvider {
             }
         }
         return try await client.signUpAnonymously()
+    }
+
+    // MARK: The first account
+
+    /// Makes the anonymous account in the background if there is none and none is being made, and returns at once. Supabase
+    /// allows about 30 anonymous sign-ups an hour from one address, so a classroom on one network can be refused (HTTP
+    /// 429); a phone with no signal is refused too. Either way it tries again with exponential backoff and jitter for about
+    /// five minutes (`AccountBackoff`), never blocking anything: the app works offline meanwhile, and the first cloud job
+    /// waits for the account instead of failing (`accessToken`). Safe to call at any time.
+    func prepare() {
+        guard mode == .relay, client != nil, !isSimulatedAccount, session == nil, bootstrap == nil else { return }
+        readiness = .gettingReady
+        bootstrapFailure = nil
+        bootstrapTicket += 1
+        let ticket = bootstrapTicket
+        bootstrap = Task { [weak self] in await self?.makeFirstAccount(ticket: ticket) }
+    }
+
+    private func makeFirstAccount(ticket: Int) async {
+        var failures = 0
+        var waited: TimeInterval = 0
+        defer {
+            if bootstrapTicket == ticket {
+                bootstrap = nil
+                readiness = session == nil ? .idle : .ready
+            }
+        }
+        while !Task.isCancelled, session == nil {
+            do {
+                _ = try await validSession(createIfNeeded: true)
+            } catch let error as RelayError where error.isTransientForAccount {
+                failures += 1
+                guard let pause = AccountBackoff.delay(afterFailures: failures, waited: waited, jitter: jitter()) else { return }
+                waited += pause
+                do { try await sleep(.seconds(pause)) } catch { return }
+            } catch let error as RelayError {
+                // Not a matter of waiting (sign-ups are off, say): the next caller hears why.
+                bootstrapFailure = error
+                return
+            } catch {
+                return
+            }
+        }
+    }
+
+    /// Waits for the account being made, for at most `firstCallWait`. True when there is an account. (Polls: the background
+    /// try is an unstructured task, and nothing but its own end wakes a task that awaits it.)
+    private func waitForAccount() async -> Bool {
+        let deadline = ContinuousClock.now + firstCallWait
+        while session == nil, bootstrap != nil, ContinuousClock.now < deadline, !Task.isCancelled {
+            try? await Task.sleep(for: .milliseconds(20))
+        }
+        return session != nil
     }
 
     // MARK: Signing in and out
@@ -205,6 +294,10 @@ final class AccountService: AccessTokenProvider {
         generation += 1
         inFlight?.cancel()
         inFlight = nil
+        bootstrap?.cancel()
+        bootstrap = nil
+        bootstrapTicket += 1
+        readiness = .idle
         isSimulatedAccount = false
         apply(nil)
         setEntitlement(nil)
@@ -261,6 +354,7 @@ final class AccountService: AccessTokenProvider {
         generation += 1
         inFlight?.cancel()
         inFlight = nil
+        bootstrap?.cancel()
         isSimulatedAccount = false
         apply(fresh)
     }
@@ -302,5 +396,32 @@ private extension RelayError {
         case .unauthorized, .badRequest: true
         default: false
         }
+    }
+
+    /// Making the first account failed for a reason that may pass: no network, a server error, or a rate limit
+    /// (`SupabaseClient` reports a refused sign-up as `.upstream`).
+    var isTransientForAccount: Bool {
+        switch self {
+        case .offline, .upstream: true
+        default: false
+        }
+    }
+}
+
+/// When to try again at making the first anonymous account: 2 seconds, then 4, 8, 16, 32, then every minute, each varied
+/// by up to a quarter either way so a classroom's phones don't ask together, and a stop once the pauses add up to five
+/// minutes. Pure, so the schedule is tested without waiting.
+enum AccountBackoff {
+    static let first: TimeInterval = 2
+    static let ceiling: TimeInterval = 60
+    static let giveUpAfter: TimeInterval = 300
+
+    /// The pause after the `failures`-th failure (1 for the first), or nil when `waited` plus the pause would pass
+    /// `giveUpAfter`. `jitter` is 0...1: the pause is between 75% and 125% of the schedule's.
+    static func delay(afterFailures failures: Int, waited: TimeInterval, jitter: Double) -> TimeInterval? {
+        guard failures >= 1 else { return nil }
+        let base = min(ceiling, first * pow(2, Double(min(failures, 20) - 1)))
+        let pause = base * (0.75 + 0.5 * min(1, max(0, jitter)))
+        return waited + pause <= giveUpAfter ? pause : nil
     }
 }

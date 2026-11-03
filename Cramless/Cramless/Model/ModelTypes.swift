@@ -201,6 +201,9 @@ struct MemoryState: Codable, Hashable, Sendable {
 enum SourceKind: String, Codable, Sendable {
     case scan, photo, pdf, text, lecture, quizlet, anki, csv, chat, sample
 
+    /// An imported deck: cards instead of pages.
+    var isDeck: Bool { self == .quizlet || self == .anki || self == .csv }
+
     var systemImage: String {
         switch self {
         case .scan, .photo, .sample: "doc.viewfinder"

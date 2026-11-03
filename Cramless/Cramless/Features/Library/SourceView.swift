@@ -48,6 +48,23 @@ struct SourceView: View {
                         .padding(.top, 16)
                 }
 
+                // A PDF whose text layer lost its typeset formulas says so (the capture flow offers to read the pages again).
+                if !source.pagesWithMissingFormulas.isEmpty {
+                    CaptureOriginNote(systemImage: "function", text: Source.missingFormulasNote, tone: .sky)
+                        .padding(.top, 16)
+                }
+
+                if let coverage = app.coverage(of: source) {
+                    let shown = Double(Int((coverage.share * 100).rounded())) / 100
+                    let canAdd = coverage.uncoveredWords > 0 && shown < ExamPresentation.wellCovered
+                    CoverageNoteCard(sentence: LibraryFormat.coverageLine(share: coverage.share, kind: source.kind),
+                                     isThin: shown < ExamPresentation.thinCoverage, offersMore: canAdd, centered: false) {
+                        // The part to write from is decided now, from what is left and what the last runs already used.
+                        if let request = app.restRequest(for: source) { app.router.present(.captureFlow(request)) }
+                    }
+                    .padding(.top, 16)
+                }
+
                 if !imagePages.isEmpty {
                     CLSectionHeader(title: imagePages.count == 1 ? "Page" : "\(imagePages.count) pages")
                     PageGrid(pages: imagePages.map(PageThumb.init), sourceID: source.id)

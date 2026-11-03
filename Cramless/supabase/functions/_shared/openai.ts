@@ -48,7 +48,7 @@ export const REPLY_SCHEMA = {
 
 export const FORMAT = `Reply as JSON with two fields and nothing else:
 - "answer": your reply to the student, following all the rules above.
-- "citations": the quotes that support what you said. Each has "source_id" (the id of the source) and "quote": a stretch of that source's text copied exactly, character for character, 6 to 30 words long. Give one or two. Use an empty list when the sources don't cover the question or you are only steering the student back to their studies.
+- "citations": the quotes that support what you said. Each has "source_id" (the id of the source) and "quote": a stretch of that source's text copied exactly, character for character, 6 to 30 words long. Give one or two. Use an empty list when you couldn't find the answer in the sources or you are only steering the student back to their studies.
 Never write a source id (like s1) in the answer. If you point to a source, use its page label (for example "your textbook, p. 87") or say your notes, slides or lecture.`;
 
 // ---- The conversation, as OpenAI input ----
@@ -106,6 +106,19 @@ export function taggedSources(
     return `<source id="${attr(s.id)}" title="${attr(s.title)}">\n${defangTags(s.text)}\n</source>`;
   });
   return { text: "<sources>\n" + blocks.join("\n") + "\n</sources>", passages };
+}
+
+/** OpenAI serves the cached part of a prompt only from the machine that read it first, and it picks the machine by the first
+ * lines of the prompt, which are the same instructions for everyone: so the questions about one long material were spread over
+ * machines, and about one in six read the passages from the cache (measured on the 2026-11-03 rerun: 1.9 cents a question
+ * cold, 0.16 warm, and the 10 cent day cap reached at the fifth question). A key that names the material sends the questions
+ * about it to one machine. It is the material's, a hash of the passages, never the person's or an account's, and it is not
+ * a secret: it only tells OpenAI which requests share a beginning. Empty when the request carries no passages. */
+export async function cacheKey(input: { content: unknown }[]): Promise<string> {
+  const lead = input.find((m) => typeof m.content === "string" && m.content.startsWith("<sources>"))?.content;
+  if (typeof lead !== "string") return "";
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(lead));
+  return "cap-" + [...new Uint8Array(digest).slice(0, 16)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
 /** The relay's tutor messages (earlier turns as text; the last turn with the passages as sources) as OpenAI input:
@@ -241,6 +254,30 @@ export function httpError(status: number, retryAfter: string | null): ApiError {
   return new ApiError("upstream", "Cap couldn't answer that. Try again in a moment.", {}, 502);
 }
 
+/** What OpenAI answered when it refused a call, for the server log: its status and error code or type ("429 insufficient_quota"), never its
+ * message or anything the person wrote. */
+export function upstreamNote(status: number, body: unknown): string {
+  const error = body !== null && typeof body === "object" ? (body as { error?: unknown }).error : null;
+  const fields = error !== null && typeof error === "object" ? error as Record<string, unknown> : {};
+  const word = (value: unknown) => typeof value === "string" ? value.replace(/[^\w.-]/g, "").slice(0, 40) : "";
+  return [String(status), word(fields.code) || word(fields.type)].filter(Boolean).join(" ");
+}
+
+/** OpenAI's answer when the account's balance or budget is spent. Asking again cannot help, and "busy" would be the wrong word for it. */
+export function creditExhausted(status: number, body: unknown): boolean {
+  if (status !== 429) return false;
+  const error = body !== null && typeof body === "object" ? (body as { error?: unknown }).error : null;
+  const fields = error !== null && typeof error === "object" ? error as Record<string, unknown> : {};
+  const words = `${typeof fields.code === "string" ? fields.code : ""} ${
+    typeof fields.type === "string" ? fields.type : ""
+  }`;
+  return /insufficient_quota|credit_balance|billing/.test(words);
+}
+
+/** The error for a spent balance: not "busy", and a long wait, so that no client keeps asking (the app retries only a wait of 15 seconds or less). */
+export const UNAVAILABLE = () =>
+  new ApiError("upstream", "Cloud AI is unavailable right now. Try again later.", { retryAfter: 600 }, 503);
+
 /** An error event in the stream: the code says whether to call it busy or failed. */
 export function streamError(code: unknown): ApiError {
   const c = typeof code === "string" ? code : "";
@@ -330,6 +367,8 @@ export interface OpenAIOptions {
   apiKey: string;
   /** Tests point this at the mock server; empty for OpenAI's. */
   baseURL?: string;
+  /** How long one call to the model may take in all, a retry included (default 90 s; a JSON call can carry its own, and web
+   * research takes 150 s). The functions are cut off by the platform at about 150 s. */
   timeoutMs?: number;
   /** Tries again this many times when nothing has been sent on yet and OpenAI was busy or unreachable. */
   maxRetries?: number;
@@ -368,7 +407,8 @@ export class OpenAIProvider implements Provider {
       store: false,
     });
     let result: JsonResult<T> | undefined;
-    for await (const r of this.attempts(call.signal, (signal) => this.#jsonOnce<T>(body, signal, call))) result = r;
+    const attempts = this.attempts(call.signal, (signal) => this.#jsonOnce<T>(body, signal, call), call.timeoutMs);
+    for await (const r of attempts) result = r;
     if (!result) throw NETWORK;
     return result;
   }
@@ -379,7 +419,8 @@ export class OpenAIProvider implements Provider {
     try {
       text = await new Response(stream).text();
     } catch (error) {
-      throw thrown(error, signal);
+      // Cancelled only if the caller left; the call's own time limit, which also aborts `signal`, is a timeout.
+      throw thrown(error, call.signal);
     }
     // deno-lint-ignore no-explicit-any
     let r: any;
@@ -432,10 +473,12 @@ export class OpenAIProvider implements Provider {
 
   async *tutor(call: TutorCall): AsyncGenerator<TutorStreamEvent> {
     const { input, passages } = fromMessages(call.messages);
+    const key = await cacheKey(input);
     const body = JSON.stringify({
       model: call.model,
       instructions: `${call.system}\n\n${FORMAT}`,
       input,
+      ...(key ? { prompt_cache_key: key } : {}),
       reasoning: { effort: call.effort },
       text: { format: { type: "json_schema", name: "cap_reply", strict: true, schema: REPLY_SCHEMA } },
       max_output_tokens: call.maxTokens,
@@ -469,7 +512,8 @@ export class OpenAIProvider implements Provider {
           return;
         } catch (error) {
           const failure = thrown(error, external);
-          const transient = failure.status === 503 || failure.status === 504 || failure === NETWORK;
+          const transient = (failure.status === 503 && (failure.extra.retryAfter ?? 0) <= 60) ||
+            failure.status === 504 || failure === NETWORK;
           if (sent || !transient || attempt >= this.maxRetries || signal.aborted) throw failure;
           await new Promise((resolve) => setTimeout(resolve, this.retryDelayMs));
         }
@@ -489,7 +533,12 @@ export class OpenAIProvider implements Provider {
       signal,
     });
     if (!res.ok || !res.body) {
-      const failure = httpError(res.status, res.headers.get("retry-after"));
+      const answer = await res.clone().json().catch(() => null);
+      const failure = creditExhausted(res.status, answer)
+        ? UNAVAILABLE()
+        : httpError(res.status, res.headers.get("retry-after"));
+      // For the server log only: what OpenAI answered (a rate limit and an outage reach the person as "busy", a spent balance as "unavailable").
+      failure.upstream = upstreamNote(res.status, answer);
       await res.body?.cancel();
       throw failure;
     }

@@ -91,4 +91,18 @@ enum Grading {
         }
         return .good
     }
+
+    /// The score to log for a rating the person chose themselves, over the grade the answer earned: the score itself when it is
+    /// already in that rating's band, else a score that stands for the rating (Again 0, Hard 0.67, the partly right grade, Good 0.9,
+    /// Easy 1). So the log never says "Good" over a score that says "wrong" (`ReviewLog.wasCorrect` needs 0.6 and a rating of Hard or
+    /// better), whichever way the answer was marked.
+    static func score(standingFor rating: Rating, near score: Double) -> Double {
+        let s = min(1, max(0, score))
+        switch rating {
+        case .again: return s < againBelow ? s : 0
+        case .hard: return s >= againBelow && s < goodFrom ? s : 0.67
+        case .good: return s >= goodFrom ? s : 0.9
+        case .easy: return s >= easyFrom ? s : 1
+        }
+    }
 }

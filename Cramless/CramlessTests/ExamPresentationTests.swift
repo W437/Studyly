@@ -122,6 +122,49 @@ final class ExamPresentationTests: XCTestCase {
         XCTAssertFalse(ExamPresentation.offersExamPass(plan: .free, phase: .past(days: 2)))
     }
 
+    // MARK: What the questions cover
+
+    private func covering(_ title: String, words: Int, covered: Int) -> Coverage.SourceCoverage {
+        Coverage.SourceCoverage(sourceID: UUID(), title: title, words: words, coveredWords: covered, sections: 10, uncovered: [])
+    }
+
+    func testTheCoverageNoteSaysHowMuchOfTheMaterialTheQuestionsReach() throws {
+        // 1,850 of 6,000 words: 31%, with the long reading (17%) holding all that is left.
+        let summary = try XCTUnwrap(Coverage.summary([covering("Palsgraf", words: 5000, covered: 850),
+                                                       covering("Reading 2", words: 1000, covered: 1000)]))
+        let note = ExamPresentation.coverageNote(summary, canAddMore: true)
+        XCTAssertEqual(note.sentence, "Your questions cover 31% of your material.")
+        XCTAssertEqual(note.mainGap, "Palsgraf: 17%")
+        XCTAssertTrue(note.isThin, "under half is amber")
+        XCTAssertTrue(note.offersMore)
+
+        // One source says it in the sentence alone.
+        let single = try XCTUnwrap(Coverage.summary([covering("Palsgraf", words: 5800, covered: 986)]))
+        XCTAssertEqual(ExamPresentation.coverageNote(single, canAddMore: true).sentence, "Your questions cover 17% of your material.")
+        XCTAssertNil(ExamPresentation.coverageNote(single, canAddMore: true).mainGap)
+        // Nothing to write questions from (only a lecture is left): no button.
+        XCTAssertFalse(ExamPresentation.coverageNote(summary, canAddMore: false).offersMore)
+    }
+
+    func testTheNoteTurnsAmberBelowHalfAndStopsOfferingWhenNearlyAllIsCovered() throws {
+        func note(_ covered: Int) throws -> ExamPresentation.CoverageNote {
+            ExamPresentation.coverageNote(try XCTUnwrap(Coverage.summary([covering("Reading", words: 1000, covered: covered)])), canAddMore: true)
+        }
+        XCTAssertTrue(try note(494).isThin)
+        XCTAssertFalse(try note(495).isThin, "it reads 50%, which is not amber")
+        XCTAssertTrue(try note(500).offersMore)
+        XCTAssertTrue(try note(894).offersMore)
+        XCTAssertFalse(try note(895).offersMore, "90% needs no nudge")
+        XCTAssertEqual(try note(1000).sentence, "Your questions cover 100% of your material.")
+        XCTAssertFalse(try note(1000).offersMore)
+    }
+
+    func testTheSourceScreensLine() {
+        XCTAssertEqual(LibraryFormat.coverageLine(share: 0.17, kind: .pdf), "Questions cover 17% of this reading")
+        XCTAssertEqual(LibraryFormat.coverageLine(share: 0.5, kind: .text), "Questions cover 50% of this reading")
+        XCTAssertEqual(LibraryFormat.coverageLine(share: 1, kind: .lecture), "Questions cover 100% of this lecture")
+    }
+
     func testGradeComparisonCopy() {
         let lines = ExamPresentation.gradeComparison(projected: 0.87, got: 0.91, calibratedNow: false)
         XCTAssertEqual(lines.headline, "Capling projected 87%, you got 91%.")

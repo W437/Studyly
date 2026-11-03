@@ -309,7 +309,8 @@ final class ReviewLog {
     var score: Double
     /// What the person typed, when they typed.
     var answer: String?
-    /// "rules", "onDevice", "cloud", "person" (self-rated).
+    /// "rules", "onDevice", "cloud", "person" (self-rated, or a rating the person gave over the grade's), "self" (an own-words answer
+    /// the person marked against the model answer because no model graded it). Nothing reads it back for a decision.
     var gradedBy: String
     var durationMs: Int
     var stateBeforeRaw: Int
@@ -363,6 +364,11 @@ final class Exam {
     var resultLoggedAt: Date?
     /// Readiness on the morning of the exam, kept to calibrate projections against the logged grade.
     var readinessAtExam: Double?
+    /// The share of the exam's material its questions reached when it started (0...1), kept with `readinessAtExam`: the projection
+    /// is made from the readiness with the coverage taken into account, so what is projected "after the exam" and what a calibrated
+    /// line is fitted to are that, not the ring's raw value. Nil when it couldn't be told, and for an exam that started before it was
+    /// kept. Local to this iPhone: the sync has no column for it, so another device reads the exam as if no coverage were known.
+    var coverageAtExam: Double?
     var createdAt: Date
     var updatedAt: Date
     var syncedAt: Date?

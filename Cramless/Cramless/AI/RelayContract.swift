@@ -105,6 +105,29 @@ struct GenerateResponse: Codable, Hashable, Sendable {
 struct CheckRequest: Codable, Hashable, Sendable {
     var pages: [PageInput]
     var items: [GeneratedItem]
+    /// The source's title (at most 200 characters) and its section headings (at most 60, each at most 120): a question
+    /// can name the case or the author that only the title and headings carry, and the cited lines don't. Optional.
+    var sourceTitle: String? = nil
+    var headings: [String]? = nil
+    /// The first pass rejected nearly everything, so the second judges only whether the source supports what the
+    /// question and answer say, not whether the cited lines name every party. Optional; absent means strict.
+    var lenient: Bool? = nil
+
+    /// The title and headings as the relay takes them: trimmed, de-duplicated, and cut to its limits (in code points: `RelayLimits`).
+    static func context(title: String, headings: [String]) -> (title: String?, headings: [String]?) {
+        let name = title.trimmingCharacters(in: .whitespacesAndNewlines).clipped(toScalars: RelayLimits.checkTitle)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        var seen = Set<String>()
+        var out: [String] = []
+        for heading in headings {
+            let clean = heading.trimmingCharacters(in: .whitespacesAndNewlines).clipped(toScalars: RelayLimits.heading)
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !clean.isEmpty, seen.insert(clean.lowercased()).inserted else { continue }
+            out.append(clean)
+            if out.count == RelayLimits.headings { break }
+        }
+        return (name.isEmpty ? nil : name, out.isEmpty ? nil : out)
+    }
 }
 
 struct CheckVerdict: Codable, Hashable, Sendable {
@@ -193,6 +216,10 @@ struct TutorRequest: Codable, Hashable, Sendable {
     var messages: [TutorMessage]
     var sources: [TutorSource]
     var context: TutorContext?
+    /// What the student has added to the course, one line a source ("Cardiac cycle (6 pages)", "Lecture 7 (38 min)",
+    /// "Classmate deck (21 cards)"), at most 20 lines of 120 characters, so the model can say what it looked at. Optional:
+    /// a relay that doesn't know it ignores it, and it is left out of the body when empty.
+    var materials: [String]? = nil
 }
 
 /// The tutor's server-sent events, normalized.
@@ -301,6 +328,8 @@ struct LectureResponse: Codable, Hashable, Sendable {
     var keyTerms: [String]
     var examFlags: [LectureExamFlag]
     var items: [GeneratedItem]
+    /// How many exam-relevant ideas the notes did not turn into questions (the cap on questions was reached). Optional.
+    var leftOut: Int? = nil
 }
 
 // MARK: - cards from chat
@@ -444,6 +473,11 @@ enum RelayError: Error, Equatable, Sendable {
         default: .upstream(message)
         }
     }
+
+    /// The anonymous account the relay needs isn't made yet: sign-ups are rate limited or the network is out, and the app
+    /// keeps trying in the background (`AccountService`). A cloud job that meets this falls back to the next tier and says
+    /// Cloud AI is getting ready. (An `.upstream` with a fixed message, so nothing that switches over the cases changes.)
+    static let accountPending = RelayError.upstream("Cloud AI is getting ready.")
 }
 
 // MARK: - Fixtures

@@ -73,7 +73,7 @@ struct SessionSummaryView: View {
         var origin: ItemOrigin
         var name: String { explained?.name ?? candidate.name }
         var explanation: String {
-            explained?.explanation ?? "You've missed these \(candidate.missCount) times in the last two weeks."
+            explained?.explanation ?? candidate.defaultExplanation
         }
     }
 

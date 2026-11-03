@@ -1002,6 +1002,275 @@ transcribe-image) moved to the Responses API on GPT 6.1 Terra, so there is no se
   answers whole responses and refuses what strict mode refuses. Live, with the real key: a grade, a photo transcription and a
   check (it has optional properties, so it proves the nullable form) all returned 200 with valid replies, 0.48¢ for the three.
 
+### Relay fixes after the 14-day test (2026-11-03)
+
+The relay's share of the fixes after `capling-14-day-user-test`. Every new request field is optional, every new reply field is optional
+and nothing is renamed, so build 1.0 (2) keeps working; the relay and the app change together at the next deploy. The prompts are
+in `_shared/prompts/` (bundle with `deno task bundle`), the wire format in `docs/relay-contract.md`.
+
+- **Tutor prompt (R1):** the model reads every source before it says anything is missing (paraphrases, formulas, tables, definitions,
+  examples, a classmate's card), builds its reply on any definition, rule, formula or holding it finds (a court's disposition and reasoning
+  is its holding) and names a missing part only when it is truly absent from every source. When the answer is not there it says "I couldn't
+  find that in what you've added." and names the materials, never "doesn't state/cover" and never asking for pages unless the question is
+  plainly about another topic. It says so when two sources disagree, ignores and mentions a line in the notes that gives it an order,
+  steers off-topic messages back in one sentence, and declines to do an exam or graded work. The assistant uses the same rules. One
+  coupling to know: the app recognises the cloud's "not covered" reply by the prefix "Your material doesn't cover" (`ChatEntry.isNotCovered`,
+  `ChatPane.swift`) to show the "Add notes on this" chip and the muted bubble; the new line does not match it, so on build 1.0 (2) the chip
+  and the tint simply do not appear for those replies (the usual chips do), and the app should match the new line.
+- **Tutor request (R2):** `sources` up to 100 passages (was 12; the assistant's was 24), the per-passage text limit unchanged at 20,000
+  characters, `materials?` (20 names of at most 120 characters) as a "The student has added:" block. The input order is now the student's
+  material, the earlier turns, then the question (the assistant's too; its study state stays with the question), so the material is the
+  same bytes from one question to the next and OpenAI's prompt cache can serve it (before, the passages sat in the last message, after the
+  history, and could never be a shared prefix). The app has to keep the passages' ids and order stable between questions for that. Cached input is
+  billed at the cached price already (`readUsage`, `costNano`); a 100-passage request is about 8,000 tokens, 0.9¢ cold and 0.2¢ warm. The
+  tutor's 1 MB body limit holds 100 passages of 60 words many times over (well under 100 KB).
+- **Check (R3):** `sourceTitle?`, `headings?` and `lenient?`; the title and headings are part of the source for the check (so "the court
+  held…" is supported when the title names the judge), and a lenient check also reads two lines around each cited one and ignores missing
+  names. The verdict contract is unchanged.
+- **Lecture (R4):** the prompt asks for `maxItems` questions, one per distinct idea (flagged first, then the lecture in order), and the reply
+  may carry `leftOut` (1 to 99; left out when none). The notes' prompt is untouched.
+- **Generate (R5):** the prompt covers every section (at most two from one until all have one, the last third counts), and the reply's
+  token budget grows from 16,000 (16 questions) to 30,000 (40). A live call wrote 14 questions in 46 s and the app waits 75 s.
+- **Research (R6):** `_shared/research_sources.ts` holds the sites research never uses (OpenStax, Connexions, Chegg, Course Hero, Quizlet,
+  Studocu, Scribd, Brainly, Bartleby, NCBI's PubMed, PMC and Bookshelf, StatPearls). OpenAI's web search takes only an allow-list, so they are taken out of that list (`env.ts`, the
+  provider), named to the model, dropped from sources and citations, and a reply that rested only on them is withheld. Open sources are
+  preferred and each page relied on is cited. The built-in list (`RESEARCH_DOMAINS`) now holds only sources we can defend, with the licence
+  beside each entry (a test checks that): US federal agencies, GOV.UK and UK legislation, EU institutions, Wikimedia, open-access journals
+  under CC BY, Project Gutenberg, MDN, the Python docs. Every commercial publisher, encyclopedia, health or education brand, university site
+  and non-commercial licence (MIT OCW, Khan Academy, LibreTexts, CK-12, WHO) is out, and so is arXiv (the author picks its licence). NIH is
+  listed by institute (NIDDK, NHLBI, NIA, NIAID, NIMH, NINDS, NIGMS, NEI, NICHD, NCCIH, ODS, plus cancer.gov), not as `nih.gov`, which would
+  open NCBI's PubMed, PMC and Bookshelf (items under their own licences, StatPearls non-commercial and no-derivatives); NCBI and StatPearls
+  are also on the denylist. An entry may be one host (`www.gov.uk`, so not the councils); the page filter now compares the page's own host.
+- **Assistant (R7, R9):** notes and cards say what the passages say and never that the material "does not explain" something; when the
+  notes support fewer cards than asked for the model drafts those, says how many fewer and why, and never pads (the tool descriptions say
+  the same). It is not a limit the relay enforces: a short draft is a draft.
+- **Review fixes (R11 to R14):** the passages of one tutor or assistant request hold at most 200,000 characters in all (`bad_request`, 413,
+  before anything is metered; a hand-built 100 x 20,000 request used to cost 26 cents on the tutor, 52 on the assistant; the app sends about
+  40,000). Research drops every `RESEARCH_DOMAINS` entry that is a denied host, under one or a parent of one (`nih.gov`), and withholds a
+  summary unless it cites a page the student may see once a denied page has turned up (pages merely consulted no longer count). The generate
+  call may take 115 s in all (the app waits 120 s; every other model call, the tutor and the assistant included, keeps 90 s, and research
+  150 s); a JSON call that timed out while its body was being read used to be reported as a cancellation (499) and is now the timeout (504).
+  A `502` from generate can be a billed failure: clients must not retry it (contract note).
+- **After the second 14-day test (labels, the upstream log):** the check prompt has a "Labels:" rule: a question may point at its passage by a
+  label or a place the cited lines do not repeat ("the headnote", "the Kansas case"), and only the statement and the answer have to be on the
+  lines (round 2's check wrongly dropped 10 of 62 court-opinion questions that way; not re-measured, the OpenAI balance ran out first). And
+  every refused OpenAI call now carries `upstream` ("429 credit_balance_exhausted", status and error code only, 40 word characters at most)
+  in the request's log line (`ApiError.upstream`, `Meta.upstream`, allow-listed in `log.ts`): a spent balance, a rate limit and an outage
+  all reach the student as "Cap is busy right now" (503), and until this the log could not tell them apart. Alert on
+  `credit_balance_exhausted` and turn on auto-recharge before launch.
+- **Prompt rules added after round 2's reviewers (not measured live: the OpenAI balance had run out):** a classmate's deck, list or forum post is
+  another student's claim, not a source of truth: the tutor checks it against the course's own sources, says which one the course source
+  supports and never gives the deck's claim as the answer when a course source says otherwise (the old line told it not to pick, which let
+  Marbury's "the Court ordered delivery" card stand); the assistant leaves out a card that a course source contradicts. The quick-check
+  question at the end of an explanation is asked only when it adds something. In hints mode the "ask first" rule is stated for follow-ups too
+  (8 of 109 replies had given the answer). An outline, plan or list of key points for an essay is study help and is drafted; only the essay
+  itself, or an outline the student says they will hand in, is declined (one student's outline request was refused and another's drafted).
+- **Prompt cache key (found on the 2026-11-03 rerun):** a tutor question about a long material (19,000 tokens) was billed in full 6 times out of 7 (1.9 cents,
+  the day's 10 cent cap at the fifth question), though the passages were the same bytes each time. OpenAI picks the machine by the first lines of the prompt,
+  which are the same instructions for everyone, and serves the cached part only from the machine that read it. The tutor and assistant requests now carry
+  `prompt_cache_key` = `cap-` + 32 hex of a hash of the passages block (the material's, never an account's or a person's; `cacheKey` in `openai.ts`), none
+  when there are no passages. Measured afterwards (the key is on, deployed as version 11): four different questions about the material, 40 seconds apart,
+  each read all 19,000 tokens from the cache (0.16 to 0.18 cent each); questions 4 seconds apart still pay in full (the cache entry is not there yet), so a
+  harness must pace its questions like a student (`bench tutor --pace 35`), and a person who asks the next question within seconds pays about 2 cents.
+  Not measured without the key at human pace, so how much of the gain is the key and how much the spacing is not known.
+  **Later the same night (key deployed):** three fresh 12,000 to 16,000 word materials, one student each, questions 15, 25 and 40 seconds apart, read 1,323 of about
+  21,000 tokens from the cache (the instructions), never the passages; each question cost 2.0 to 2.4 cents and each student stopped at the cap after five. The
+  earlier hits were on a material other requests had just read. So a single student's passages cannot be counted on to come from the cache, and the tutor's request
+  is sized for the cold price (see "Which passages the cloud tutor gets").
+- **A spent OpenAI balance (round 2's P0):** an OpenAI `429` whose code or type says the balance or budget is spent (`insufficient_quota`,
+  `credit_balance_exhausted`, billing) is answered `503` "Cloud AI is unavailable right now. Try again later." with `retryAfter` 600 (also
+  the `Retry-After` header), is not asked a second time (the relay's own retry now skips a 503 that names a wait over 60 s) and the meter is
+  given back. A plain rate limit is still "busy" and is retried. The app already does not retry a 503 that names a wait over 15 seconds, so
+  it falls back at once. The `upstream` field of the request's log line says which it was (see above).
+  The tutor also no longer takes back or doubts an earlier answer of its own unless a source contradicts it (round 2: "I shouldn't have stated what a catalyst does in my last reply" after a correct, sourced answer).
+- **Tested:** the relay suite is 232 tests (12 more need the local stack), with new ones for each change above and for the order of the
+  input. Not testable without the key: whether the model now finds what it used to miss. After deploying run `deno task live-openai` (it
+  has probes for a paraphrase, a planted instruction and the named materials) and `deno run -A tools/assistant_bakeoff/run.ts`.
+
+### App fixes after the 14-day tests (2026-11-03)
+
+What the app side changed after the two tests (`capling-14-day-user-test`, `...-round-2`; the numbers are from the harness in
+`~/Documents/capling-user-test/round2`, which runs the app's own Swift code against the relay). All of it is in build 1.0 (3) or, for the offline tutor and the iPhone model changes of the evening, build 1.0 (4) (last bullets); none of it is on a phone yet.
+
+- **Which passages the cloud tutor gets (`AI/TutorSelection.swift`, `LocalRetriever+Recall.swift`).** A request carries 4,000 words: every passage, in reading
+  order, of a material that size or smaller; above that the likeliest 4,000 (the sources the question names first, the best 12 of the rest, neighbours, what the chat
+  stood on); and for a question that shares no word with a long material ("quiz me on this", "what should I focus on", "explain this chapter", a Japanese question) an even
+  spread of it (`Mode.overview`; before, nothing was sent and the offline tutor answered). With the old rule (the best 30 passages and 6 neighbours) the answering line was not
+  sent for 8 of the 9 false "not covered" replies; with this one it is missing for 1 of 78 turns on the seven students' materials of 5,000 to 16,000 words
+  (`bench select`, no model; the whole material: 0). Real Cloud AI answers to the same 91 questions: the answering line shown in 55 of 78 covered turns (53 with the
+  whole material, 44 with the old rule), a covered question refused 2 times (1 and 3), no "Quick check" closer, and no turn answered from the notes for want of
+  Cloud AI. **Why 4,000 and not the whole material:** the first version of this fix sent the whole material up to 16,000 words. Measured on the relay's own log it
+  cost 2.2 cents a question on a 12,000 to 16,000 word reading, because OpenAI's prompt cache did not serve the passages to one student (three fresh
+  materials, questions 15, 25 and 40 seconds apart: 1,323 of 21,000 tokens, the instructions, came from the cache; an earlier run on a material other requests had
+  just read did hit, 11 of 11), so the relay's 10 cent day cap, which the owner agreed, came at the fifth answer and the free plan's ten were out of reach (all three
+  students stopped there). A request of 4,000 words costs 1.06 cents on average (10,200 tokens, 4,300 of them the labels of 100 passages and the instructions; 85
+  questions, none above 1.4), so ten answers fit under the cap on any reading; a German one costs a quarter more. 6,000, 4,500 and 4,000 words each held the
+  answering line in 77 of 78 turns, 3,500 in 76. On seven more students that the sizes were not tuned on (round 3, 56 gold turns) the line was in the request in 49 turns at 4,000 words (48 before Japanese was cut into words), 50 at 6,000 and 51 at 8,000 or with the whole material; the 5 that nothing finds are lines the extracted text lacks (a PDF table row, an unreadable handwritten page, a diagram label in a photo) or that the word-overlap check cannot score (Japanese). A wider spread (8,000 words) for the questions with nothing to aim at was tried on Aiko's Japanese questions and taken out again: two of the three turns that looked missing were answered correctly anyway, and the third (who wrote the Oath's first draft) stayed unanswered because the retriever did not split Japanese into words and an even sample is not aimed; that is what the Japanese lexicon fix is for. To have the whole material back, if the caps are raised, set
+  `TutorSelection.tutor` to `Budget(wholeWords: 16_000)`.
+- **The offline tutor (`AI/Local/LocalSentenceSearch.swift`, `OfflineMeaning.swift`, `LocalTutor.swift`).** The unit is a sentence, scored on its words
+  (BM25 over sentences, rare words counting most) and on the meaning of its words (`NLEmbedding.wordEmbedding`), and the best few dozen are read
+  by Apple's contextual model (`NLContextualEmbedding`, only when its assets are already on the phone: it never asks for a download). Without
+  it the words decide. A gate (`OfflineRanking.Gate`) refuses to quote a sentence that neither the question's words nor their meaning
+  support and says `LocalTutor.notCovered` instead; a sentence is shown with the line before it when it points back and the items of a list it
+  introduces. On the 78 questions the notes answer, the reply shows the answering line 5 times before (6%) and 14 after (18%); it shows another
+  passage 52 times before and 32 after; it says "couldn't find" 21 and 32 times; and of the 13 questions the notes do not cover it quoted the notes anyway
+  7 times before and 2 after. It is still weak: how well a sentence matches does not say whether it is the answer (the gate is a floor against the
+  unrelated, not a test of the right one), and the speed (median half a second with seven runs sharing the Mac) and the contextual model were
+  not measured on a phone then (they were later: "On a phone", below: 0.2 s a question, 150 MB).
+- **Questions written without Cloud AI (`AI/QuestionQuality.swift`, `AI/Local/SourceHygiene.swift`, `AI/TextArtifacts.swift`, `LocalGenerator`,
+  `OnDeviceJobs`).** One filter for the offline rules and the iPhone model: it drops prompts that are cut off, headings, citations, reference
+  entries, captions, listings, page headers, questions about a figure the text lost, fill-ins whose blank is a stop word or is given away,
+  and repeats. Blind ratings of the questions written for nine texts (290 rated before, 409 with the regenerated sets rated again): a
+  zero on one of four scales in 53% of the offline questions before and 16.7% after; the iPhone model's 44.5% before and 28.2% after. The model's wrong answers (Palsgraf's "judgment affirmed") are not something a filter can see. The stricter fill-in floors
+  assume a text long enough for a word to recur, so under ten sentences and bullets (`DocumentContext.isSmall`) they are lower; and a tagger that
+  answers "other word" for every word (the iOS Simulator, a device without its model) counts as no tagger, so the verb check is skipped.
+  Both were found by the full test run: four pasted sentences had got no offline question at all.
+- **Formulas lost from PDFs (`Capture/PDFReader.swift`, `PageLayout.swift`).** `PDFInk` walks each text-layer page's drawing operators (no
+  rendering) and counts small filled vector outlines (the glyphs of a typeset formula), and `PageLayout` groups them into formulas and adds
+  them to the existing "formulas may be missing" score. Of the 19 labelled pages that lost formulas in the 14-day PDFs the flag now catches 18 (8
+  before); heavy pages 10 of 10 (7 before). It flags 2 of the 32 pages labelled clean, and by eye each of those is missing one displayed formula.
+  Leave-one-printout-out gives the same 18 of 19; seven other PDFs from different producers got no new flags except three pages of one manual
+  (block diagrams whose labels are drawn as outlines). The outline read takes 0.7 ms a page on the Mac.
+- **Language of short notation pages, and a stray tone mark.** A request's language is what the recogniser reads in the text when it is at least 80% sure
+  and has 40 letters to judge from (`LocalGenerator.confidentLanguage`), else the course's other sources', else the device's: Amara's English
+  worksheet of symbols was read as Polish at 0.63 and Cloud AI wrote its five questions in Polish. Cloud vision also writes a subscript c as
+  U+A700 (a Chinese tone mark; it renders as a stray glyph and nothing can search for it): `String.withPlainSubscriptC` makes it a plain "c".
+- **Right numbers marked wrong (`AI/Local/NumericAnswer.swift`, `LocalGrader.gradeOwnWords`, `AIRouter.refinableText`).** A calculation's key ideas describe the
+  method ("Use η = 1 − Tc/TH") and its answer is a number, so every grader that looks for the ideas called a right number wrong: in the fourteen persona runs
+  (3,774 own-words answers) 94 of the 94 right answers to a question whose model answer is only a quantity were not graded correct (72 wrong, 22 partly right; this
+  Mac's model 75, Cloud AI 14, the self-check 5; Tariq's physics and Amara's chemistry). When the model answer is nothing but a quantity and the person's answer states the
+  same one (a percent and its fraction are the same quantity, the sign must match, a unit must not contradict it, a long answer counts by its last number), the offline grade is
+  correct and no model is asked. It never calls an answer wrong: a different number goes to the grader as before, and a right number in another form ("half") is still the
+  grader's. Over the recorded answers it accepts all 94 and none of the wrong ones (`tools/numeric/run.sh` in the harness; the one "wrong" answer it accepted was a copy
+  of the model answer in the simulated student's wrong list). Tests: `NumericAnswerTests`.
+- **Japanese and Chinese (`AI/Local/Lexicon.swift`).** The tokenizer made a whole Japanese sentence one "word" (letters make words, and there are no spaces), so the retriever found nothing for any
+  Japanese or Chinese question: five of five of Aiko's, in round 3, gave no hits at all, and the tutor's request fell back to an even sample (the Oath question stayed unanswered). A run of Han, kana or
+  katakana is now cut into words by the system's tokenizer (`NLTokenizer`, Japanese when the text has kana, Chinese otherwise; the particles are stop words; ranges still point into the text; one tokenizer per call,
+  0.06 s for an 8,800-character article on this Mac), and Latin text beside it is unchanged. The same five questions now get 2 to 4 hits each, the request is aimed (`best`, not `overview`) and holds the answering line, and Cloud AI answers the Oath question
+  ("由利公正"). Aiko's whole fortnight rerun on the final lexicon (`runs10/`): 14 days, 13 of 14 questions by Cloud AI, none refused (1 before), her 9 Japanese questions all by Cloud AI. Tests: `CJKRetrievalTests`.
+- **Settings no longer says "unlimited" on a paid plan (`Features/Settings/AIPrivacyPage.swift`).** The header is "Your AI" and a footnote says that a day with a lot of Cloud AI pauses it until midnight; round 3's Pro
+  cram night reached that limit. The store text and the listing are yours.
+- **Paywall fine print (`Features/Paywall/PaywallCopy.swift`).** "Fair use applies." ends the line under the price on every plan, because "Unlimited scans, PDFs and lectures" means no count, not no ceiling: a day with a lot of Cloud AI pauses it until midnight (the relay's
+  cost caps). The store description on App Store Connect is not changed (it is the owner's text and says "unlimited" in the same sense). Tests: `PaywallCopyTests`.
+- **Diagrams in photos (`supabase/functions/_shared/prompts/tutor-figures.md`, `AI/TutorSelection.swift`).** Tobias's two diagram photos were read well (27 and 42 lines) apart from one letter ("Plant Uptake" came out "Pant Uptake"), but a reading of text cannot say which
+  arrow a label belongs to, and Cap guessed ("transpiration") once and said it could not see the picture once. The labels were in the request each time (the "share 0.00" of the first check was only the spelling), so the failure was the tutor's. Two changes:
+  (1) the tutor's prompt now ends with a rule for the labels of a photographed picture: if one label is clearly the name of what the question describes, give it and say you cannot see the picture to check it; if several could fit, name them, say you cannot see which
+  sits where and ask what the picture shows next to the part meant; never name a part that is not among the words. Measured on the real model with his photos and the whole material (`OPENAI_API_KEY=… deno task tutor-figure-ab`, 5 and 7 questions, 2 runs, the prompt as it
+  was (A) against the prompt with the rule at its end (B)): A never said it could not see the picture (0 of 16 picture replies; it answered "plant uptake" and "Surface Flow" directly and said "I couldn't find" for the sign by the pumps and the arrow on the right), a first
+  version of the rule said so in 5 of 6 but hedged the two obvious answers too, and the shipped version said so in 7 of 10 (the others were direct answers with the caveat), gave "Plant Uptake" and "evaporation" with the caveat, named the candidates and asked for the two ambiguous
+  ones, and left two ordinary questions as they were (54 and 30 percent); four requests in each arm of the second test hit the test account's free tutor limit (the tool now uses a Pro account), so the sample is small. Cost about 17 cents. **Deployed as relay version 13 (the owner's approval); checked on the live relay with his
+  material: "I can't see the picture… the printed labels include 'Pumping wells…' and 'Pumping well'… what else can you see near the sign?" for two picture questions, a direct answer (54 percent) for an ordinary one, and, for the arrow from the roots, "I couldn't find a label for an upward arrow among the diagram words" (the one-letter misread again) instead of a confident wrong answer.** (2) A question that points at a picture ("the picture", "the diagram",
+  "an arrow", "a label") now names a source whose title says it is a figure, a diagram, a chart or a graph, so such a source is sent first: in a material of 24,850 words (two readings, a novel, a 534-word diagrams source) it was sent for 1 of 3 picture questions and is for 3 of 3, and a question about TCP
+  is unchanged. Not fixed: the reader's one-letter misread, and where an arrow points (that needs the photo to go to Cloud AI, which his persona keeps off). Tests: `TutorSelectionTests` (`testAQuestionAboutAPictureSendsTheSourceThatIsMadeOfDiagrams`), the relay's `prompts.test.ts`.
+- **Multiple-choice questions the model writes (`supabase/functions/_shared/prompts/generate.md`, tool `tools/generate_ab.ts`).** The right option is the strictly longest in 40% of round 3's 88 cloud-written questions (51% of round 2's rerun, 84; about 25%
+  by chance), a tell that shuffling the options (`ChoiceOrder`, per item and per day) does not hide; fill-ins with a guessable blank (54 "too easy" flags in 346 questions) and facts repeated across sources (23 duplicates) are the other
+  flags. The generation prompt had no rule about the length of wrong options or the guessability of a blank. Two rules were measured against the real model with the relay's own code path (`OPENAI_API_KEY=… deno task generate-ab --runs 2 <texts>`,
+  three English texts: TCP, the Meiji Restoration, *Pride and Prejudice* chapters 1 to 8; 2 runs each; the prompt as it was (A) against the prompt with the rules at its end (B)): A wrote 96 questions, 18 multiple choice with the right option the longest in 13 (72%)
+  and on average 1.37 times as long as the wrong ones, and 11 fill-ins of which 1 had a repeated or stop-word blank; B wrote 96 questions, 20 multiple choice with the right option the longest in 9 (45%), 1.06 times as long as the wrong ones, and 10 fill-ins with none.
+  The samples are small (18 and 20 multiple-choice questions: the drop in the share is suggestive, the length ratio clearer) and the blank count is only the repeated or stop-word kind, not "too easy". Cost $0.44 (a first attempt that only the short text passed, then the full run).
+  The rules are now the last paragraph of `generate.md` (bundled in `generated.ts`) and were **deployed as relay `ai` version 13 on 2026-11-04 with the owner's approval** (with the tutor's picture rule, below). Checked on the live relay with the harness (`bench gen`, two texts, one run each):
+  44 questions, 11 multiple choice with the right option the longest in 7 (64%) and 1.10 times as long as the wrong ones (the test's 1.06; the share needs more questions than 11), 5 fill-ins. Next: ask the blind reviewers about "too easy" and repeats, which a script does not count.
+  **Measured again on more questions (4 Nov, evening; six new texts of about 1,900 words each: TCP, the Meiji Restoration, Carnot's cycle, a handout on heart medicines, the Declaration of Independence, Kant; 2 runs each, 12 calls an arm, the relay's own code path).**
+  The deployed prompt, twice: the right option is the strictly longest in 11 of 36 (31%) and in 10 of 34 (29%) multiple-choice questions, 21 of 70 (30%) in all, 1.01 times as long as the wrong ones: that is chance (25% with four options),
+  and the 45% and 64% above were 20 and 11 questions. Stronger wording does not help: a rule asking for the right option to be the longest in one question in four gave 9 of 40 (23%, ratio 0.99), "no more than one in three" 2 of 36 (6%, 0.89), the first
+  "three in four" quota 3 of 38 (8%, 0.89) and "same shape, nearly the same length" 1 of 40 (3%, 0.92): the model overshoots and the right option becomes the short one, which is a tell too. So `generate.md` stays as deployed in v13 and no relay deploy follows.
+  Fill-ins with a blank the sentence repeats or a stop word: 4 of 19 and 0 of 15 for the deployed prompt, 1 of 20 to 1 of 24 for the others (too few to tell). Cost $1.64 for the 72 calls. `deno task generate-ab --rules a.txt,b.txt` now tests several rule sets in one run.
+- **The offline tutor and the iPhone's model after round 3 (4 Nov, evening).** The tutor without Cloud AI still quoted another passage for about two covered questions in five and said "couldn't find" for as many. Measured on 155 questions with the line that answers
+  them written down (round 2's 78 and round 3's 77; the gate was set on round 2's) and on 507 study questions the Cloud AI wrote from known lines (the generator's anchors), with the saved pool of the sentence search for every question (`bench rankdump` in the test harness):
+  the first sentence is the answering line for 19% of the 155 (29% in round 2, 9% in round 3) and for 57% of the study questions; it is among the 24 candidates for 59% (69% and 48%) and 91%; the reply shows the line 24 times (15%), another passage 64 (41%), "couldn't find" 67 (43%),
+  and it quotes the notes for 5 of the 27 questions they do not cover. Tried on the saved pools, leave-one-student-out, with no gain: nine answer-type signals (a year for "when", a number for "how many", a name for "who", cause words for "why", a definition for "what is"…): the first
+  sentence is right for 19% and 56% as before; weighting the existing signals again: 16% and 62%; a learned gate over the gate's own evidence: the same trade-off as the hand-set one (shows 21, wrong 82, refused 52 against 18, 75, 62); 48 candidates instead of 24: the line is among
+  them for 71% instead of 59% and first for the same 19%; Apple's whole-sentence vectors: 3% and 29% alone, and added to the score no better (12 to 17%, 50 to 58%). What is left to say for the rules-only tier is that a question put in other words than the notes' is out of reach of word and word-vector matching: showing the
+  three closest places instead of one would show the line for 21% instead of 12% of the 155 questions, at the price of two more lines each (not done).
+  **Japanese and Chinese (`Lexicon.cjkWords` and `wordCount`, `LocalSentenceSearch`, `LocalRetriever`, `LocalTutor`, `AIRouter+Tutor`).** Every Japanese sentence counted as one word (no spaces), so the search left out each one as too short to say anything, a question in Japanese had no candidate at all (5 of 11 of Aiko's pools were empty),
+  and a Japanese passage ran to 60 sentences. A run of Han and kana now counts for about one word per two characters wherever a sentence's length decides something, and the full-width ？ ends a question. The contextual model's similarities run 0.8 to 0.99 for Japanese sentences that are not about
+  the question (the floor elsewhere is 0.48), so with the count fixed and the gate unchanged 5 of Aiko's 6 Japanese questions were answered with a wrong passage; a Japanese or Chinese question is now judged on its words (at least half their weight in the best sentence or its passage, `Gate.cjkCoverage`).
+  Result: no empty pool, the line among the candidates for 2 of 6 (none before), and "couldn't find" for all six, none wrongly answered; a question that uses the notes' own words is answered (`CJKRetrievalTests`). The notes' words and a question's words rarely match in Japanese (書いた for 起草) and the system has no Japanese word vectors, so
+  that stays out of reach without Cloud AI. A shortened word of a question that a word of the notes begins with ("hiper" for "hiperinflación") is no longer "a word the notes never use".
+  **What this iPhone's model reads and may quote (`OnDeviceWindow` in `AIRouter+Tutor.swift`, `OnDeviceTutoring.reply`).** It was handed the three passages the keyword search liked best: the answering line was in them for 19% of the 155 questions (56% of the study ones); the passages of the three best sentences hold it for 37%
+  (50%), and for 46% (71%) with four keyword passages as well. It answered few questions: with the line in front of it (four students), 10 of 29 replies were accepted, 9 said "not covered", and 10 were thrown out, nearly all by the rule that the quoted passage must carry 40% of the question's words by weight, which a question put in
+  other words fails (those I read were right: "the golden rule of Jesus" for "which religious teaching sums up the ethics"). With this Mac's model, the model answered / was right on / was wrong on, of the 155: the keyword passages 20 / 7 / 13; the three best sentences' passages 22 / 12 / 10; those and two keyword ones 22 / 7 / 15;
+  five passages of the best sentences 21 / 10 / 11; eight 16 / 8 / 8: a small model reads a few passages well, so it gets the three. A quote it makes is also accepted when it is the sentence the search ranks first, or second within 0.7 of it (`OnDeviceWindow.closest`): 31 / 14 / 17 (32 / 15 / 17 when any of the best eight counted, which let an unrelated sentence through in a two-sentence library: `testAnUnrelatedQuoteSendsTheQuestionToTheOfflineTutorInstead`).
+  The whole tier, with the offline tutor behind it, by the automatic check: the answering line shown 23 to 25 of 155, a wrong passage or answer 74 to 67, "couldn't find" 58 to 63. Blind review of the 42 replies that changed (three reviewers, who did not know which was which; the run with the quote rule at the best eight, the same on 171 of 182 turns as the final): accuracy 0.83 to 1.10 of 2,
+  better on 21, worse on 13, level on 8; flagged as another passage 21 to 11, as made up 3 to 5 (the model states what the notes do not: a unit, a reversed mechanism), as wrongly refused 2 to 6 (five are Japanese questions, answered with a wrong passage by the run before the Japanese gate and now declined). The model's replies change from run to run. On a phone, see the next bullet.
+  Tests: `CJKRetrievalTests`, `OfflineSearchTests` (the window, the search's own answer), `AIOnDeviceTests` (a quote the search ranks closest).
+- **On a phone, the question rewrite, and what was left alone (4 Nov, night).** `Cramless/App/OfflineBench.swift` (DEBUG only, absent from Release; started with `CRAMLESS_OFFLINE_BENCH=1`) measures the offline tutor and this iPhone's model on the device it runs on and writes a report
+  (a progress line after every question). Built development-signed for the Loopware team: development provisioning profiles made through the API (`Claude Dev com.loopware.Capling` and `... .Widgets`, the certificate "Apple Development: Wael Abed Elal", both registered iPhones, expiring 2027-11-04; they stay in the account),
+  installed with `phone-install` on the owner's iPhone 17 Pro "frankWhite" (iOS 27.0 build 24A437, 11.4 GB of memory, Low Power Mode off) with the owner's approval, the test libraries copied into the app's container with `devicectl`, the report copied back, the dev build removed afterwards.
+  Two runs: speed and memory on three libraries (5,500 to 13,400 words), and the whole tier (keyword search, sentence search, the model on the passages, the checks on its reply, the offline reply behind it) on the 14 students' libraries (3,700 to 15,100 words, 92 to 317 passages, 168 questions).
+  Reports and inputs: `~/Documents/capling-user-test/after-round3/phone/`. **The offline search on the phone:** the first question of a library (the index of every sentence, the word vectors, the contextual model loading) takes a median 0.57 s (at most 0.67); every question after it 0.20 s on average, 0.41 s at worst;
+  memory 74 MB at launch, 110 to 150 MB with the models loaded (149 MB at the peak over all fourteen libraries); thermal state nominal, fair after six minutes of model calls without a pause. Speed and memory are not a problem.
+  **The model on the phone:** a window of 8,192 tokens; a call takes a median 2.3 s (p90 7.4 s, at most 9.9 s), a whole question 1.8 s (p90 3.3 s). **Its own `covered` flag was false in all 96 replies it gave** (4 calls returned nothing), so with the rule that a reply needs `covered` the model tier answered none of the 168 questions
+  on this phone, in builds 1.0 (3) and (4) too: every answer was the offline tutor's. Of the 96: 74 say in words that the notes do not cover the question, 13 answer with a quote from the notes, 9 answer with empty quotes (the notes' own sentence, restated). Counting the flag as advisory when a reply answers and quotes, and standing on the search's best sentence when the
+  quotes are empty (a reply that restates it, at least 60% of its words), gave 17 answers of 168 (7 on the line that answers, 10 not); one blind reviewer rated the 16 against the offline quote each replaces: accuracy 1.50 and 1.50 of 2, better on 6, worse on 7, level on 3 (a restated sentence garbled, a hedge, a passage that says the opposite).
+  **Not shipped:** the replies are no better than the quotes they replace and cost 2 s or more each, so the tier stays as it is (inert on this OS build; the offline tutor answers); the changes are kept as a patch (`after-round3/model_tier_covered_flag_restated_and_phone_bench_worktree.patch`). The Mac's model sets the flag and its answers were better (above); a phone whose model does too gets them.
+  **Question rewrite, tested and not adopted.** The model writes the sentences a textbook would answer the question with (`OnDeviceExpandCall`), and the sentence search reads their words beside the question's, to find and to rank (never to decide whether the notes cover it): it wrote one for 121 of 182 turns (the others it declined or failed; 0.8 to 2.4 s on the phone, 14 s at the median on the loaded Mac).
+  On the 108 questions that got one the first sentence was the answering line for 12 before and 13 after (11% to 12%) with the rewrite counted for half, 15 (14%) counted in full, 13 with the words score counted again; over all 155: 30 before, 31, 33 and 27 after; replies showing the line 24 before, 25, 28 and 22. A few points, within the noise, for a model call a question (one in three failed on the Mac, one in twelve on the phone) that only a device with the model can make: not adopted
+  (`after-round3/hyde_expansion_and_phone_bench_worktree.patch`).
+- **The model chooses the answering sentence; Japanese and Chinese measured (4 Nov, late night).** The sentence search has the line that answers a question among its best eight for 45% of the 155 real questions and puts it first for 18%, so a model that reads the eight can
+  lift the right line a long way. This iPhone's model (the Mac's, here) was shown the question and the eight numbered sentences and asked for the number of the one that answers (0 for none), `OnDevicePickCall`: it chose the right one for 46 of the 148 questions it answered (31%; 69% of the 67 where the answer was among the eight; with five sentences, 44),
+  the search's first being right for 27; it chose a wrong one 101 times and said "none" once, and it quoted all 25 questions the notes do not cover, so it cannot refuse and whether the notes cover a question stays with the search's gate. Of the 88 covered questions the gate lets through, the first sentence was right for 18 and the model's choice for 28 (wrong 70 to 57);
+  when the model chooses another sentence than the search's first, the first is right 2 times in 49 and the model's choice 13 (27%). **Built in:** its answer is a number, so what is shown is always the notes' own sentence (nothing it writes reaches the student) and it needs no "covered" flag (the phone's model never sets it); the router asks once per question,
+  when the gate says the notes cover it and the iPhone's model is available (English), before this tier's window is made, and the chosen sentence goes first for the model's window and for the offline tutor's reply (`choosing` in `AIRouter+Tutor.swift`; `OnDeviceWindow.useModelPick`, `pickAmong` 8; 8 s limit; the search's first stays when the model answers 0, 1, a number out of range or nothing).
+  **Whole tier on the Mac, 155 questions with a known answering line:** the reply shows the line 25 times (16%) with the window alone, 29 (19%) with the choice; the model's own answers 31 (14 right) to 41 (21 right); another passage 67 to 65, "couldn't find" 63 to 61, not-covered questions quoted 3 and 3.
+  Blind review of the 32 replies that changed (two reviewers who did not know which was which): accuracy 0.69 to 1.03 of 2, grounded 1.09 to 1.38, better on 16, worse on 6, level on 10; flagged as another passage 16 to 12, template-like 9 to 5 (round 3's students, whose notes nothing was tuned on: 0.71 to 1.29, better on 11, worse on 1; round 2's: 0.67 to 0.73, better on 5, worse on 5, level on 5). Tests: `TutorTests` (the choice is shown, the search's first stays when the model cannot choose, no question to the model when the gate says no); the other on-device tests switch the choice off to script the model's own answer.
+  **Not yet on a phone:** the owner chose to run that later; the phone's model may choose differently, and a bad choice would be worse than the search's first, so the change is in the commit and **not in build 1.0 (4)**; the phone benchmark (`OfflineBench` with `"choose": true`) is ready (`after-round3/phone/choose_in.json`).
+  **Japanese and Chinese.** Test sets of 30 questions each, written by agents from the Japanese Wikipedia article on the Meiji Restoration (492 paragraphs) and the Chinese one on the Xinhai Revolution (357 paragraphs), with six questions each the article does not answer (`bench/tutor_cjk_ja.json`, `..._zh.json`; 19 of the 30 Japanese questions share no word with their answering paragraph:
+  deliberately hard). The offline search: the answering paragraph is among the eight candidates for 15 (Japanese) and 20 (Chinese) of 30 and first for 8 and 7; the gate lets 9 and 6 through (right 7 and 4, wrong 2 and 2) and refuses 21 and 24; not-covered questions quoted 2 and 0 of 6. Counting pairs of neighbouring characters (the usual remedy when a segmenter cuts a name differently in a question and in its answer:
+  BM25 over the pairs in stage 1 and in the final score, pair coverage in the gate) put the right paragraph first for 9 and 10 of 30, but the answers given did not change (right 7 and 4, wrong 3 and 2): the gate, not the ranking, holds the rest back, and at the best threshold each further right answer costs about two wrong ones; not adopted. The model's choice: right for 10 of 12 (Japanese) and 16 of 18 (Chinese)
+  where the answer is among the candidates (the search's first: 9 and 10), 12 of 12 not-covered questions quoted. The iPhone's model tier is English-only by design (`OnDeviceLanguageGate`), so it does not apply to them. These two languages stay mostly declined without Cloud AI (patch: `after-round3/cjk_character_pairs_and_model_pick_worktree.patch`).
+- **Tested:** the full app suite on the merged tree: 1,478 tests, 27 skipped, 0 failures (the first run failed 3 of 1,477: the short-notes regression
+  above, a phase-recall test that depended on which questions a 16-question set keeps, and a medal render that passed on the rerun). After it came the exact-number check, the tutor's 4,000-word request, the even spread, the Japanese and Chinese word splitting and the Settings copy; on that final tree the
+  full suite: 1,493 tests, 27 skipped, 0 failures (an earlier run of the same code failed 60 assertions in five selection tests that assumed the 6,000-word request; they now name the budget they test).
+  After build 1.0 (3) was uploaded, the offline tutor and the iPhone model changes above (Japanese and Chinese word counts and gate, the shortened-word rule, the model's passages and quote rule) were made and tested: the full suite on that tree, 1,500 tests,
+  27 skipped, 0 failures (the one test added afterwards, `testOnlyTheBestSentenceAndACloseSecondCountAsTheSearchsOwnAnswer`, ran with its class: `OfflineSearchTests`, `CJKRetrievalTests` and `AIOnDeviceTests`, 52 tests, 0 failures). Those changes are not in build 1.0 (3); they are in build 1.0 (4), uploaded and attached (last bullet). The model's choice of sentence (the bullet before this one) came after build 1.0 (4) and is **not in it**: the full suite on that tree, 1,504 tests, 27 skipped, 0 failures, and the tutor classes alone 137 tests, 0 failures.
+  After that run the Japanese word splitting was made 5 times faster (one tokenizer per call, 0.06 s for an 8,800-character article); the 19 test classes that use the lexicon and the offline rules ran on the final tree:
+  331 tests, 3 skipped, 0 failures (`CJKRetrievalTests`, `NumericAnswerTests`, `GraderTests`, `SelfCheckTests`, `GeneratorTests`, `LocalGeneratorQualityTests`, `QuestionQualityTests`, `GenerationPartsTests`,
+  `OfflineSearchTests`, `OfflineLanguageTests`, `TutorTests`, `TutorSelectionTests`, `TutorHonestyTests`, `RelayLimitsTests`, `TutorPrivacyCopyTests`, `AIOnDeviceTests`, `RouterTests`, `AssistantDraftsTests`, `AskTextTests`).
+  After the owner's decisions of the same afternoon (the paywall sentence, the tutor's picture rule and figure-word match) the full suite ran again on the tree that was then archived: 1,494 tests, 27 skipped, 0 failures (a first run of it failed one assertion of the
+  new selection test, which assumed the ordinary fill never sends a small source; the test now checks the selection mode).
+  The relay suite: 237 tests, 0 failures (`deno task test`), `deno task check`, lint and format clean.
+- **Rerun with Cloud AI (2026-11-03 evening, after the owner added OpenAI credit at 22:48; relay version 11).** Fresh anonymous users, round 2's materials and
+  round 1's, `~/Documents/capling-user-test/round2` (the report's "After the retest" has every number). Cloud AI grading: 167 of 168 answers graded by the model
+  (67 before, the rest had fallen to the self-check), 156 of 167 matching the labels, none the wrong way. The tutor on the seven students' 12 questions: the "Quick check"
+  closer on 0 of 91 replies (45 before), refusals on covered questions 1 of 78 (3 before), the answering line shown in 53 of 78 (44 before); blind side by side on
+  all seven students (84 questions): accuracy 1.80 to 2.00, "couldn't find" while the notes cover it 10 to 0 of 76, better on 12 and worse on 2. Jamal's 14 days: the classmate's wrong Marbury card is now corrected against the
+  opinion ("Trust the opinion"), the outline request is drafted (it was declined), Brown and Marbury sets keep 62 questions and drop none (10 of 62 wrongly dropped before).
+  Jin's 14 days: both planted deck mistakes get a "trust the reading" answer. Amara's worksheet photo: 5 questions in English (Polish before). Tariq's printout: 6 pages
+  flagged and read by Cloud AI (3 before); the derivation photo keeps its subscripts. All seven students' 14 days were rerun on fresh accounts (Jin's and Jamal's twice, the first
+  attempt having hit the cap); Cloud AI answered all but a few of each student's questions (the others were requests Cap declines on the phone, or days with Cloud AI switched off). The rerun spent $8.97 (1,450 calls); the first attempts of the tutor bench and of two 14-day runs hit the relay's 10 cent day cap and were redone.
+  Two differences from round 2 were looked into afterwards. Tariq's Cloud AI gradings fell from 45 to 6: the router and the offline grader's matching are the same (the final router, with every
+  tier open, sends 29 of round 2's 193 answers and 6 of the rerun's 118 to the Cloud first, the counts recorded); round 2's questions had key ideas the rules could not find even in
+  a copy of the model answer (four questions came back 19 times, each an exact copy scored at zero key ideas), and this Mac's model gave no grade 16 times (seven runs shared the Mac; the cause was not checked) and the Cloud took over. Hannah's free-limit
+  day was not reached in the rerun because the harness changes account every few questions to stay under the relay's 10 cent cap; replayed on one account it gives what round 2
+  gave: 10 Cloud AI answers, then 2 from her notes (each now starting with "You've used today's free answers. Here's a hint from your notes instead."). Her ten answers cost 9.05 cents (the 10 cent cap sits just above the free limit).
+  A Release build of the fixed tree for iPhone (`generic/platform=iOS`, no signing, no archive) compiled: BUILD SUCCEEDED.
+
+- **The seven students' 14 days on the final code (2026-11-04, harness `bin/ut_final6`, `runs8/` in `~/Documents/capling-user-test/round2`).** The same persona scripts as round 2 on fresh
+  accounts, after the number check, the 4,000-word tutor request and the even spread: every tutor question Cap does not decline was answered by Cloud AI (none fell back for want of
+  budget) except Hannah's two past her free limit (day 4 on one account: 10 Cloud AI answers, then 2 from her notes, as in round 2; she upgrades on day 6 and gets 13 Cloud AI answers on
+  the cram night of day 12); no "Quick check" closer anywhere (14 in round 2); Jamal's court-opinion sets keep 59 questions and drop none (52 kept and 10 dropped); 12 of 12 right numeric
+  answers graded correct (none of 94 before). The count of Cloud AI gradings depends on the questions each run wrote (Jin 13, 82 and 72; Tariq 4, 6 and 47), not on the router. The
+  experiments and these runs cost $6.91 (1,123 calls) on top of the earlier $17.63; their throwaway users and Sandbox Pro rows are deleted.
+- **Round 3: seven more new students on the final code (2026-11-04, harness `bin/ut_final7`, `runs9/`).** Noor (organic chemistry, a free account's heavy day), Mateo (Spanish macroeconomics, Pro), Priyanka (TCP and DNS,
+  Pro cram night), Oliver (17, *Pride and Prejudice*, no on-device model), Aiko (Japanese and English history), Tobias (hydrology, three missed days), Grace (US founding documents, a lecture and a deck with planted
+  errors, Pro from day 6): people and texts that rounds 1 and 2 never used, a fortnight each, **a fresh account for every active simulated day and none within a day** (the cap and the free limits reset at midnight;
+  90 accounts), no cost-based swaps. Results: 111 questions to Cap, 100 answered by Cloud AI (the 6 others: Noor's 2 past her free limit, Priyanka's 4 at the day cap), 2 "couldn't find", no "Quick check" closer
+  (14 in round 2), 346 questions kept and 3 dropped; the nine gold questions each (62 replies, 56 whose answer is in the notes): all from Cloud AI, 0 refused, the answering line shown in 42 of 56. Seven blind
+  reviewers: 346 questions accurate 1.97, clear 1.82, useful 1.66, well formed 1.69 of 2 (round 2's 398: 1.85, 1.65, 1.56, 1.65), safety failures 0 (4 in round 2); the gold replies accurate 1.87, grounded 1.89,
+  pedagogy 1.81, a covered question answered "I can't find it" in 4 of 56. Found and done: see the report's "What round 3 found". The round, its reviewers' inputs and the checks of the request size cost $3.93 (778 calls); its 115 throwaway users and 32 Sandbox Pro rows are deleted. The follow-ups after it (Aiko's rerun, the production cap check, the tests) cost $0.69 (109 calls) on the relay, and the prompt A/B $0.44 directly on OpenAI through lockbox; their 26 throwaway users and 1 Sandbox Pro row are deleted.
+- **Build 1.0 (3) (2026-11-04).** `CURRENT_PROJECT_VERSION` 3, archived on this Mac from this commit's tree (the notes aside) and exported as an IPA signed
+  `Apple Distribution: Loopware LLC (6XH75DGC66)` with the App Store profiles `Claude App Store com.loopware.Capling` and `... .Widgets` (get-task-allow false, no device
+  list; the widget extension is 1.0 (3) too). The relay host and the public anon key are compiled in from the gitignored `Secrets.xcconfig` (blank again after the archive).
+  The IPA's SHA-256 is 392fea19298cb5eeded078c516c82810e9a8f6db18f969e128de4585faf37b23; files, gitignored: `Cramless/build/archive/Capling-1.0-3/` (`Capling.ipa`, `Capling.xcarchive`).
+  **Uploaded to App Store Connect on 2026-11-04 at 17:57 with the owner's approval** (altool with the Loopware API key, delivery 88a0b0f6-b24d-44a9-9692-b37a45c37121), processed to `VALID` in three minutes and **attached to version 1.0 in place of build 2**
+  (`capling_asc.mjs build 3`); the version is still `PREPARE_FOR_SUBMISSION` and there are no review submissions: nothing is submitted. Not on a phone (an App Store build reaches one through TestFlight). The Mac rebooted twice during the work and cleared
+  `/private/tmp` each time; the archive was made again after the second one from the committed tree.
+- **Build 1.0 (4) (2026-11-04, evening).** `CURRENT_PROJECT_VERSION` 4: build 3 plus the offline tutor and iPhone model changes above, archived from the committed tree (the notes aside, and a doc comment) with the real host (32 characters) and anon key (208 characters)
+  compiled in (the settings file blank again afterwards), exported with the same profiles (version 1.0 (4), widget 4, `Apple Distribution: Loopware LLC`, get-task-allow false, no device list). SHA-256 2b70b68f00301341740ade3d6d57b4f1c711049cf086e2e60a2ecc3aa3ab5407; files, gitignored:
+  `Cramless/build/archive/Capling-1.0-4/`. **Uploaded at 19:50 with the owner's approval** (delivery 6b6f8051-034d-4dc7-9016-14012734af8b), `VALID` at 19:53 and **attached to version 1.0 in place of build 3** (`capling_asc.mjs build 4`); read back: version 1.0 `PREPARE_FOR_SUBMISSION`,
+  build 4 `VALID`, no review submissions. Nothing is submitted; not on a phone.
+
 ### Ask Cap as an assistant (2026-10-27)
 
 The owner asked for Ask Cap to "fully assist the user": create flashcards, quizzes and notes, plan exams, research online, with the
@@ -1123,6 +1392,9 @@ The Capling record on the Loopware team (app 6828649543) is filled in by `script
   and the four `subscriptionStatusUrl*` attributes; a read straight after the PATCH can show null for a few seconds).
 - **Before real users**: the free Supabase plan pauses a project after a week idle, so upgrade it; set a spend limit on the OpenAI
   project; register `capling.app` (Squad invite links point at it); wire the age check.
+- **Build 1.0 (4)** (2026-11-04, evening): build 3 and the offline tutor and iPhone model changes; uploaded with the owner's approval, `VALID`, attached to version 1.0 in place of build 3; nothing submitted for review.
+- **Build 1.0 (3)** (2026-11-04): the fixes after the 14-day tests, with the real host and anon key compiled in (details under "App fixes after the 14-day tests"). Uploaded the same day with the owner's approval, `VALID`, and attached to version 1.0 in place of
+  build 2 (which does not contain the fixes); replaced by build 4 the same evening; nothing submitted for review.
 - **Build 1.0 (2)**: the full suite passed on a blank `Secrets.xcconfig` (1,082 run, 24 skipped, 0 failures), then the Release archive
   was made with the real host and anon key compiled in, uploaded and attached to version 1.0 (`VALID`). Build 1 is superseded.
 - **Build 1.0 (1)**: a Release archive for iPhone only, signed with the Loopware distribution certificate and the two App Store
@@ -1154,6 +1426,13 @@ The Capling record on the Loopware team (app 6828649543) is filled in by `script
   - Live Activities and the Control
   - Declared Age Range
   - haptics
+- The relay's cost caps (`DAILY_COST_CAP_USD` 10 cents for the free plan, `PAID_DAILY_COST_CAP_USD` 40 and `PAID_WEEKLY_COST_CAP_USD` 70 cents for paid plans): **deployed as `ai` version 12 on 2026-11-04, with the owner's approval**
+  (`lockbox run SUPABASE_ACCESS_TOKEN -- supabase functions deploy ai --project-ref xwzhopcsdqjvgqntatel --use-api`; the only relay code that changed since version 11). Why: the third user test's Pro student on a cram night (14 Ask Cap
+  questions) got 10 answers from Cloud AI and then 4 from her notes with "That's all the cloud AI for today", under a Settings header that said "Your AI, unlimited" (the header is now "Your AI" with a footnote). A yearly Pro nets about
+  12 cents a day (`cost.ts`), so the 40 cent day sits inside a 70 cent week (7 x the old 10 cents): the most a paid person can cost in a week is what it was, and a cram night is possible. **Checked in production:** a Pro test
+  account asked 13 tutor turns in a row: 12 answered by Cloud AI (11.61 cents on the relay's log; the 12th began past 10 cents, where version 11 stopped a Pro account) and 1 declined offline as an essay request. Version 13 (2026-11-04, the owner's approval) carries the prompt rules above and below on top of these caps. The defaults are in code;
+  the secrets `PAID_DAILY_COST_CAP_USD` / `PAID_WEEKLY_COST_CAP_USD` (0 turns each off) tune them without a deploy. The wording "unlimited" in the store text, if it is there, is the owner's.
+- Build 1.0 (4) is uploaded and attached to version 1.0 (2026-11-04); it is processed (`VALID`, installable through TestFlight) and nothing is submitted. Submitting for review is yours. The store description still says "unlimited scans, PDFs and lectures": the owner chose to leave it (4 Nov; the counts of scans, PDFs and lectures are unlimited, only the Cloud AI part pauses on a very heavy day, which the paywall's fine print and Settings say).
 - Prompt quality over the real API: the prompts held up on one sample page with the same models answering
   through subagents (above). Once the key is in, run `deno task live`, then tune with more real pages: other
   subjects, handwriting, long PDFs.

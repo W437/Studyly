@@ -42,6 +42,11 @@ enum LibraryFormat {
         }
     }
 
+    /// The source screen's line about its questions: "Questions cover 17% of this reading".
+    static func coverageLine(share: Double, kind: SourceKind) -> String {
+        "Questions cover \(CLFormat.percent(share)) of this \(kind == .lecture ? "lecture" : "reading")"
+    }
+
     /// "Nov 14".
     static func shortDate(_ date: Date, calendar: Calendar = .current) -> String {
         date.formatted(LibraryFormat.dateStyle(calendar).month(.abbreviated).day())

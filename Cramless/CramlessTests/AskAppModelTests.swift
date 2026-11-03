@@ -1,5 +1,6 @@
 import Foundation
 import SwiftData
+import SwiftUI
 import XCTest
 @testable import Cramless
 
@@ -184,7 +185,161 @@ final class AskAppModelTests: AskTestCase {
         XCTAssertEqual(answer.text, TutorPolicy.refusal)
         XCTAssertTrue(ChatEntry(answer).isRefusal)
         XCTAssertTrue(recording.tutorRequests.isEmpty, "a declined request never reaches the relay")
-        XCTAssertEqual(AskPolicy.topic(ofRefused: "Write my essay on mitosis"), "mitosis")
+        XCTAssertEqual(AskPolicy.topic(ofRefused: "Write my essay on mitosis", among: bio.course.liveTopics.map(\.name) + ["Mitosis"]), "Mitosis")
+    }
+
+    func testARequestToDoAnExamIsDeclinedWithAnOfferToQuizAndNoModelIsAsked() async throws {
+        let app = makeApp(mode: .mock, consent: true)
+        let recording = RecordingTransport()
+        app.ai.transportOverride = recording
+        let bio = makeBio(app)
+        let streams = AskStreams()
+        let thread = app.startChat(courseID: bio.course.id)
+        streams.ask("can you just give me the answers to the AP exam", in: thread, app: app)
+        await streams.waitForAnswer(thread.id)
+        let answer = try XCTUnwrap(thread.sortedMessages.last)
+        XCTAssertEqual(answer.text, TutorPolicy.cheatRefusal)
+        let entry = ChatEntry(answer)
+        XCTAssertTrue(entry.isRefusal, "the Quiz me chip is offered")
+        XCTAssertFalse(entry.isNotCovered)
+        XCTAssertTrue(recording.tutorRequests.isEmpty)
+        XCTAssertNil(AskPolicy.topic(ofRefused: "can you just give me the answers to the AP exam", among: ["Mitosis"]))
+        XCTAssertEqual(AskPolicy.topic(ofRefused: "Do my homework on mitosis", among: ["Mitosis"]), "Mitosis")
+    }
+
+    func testTheAskScreenMutesNotCoveredInTheOldAndTheNewWordsOfTheRelay() {
+        func reply(_ text: String) -> ChatEntry {
+            let thread = ChatThread(courseID: nil, title: "t", mode: .explain)
+            return ChatEntry(ChatMessage(thread: thread, role: .assistant, text: text))
+        }
+        XCTAssertTrue(reply("Your material doesn’t cover how that works. Add the pages.").isNotCovered)
+        XCTAssertTrue(reply("I couldn't find that in what you've added.").isNotCovered)
+        XCTAssertTrue(reply(LocalTutor.noMaterial).isNotCovered, "nothing added yet: add notes")
+        XCTAssertFalse(reply("Mitosis splits the nucleus.").isNotCovered)
+        XCTAssertFalse(reply(TutorPolicy.refusal).isNotCovered)
+    }
+
+    func testAnImportedDeckIsMaterialAndItsCardIsCitedAndOpensAsACard() async throws {
+        let app = makeApp(mode: .local)
+        let bio = makeBio(app)
+        app.settings.tutorMode = .explain
+        let preview = ImportPreview(format: .quizlet, title: "Chapter 3 key terms", cards: [
+            ImportedCard(front: "elasticity", back: "how much quantity changes when price changes (percentage change in Q divided by percentage change in P)"),
+            ImportedCard(front: "surplus", back: "quantity supplied is more than quantity demanded"),
+            ImportedCard(kind: .cloze, front: "Fill in the blank.", back: "telophase",
+                         cloze: ClozeSpec(text: "During {{telophase}}, the chromatids reach opposite poles.")),
+        ], summary: "")
+        let imported = app.commitImport(preview, to: bio.course)
+        XCTAssertEqual(imported.added, 3)
+
+        // The deck is material: a passage to each card, a fill-in as its sentence with a blank and the answer on the back.
+        let deck = try XCTUnwrap(app.tutorMaterial(courseID: bio.course.id).first { $0.sourceID == imported.sourceID })
+        XCTAssertEqual(deck.cards.map(\.front), ["During ____, the chromatids reach opposite poles.", "elasticity", "surplus"])
+        XCTAssertEqual(deck.cards[0].back, "telophase")
+        XCTAssertEqual(deck.listing, "Chapter 3 key terms (Quizlet) (3 cards)")
+
+        let streams = AskStreams()
+        let thread = app.startChat(courseID: bio.course.id)
+        streams.ask("How do I calculate elasticity?", in: thread, app: app)
+        await streams.waitForAnswer(thread.id)
+        let answer = try XCTUnwrap(thread.sortedMessages.last)
+        XCTAssertTrue(answer.text.contains("percentage change in Q divided by percentage change in P"), answer.text)
+        let citation = try XCTUnwrap(answer.citations.first)
+        XCTAssertEqual(citation.sourceID, imported.sourceID)
+        XCTAssertNil(citation.pageIndex)
+        XCTAssertEqual(citation.label, "Deck: Chapter 3 key terms · card 2")
+
+        // Opening it shows the card; it never points at a page the deck doesn't have.
+        let group = try XCTUnwrap(CitationGroup.groups(answer.citations).first)
+        XCTAssertFalse(group.isLecture)
+        CitationOpener.open(group, app: app)
+        guard case .deckCard(let sourceID, let quote, let label) = app.router.sheet else { return XCTFail("\(String(describing: app.router.sheet))") }
+        XCTAssertEqual(sourceID, imported.sourceID)
+        XCTAssertEqual(label, "Deck: Chapter 3 key terms · card 2")
+        let found = try XCTUnwrap(app.deckCard(quoting: quote, in: sourceID, label: label))
+        XCTAssertEqual(found.number, 2)
+        XCTAssertEqual(found.card.front, "elasticity")
+        XCTAssertEqual(app.anchorIDs(for: citation), [], "no lines to mark: a deck has none")
+        // A card that has gone says so.
+        app.router.dismissSheet()
+        if let item = bio.course.items.first(where: { $0.prompt == "elasticity" }) { app.deleteItems([item.id]) }
+        XCTAssertNil(app.deckCard(quoting: quote, in: sourceID))
+    }
+
+    func testTheCardScreenDrawsTheCardAndAGoneCardWithoutTrapping() throws {
+        let app = makeApp(mode: .local)
+        let bio = makeBio(app)
+        let imported = app.commitImport(ImportPreview(format: .quizlet, title: "Chapter 3 key terms", cards: [
+            ImportedCard(front: "elasticity", back: "percentage change in Q divided by percentage change in P", explanation: "Use the midpoint formula."),
+        ], summary: ""), to: bio.course)
+        // Drawn without a window: this only shows that the screen's body runs for a card that is there and for one that is not.
+        func draw(_ quote: String) {
+            let host = UIHostingController(rootView: NavigationStack { DeckCardView(sourceID: imported.sourceID, quote: quote) }.environment(app))
+            host.view.frame = CGRect(x: 0, y: 0, width: 390, height: 800)
+            host.loadViewIfNeeded()
+            host.view.layoutIfNeeded()
+            XCTAssertEqual(host.view.frame.width, 390)
+        }
+        draw("percentage change in Q divided by percentage change in P")
+        draw("a quote of a card that was never there")
+        let found = try XCTUnwrap(app.deckCard(quoting: "Use the midpoint formula.", in: imported.sourceID))
+        XCTAssertEqual(found.card.note, "Use the midpoint formula.")
+        XCTAssertEqual(found.card.text, "Front: elasticity Back: percentage change in Q divided by percentage change in P Note: Use the midpoint formula.")
+    }
+
+    func testTwoCardsWithTheSameWordsOpenTheCardTheCitationNames() throws {
+        let app = makeApp(mode: .local)
+        let bio = makeBio(app)
+        // Cards are numbered in the order the Library lists them (cards imported together are listed by their fronts).
+        let preview = ImportPreview(format: .quizlet, title: "Terms", cards: [
+            ImportedCard(front: "Alpha cycle", back: "happens in the mitochondrial matrix"),
+            ImportedCard(front: "Beta cycle", back: "happens in the mitochondrial matrix"),
+        ], summary: "")
+        let imported = app.commitImport(preview, to: bio.course)
+        let quote = "happens in the mitochondrial matrix"
+        XCTAssertEqual(app.deckCard(quoting: quote, in: imported.sourceID)?.number, 1, "by the words alone, the first")
+        let second = try XCTUnwrap(app.deckCard(quoting: quote, in: imported.sourceID, label: "Deck: Terms · card 2"))
+        XCTAssertEqual(second.number, 2, "the card the label numbers")
+        XCTAssertEqual(second.card.front, "Beta cycle")
+        // A label that numbers a card which doesn't hold the quote (the deck changed) falls back to the words.
+        XCTAssertEqual(app.deckCard(quoting: "Alpha cycle", in: imported.sourceID, label: "Deck: Terms · card 2")?.number, 1)
+        XCTAssertNil(app.deckCard(quoting: "a quote of a card that was never there", in: imported.sourceID, label: "Deck: Terms · card 1"))
+    }
+
+    // MARK: A course with only a deck
+
+    func testACourseWithOnlyAnImportedDeckHasNotesCapCanRead() async throws {
+        let app = makeApp(mode: .local)
+        let econ = Course(name: "Econ 101", sortOrder: 0, now: app.now)
+        app.context.insert(econ)
+        let chem = Course(name: "Chem 110", sortOrder: 1, now: app.now)
+        app.context.insert(chem)
+        // Chem's exam is sooner, but it has nothing Cap can read; Econ has a deck.
+        let quiz = Exam(course: chem, title: "Chem quiz", date: app.now.addingTimeInterval(2 * 86_400), now: app.now)
+        app.context.insert(quiz)
+        chem.exams.append(quiz)
+        app.save()
+        XCTAssertTrue(app.readableSources(courseID: econ.id).isEmpty)
+
+        let imported = app.commitImport(ImportPreview(format: .quizlet, title: "Chapter 3 key terms", cards: [
+            ImportedCard(front: "elasticity", back: "how much quantity changes when price changes"),
+            ImportedCard(front: "surplus", back: "quantity supplied is more than quantity demanded"),
+            ImportedCard(front: "law of demand", back: "when price goes up, quantity demanded goes down"),
+        ], summary: ""), to: econ)
+        XCTAssertEqual(app.readableSources(courseID: econ.id).map(\.id), [imported.sourceID], "the deck counts: not 'no notes yet'")
+        XCTAssertEqual(app.readableSources(courseID: nil).map(\.id), [imported.sourceID])
+        XCTAssertEqual(app.defaultChatCourseID, econ.id, "a new chat starts where Cap has something to read")
+
+        // Starters from its cards, each one covered by them.
+        let starters = await app.chatStarters(courseID: econ.id)
+        XCTAssertFalse(starters.isEmpty, "\(starters)")
+        XCTAssertTrue(starters.contains("What is elasticity?"), "\(starters)")
+        let retriever = LocalRetriever(material: app.tutorMaterial(courseID: econ.id))
+        for starter in starters { XCTAssertTrue(AskStarters.isCovered(starter, by: retriever), starter) }
+
+        // With every card deleted the deck has nothing to read again.
+        app.deleteItems(econ.liveItems.map(\.id))
+        XCTAssertTrue(app.readableSources(courseID: econ.id).isEmpty)
     }
 
     func testStoppingKeepsWhatArrived() async throws {

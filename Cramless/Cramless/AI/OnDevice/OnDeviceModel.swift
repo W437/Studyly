@@ -11,7 +11,7 @@ import FoundationModels
 // install `ScriptedOnDeviceBackend` instead and the real calls never run in the simulator.
 
 enum OnDeviceCallKind: String, Sendable {
-    case generate, grade, tutor, lectureSection, cards
+    case generate, grade, tutor, lectureSection, cards, pick
 }
 
 /// One question to the model.

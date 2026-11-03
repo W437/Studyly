@@ -41,7 +41,7 @@ DERIVED=build-x scripts/xc.sh build                   # another derived-data fol
   needs a simulator slot on a shared Mac (a half-hour queue is normal), so it is a gate, not a per-change check.
   - Run classes, not files: `-only-testing:CramlessTests/<Class>`, as many as needed (`xc.sh test` passes them on). A file can hold
     several classes (`TodayHeroTests.swift` has `TodayHeroContentTests` and `TodaySkySnapshotTests`; `SkyCopyTests` is in
-    `SkyViewTests.swift`). `grep -n "class .*TestCase" CramlessTests/<File>.swift` lists a file's classes, and
+    `SkyViewTests.swift`; `TutorTests.swift` has `TutorTests`, `TutorSelectionTests`, `TutorHonestyTests`, `RelayLimitsTests` and `TutorPrivacyCopyTests`). `grep -n "class .*TestCase" CramlessTests/<File>.swift` lists a file's classes, and
     `grep -l -w -E "TypeA|TypeB" CramlessTests/*.swift` finds the files that use the types you changed.
   - No tests: wording, comments, docs, art, `scripts/`. Words a test asserts (`TodayHeroContentTests`, `SkyCopyTests`,
     `PaywallCopyTests`) are updated along with the words. A string-catalog edit has `LocalizationTests` (the catalogs parse, plural

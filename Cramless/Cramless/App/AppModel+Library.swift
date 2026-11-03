@@ -131,7 +131,10 @@ extension AppModel {
         exam.title = draft.resolvedTitle(courseName: exam.course?.name ?? "")
         if exam.date != draft.date {
             exam.date = draft.date
-            if draft.date > now { exam.readinessAtExam = nil }
+            if draft.date > now {
+                exam.readinessAtExam = nil
+                exam.coverageAtExam = nil
+            }
         }
         exam.scope = draft.scopeIDs.filter(liveTopics.contains)
         exam.format = draft.cleanFormat
@@ -158,12 +161,13 @@ extension AppModel {
         save()
     }
 
-    /// The grade Capling projected for an exam, 0…1: from readiness on exam morning once the exam has started,
-    /// else from the plan's projection. Uses only other exams' grades, so logging this one doesn't move it.
+    /// The grade Capling projected for an exam, 0…1: from readiness on exam morning once the exam has started (with the coverage kept
+    /// with it, so it is the grade the exam-morning card showed), else from the plan's projection. Uses only other exams' grades, so
+    /// logging this one doesn't move it.
     func projectedGrade(for exam: Exam) -> ProjectedGrade {
         let snapshot = ExamSnapshot(exam)
-        if let atExam = exam.readinessAtExam {
-            return gradeModel(for: snapshot).grade(atExam)
+        if let atExam = snapshot.readinessAtExam {
+            return gradeModel(for: snapshot).grade(atExam, coverage: snapshot.coverageAtExam)
         }
         return readiness(for: exam).projectedGrade
     }
@@ -325,7 +329,9 @@ extension AppModel {
     /// - `graded`: the same, with a grade logged;
     /// - `missed`: yesterday wasn't studied (a held freeze covers it; the exam plan absorbs its reviews);
     /// - `repair`: yesterday wasn't studied and no freeze was held (a day earlier broke the run), so the streak
-    ///   offers a repair.
+    ///   offers a repair;
+    /// - `thin`: the exam's course has a long reading (about 5,800 words) with 16 well-remembered questions on its first stretch,
+    ///   so its questions cover about a sixth of that reading and the exam says so.
     func applyHarnessScenario(_ scenario: String, examID: UUID?) {
         let exam = exam(examID)
         func clear(daysAgo: Int) {
@@ -345,6 +351,7 @@ extension AppModel {
             guard let exam else { return }
             exam.date = calendar.adding(days: -3, to: calendar.startOfDay(for: now)).addingTimeInterval(9 * 3600)
             exam.readinessAtExam = nil
+            exam.coverageAtExam = nil
             touch(exam)
             save()
             applyDailyRollover()
@@ -358,10 +365,50 @@ extension AppModel {
         case "repair":
             clear(daysAgo: 1)
             clear(daysAgo: 8)
+        case "thin":
+            guard let course = exam?.course else { return }
+            addThinReading(to: course)
         default:
             return
         }
         save()
+    }
+
+    /// A long reading with sixteen well-remembered questions, two to a passage, on its first eight passages (`thin`).
+    private func addThinReading(to course: Course) {
+        let subjects = ["The plaintiff", "The guard", "The railroad", "A passenger", "The court", "The package", "The scales", "The jury"]
+        let verbs = ["carried", "pushed", "considered", "dropped", "observed", "owed", "held", "answered"]
+        let objects = ["a small package wrapped in newspaper", "a duty of reasonable care to everyone nearby",
+                       "the risk that a stranger could be hurt far away", "the explosion on the crowded platform",
+                       "the question of negligence the jury had decided", "a wrong to the person standing at the scales"]
+        var text = ""
+        var n = 0
+        while text.split(whereSeparator: \.isWhitespace).count < 5800 {
+            text += "\(subjects[n % subjects.count]) \(verbs[(n / 3) % verbs.count]) \(objects[(n / 2) % objects.count]) "
+                + "before the train left the station in event \(n)." + (n % 7 == 6 ? "\n\n" : " ")
+            n += 1
+        }
+        let source = Source(course: course, kind: .text, title: "Palsgraf v. Long Island Railroad", status: .ready, now: now)
+        context.insert(source)
+        course.sources.append(source)
+        for page in TextPaginator.pages(from: text) {
+            let model = SourcePage(source: source, pageIndex: page.pageIndex, label: page.label,
+                                   text: page.lines.map(\.text).joined(separator: "\n"), lines: page.lines)
+            context.insert(model)
+            source.pages.append(model)
+        }
+        let studied = MemoryState(state: .review, stability: 60, difficulty: 4, due: calendar.adding(days: 50, to: now),
+                                  lastReview: calendar.adding(days: -1, to: now), reps: 5)
+        for section in Coverage.sections(of: coverageReading(of: source)).prefix(8) {
+            for id in section.anchorIDs.prefix(2) {
+                let ref = SourceRef(sourceID: source.id, pageIndex: 0, anchorIDs: [id], label: "p. 1")
+                let item = StudyItem(course: course, kind: .flashcard, status: .active, origin: .person,
+                                     prompt: "What did the court say? (\(id))", answer: "It weighed the duty of care.", sourceRef: ref, now: now)
+                item.memory = studied
+                context.insert(item)
+                course.items.append(item)
+            }
+        }
     }
 }
 #endif

@@ -38,6 +38,7 @@ extension FeedbackTone {
         case .mint: 6
         case .sun: 4
         case .rose: 3
+        case .neutral: 0
         }
     }
 }

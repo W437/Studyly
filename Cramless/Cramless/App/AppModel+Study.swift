@@ -84,7 +84,7 @@ extension AppModel {
     /// writes the review log with the state before and after, and updates the session and today's record.
     /// `score` is the 0…1 grade for a graded answer (-1 when not graded); `answer` is what the person typed or
     /// the text of the option they picked (it lets swapped answers be spotted); `gradedBy` is "rules",
-    /// "onDevice", "cloud" or "person". Returns nil when the item no longer exists.
+    /// "onDevice", "cloud", "person" or "self" (an answer the person marked themselves). Returns nil when the item no longer exists.
     ///
     /// An answer given elsewhere and applied later (a widget, the Watch) passes when it happened: `at` schedules it
     /// and dates its log, `dayKey` is the day it counts for (the day it was given, wherever the clock is now), and
@@ -236,8 +236,8 @@ extension AppModel {
     // MARK: Rollover
 
     /// Run on launch and whenever the app comes to the foreground (idempotent): freezes yesterday when it is a
-    /// single missed day and a freeze is held, and keeps readiness on the morning of each exam that has started
-    /// (for calibrating projections against logged grades).
+    /// single missed day and a freeze is held, and keeps readiness (and the coverage behind its projection) on the morning of each
+    /// exam that has started (for calibrating projections against logged grades).
     func applyDailyRollover() {
         var changed = false
         let engine = StreakEngine(calendar: calendar, now: now, dailyMinutes: settings.dailyMinutes)
@@ -259,6 +259,9 @@ extension AppModel {
             let logs = ReadinessEngine.byItem(reviewSnapshots(courseID: exam.course?.id))
             exam.readinessAtExam = engineR.value(of: snapshot, items: itemSnapshots(in: exam.course), at: exam.date,
                                                  logsByItem: logs)
+            // With how much of the material the questions reached, as it stands now (the first launch after the exam started): the
+            // projection after the exam, and the line later projections are fitted to, are made from the two together.
+            exam.coverageAtExam = coverage(for: exam)?.share
             touch(exam)
             changed = true
         }

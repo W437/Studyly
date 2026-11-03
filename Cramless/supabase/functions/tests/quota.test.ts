@@ -1,7 +1,13 @@
 // Plans and quotas: the free limits, scans as capture sessions, refunds, fair use, local days and weeks.
 
 import { assert, assertEquals, assertStringIncludes } from "@std/assert";
-import { DEFAULT_DAILY_COST_CAP_NANO, formatUsd, parseUsd } from "../_shared/cost.ts";
+import {
+  DEFAULT_DAILY_COST_CAP_NANO,
+  DEFAULT_PAID_DAILY_COST_CAP_NANO,
+  DEFAULT_PAID_WEEKLY_COST_CAP_NANO,
+  formatUsd,
+  parseUsd,
+} from "../_shared/cost.ts";
 import { localMidnight, METERS, periodEnd, periodStart, quotaStatus } from "../_shared/plans.ts";
 import { ApiError } from "../_shared/errors.ts";
 import type { AiRequestRow } from "../_shared/store.ts";
@@ -231,7 +237,11 @@ function spent(user: string, createdAt: string, costUsd: string): AiRequestRow {
 
 Deno.test("cost cap: once a day's calls have cost the cap, no AI route answers until the person's midnight", async () => {
   const provider = new ScriptedProvider();
-  const r = rig({ provider, env: { DAILY_COST_CAP_USD: "0.007" } }); // two replies' worth
+  // A Pro person's day is the paid day cap (user-1 is Pro here); the free cap is set the same, for user-2.
+  const r = rig({
+    provider,
+    env: { DAILY_COST_CAP_USD: "0.007", PAID_DAILY_COST_CAP_USD: "0.007", PAID_WEEKLY_COST_CAP_USD: "0" },
+  }); // two replies' worth
   r.store.addUser("user-1");
   r.store.addUser("user-2");
   pro(r);
@@ -269,7 +279,9 @@ Deno.test("cost cap: once a day's calls have cost the cap, no AI route answers u
 });
 
 Deno.test("cost cap: the day is the person's own, and the cap is the sum of the day's calls", async () => {
-  const r = rig({ env: { DAILY_COST_CAP_USD: "0.10" } });
+  const r = rig({
+    env: { DAILY_COST_CAP_USD: "0.10", PAID_DAILY_COST_CAP_USD: "0.10", PAID_WEEKLY_COST_CAP_USD: "0" },
+  });
   r.store.addUser("user-1", "", "America/Los_Angeles"); // 09:00 UTC is 02:00 on the 22nd there; its midnight is 07:00 UTC
   pro(r);
   r.store.requests.push(spent("user-1", "2026-10-22T06:59:00Z", "0.500000000")); // yesterday evening there
@@ -308,6 +320,28 @@ Deno.test("cost cap: 0 turns it off, a bad value falls back to 10¢, and MOCK re
     assert(env.faults.includes("daily_cost_cap_invalid"), bad);
   }
   assertEquals(testEnv().faults.includes("daily_cost_cap_invalid"), false);
+  // The paid plans' day and week: 40¢ and 70¢ unless set; 0 turns each off; a bad value falls back and says so.
+  assertEquals(testEnv().paidDailyCostCapNano, DEFAULT_PAID_DAILY_COST_CAP_NANO);
+  assertEquals(testEnv().paidWeeklyCostCapNano, DEFAULT_PAID_WEEKLY_COST_CAP_NANO);
+  assertEquals(
+    [DEFAULT_PAID_DAILY_COST_CAP_NANO, DEFAULT_PAID_WEEKLY_COST_CAP_NANO],
+    [400_000_000n, 700_000_000n],
+    "40¢ and 70¢",
+  );
+  assertEquals(
+    testEnv({ PAID_DAILY_COST_CAP_USD: "0.25", PAID_WEEKLY_COST_CAP_USD: "0" }).paidDailyCostCapNano,
+    250_000_000n,
+  );
+  assertEquals(testEnv({ PAID_DAILY_COST_CAP_USD: "0.25", PAID_WEEKLY_COST_CAP_USD: "0" }).paidWeeklyCostCapNano, 0n);
+  for (const bad of ["lots", "-1", ".5", "$1"]) {
+    const env = testEnv({ PAID_DAILY_COST_CAP_USD: bad, PAID_WEEKLY_COST_CAP_USD: bad });
+    assertEquals(env.paidDailyCostCapNano, DEFAULT_PAID_DAILY_COST_CAP_NANO, bad);
+    assertEquals(env.paidWeeklyCostCapNano, DEFAULT_PAID_WEEKLY_COST_CAP_NANO, bad);
+    assert(
+      env.faults.includes("paid_daily_cost_cap_invalid") && env.faults.includes("paid_weekly_cost_cap_invalid"),
+      bad,
+    );
+  }
 
   const off = rig({ env: { DAILY_COST_CAP_USD: "0" } });
   off.store.addUser("user-1");
@@ -319,6 +353,93 @@ Deno.test("cost cap: 0 turns it off, a bad value falls back to 10¢, and MOCK re
   mock.store.addUser("user-1");
   mock.store.requests.push(spent("user-1", "2026-10-22T08:00:00Z", "99.000000000"));
   assertEquals((await mock.ai("grade", { body: fixtureJson("requests/grade") })).status, 200, "MOCK costs nothing");
+});
+
+Deno.test("cost cap: a paid person's day is 40¢ and their week 70¢; a free person's day stays 10¢", async () => {
+  const r = rig();
+  r.store.addUser("free");
+  r.store.addUser("paid");
+  pro(r, "paid");
+  const provider = r.provider as ScriptedProvider;
+  // 12¢ today: over the free cap, a normal cram night for a paid person.
+  r.store.requests.push(spent("free", "2026-10-22T08:00:00Z", "0.120000000"));
+  r.store.requests.push(spent("paid", "2026-10-22T08:00:00Z", "0.120000000"));
+  assertEquals(
+    (await r.ai("transcribe-image", { user: "free", body: transcribe(0) })).status,
+    429,
+    "free: 12¢ is over 10¢",
+  );
+  provider.replyJson(READ);
+  assertEquals(
+    (await r.ai("transcribe-image", { user: "paid", body: transcribe(1) })).status,
+    200,
+    "paid: 12¢ is under 40¢",
+  );
+  await r.settle();
+  // 40¢ today: the paid day is over.
+  r.store.requests.push(spent("paid", "2026-10-22T08:30:00Z", "0.280000000"));
+  const refused = await r.ai("transcribe-image", { user: "paid", body: transcribe(2) });
+  assertEquals(refused.status, 429, "paid: 40¢ is the day");
+  assertEquals((await errorOf(refused)).message, "That's all the cloud AI for today. It starts again at midnight.");
+});
+
+Deno.test("cost cap: a paid person's week holds the average day to the old 10¢, and says when it starts again", async () => {
+  const r = rig(); // 2026-10-22 is a Thursday; the week began on Monday the 19th
+  r.store.addUser("paid");
+  pro(r, "paid");
+  const provider = r.provider as ScriptedProvider;
+  // 6 x 11¢ on Monday to Wednesday and earlier today: 66¢ in the week, 11¢ today.
+  for (const day of ["19T09:00:00Z", "20T09:00:00Z", "20T15:00:00Z", "21T09:00:00Z", "21T15:00:00Z", "22T07:00:00Z"]) {
+    r.store.requests.push(spent("paid", `2026-10-${day}`, "0.110000000"));
+  }
+  provider.replyJson(READ);
+  assertEquals(
+    (await r.ai("transcribe-image", { user: "paid", body: transcribe(0) })).status,
+    200,
+    "66¢ in the week is under 70¢",
+  );
+  await r.settle();
+  r.store.requests.push(spent("paid", "2026-10-22T08:00:00Z", "0.050000000"));
+  const refused = await r.ai("transcribe-image", { user: "paid", body: transcribe(1) });
+  assertEquals(refused.status, 429, "71¢ is over the week");
+  const error = await errorOf(refused);
+  assertEquals(error.message, "That's all the cloud AI for this week. It starts again on Monday.");
+  assertEquals(error.quota, { plan: "pro", meters: [] });
+  assertEquals(error.retryAfter, 3 * 86400 + 15 * 3600, "until Monday's midnight UTC (it is 09:00 on Thursday)");
+  // The new week is clean, and a free person has no week of their own.
+  r.clock.set("2026-10-26T00:00:01Z");
+  provider.replyJson(READ);
+  assertEquals((await r.ai("transcribe-image", { user: "paid", body: transcribe(2) })).status, 200, "Monday");
+  r.store.addUser("free");
+  for (const day of ["19", "20", "21"]) r.store.requests.push(spent("free", `2026-10-${day}T09:00:00Z`, "0.090000000"));
+  r.clock.set("2026-10-22T09:00:00Z");
+  provider.replyJson(READ);
+  assertEquals(
+    (await r.ai("transcribe-image", { user: "free", body: transcribe(3) })).status,
+    200,
+    "27¢ over three days is fine for a free person: only the day counts",
+  );
+});
+
+Deno.test("cost cap: the paid week and day each turn off with 0", async () => {
+  const off = rig({ env: { PAID_DAILY_COST_CAP_USD: "0", PAID_WEEKLY_COST_CAP_USD: "0" } });
+  off.store.addUser("paid");
+  pro(off, "paid");
+  off.store.requests.push(spent("paid", "2026-10-22T08:00:00Z", "99.000000000"));
+  (off.provider as ScriptedProvider).replyJson(READ);
+  assertEquals((await off.ai("transcribe-image", { user: "paid", body: transcribe(0) })).status, 200, "both off");
+  const dayOnly = rig({ env: { PAID_WEEKLY_COST_CAP_USD: "0" } });
+  dayOnly.store.addUser("paid");
+  pro(dayOnly, "paid");
+  for (const day of ["19", "20", "21"]) {
+    dayOnly.store.requests.push(spent("paid", `2026-10-${day}T09:00:00Z`, "5.000000000"));
+  }
+  (dayOnly.provider as ScriptedProvider).replyJson(READ);
+  assertEquals(
+    (await dayOnly.ai("transcribe-image", { user: "paid", body: transcribe(1) })).status,
+    200,
+    "no week: only today counts",
+  );
 });
 
 Deno.test("cost cap: if the day's sum can't be read the request goes ahead, and the failure is logged", async () => {

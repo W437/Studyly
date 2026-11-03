@@ -23,7 +23,7 @@ struct AIPrivacyPage: View {
                     title: "Use Cloud AI",
                     subtitle: "Better questions from your pages, careful grading of answers in your own words, and Cap explaining in its own words.",
                     isOn: Binding(get: { consent }, set: setCloud),
-                    hintOn: "Asks first. Then the text of your pages, answers you type, your questions to Cap and the names of your courses, topics and exams go to \(AIConsent.processor) through Capling's server.",
+                    hintOn: "Asks first. Then your questions to Cap go to \(AIConsent.processor) through Capling's server, with the notes of the course (the text of your pages and lectures, the cards of decks you imported and the names of what you added), the passages it finds in any of your courses when you ask it to look through your notes, answers you type and the names of your courses, topics and exams.",
                     hintOff: "Stops sending anything to Cloud AI. Capling keeps working on this iPhone.",
                     disabledReason: cloudDisabledReason)
                 SettingsToggleRow(
@@ -52,7 +52,7 @@ struct AIPrivacyPage: View {
                                  text: deviceText)
                 Rectangle().fill(CLColor.hairline).frame(height: 0.5).padding(.leading, 62)
                 SettingsInfoCard(icon: "text.book.closed", tint: .sky, title: "Offline rules, always",
-                                 text: "Questions, grades and Cap's answers from your notes, with no network and no AI. They never count against a limit.")
+                                 text: "Questions, checks of fill-ins and choices, and Cap's answers from your notes, with no network and no AI. They never count against a limit. Answers in your own words you mark yourself, unless an AI is there to check them.")
             }
             .background(CLColor.surface, in: RoundedRectangle(cornerRadius: CLRadius.list, style: .continuous))
             .shadow(color: CLColor.night.opacity(0.05), radius: 1, y: 1)
@@ -63,10 +63,10 @@ struct AIPrivacyPage: View {
             CLSectionHeader(title: "What's sent, and to whom")
             VStack(spacing: 0) {
                 SettingsInfoCard(icon: "doc.text", title: "Only with Cloud AI on",
-                                 text: "The text of your pages and lectures, answers you type when they're graded, and your questions to Cap. For Cap's tools it also sees the names of your courses, topics and exams, your exam dates, how ready you are, which topics are fading and how many cards are due; if you ask it to research online, that topic is searched on trusted study sites. Page photos only with their own switch.")
+                                 text: "Your questions to Cap, and with each one the notes of the course Cap is answering from (every course, if you chose All courses): the text of your pages and lectures, the cards of decks you imported and the names of what you added. All of it when it's short, otherwise the parts that fit your question. When you ask Cap to look through your notes, the passages it finds in any of your courses go too. Also answers you type when they're graded. For Cap's tools it also sees the names of your courses, topics and exams, your exam dates, how ready you are, which topics are fading and how many cards are due; if you ask it to research online, that topic is searched on trusted study sites. Page photos only with their own switch.")
                 divider
                 SettingsInfoCard(icon: "server.rack", title: "\(AIConsent.processor), through Capling's server",
-                                 text: "Requests go to \(AIConsent.processor) through our own server, never straight from your phone to an AI company.")
+                                 text: "Requests go to \(AIConsent.processor) through our own server, never straight from your phone to an AI company. Our server doesn't keep what you send.")
                 divider
                 SettingsInfoCard(icon: "hand.raised.fill", tint: .mint, title: "Never used for training",
                                  text: "Your notes and answers are never used to train AI models.")
@@ -171,7 +171,7 @@ struct QuotaCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            CLSectionHeader(title: status.plan.isPaid ? "Your AI, unlimited" : "Free limits")
+            CLSectionHeader(title: status.plan.isPaid ? "Your AI" : "Free limits")
             VStack(alignment: .leading, spacing: 14) {
                 ForEach(status.meters, id: \.key) { meter in
                     VStack(alignment: .leading, spacing: 6) {
@@ -189,7 +189,13 @@ struct QuotaCard: View {
                     .accessibilityLabel(Text("\(Self.name(meter.key)): \(Self.usage(meter))"))
                 }
                 if !status.plan.isPaid {
-                    Text("Your iPhone's own AI counts too; the offline rules never do. Days reset at midnight, weeks on Monday.")
+                    Text("Only Cloud AI counts. Your iPhone's own AI and the offline rules are free and never do. Days reset at midnight, weeks on Monday.")
+                        .clFont(.footnote)
+                        .foregroundStyle(CLColor.ink2)
+                        .fixedSize(horizontal: false, vertical: true)
+                } else {
+                    // Not "unlimited": a day with a lot of Cloud AI (a cram night) reaches a cost limit that starts again at midnight.
+                    Text("No counted limits. A day with a lot of Cloud AI pauses it until midnight; your iPhone's own AI and the offline rules never pause.")
                         .clFont(.footnote)
                         .foregroundStyle(CLColor.ink2)
                         .fixedSize(horizontal: false, vertical: true)

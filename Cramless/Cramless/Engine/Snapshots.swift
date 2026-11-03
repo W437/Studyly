@@ -46,11 +46,14 @@ struct ExamSnapshot: Sendable, Hashable, Identifiable {
     var target: Double
     var format: ExamFormat
     var readinessAtExam: Double?
+    /// The share of the exam's material its questions reached when the exam started, kept with `readinessAtExam` (nil when it
+    /// couldn't be told, and for an exam that started before it was kept).
+    var coverageAtExam: Double?
     var resultScore: Double?
 
     init(id: UUID = UUID(), courseID: UUID?, title: String = "Exam", date: Date, scope: Set<UUID> = [],
          target: Double = 0.9, format: ExamFormat = ExamFormat(), readinessAtExam: Double? = nil,
-         resultScore: Double? = nil) {
+         resultScore: Double? = nil, coverageAtExam: Double? = nil) {
         self.id = id
         self.courseID = courseID
         self.title = title
@@ -59,10 +62,17 @@ struct ExamSnapshot: Sendable, Hashable, Identifiable {
         self.target = target
         self.format = format
         self.readinessAtExam = readinessAtExam
+        self.coverageAtExam = coverageAtExam
         self.resultScore = resultScore
     }
 
     var wholeCourse: Bool { scope.isEmpty }
+
+    /// The readiness the grade was projected from on exam morning: the ring's value with the coverage taken into account
+    /// (`GradeModel.adjusted`). What a calibrated line is fitted to, and what "Capling projected" reads after the exam.
+    var adjustedReadinessAtExam: Double? {
+        readinessAtExam.map { GradeModel.adjusted(readiness: $0, coverage: coverageAtExam) }
+    }
 
     /// The item is part of what this exam covers.
     func covers(_ item: ItemSnapshot) -> Bool {

@@ -445,7 +445,7 @@ function check(c: Case, r: Result, sent: Map<string, Passage>): void {
     ok(
       "says the notes do not cover it",
       /(doesn['’]?t|does not|don['’]?t|do not|isn['’]?t|aren['’]?t|not)[^.?!]{0,60}(cover|include|mention|have|contain|in your)/i
-        .test(r.text),
+        .test(r.text) || /(couldn['’]?t|could not|can['’]?t|cannot)\s+find/i.test(r.text),
     );
   }
   if (e.clarifyOrValid) {

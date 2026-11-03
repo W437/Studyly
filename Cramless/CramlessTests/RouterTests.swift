@@ -27,8 +27,13 @@ final class RouterTests: XCTestCase {
             ("generate: local build", context(.generate, mode: .local, consent: false, device: off), [], nil, nil),
             ("generate: mock is a relay", context(.generate, mode: .mock), [.cloud, .onDevice], nil, nil),
             ("generate: not English", context(.generate, fits: false), [.cloud], nil, nil),
-            ("generate: free limit reached", context(.generate, quota: .exhausted), [],
-             .upgrade(.scans, message: AIFreeLimits.message(for: .scans)), .scans),
+            // A free limit takes the cloud away and asks for the paywall; this iPhone's own model, which costs nothing, stays.
+            ("generate: free limit reached", context(.generate, quota: .exhausted), [.onDevice],
+             .upgrade(.scans, message: AIFreeLimits.cardLine(for: .scans, deviceKeepsWorking: true)), .scans),
+            ("generate: free limit reached, no device", context(.generate, device: off, quota: .exhausted), [],
+             .upgrade(.scans, message: AIFreeLimits.cardLine(for: .scans, deviceKeepsWorking: false)), .scans),
+            ("generate: free limit reached, not English", context(.generate, fits: false, quota: .exhausted), [],
+             .upgrade(.scans, message: AIFreeLimits.cardLine(for: .scans, deviceKeepsWorking: false)), .scans),
             ("generate: paid plan ignores the count", context(.generate, quota: .exhausted, plan: .pro), [.cloud, .onDevice], nil, nil),
             ("generate: under 13", context(.generate, age: .child), [.onDevice], nil, nil),
             ("grade: short answer, device first", context(.grade), [.onDevice, .cloud], nil, nil),
@@ -37,7 +42,18 @@ final class RouterTests: XCTestCase {
             ("grade: no consent, device can grade", context(.grade, consent: false), [.onDevice], nil, nil),
             ("grade: no consent, no device", context(.grade, consent: false, device: off), [],
              .allowCloud(feature: AIJob.grade.feature), nil),
-            ("grade: limit", context(.grade, quota: .exhausted), [], .upgrade(.grades, message: AIFreeLimits.message(for: .grades)), .grades),
+            ("grade: limit", context(.grade, quota: .exhausted), [.onDevice],
+             .upgrade(.grades, message: AIFreeLimits.cardLine(for: .grades, deviceKeepsWorking: true)), .grades),
+            ("grade: limit, a long answer still isn't sent to the cloud", context(.grade, quota: .exhausted, preferCloud: true),
+             [.onDevice], .upgrade(.grades, message: AIFreeLimits.cardLine(for: .grades, deviceKeepsWorking: true)), .grades),
+            ("grade: limit, no device", context(.grade, device: off, quota: .exhausted), [],
+             .upgrade(.grades, message: AIFreeLimits.cardLine(for: .grades, deviceKeepsWorking: false)), .grades),
+            ("grade: limit, no consent", context(.grade, consent: false, device: off, quota: .exhausted), [],
+             .upgrade(.grades, message: AIFreeLimits.cardLine(for: .grades, deviceKeepsWorking: false)), .grades),
+            ("tutor: limit keeps this iPhone's answer", context(.tutor, quota: .exhausted), [.onDevice],
+             .upgrade(.tutor, message: AIFreeLimits.cardLine(for: .tutor, deviceKeepsWorking: true)), .tutor),
+            ("lecture: limit, no device", context(.lecture, device: off, quota: .exhausted), [],
+             .upgrade(.lectures, message: AIFreeLimits.cardLine(for: .lectures, deviceKeepsWorking: false)), .lectures),
             ("tutor: minor", context(.tutor, age: .minor), [.cloud, .onDevice], nil, nil),
             ("confusions: cloud only", context(.confusions), [.cloud], nil, nil),
             ("confusions: no consent", context(.confusions, consent: false), [], .allowCloud(feature: AIJob.confusions.feature), nil),
@@ -58,6 +74,23 @@ final class RouterTests: XCTestCase {
         XCTAssertEqual(AIRouting.route(context(.tutor, age: .minor)).forcedTutorMode, .hints)
         XCTAssertEqual(AIRouting.route(context(.tutor, age: .child)).forcedTutorMode, .hints)
         XCTAssertNil(AIRouting.route(context(.tutor)).forcedTutorMode)
+    }
+
+    func testWhyNoModelNamesTheReason() {
+        let off = OnDeviceAvailability.unavailable(.deviceNotEligible)
+        func why(_ c: AIRouteContext) -> SelfCheckReason? { AIRouting.route(c).whyNoModel }
+        XCTAssertNil(why(context(.grade)), "a model is on the route")
+        XCTAssertNil(why(context(.grade, device: off)), "the cloud is")
+        XCTAssertEqual(why(context(.grade, consent: false, device: off)), .cloudOff)
+        XCTAssertEqual(why(context(.grade, mode: .mock, consent: false, device: off)), .cloudOff)
+        XCTAssertEqual(why(context(.grade, device: off, quota: .exhausted)), .freeLimit)
+        XCTAssertEqual(why(context(.grade, consent: false, device: off, quota: .exhausted)), .cloudOff,
+                       "Cloud AI being off comes first: it is theirs to turn on")
+        XCTAssertEqual(why(context(.grade, mode: .local, consent: false, device: off)), .deviceUnavailable,
+                       "a build with no relay never had a cloud to turn on")
+        XCTAssertEqual(why(context(.grade, device: off, age: .child)), .deviceUnavailable)
+        XCTAssertEqual(why(context(.grade, consent: false, fits: false)), .cloudOff, "this iPhone can't read the answer")
+        XCTAssertEqual(why(context(.grade, mode: .local, fits: false)), .deviceUnavailable)
     }
 
     func testInvariantsOverTheWholeMatrix() {
@@ -87,11 +120,22 @@ final class RouterTests: XCTestCase {
             }
             XCTAssertFalse(r.tiers.contains(.privateCloud), "dormant: \(label)")
             if job.meter != nil, plan == .free, quota == .exhausted {
-                XCTAssertTrue(r.tiers.isEmpty, label)
+                // A free limit pays for Cloud AI: it takes the cloud away, and this iPhone's own model is left alone.
+                XCTAssertFalse(r.tiers.contains(.cloud), label)
+                XCTAssertFalse(r.tiers.contains(.privateCloud), label)
+                XCTAssertEqual(r.tiers.contains(.onDevice), job.runsOnDevice && device == .available && fits, label)
                 XCTAssertEqual(r.limitReached, job.meter, label)
+                if case .upgrade(let key, let message) = r.suggestion {
+                    XCTAssertEqual(key, job.meter, label)
+                    XCTAssertEqual(message, AIFreeLimits.cardLine(for: key, deviceKeepsWorking: r.tiers.contains(.onDevice)), label)
+                } else {
+                    XCTFail("the paywall is offered: \(label)")
+                }
             } else {
                 XCTAssertNil(r.limitReached, label)
             }
+            // With no model on the route there is a reason to tell a person who has to do the job themselves, and only then.
+            XCTAssertEqual(r.whyNoModel != nil, r.tiers.isEmpty, label)
             if case .allowCloud = r.suggestion {
                 XCTAssertFalse(consent, label)
                 XCTAssertNotEqual(mode, .local, label)
@@ -240,6 +284,8 @@ final class RouterTests: XCTestCase {
         let outcome = await app.ai.gradeNow(GradeSubject(item: AITestSupport.fixtureItem("i1")), answer: .text("They grow."))
         XCTAssertTrue(transport.calls.isEmpty, "\(transport.calls)")
         XCTAssertEqual(outcome.gradedBy, .rules)
+        XCTAssertEqual(outcome.mode, .selfCheck)
+        XCTAssertEqual(outcome.selfCheckReason, .cloudOff)
     }
 
     func testUnderThirteenNeverAsksTheServerForQuota() async {
@@ -302,7 +348,9 @@ final class RouterTests: XCTestCase {
         XCTAssertEqual(outcomes.count, 2)
         XCTAssertEqual(outcomes[0].gradedBy, .rules)
         XCTAssertFalse(outcomes[0].isRefined)
+        XCTAssertEqual(outcomes[0].mode, .provisional, "the rules' grade shows while the model works")
         let refined = outcomes[1]
+        XCTAssertEqual(refined.mode, .verdict)
         XCTAssertEqual(refined.gradedBy, .cloud)
         XCTAssertEqual(refined.verdict, .partial)
         XCTAssertEqual(refined.missing.map(\.label), ["Same number of chromosomes"])
@@ -361,11 +409,37 @@ final class RouterTests: XCTestCase {
         let subject = GradeSubject(item: AITestSupport.fixtureItem("i1"))
         let instant = app.ai.instantGrade(subject, answer: .text("grow"))
         XCTAssertEqual(instant.limitReached, .grades)
-        XCTAssertEqual(instant.suggestion?.sheet, .paywall(.feature(AIFreeLimits.message(for: .grades))))
+        // Nothing else is there to grade it (this iPhone has no model here), so the card says the person marks it.
+        XCTAssertEqual(instant.suggestion?.sheet, .paywall(.feature(AIFreeLimits.cardLine(for: .grades, deviceKeepsWorking: false))))
+        XCTAssertEqual(instant.mode, .selfCheck)
+        XCTAssertEqual(instant.selfCheckReason, .freeLimit)
         var count = 0
         for await _ in app.ai.grade(subject, answer: .text("grow")) { count += 1 }
-        XCTAssertEqual(count, 1, "no refinement once the limit is reached")
+        XCTAssertEqual(count, 1, "no refinement once the limit is reached and nothing else can grade it")
         XCTAssertTrue(transport.calls.isEmpty)
+    }
+
+    func testTheFreeLimitTakesCloudAIAwayButNotThisIPhonesModel() async {
+        let app = AITestSupport.makeApp(mode: .relay, consent: true)
+        let transport = RecordingTransport()
+        app.ai.transportOverride = transport
+        app.ai.probe = FixedOnDeviceProbe(.ready)
+        let grade = #"{"ideas":[{"id":"K1","present":true,"quote":"grow"},{"id":"K2","present":false,"quote":""},{"id":"K3","present":false,"quote":""}],"feedback":"Good start.","fix":"Add more."}"#
+        let backend = ScriptedOnDeviceBackend(Array(repeating: .json(grade), count: 3))
+        app.ai.onDevice = backend
+        app.ai.setServerQuota(QuotaStatus(plan: .free, meters: [QuotaMeter(key: .grades, used: 20, limit: 20, period: .day)]))
+        let subject = GradeSubject(item: AITestSupport.fixtureItem("i1"))
+
+        let instant = app.ai.instantGrade(subject, answer: .text("They grow."))
+        XCTAssertEqual(instant.mode, .provisional, "this iPhone's model will look at it")
+        XCTAssertEqual(instant.limitReached, .grades)
+        let outcome = await app.ai.gradeNow(subject, answer: .text("They grow."))
+        XCTAssertEqual(outcome.gradedBy, .onDevice, "the iPhone's model keeps grading after the day's free Cloud AI checks")
+        XCTAssertEqual(outcome.mode, .verdict)
+        XCTAssertEqual(outcome.limitReached, .grades, "the paywall card still shows")
+        XCTAssertEqual(outcome.suggestion, .upgrade(.grades, message: AIFreeLimits.cardLine(for: .grades, deviceKeepsWorking: true)))
+        XCTAssertTrue(transport.calls.isEmpty, "nothing goes to the cloud: \(transport.calls)")
+        XCTAssertEqual(backend.callCount, 1)
     }
 
     func testQuotaErrorFromTheRelayIsAbsorbed() async {
@@ -428,13 +502,15 @@ final class RouterTests: XCTestCase {
         let outcome = await app.ai.gradeNow(GradeSubject(item: AITestSupport.fixtureItem("i1")), answer: .text("They grow."))
         XCTAssertEqual(outcome.limitReached, .grades)
         XCTAssertEqual(outcome.suggestion, .upgrade(.grades, message: "The relay's words."))
+        XCTAssertEqual(outcome.mode, .selfCheck, "no model graded it, and the rules' guess isn't shown")
+        XCTAssertEqual(outcome.selfCheckReason, .freeLimit)
         // The next answer is stopped on this iPhone, with the same words.
         let next = app.ai.instantGrade(GradeSubject(item: AITestSupport.fixtureItem("i1")), answer: .text("They grow."))
         XCTAssertEqual(next.limitReached, .grades)
         XCTAssertEqual(app.ai.lastSuggestion, .upgrade(.grades, message: "The relay's words."))
     }
 
-    func testOnDeviceUseCountsAgainstTheFreeLimitAndTheRulesNever() async {
+    func testOnDeviceUseNeverCountsAgainstTheFreeLimit() async {
         let app = AITestSupport.makeApp(mode: .local)
         app.ai.resetUsage()
         app.ai.probe = FixedOnDeviceProbe(.ready)
@@ -448,15 +524,65 @@ final class RouterTests: XCTestCase {
         XCTAssertEqual(app.ai.usage.used(.grades), 0)
 
         app.ai.setServerQuota(QuotaStatus(plan: .free, meters: [QuotaMeter(key: .grades, used: 18, limit: 20, period: .day)]))
-        let first = await app.ai.gradeNow(subject, answer: .text("They grow."))
-        XCTAssertEqual(first.gradedBy, .onDevice)
-        let second = await app.ai.gradeNow(subject, answer: .text("They grow."))
-        XCTAssertEqual(second.gradedBy, .onDevice)
-        XCTAssertEqual(app.ai.usage.used(.grades), 2)
-        let third = await app.ai.gradeNow(subject, answer: .text("They grow."))
-        XCTAssertEqual(third.gradedBy, .rules)
-        XCTAssertEqual(third.limitReached, .grades)
+        for _ in 0..<3 {
+            let outcome = await app.ai.gradeNow(subject, answer: .text("They grow."))
+            XCTAssertEqual(outcome.gradedBy, .onDevice)
+            XCTAssertNil(outcome.limitReached, "this iPhone's model doesn't use up the free Cloud AI checks")
+        }
+        // It is kept on the side, and the limit is the cloud's alone.
+        XCTAssertEqual(app.ai.usage.used(.grades), 3)
+        XCTAssertEqual(app.ai.quotaStatus.meter(.grades)?.used, 18)
+        XCTAssertEqual(app.ai.quotaState(for: .grade), .available(remaining: 2))
+    }
+
+    func testOnlyCloudRequestsCountAgainstTheLimitWhenTheServerHasntBeenAsked() async {
+        let app = AITestSupport.makeApp(mode: .relay, consent: true)
+        app.ai.transportOverride = RecordingTransport()
+        app.ai.resetUsage()
+        app.ai.recordOnDeviceUse(.grades)
+        app.ai.recordOnDeviceUse(.grades)
+        XCTAssertEqual(app.ai.quotaState(for: .grade), .available(remaining: 20))
+        XCTAssertEqual(app.ai.quotaStatus.meter(.grades)?.used, 0)
+        for _ in 0..<20 { app.ai.recordCloudUse(.grades) }
+        XCTAssertEqual(app.ai.quotaState(for: .grade), .exhausted)
         XCTAssertEqual(app.ai.quotaStatus.meter(.grades)?.used, 20)
+    }
+
+    func testTheFreeCloudUsesLeftAreCountedForTheQuietLines() {
+        let app = AITestSupport.makeApp(mode: .relay, consent: true)
+        app.ai.resetUsage()
+        XCTAssertEqual(app.ai.freeCloudUsesLeft(for: .grade), 20)
+        XCTAssertEqual(app.ai.freeCloudUsesLeft(for: .tutor), 10)
+        XCTAssertNil(app.ai.freeCloudUsesLeft(for: .confusions), "a job with no meter")
+        app.ai.setServerQuota(QuotaStatus(plan: .free, meters: [QuotaMeter(key: .grades, used: 15, limit: 20, period: .day),
+                                                               QuotaMeter(key: .tutor, used: 7, limit: 10, period: .day)]))
+        XCTAssertEqual(app.ai.freeCloudUsesLeft(for: .grade), 5)
+        XCTAssertEqual(app.ai.freeCloudUsesLeft(for: .tutor), 3)
+        app.ai.setServerQuota(QuotaStatus(plan: .free, meters: [QuotaMeter(key: .grades, used: 20, limit: 20, period: .day)]))
+        XCTAssertEqual(app.ai.freeCloudUsesLeft(for: .grade), 0)
+        // This iPhone's own model is not part of it.
+        app.ai.recordOnDeviceUse(.tutor)
+        XCTAssertEqual(app.ai.freeCloudUsesLeft(for: .tutor), 10)
+
+        // Nothing to tell where Cloud AI isn't in play.
+        XCTAssertNil(AITestSupport.makeApp(mode: .relay, consent: false).ai.freeCloudUsesLeft(for: .grade), "Cloud AI is off")
+        XCTAssertNil(AITestSupport.makeApp(mode: .local, consent: true).ai.freeCloudUsesLeft(for: .grade), "no relay in this build")
+        XCTAssertNil(AITestSupport.makeApp(mode: .relay, consent: true, age: .under13).ai.freeCloudUsesLeft(for: .grade))
+        let paid = AITestSupport.makeApp(mode: .relay, consent: true)
+        paid.ai.setServerQuota(QuotaStatus(plan: .pro, meters: []))
+        XCTAssertNil(paid.ai.freeCloudUsesLeft(for: .grade), "unlimited")
+    }
+
+    func testTheQuietCountersAppearOnlyNearTheEnd() {
+        XCTAssertNil(SessionCopy.freeChecksLeft(nil))
+        XCTAssertNil(SessionCopy.freeChecksLeft(6))
+        XCTAssertEqual(SessionCopy.freeChecksLeft(5), "5 free Cloud AI checks left today")
+        XCTAssertEqual(SessionCopy.freeChecksLeft(1), "1 free Cloud AI check left today")
+        XCTAssertNil(SessionCopy.freeChecksLeft(0), "at none, the paywall card says so")
+        XCTAssertNil(SessionCopy.freeAnswersLeft(4))
+        XCTAssertEqual(SessionCopy.freeAnswersLeft(3), "3 free answers left today")
+        XCTAssertEqual(SessionCopy.freeAnswersLeft(1), "1 free answer left today")
+        XCTAssertNil(SessionCopy.freeAnswersLeft(0))
     }
 
     func testLedgerRollsOverAtTheEndOfItsPeriod() {

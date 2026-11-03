@@ -19,6 +19,25 @@ final class AskTextTests: XCTestCase {
         XCTAssertEqual(Set(starters).count, starters.count, "no repeats")
     }
 
+    func testStartersFromTheCardsOfAnImportedDeck() {
+        let deck = TutorMaterial.deck(sourceID: UUID(), title: "Chapter 3 key terms (Quizlet)", kind: .quizlet, cards: [
+            TutorCard(id: "a", front: "elasticity", back: "how much quantity changes when price changes"),
+            TutorCard(id: "b", front: "During ____, the chromatids reach opposite poles.", back: "telophase"),
+            TutorCard(id: "c", front: "Why does a price ceiling cause a shortage?", back: "because the price is held below where the market clears"),
+            TutorCard(id: "d", front: "law of demand", back: "when price goes up, quantity demanded goes down"),
+            TutorCard(id: "e", front: "Total ATP per glucose", back: "about 30-32"),
+        ])
+        let starters = AskStarters.make(material: [deck], confusions: [], limit: 3)
+        XCTAssertEqual(starters.count, 3, "\(starters)")
+        XCTAssertEqual(starters.first, "What is elasticity?")
+        XCTAssertFalse(starters.contains { $0.contains("____") }, "a fill-in is not a term to ask about: \(starters)")
+        let retriever = LocalRetriever(material: [deck])
+        for starter in starters { XCTAssertTrue(AskStarters.isCovered(starter, by: retriever), starter) }
+        XCTAssertEqual(AskStarters.cardQuestion(deck.cards[2]), "Why does a price ceiling cause a shortage?")
+        XCTAssertNil(AskStarters.cardQuestion(deck.cards[1]))
+        XCTAssertNil(AskStarters.cardQuestion(TutorCard(id: "z", front: "$$ \\frac{a}{b} $$.", back: "x")))
+    }
+
     func testNoMaterialNoStarters() {
         XCTAssertTrue(AskStarters.make(material: [], confusions: ["Anaphase vs telophase"]).isEmpty,
                       "a starter the notes don't cover is never offered")
@@ -123,9 +142,23 @@ final class AskTextTests: XCTestCase {
         XCTAssertTrue(groups[1].isLecture)
     }
 
-    func testTheTopicOfADeclinedRequest() {
-        XCTAssertEqual(AskPolicy.topic(ofRefused: "Can you write my whole essay about the cell cycle?"), "cell cycle")
-        XCTAssertEqual(AskPolicy.topic(ofRefused: "humanize this paragraph so it sounds like I wrote it"), nil)
+    func testTheTopicOfADeclinedRequestIsOneTheStudentsOwnMaterialHas() {
+        let names = ["Cell cycle", "Mitosis", "Cytokinesis", "Chapter 3 key terms"]
+        XCTAssertEqual(AskPolicy.topic(ofRefused: "Can you write my whole essay about the cell cycle?", among: names), "Cell cycle")
+        XCTAssertEqual(AskPolicy.topic(ofRefused: "Write my essay on mitosis", among: names), "Mitosis")
+        XCTAssertEqual(AskPolicy.topic(ofRefused: "Do my homework on mitosis", among: names), "Mitosis")
+        // A request that names none of them gets no topic, never words picked out of the sentence ("Quiz me on take online").
+        XCTAssertNil(AskPolicy.topic(ofRefused: "take my online quiz for me", among: names))
+        XCTAssertNil(AskPolicy.topic(ofRefused: "can you just give me the answers to the AP exam", among: names))
+        XCTAssertNil(AskPolicy.topic(ofRefused: "humanize this paragraph so it sounds like I wrote it", among: names))
+        XCTAssertNil(AskPolicy.topic(ofRefused: "How do I ace the midterm?", among: names))
+        XCTAssertNil(AskPolicy.topic(ofRefused: "write my essay", among: []))
+        // Words that are the request are not a match, even in a source's name.
+        XCTAssertNil(AskPolicy.topic(ofRefused: "do my homework", among: ["Homework 3", "Exam review"]))
+        XCTAssertEqual(AskPolicy.names(inTitle: "Lecture 6: Cell division"), ["Cell division", "Lecture 6"])
+        XCTAssertEqual(AskPolicy.names(inTitle: "Chapter 3 key terms (Quizlet)"), ["Chapter 3 key terms"])
+        XCTAssertEqual(AskPolicy.names(inTitle: "Federalist No. 10 (Madison, 1787)"), ["Federalist No. 10 (Madison, 1787)"])
+        XCTAssertEqual(AskPolicy.names(inTitle: "  "), [])
         XCTAssertEqual(OriginNote.line(origin: .onDevice, note: nil, quotesNotes: true)?.text, "Answered on this iPhone")
         XCTAssertEqual(OriginNote.line(origin: .rules, note: nil, quotesNotes: true)?.text, "From your notes, no AI")
         XCTAssertNil(OriginNote.line(origin: .rules, note: nil, quotesNotes: false), "a refusal isn't labelled as from your notes")

@@ -1,7 +1,14 @@
 // Function secrets and switches (supabase/functions/.env.example lists them). Never logged or echoed.
 
 import { RESEARCH_DOMAINS } from "./assistant.ts";
-import { DEFAULT_DAILY_COST_CAP_NANO, parseUsd, TERRA } from "./cost.ts";
+import {
+  DEFAULT_DAILY_COST_CAP_NANO,
+  DEFAULT_PAID_DAILY_COST_CAP_NANO,
+  DEFAULT_PAID_WEEKLY_COST_CAP_NANO,
+  parseUsd,
+  TERRA,
+} from "./cost.ts";
+import { withoutDenied } from "./research_sources.ts";
 
 export const DEFAULT_BUNDLE_ID = "com.loopware.Capling";
 export const DEFAULT_INVITE_BASE_URL = "https://capling.app/squad/";
@@ -16,10 +23,15 @@ export interface Env {
   /** The OpenAI model that answers the tutor, and how much it thinks first. */
   tutorModel: string;
   tutorEffort: "low" | "medium" | "high";
-  /** The sites web research may read (RESEARCH_DOMAINS replaces the built-in list). */
+  /** The sites web research may read (RESEARCH_DOMAINS replaces the built-in list). Never an entry that opens a site whose
+   * terms forbid AI use. */
   researchDomains: string[];
   /** The most one person's model calls may cost in a day, in nano-dollars (DAILY_COST_CAP_USD, default 10¢); 0 turns it off. */
   dailyCostCapNano: bigint;
+  /** The same for a paid plan (PAID_DAILY_COST_CAP_USD, default 40¢; 0 turns it off). */
+  paidDailyCostCapNano: bigint;
+  /** What a paid person's calls may cost in a week, Monday to Sunday (PAID_WEEKLY_COST_CAP_USD, default 70¢; 0 turns it off). */
+  paidWeeklyCostCapNano: bigint;
   /** CRAMLESS_MOCK=1: the AI routes serve the fixtures. */
   mock: boolean;
   bundleId: string;
@@ -77,9 +89,21 @@ export function envFrom(get: (name: string) => string): Env {
     /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/.test(d)
   );
   if (get("RESEARCH_DOMAINS").trim() && listed.length === 0) faults.push("research_domains_invalid");
+  // An entry that opens a site research must never use (research_sources.ts: the site, a host under it or a parent of it) is
+  // taken out of the list, whoever put it there. A list that was only such entries would leave nothing to search, so the
+  // built-in list stands in.
+  const wanted = listed.length > 0 ? [...new Set(listed)].slice(0, 100) : [...RESEARCH_DOMAINS];
+  const allowed = withoutDenied(wanted);
+  if (allowed.length < wanted.length) faults.push("research_domains_denied");
   const capAsked = get("DAILY_COST_CAP_USD").trim();
   const cap = capAsked ? parseUsd(capAsked) : null;
   if (capAsked && cap === null) faults.push("daily_cost_cap_invalid");
+  const paidDayAsked = get("PAID_DAILY_COST_CAP_USD").trim();
+  const paidDay = paidDayAsked ? parseUsd(paidDayAsked) : null;
+  if (paidDayAsked && paidDay === null) faults.push("paid_daily_cost_cap_invalid");
+  const paidWeekAsked = get("PAID_WEEKLY_COST_CAP_USD").trim();
+  const paidWeek = paidWeekAsked ? parseUsd(paidWeekAsked) : null;
+  if (paidWeekAsked && paidWeek === null) faults.push("paid_weekly_cost_cap_invalid");
   if (mock && !localProject) faults.push("mock_mode_on_hosted_project");
   const xcodeAsked = get("CRAMLESS_ALLOW_XCODE_JWS") === "1";
   if (xcodeAsked && !localProject) faults.push("xcode_jws_ignored");
@@ -93,8 +117,10 @@ export function envFrom(get: (name: string) => string): Env {
     openaiBaseUrl: get("OPENAI_BASE_URL").replace(/\/+$/, ""),
     tutorModel: get("OPENAI_TUTOR_MODEL") || TERRA,
     tutorEffort,
-    researchDomains: listed.length > 0 ? [...new Set(listed)].slice(0, 100) : [...RESEARCH_DOMAINS],
+    researchDomains: allowed.length > 0 ? allowed : [...RESEARCH_DOMAINS],
     dailyCostCapNano: cap ?? DEFAULT_DAILY_COST_CAP_NANO,
+    paidDailyCostCapNano: paidDay ?? DEFAULT_PAID_DAILY_COST_CAP_NANO,
+    paidWeeklyCostCapNano: paidWeek ?? DEFAULT_PAID_WEEKLY_COST_CAP_NANO,
     mock,
     bundleId: get("APPLE_BUNDLE_ID") || DEFAULT_BUNDLE_ID,
     appAppleId,

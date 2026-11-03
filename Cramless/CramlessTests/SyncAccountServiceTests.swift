@@ -389,6 +389,217 @@ final class SyncAccountServiceTests: XCTestCase {
         XCTAssertTrue(server.requests.isEmpty)
         XCTAssertTrue(app.fetch(FetchDescriptor<Course>()).isEmpty)
     }
+
+    // MARK: The first account is made in the background
+
+    /// Records the pauses the background try asks for, and takes no time.
+    private final class PauseLog: @unchecked Sendable {
+        private let lock = NSLock()
+        private var _values: [Double] = []
+        var values: [Double] { lock.withLock { _values } }
+        func add(_ duration: Duration) { lock.withLock { _values.append(Double(duration.components.seconds) + Double(duration.components.attoseconds) / 1e18) } }
+    }
+
+    /// GoTrue's answer when one address signs up too often.
+    private let rateLimited = Data(#"{"code": 429, "error_code": "over_request_rate_limit", "msg": "Request rate limit reached"}"#.utf8)
+
+    private func waitUntil(_ seconds: TimeInterval = 5, _ condition: @MainActor () -> Bool) async throws {
+        let deadline = Date().addingTimeInterval(seconds)
+        while !condition(), Date() < deadline { try await Task.sleep(for: .milliseconds(5)) }
+        XCTAssertTrue(condition(), "timed out waiting")
+    }
+
+    func testARateLimitedSignUpIsRetriedInTheBackgroundUntilItWorks() async throws {
+        let server = StubServer()
+        let counter = StubCounter()
+        let refusal = rateLimited
+        server.on("POST", "/auth/v1/signup") { _ in
+            counter.next() <= 2 ? .json(refusal, status: 429) : .json(BackendTest.sessionJSON())
+        }
+        let app = BackendTest.app(server: server)
+        let log = PauseLog()
+        app.account.sleep = { log.add($0) }
+        app.account.jitter = { 0.5 }
+
+        app.account.prepare()
+        XCTAssertEqual(app.account.readiness, .gettingReady, "it returns at once and works in the background")
+        try await waitUntil { app.account.readiness == .ready }
+
+        XCTAssertEqual(server.requests("POST", "/auth/v1/signup").count, 3, "429, 429, then 200")
+        XCTAssertEqual(log.values, [2, 4], "exponential: 2 s, then 4 s")
+        XCTAssertTrue(app.account.isAnonymous)
+        let token = try await app.account.accessToken()
+        XCTAssertEqual(token, "access-1")
+        XCTAssertEqual(server.requests.count, 3, "the account is cached: no more traffic")
+    }
+
+    func testAFailedSignUpOffTheNetworkIsRetriedToo() async throws {
+        let server = StubServer()
+        let counter = StubCounter()
+        server.on("POST", "/auth/v1/signup") { _ in
+            counter.next() == 1 ? .failure(.notConnectedToInternet) : .json(BackendTest.sessionJSON())
+        }
+        let app = BackendTest.app(server: server)
+        app.account.sleep = { _ in }
+        app.account.prepare()
+        try await waitUntil { app.account.readiness == .ready }
+        XCTAssertEqual(server.requests("POST", "/auth/v1/signup").count, 2)
+    }
+
+    func testTheFirstCloudCallWaitsForTheAccountInsteadOfFailing() async throws {
+        let server = StubServer()
+        let counter = StubCounter()
+        let refusal = rateLimited
+        server.on("POST", "/auth/v1/signup") { _ in
+            counter.next() <= 2 ? .json(refusal, status: 429) : .json(BackendTest.sessionJSON())
+        }
+        let app = BackendTest.app(server: server)
+        app.account.sleep = { _ in }
+
+        let token = try await app.account.accessToken()
+
+        XCTAssertEqual(token, "access-1")
+        XCTAssertEqual(server.requests("POST", "/auth/v1/signup").count, 3)
+    }
+
+    func testACloudCallThatFindsNoAccountInTimeSaysCloudAIIsGettingReady() async throws {
+        let server = StubServer()
+        let refusal = rateLimited
+        server.on("POST", "/auth/v1/signup") { _ in .json(refusal, status: 429) }
+        let app = BackendTest.app(server: server)
+        app.account.sleep = { _ in try await Task.sleep(for: .seconds(30)) }
+        app.account.firstCallWait = .milliseconds(80)
+
+        await XCTAssertThrowsRelayError(try await app.account.accessToken()) { $0 == .accountPending }
+        XCTAssertEqual(app.account.readiness, .gettingReady, "it keeps trying in the background")
+        XCTAssertFalse(app.account.isAnonymous)
+
+        // Signing out (or deleting the account) stops the try.
+        app.account.clearLocalSession()
+        XCTAssertEqual(app.account.readiness, .idle)
+        XCTAssertEqual(server.requests("POST", "/auth/v1/signup").count, 1)
+    }
+
+    func testTheRouterFallsBackFromACloudJobWithNoAccountAndSaysCloudAIIsGettingReady() async throws {
+        let server = StubServer()
+        let refusal = rateLimited
+        server.on("POST", "/auth/v1/signup") { _ in .json(refusal, status: 429) }
+        let app = BackendTest.app(server: server)
+        app.account.sleep = { _ in try await Task.sleep(for: .seconds(30)) }
+        app.account.firstCallWait = .milliseconds(50)
+        app.settings.cloudConsentVersion = AIConsent.currentVersion
+        app.ai.probe = FixedOnDeviceProbe(.unavailable(.notChecked))
+        app.ai.transportOverride = HTTPRelayTransport(baseURL: server.baseURL, anonKey: "anon-key", tokens: app.account,
+                                                      session: server.makeSession())
+
+        let outcome = await app.ai.generateSet(AITestSupport.sampleInput)
+
+        XCTAssertEqual(outcome.origin, .rules)
+        XCTAssertTrue(outcome.fellBack)
+        XCTAssertEqual(outcome.note, "Cloud AI is getting ready, so these are basic questions from the offline rules. Try again in a minute.")
+        XCTAssertFalse(outcome.items.isEmpty, "the app works offline meanwhile")
+        XCTAssertTrue(server.requests("POST", "/functions/v1/ai/generate").isEmpty, "no request without an account")
+        app.account.clearLocalSession()
+    }
+
+    func testASignUpThatIsRefusedForGoodStopsTryingAndSaysWhy() async throws {
+        let server = StubServer()
+        server.on("POST", "/auth/v1/signup") { _ in .json(["code": 422, "msg": "Anonymous sign-ins are disabled"], status: 422) }
+        let app = BackendTest.app(server: server)
+        app.account.sleep = { _ in XCTFail("nothing to wait for") }
+
+        await XCTAssertThrowsRelayError(try await app.account.accessToken()) { $0 == .badRequest("Anonymous sign-ins are disabled") }
+        XCTAssertEqual(app.account.readiness, .idle)
+        XCTAssertEqual(server.requests("POST", "/auth/v1/signup").count, 1)
+    }
+
+    func testPreparingTwiceIsOneSignUpAndNeedsNoAccountWhenOneExists() async throws {
+        let server = StubServer()
+        server.on("POST", "/auth/v1/signup") { _ in .json(BackendTest.sessionJSON(), delay: 0.1) }
+        let app = BackendTest.app(server: server)
+        app.account.prepare()
+        app.account.prepare()
+        try await waitUntil { app.account.readiness == .ready }
+        XCTAssertEqual(server.requests("POST", "/auth/v1/signup").count, 1)
+        app.account.prepare()
+        XCTAssertEqual(app.account.readiness, .ready, "an account exists: nothing to prepare")
+
+        let stored = BackendTest.app(server: StubServer(), store: InMemorySessionStore(BackendTest.session()))
+        stored.account.restoreSession()
+        stored.account.prepare()
+        XCTAssertEqual(stored.account.readiness, .idle)
+    }
+
+    func testAllowingCloudAIOrLaunchingWithItAllowedMakesTheAccountInTheBackground() async throws {
+        // Allowing Cloud AI starts it.
+        let server = StubServer()
+        server.on("POST", "/auth/v1/signup") { _ in .json(BackendTest.sessionJSON()) }
+        let app = BackendTest.app(server: server)
+        XCTAssertTrue(server.requests.isEmpty, "nothing is made before the person allows Cloud AI")
+        app.allowCloudAI()
+        try await waitUntil { app.account.readiness == .ready }
+        XCTAssertEqual(server.requests("POST", "/auth/v1/signup").count, 1)
+
+        // A launch with it allowed and no account starts it; a launch without consent does not.
+        let again = StubServer()
+        again.on("POST", "/auth/v1/signup") { _ in .json(BackendTest.sessionJSON()) }
+        let launched = BackendTest.app(server: again)
+        launched.settings.cloudConsentVersion = AIConsent.currentVersion
+        await launched.account.start()
+        try await waitUntil { launched.account.readiness == .ready }
+
+        let quiet = StubServer()
+        let undecided = BackendTest.app(server: quiet)
+        await undecided.account.start()
+        try await Task.sleep(for: .milliseconds(50))
+        XCTAssertTrue(quiet.requests.isEmpty)
+        XCTAssertEqual(undecided.account.readiness, .idle)
+    }
+
+    func testTheBackoffScheduleIsExponentialWithJitterAndStopsAfterAboutFiveMinutes() {
+        // No jitter in the middle of the range (0.5 is x1): 2, 4, 8, 16, 32, then a minute.
+        let steady = (1...6).map { AccountBackoff.delay(afterFailures: $0, waited: 0, jitter: 0.5) }
+        XCTAssertEqual(steady, [2, 4, 8, 16, 32, 60])
+        XCTAssertEqual(AccountBackoff.delay(afterFailures: 9, waited: 0, jitter: 0.5), 60, "a minute at most")
+        XCTAssertEqual(AccountBackoff.delay(afterFailures: 40, waited: 0, jitter: 0.5), 60)
+        // A quarter either way.
+        XCTAssertEqual(AccountBackoff.delay(afterFailures: 1, waited: 0, jitter: 0), 1.5)
+        XCTAssertEqual(AccountBackoff.delay(afterFailures: 1, waited: 0, jitter: 1), 2.5)
+        XCTAssertEqual(AccountBackoff.delay(afterFailures: 4, waited: 0, jitter: 0), 12)
+        XCTAssertEqual(AccountBackoff.delay(afterFailures: 4, waited: 0, jitter: 7), 20, "jitter is kept in 0...1")
+        XCTAssertNil(AccountBackoff.delay(afterFailures: 0, waited: 0, jitter: 0.5))
+        // Run it: eight retries over four minutes, then it gives up.
+        var waited = 0.0
+        var pauses: [Double] = []
+        var failures = 1
+        while let pause = AccountBackoff.delay(afterFailures: failures, waited: waited, jitter: 0.5) {
+            pauses.append(pause)
+            waited += pause
+            failures += 1
+        }
+        XCTAssertEqual(pauses, [2, 4, 8, 16, 32, 60, 60, 60])
+        XCTAssertEqual(waited, 242)
+        XCTAssertLessThanOrEqual(waited, AccountBackoff.giveUpAfter)
+        // Every variation of the jitter stays inside the five minutes.
+        for jitter in stride(from: 0.0, through: 1.0, by: 0.25) {
+            var total = 0.0, n = 1
+            while let pause = AccountBackoff.delay(afterFailures: n, waited: total, jitter: jitter) { total += pause; n += 1 }
+            XCTAssertLessThanOrEqual(total, 300)
+            XCTAssertGreaterThan(total, 200)
+        }
+    }
+
+    func testARefusedSignUpIsNotAMistakeInTheEmailFlow() {
+        // Only the anonymous sign-up treats a 429 as a wait; the email code flow still shows GoTrue's own words.
+        let body = Data(#"{"code":429,"msg":"For security purposes, you can only request this after 56 seconds."}"#.utf8)
+        XCTAssertEqual(SupabaseClient.error(status: 429, data: body, kind: .auth),
+                       .badRequest("For security purposes, you can only request this after 56 seconds."))
+        XCTAssertEqual(SupabaseClient.error(status: 429, data: body, kind: .signUp),
+                       .upstream("For security purposes, you can only request this after 56 seconds."))
+        XCTAssertEqual(SupabaseClient.error(status: 422, data: body, kind: .signUp),
+                       .badRequest("For security purposes, you can only request this after 56 seconds."))
+    }
+
 }
 
 /// Asserts that `expression` throws a RelayError matching `matches`.

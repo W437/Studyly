@@ -403,4 +403,225 @@ final class AITransportTests: XCTestCase {
         try await Task.sleep(for: .milliseconds(100))
         XCTAssertTrue(AIStubURLProtocol.stopped)
     }
+
+    // MARK: One quiet retry of a transient failure
+
+    /// A transport that pauses 0 s before its retry, so the tests don't wait.
+    private func quickHTTP(pause: ClosedRange<TimeInterval> = 0...0) -> HTTPRelayTransport {
+        var transport = http()
+        transport.retryPause = pause
+        return transport
+    }
+
+    func testTheGenerateRouteHasRoomForTwentyQuestions() {
+        XCTAssertEqual(HTTPRelayTransport.Route.generate.timeout, 120)
+        XCTAssertGreaterThanOrEqual(HTTPRelayTransport.Route.check.timeout, 45)
+    }
+
+    func testAGatewayErrorIsRetriedOnceAndTheSecondAnswerIsUsed() async throws {
+        for status in [503, 504] {
+            AIStubURLProtocol.reset()
+            var calls = 0
+            AIStubURLProtocol.handler = { _ in
+                calls += 1
+                return calls == 1 ? .init(status: status, chunks: [Data("<html>busy</html>".utf8)]) : .init(chunks: [self.fixtureData("quota-free")])
+            }
+            let quota = try await quickHTTP().quota()
+            XCTAssertEqual(quota.plan, .free, "status \(status)")
+            XCTAssertEqual(AIStubURLProtocol.requests.count, 2, "status \(status)")
+        }
+    }
+
+    func testA502IsNeverRetriedBecauseTheRelayAnswersItForFailuresItWasPaidFor() async throws {
+        // The relay's 502: every item dropped, a reply cut off, an unreadable reply. The scan is given back but the model's cost counts
+        // toward the day's 10 cents, so asking again would spend it again for the same answer.
+        let billed = Data("{\"error\":{\"code\":\"upstream\",\"message\":\"The model's reply could not be used.\"}}".utf8)
+        for body in [billed, Data("<html>bad gateway</html>".utf8), Data()] {
+            AIStubURLProtocol.reset()
+            AIStubURLProtocol.handler = { _ in .init(status: 502, chunks: [body]) }
+            do { _ = try await quickHTTP().generate(try fixtureRequest(GenerateRequest.self, "generate")); XCTFail("expected the failure") } catch is RelayError {}
+            XCTAssertEqual(AIStubURLProtocol.requests.count, 1, "a 502 is asked once")
+        }
+        // Not on any JSON route.
+        AIStubURLProtocol.reset()
+        AIStubURLProtocol.handler = { _ in .init(status: 502, chunks: [billed]) }
+        do { _ = try await quickHTTP().check(CheckRequest(pages: [], items: [])); XCTFail() } catch is RelayError {}
+        do { _ = try await quickHTTP().quota(); XCTFail() } catch is RelayError {}
+        XCTAssertEqual(AIStubURLProtocol.requests.count, 2, "one request each")
+    }
+
+    func testA503ThatNamesALongWaitIsNotRetriedAndAShortOneIsWaitedFor() async throws {
+        func busy(_ seconds: Int) -> Data {
+            Data("{\"error\":{\"code\":\"upstream\",\"message\":\"Busy.\",\"retryAfter\":\(seconds)}}".utf8)
+        }
+        // The provider is overloaded and says to come back in 20 seconds (15 for a server error): not waited for.
+        AIStubURLProtocol.handler = { _ in .init(status: 503, chunks: [busy(20)]) }
+        do { _ = try await quickHTTP().quota(); XCTFail() } catch let error as RelayError { XCTAssertEqual(error, .upstream("Busy.")) }
+        XCTAssertEqual(AIStubURLProtocol.requests.count, 1, "20 seconds is too long to keep the person waiting")
+
+        // A short named wait is honoured: the retry comes after it, not after the usual 1.5 to 3 seconds (0 here).
+        AIStubURLProtocol.reset()
+        var calls = 0
+        AIStubURLProtocol.handler = { _ in
+            calls += 1
+            return calls == 1 ? .init(status: 503, chunks: [busy(1)]) : .init(chunks: [self.fixtureData("quota-free")])
+        }
+        let started = Date()
+        let quota = try await quickHTTP().quota()
+        XCTAssertEqual(quota.plan, .free)
+        XCTAssertEqual(AIStubURLProtocol.requests.count, 2)
+        XCTAssertGreaterThanOrEqual(Date().timeIntervalSince(started), 0.95, "waited for the 1 second the relay named")
+
+        // The Retry-After header says the same when there is no envelope.
+        AIStubURLProtocol.reset()
+        calls = 0
+        AIStubURLProtocol.handler = { _ in
+            calls += 1
+            return calls == 1 ? .init(status: 503, headers: ["Retry-After": "30"], chunks: [Data("<html>busy</html>".utf8)])
+                : .init(chunks: [self.fixtureData("quota-free")])
+        }
+        do { _ = try await quickHTTP().quota(); XCTFail() } catch is RelayError {}
+        XCTAssertEqual(AIStubURLProtocol.requests.count, 1, "a header naming 30 seconds is not waited for either")
+    }
+
+    func testTheRetryCarriesTheSameBodyAndKeepsWithinTheRoutesTimeout() async throws {
+        var calls = 0
+        AIStubURLProtocol.handler = { _ in
+            calls += 1
+            return calls == 1 ? .init(status: 503, chunks: []) : .init(chunks: [self.fixtureData("grade-partial")])
+        }
+        // A pause of a second on a 20-second route (grade): the retry gets what is left of the 20, not another 20.
+        let response = try await quickHTTP(pause: 1...1).grade(gradeRequest("They grow."))
+        XCTAssertEqual(response.verdict, .partial)
+        XCTAssertEqual(AIStubURLProtocol.bodies.count, 2)
+        XCTAssertEqual(AIStubURLProtocol.bodies[0], AIStubURLProtocol.bodies[1])
+        let route = HTTPRelayTransport.Route.grade.timeout
+        XCTAssertEqual(AIStubURLProtocol.requests[0].timeoutInterval, route)
+        XCTAssertLessThanOrEqual(AIStubURLProtocol.requests[1].timeoutInterval, route - 1)
+        XCTAssertGreaterThan(AIStubURLProtocol.requests[1].timeoutInterval, route - 4)
+    }
+
+    func testAFailureTwiceIsTheAnswerNeverAThirdTry() async throws {
+        AIStubURLProtocol.handler = { _ in .init(status: 503, chunks: [Data("{\"error\":{\"code\":\"upstream\",\"message\":\"Busy.\"}}".utf8)]) }
+        do { _ = try await quickHTTP().check(CheckRequest(pages: [], items: [])); XCTFail("expected the failure") } catch let error as RelayError {
+            XCTAssertEqual(error, .upstream("Busy."))
+        }
+        XCTAssertEqual(AIStubURLProtocol.requests.count, 2)
+    }
+
+    func testADroppedConnectionIsRetriedOnce() async throws {
+        var calls = 0
+        AIStubURLProtocol.handler = { _ in
+            calls += 1
+            return calls == 1 ? .init(error: URLError(.networkConnectionLost)) : .init(chunks: [self.fixtureData("quota-free")])
+        }
+        let quota = try await quickHTTP().quota()
+        XCTAssertEqual(quota.plan, .free)
+        XCTAssertEqual(AIStubURLProtocol.requests.count, 2)
+
+        AIStubURLProtocol.reset()
+        AIStubURLProtocol.handler = { _ in .init(error: URLError(.networkConnectionLost)) }
+        do { _ = try await quickHTTP().quota(); XCTFail() } catch let error as RelayError { XCTAssertEqual(error, .offline) }
+        XCTAssertEqual(AIStubURLProtocol.requests.count, 2, "once, and no more")
+    }
+
+    func testDecisionsAreNeverRetried() async throws {
+        let quota = Data(fixtureData("error-quota"))
+        let cases: [(String, Int, [Data])] = [
+            ("bad request", 400, [Data("{\"error\":{\"code\":\"bad_request\",\"message\":\"No pages.\"}}".utf8)]),
+            ("forbidden", 403, [Data("{\"error\":{\"code\":\"entitlement_required\",\"message\":\"Pro only.\"}}".utf8)]),
+            ("quota", 429, [quota]),
+            ("a gateway's rate limit", 429, []),
+            ("not found", 404, []),
+            ("the relay's own server error", 500, []),
+            ("a billed failure", 502, [Data("{\"error\":{\"code\":\"upstream\",\"message\":\"The reply was cut off.\"}}".utf8)]),
+            ("a gateway's bad gateway", 502, [Data("<html>bad gateway</html>".utf8)]),
+            ("an overloaded provider that says to wait a minute", 503,
+             [Data("{\"error\":{\"code\":\"upstream\",\"message\":\"Busy.\",\"retryAfter\":60}}".utf8)]),
+        ]
+        for (name, status, chunks) in cases {
+            AIStubURLProtocol.reset()
+            AIStubURLProtocol.handler = { _ in .init(status: status, chunks: chunks) }
+            do { _ = try await quickHTTP().quota(); XCTFail(name) } catch is RelayError {}
+            XCTAssertEqual(AIStubURLProtocol.requests.count, 1, name)
+        }
+        for code in [URLError.Code.notConnectedToInternet, .timedOut, .cannotFindHost, .secureConnectionFailed] {
+            AIStubURLProtocol.reset()
+            AIStubURLProtocol.handler = { _ in .init(error: URLError(code)) }
+            do { _ = try await quickHTTP().quota(); XCTFail("\(code)") } catch is RelayError {}
+            XCTAssertEqual(AIStubURLProtocol.requests.count, 1, "\(code)")
+        }
+    }
+
+    func testACancelledCallIsNotRetried() async throws {
+        AIStubURLProtocol.handler = { _ in .init(status: 503, chunks: []) }
+        let transport = quickHTTP(pause: 3...3)
+        let task = Task { try await transport.quota() }
+        try await Task.sleep(for: .milliseconds(300))
+        XCTAssertEqual(AIStubURLProtocol.requests.count, 1, "the retry is still waiting out its pause")
+        task.cancel()
+        let started = Date()
+        do { _ = try await task.value; XCTFail() } catch let error as RelayError { XCTAssertEqual(error, .cancelled) }
+        XCTAssertLessThan(Date().timeIntervalSince(started), 2)
+        XCTAssertEqual(AIStubURLProtocol.requests.count, 1)
+    }
+
+    func testTheRetryPolicy() {
+        let slow = HTTPRelayTransport.Route.generate.timeout
+        // 1.5 to 3 seconds, by jitter, for a 503 that names no wait, a 504 and a dropped connection.
+        XCTAssertEqual(RelayRetry.pause(after: .status(503), attempt: 1, elapsed: 0.4, timeout: slow, jitter: 0), 1.5)
+        XCTAssertEqual(RelayRetry.pause(after: .status(503), attempt: 1, elapsed: 0.4, timeout: slow, jitter: 1), 3)
+        XCTAssertEqual(RelayRetry.pause(after: .status(504), attempt: 1, elapsed: 0.4, timeout: slow, jitter: 0.5), 2.25)
+        XCTAssertEqual(RelayRetry.pause(after: .status(504), attempt: 1, elapsed: 0.4, timeout: slow, jitter: 5), 3, "jitter is kept in 0...1")
+        XCTAssertNotNil(RelayRetry.pause(after: .connectionLost, attempt: 1, elapsed: 0.4, timeout: slow, jitter: 0.5))
+        // A 503 that names a wait of 15 seconds or less is retried after that wait (and the jitter); a longer one is not retried.
+        XCTAssertEqual(RelayRetry.pause(after: .status(503, retryAfter: 15), attempt: 1, elapsed: 0.4, timeout: slow, jitter: 0), 15)
+        XCTAssertEqual(RelayRetry.pause(after: .status(503, retryAfter: 15), attempt: 1, elapsed: 0.4, timeout: slow, jitter: 1), 16.5)
+        XCTAssertEqual(RelayRetry.pause(after: .status(503, retryAfter: 4), attempt: 1, elapsed: 0.4, timeout: slow, jitter: 0), 4)
+        XCTAssertEqual(RelayRetry.pause(after: .status(503, retryAfter: 0.2), attempt: 1, elapsed: 0.4, timeout: slow, jitter: 0), 1.5,
+                       "never sooner than the usual pause")
+        XCTAssertNil(RelayRetry.pause(after: .status(503, retryAfter: 15.5), attempt: 1, elapsed: 0.4, timeout: slow, jitter: 0))
+        XCTAssertNil(RelayRetry.pause(after: .status(503, retryAfter: 20), attempt: 1, elapsed: 0.4, timeout: slow, jitter: 0), "the provider's 429 says 20")
+        XCTAssertNil(RelayRetry.pause(after: .status(503, retryAfter: 60), attempt: 1, elapsed: 0.4, timeout: slow, jitter: 0))
+        // The wait must fit in half of the route's time: a 15 second wait on a 20 second route (grade) never happens.
+        XCTAssertNil(RelayRetry.pause(after: .status(503, retryAfter: 15), attempt: 1, elapsed: 0.4, timeout: HTTPRelayTransport.Route.grade.timeout, jitter: 0))
+        XCTAssertNotNil(RelayRetry.pause(after: .status(503, retryAfter: 15), attempt: 1, elapsed: 0.4, timeout: HTTPRelayTransport.Route.check.timeout, jitter: 0))
+        // Never a 502 (billed, and it would come back the same), whatever it names; and no decision, ever; never twice.
+        for failure in [RelayRetry.Failure.status(502), .status(502, retryAfter: 1), .status(400), .status(401), .status(403), .status(404),
+                        .status(429), .status(500), .status(501), .other] {
+            XCTAssertNil(RelayRetry.pause(after: failure, attempt: 1, elapsed: 0.4, timeout: slow, jitter: 0.5), "\(failure)")
+        }
+        XCTAssertNil(RelayRetry.pause(after: .status(503), attempt: 2, elapsed: 0.4, timeout: slow, jitter: 0.5))
+        // Fast failures only: the first attempt and the pause use at most half the route's time (60 s of a 120 s generate).
+        XCTAssertNotNil(RelayRetry.pause(after: .status(503), attempt: 1, elapsed: 58, timeout: slow, jitter: 0))
+        XCTAssertNil(RelayRetry.pause(after: .status(503), attempt: 1, elapsed: 59, timeout: slow, jitter: 0))
+        XCTAssertNil(RelayRetry.pause(after: .status(504), attempt: 1, elapsed: 75, timeout: slow, jitter: 0), "a function that ran 75 seconds and gave up")
+        // The retry gets what is left, so a 120 second generate never waits 240.
+        XCTAssertEqual(RelayRetry.remainingTimeout(timeout: 120, elapsed: 10, pause: 2), 108)
+        XCTAssertEqual(RelayRetry.remainingTimeout(timeout: 120, elapsed: 200, pause: 2), 1, "never zero")
+        // What the transport saw becomes a failure.
+        XCTAssertEqual(RelayRetry.Failure(status: 503, urlError: nil), .status(503))
+        XCTAssertEqual(RelayRetry.Failure(status: 503, retryAfter: 15, urlError: nil), .status(503, retryAfter: 15))
+        XCTAssertEqual(RelayRetry.Failure(status: nil, urlError: .networkConnectionLost), .connectionLost)
+        XCTAssertEqual(RelayRetry.Failure(status: nil, urlError: .notConnectedToInternet), .other)
+        XCTAssertEqual(RelayRetry.Failure(status: nil, urlError: nil), .other)
+        // The wait an answer names: the envelope's, else the header's seconds.
+        let envelope = Data("{\"error\":{\"code\":\"upstream\",\"message\":\"Busy.\",\"retryAfter\":15}}".utf8)
+        XCTAssertEqual(RelayRetry.retryAfter(body: envelope, header: nil), 15)
+        XCTAssertEqual(RelayRetry.retryAfter(body: envelope, header: "30"), 15, "the envelope first")
+        XCTAssertEqual(RelayRetry.retryAfter(body: Data("<html>".utf8), header: " 12 "), 12)
+        XCTAssertNil(RelayRetry.retryAfter(body: Data("<html>".utf8), header: "Wed, 21 Oct 2026 07:28:00 GMT"), "a date is not read")
+        XCTAssertNil(RelayRetry.retryAfter(body: Data(), header: nil))
+        XCTAssertNil(RelayRetry.retryAfter(body: Data(), header: "-5"))
+    }
+
+    func testTheStreamingRoutesAreLeftAlone() async throws {
+        AIStubURLProtocol.handler = { _ in .init(status: 503, chunks: [Data("{\"error\":{\"code\":\"upstream\",\"message\":\"Busy.\"}}".utf8)]) }
+        var seen: Error?
+        do {
+            for try await _ in quickHTTP().tutor(try fixtureRequest(TutorRequest.self, "tutor")) {}
+        } catch { seen = error }
+        XCTAssertEqual(seen as? RelayError, .upstream("Busy."))
+        XCTAssertEqual(AIStubURLProtocol.requests.count, 1)
+    }
 }

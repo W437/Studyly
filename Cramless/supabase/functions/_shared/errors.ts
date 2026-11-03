@@ -28,6 +28,8 @@ export class ApiError extends Error {
   readonly extra: ErrorExtra;
   /** Tokens a call was billed for even though it failed (a reply that could not be read), so the cost is still recorded. */
   usage?: Usage;
+  /** What OpenAI answered when it refused the call ("429 insufficient_quota"): for the server log only, never sent to the person. */
+  upstream?: string;
 
   constructor(code: ErrorCode, message: string, extra: ErrorExtra = {}, status?: number) {
     super(message);

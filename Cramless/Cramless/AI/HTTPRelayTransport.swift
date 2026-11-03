@@ -29,7 +29,9 @@ struct HTTPRelayTransport: RelayTransport {
         /// the person already has the offline grade on screen.
         var timeout: TimeInterval {
             switch self {
-            case .generate: 75
+            // Questions are written in one call at about 3 seconds each, and a request asks for at most 20 of them
+            // (`AIFreeLimits.maximumQuestionsPerRequest`): a live request for 14 took 46 seconds.
+            case .generate: 120
             case .check: 45
             case .grade: 20
             case .tutor: 30
@@ -48,6 +50,9 @@ struct HTTPRelayTransport: RelayTransport {
     let anonKey: String
     let tokens: any AccessTokenProvider
     let session: URLSession
+    /// The pause before the one retry of a JSON call that failed with a 503 or 504 or a dropped connection (`RelayRetry`; never a
+    /// 502, which the relay answers for failures it was paid for). Tests shorten it.
+    var retryPause: ClosedRange<TimeInterval> = RelayRetry.pauseRange
 
     init(baseURL: URL, anonKey: String, tokens: any AccessTokenProvider, session: URLSession = .shared) {
         self.baseURL = baseURL
@@ -190,26 +195,65 @@ struct HTTPRelayTransport: RelayTransport {
 
     // MARK: Requests
 
+    /// What an attempt saw of the network, for the retry decision (`RelayRetry`).
+    private final class Trace: @unchecked Sendable {
+        var status: Int?
+        /// The wait a non-2xx answer named (the envelope's `retryAfter`, else the `Retry-After` header).
+        var retryAfter: TimeInterval?
+        var urlError: URLError.Code?
+    }
+
     private func send<Body: Encodable, Response: Decodable>(_ route: Route, _ body: Body?) async throws -> Response {
         do {
             let data = try body.map { try JSONEncoder.cramless.encode($0) }
-            do {
-                return try await attempt(route, data)
-            } catch RelayError.unauthorized {
-                // The contract: refresh the session, then retry once. The retry asks the provider for the token
-                // again, which refreshes a session that is about to lapse.
-                return try await attempt(route, data)
+            let started = Date()
+            var timeout = route.timeout
+            var attempts = 1
+            while true {
+                let trace = Trace()
+                do {
+                    do {
+                        return try await attempt(route, data, timeout: timeout, trace: trace)
+                    } catch RelayError.unauthorized {
+                        // The contract: refresh the session, then retry once. The retry asks the provider for the token
+                        // again, which refreshes a session that is about to lapse.
+                        return try await attempt(route, data, timeout: timeout, trace: trace)
+                    }
+                } catch {
+                    // One quiet retry of a transient failure that came fast; the retry gets what is left of the timeout.
+                    let elapsed = Date().timeIntervalSince(started)
+                    guard !Task.isCancelled,
+                          let pause = RelayRetry.pause(after: RelayRetry.Failure(status: trace.status, retryAfter: trace.retryAfter,
+                                                                                 urlError: trace.urlError),
+                                                       attempt: attempts, elapsed: elapsed, timeout: route.timeout,
+                                                       jitter: Double.random(in: 0...1), range: retryPause)
+                    else { throw error }
+                    attempts += 1
+                    try await Task.sleep(for: .seconds(pause))
+                    timeout = RelayRetry.remainingTimeout(timeout: route.timeout, elapsed: elapsed, pause: pause)
+                }
             }
         } catch {
             throw Self.map(error)
         }
     }
 
-    private func attempt<Response: Decodable>(_ route: Route, _ data: Data?) async throws -> Response {
-        let request = try await makeRequest(route, body: data, accept: "application/json")
-        let (payload, response) = try await session.data(for: request)
+    private func attempt<Response: Decodable>(_ route: Route, _ data: Data?, timeout: TimeInterval, trace: Trace) async throws -> Response {
+        let request = try await makeRequest(route, body: data, accept: "application/json", timeout: timeout)
+        let payload: Data
+        let response: URLResponse
+        do {
+            (payload, response) = try await session.data(for: request)
+        } catch {
+            trace.urlError = (error as? URLError)?.code
+            throw error
+        }
         guard let http = response as? HTTPURLResponse else { throw RelayError.upstream("No response from the relay.") }
-        guard (200..<300).contains(http.statusCode) else { throw Self.error(status: http.statusCode, body: payload) }
+        trace.status = http.statusCode
+        guard (200..<300).contains(http.statusCode) else {
+            trace.retryAfter = RelayRetry.retryAfter(body: payload, header: http.value(forHTTPHeaderField: "Retry-After"))
+            throw Self.error(status: http.statusCode, body: payload)
+        }
         do {
             return try JSONDecoder.cramless.decode(Response.self, from: payload)
         } catch {
@@ -219,7 +263,7 @@ struct HTTPRelayTransport: RelayTransport {
 
     /// The request for a route, with the anon key and a fresh access token. Built at call time, so the token is
     /// whatever is current after any wait.
-    func makeRequest(_ route: Route, body: Data?, accept: String) async throws -> URLRequest {
+    func makeRequest(_ route: Route, body: Data?, accept: String, timeout: TimeInterval? = nil) async throws -> URLRequest {
         let token: String
         do {
             token = try await tokens.accessToken()
@@ -228,7 +272,7 @@ struct HTTPRelayTransport: RelayTransport {
         } catch {
             throw RelayError.unauthorized
         }
-        var request = URLRequest(url: url(for: route), cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: route.timeout)
+        var request = URLRequest(url: url(for: route), cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: timeout ?? route.timeout)
         request.httpMethod = route.method
         request.setValue(anonKey, forHTTPHeaderField: "apikey")
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")

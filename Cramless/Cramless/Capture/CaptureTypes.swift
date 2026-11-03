@@ -49,6 +49,11 @@ struct PageRead: Codable, Hashable, Sendable {
     /// allows sending photos (`settings.sendPhotos`), and says that this path leaves the iPhone.
     var wantsBetterRead: Bool { engine == .vision && issue != nil }
 
+    /// A PDF's text layer that has lost its typeset formulas (`PageLayout.formulasMayBeMissing`): the words are right, the
+    /// formulas are not in them. The page is not blocked: the plain note says so, and reading the page as an image with
+    /// Cloud AI brings them back. (The same `.mathLike` issue as a photo's, told apart by the engine.)
+    var formulasMayBeMissing: Bool { engine == .pdfText && issue == .mathLike }
+
     static let typed = PageRead(engine: .typed)
     static let pdfText = PageRead(engine: .pdfText)
     static let sample = PageRead(engine: .sample)

@@ -70,6 +70,11 @@ final class CaptureRun {
     private(set) var shownWritten = 0
     /// "14 of 15 match the page", once the check is done.
     private(set) var checkLine: String?
+    /// "Part 2 of 2" while a long reading goes to Cloud AI in parts, else nil.
+    private(set) var partLine: String?
+    /// With no questions to show: what would write some (Cloud AI, when consent is what is missing). The problem screen
+    /// offers it.
+    private(set) var noQuestionsSuggestion: AISuggestion?
     /// The first questions, landing with their page chips.
     private(set) var cards: [Card] = []
     /// The reading step's second line: "Page 2 of 5", "Text and layout, on your iPhone".
@@ -93,6 +98,8 @@ final class CaptureRun {
     @ObservationIgnored private var latest: GenerationProgress?
     @ObservationIgnored private var outcome: GenerationOutcome?
     @ObservationIgnored private var draftsReady = false
+    /// A set written again came out weaker than the questions in review (Cloud AI didn't answer): they stay, and the review says so.
+    @ObservationIgnored private var keptEarlier = false
     @ObservationIgnored private var failure: Failure?
     @ObservationIgnored private var abandoned = false
     /// The work has returned (finished, failed or thrown away).
@@ -130,6 +137,7 @@ final class CaptureRun {
             preview = CapturePagePreview(source: source) ?? preview
             pageCount = source.pages.count
         }
+        if request.restOf != nil { readingDetail = "The parts nothing asks about yet" }
     }
 
     /// "1 page · Bio 101".
@@ -167,9 +175,13 @@ final class CaptureRun {
         // Reading still under way: `work()` throws its result away when it returns.
         guard captured || workDone, let id = sourceID, let app else { return }
         worker?.cancel()
-        app.discardDrafts(sourceID: id)
+        app.discardDrafts(sourceID: id, keepSource: keepsSource)
         sourceID = nil
     }
+
+    /// The source was in the library before this run (questions added for the rest of it), so throwing the run away throws away
+    /// its drafts only.
+    private var keepsSource: Bool { request.restOf != nil }
 
     // MARK: The work
 
@@ -185,7 +197,7 @@ final class CaptureRun {
             }
             sourceID = source.id
             if abandoned {
-                app.discardDrafts(sourceID: source.id)
+                app.discardDrafts(sourceID: source.id, keepSource: keepsSource)
                 return
             }
             // The read page replaces the preview: its lines (with boxes on a photo), its printed number, and the photo
@@ -197,28 +209,56 @@ final class CaptureRun {
                 failure = readable.allSatisfy({ $0.issue == .noText }) && !readable.isEmpty ? .noText : .unreadable
                 return
             }
-            if !skipMathGate, source.pages.contains(where: { $0.read?.issue == .mathLike }) {
+            // A photo that is mostly notation stops here; a PDF whose text layer lost its formulas does not (its words are
+            // right, and the review says the formulas may be missing).
+            if !skipMathGate, source.pages.contains(where: { $0.wantsBetterRead && $0.read?.issue == .mathLike }) {
                 failure = .mathLike
                 return
             }
             captured = true
-            for await update in app.ai.generateSet(app.generationInput(for: source)) {
+            let input: GenerationInput
+            if let plan = request.rest {
+                // Only the part decided when the person asked, as pages of just those lines. It is not worked out again here: the
+                // source may be waiting on this very set's drafts (a rewrite with Cloud AI), which keeps it out of the coverage count.
+                guard let rest = app.generationInput(for: plan, of: source) else {
+                    failure = .noQuestions(String(localized: "Your questions already cover everything in this one."))
+                    return
+                }
+                input = rest
+                pageCount = rest.pages.count
+            } else {
+                input = app.generationInput(for: source)
+            }
+            for await update in app.ai.generateSet(input) {
                 if abandoned || Task.isCancelled { break }
                 switch update {
                 case .progress(let progress):
                     latest = progress
                     origin = progress.origin
+                    partLine = progress.parts > 1 ? "Part \(progress.part) of \(progress.parts)" : nil
                 case .finished(let finished):
                     outcome = finished
                     origin = finished.origin
                 }
             }
             guard !abandoned, !Task.isCancelled, let outcome else { return }
+            // Written again, but by a lower tier than the set in review (Cloud AI couldn't be reached and this iPhone's model or the rules
+            // wrote this): the questions already there are kept, not deleted for a weaker set, even when this one has none to show.
+            if regenerating != nil, app.keepsEarlierDrafts(over: outcome, source: source) {
+                app.noteEarlierDraftsKept(over: outcome, source: source)
+                keptEarlier = true
+                draftsReady = true
+                return
+            }
             guard !outcome.items.isEmpty else {
+                noQuestionsSuggestion = outcome.suggestion
                 failure = .noQuestions(outcome.note)
                 return
             }
             app.makeDrafts(from: outcome, source: source, course: regenerating == nil ? app.course(request.courseID) : nil)
+            // The pages of a rest are used up once its drafts exist, whatever the person then keeps: the next tap moves on. Only the
+            // pages that were read: a part that failed, or never started (the free scans ran out), leaves its pages for the next tap.
+            if let plan = request.rest { app.noteRestRun(plan, readPages: outcome.pagesRead) }
             draftsReady = true
         } catch is CancellationError {
         } catch {
@@ -290,6 +330,7 @@ final class CaptureRun {
             let entered = ContinuousClock.now
             try await waitFor { self.draftsReady || self.failure != nil }
             if failure != nil { return showFailure() }
+            if keptEarlier { return showKeptEarlier() }
             let wait = (reduceMotion ? Duration.milliseconds(400) : .milliseconds(900)) * pace - entered.duration(to: .now)
             if wait > .zero { try await Task.sleep(for: wait) }
             if let outcome {
@@ -322,9 +363,24 @@ final class CaptureRun {
         }
     }
 
+    /// The set written again was weaker than the one in review, which stays: no cards land (the review's note says why).
+    private func showKeptEarlier() {
+        guard let sourceID else { return }
+        announcement = "Your earlier questions are kept."
+        withAnimation(CLMotion.settle) {
+            step = .done
+            phase = .review(sourceID)
+        }
+    }
+
     /// DEBUG fast-forward: the finished frame at once, then the review.
     private func jumpToReview() {
         guard failure == nil else { return showFailure() }
+        if keptEarlier, let sourceID {
+            step = .done
+            phase = .review(sourceID)
+            return
+        }
         guard let outcome, let sourceID else { return }
         step = .done
         for card in firstCards(outcome) {

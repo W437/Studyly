@@ -17,6 +17,7 @@ export interface LogFields {
   cache_write_tokens?: number;
   cost_usd?: string;
   stop?: string;
+  upstream?: string;
 }
 
 const ALLOWED: ReadonlySet<string> = new Set([
@@ -34,6 +35,7 @@ const ALLOWED: ReadonlySet<string> = new Set([
   "cache_write_tokens",
   "cost_usd",
   "stop",
+  "upstream",
 ]);
 
 type Sink = (line: string) => void;

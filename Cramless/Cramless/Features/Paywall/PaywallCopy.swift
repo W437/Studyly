@@ -72,18 +72,25 @@ enum PaywallCopy {
     /// The terms beside the button: what it costs, when, and how to stop it. (The trial timeline says when the
     /// reminder comes.)
     static func terms(for option: PlanOption, price: PlanPrice, trialDays: Int?) -> String {
+        let billing: String
         switch option {
         case .yearly, .squad:
-            guard let trialDays else {
-                return "Renews at \(price.display) a year. Cancel anytime in two taps."
+            if let trialDays {
+                billing = "Free for \(trialDays) days, then \(price.display) a year. Cancel anytime in two taps."
+            } else {
+                billing = "Renews at \(price.display) a year. Cancel anytime in two taps."
             }
-            return "Free for \(trialDays) days, then \(price.display) a year. Cancel anytime in two taps."
         case .monthly:
-            return "Renews at \(price.display) a month. Cancel anytime in two taps."
+            billing = "Renews at \(price.display) a month. Cancel anytime in two taps."
         case .examPass:
-            return "\(price.display) for \(StoreCatalog.examPassDays) days, one time. Doesn't renew."
+            billing = "\(price.display) for \(StoreCatalog.examPassDays) days, one time. Doesn't renew."
         }
+        return "\(billing) \(fairUse)"
     }
+
+    /// "Unlimited" on the benefit rows means no count of scans, answers or lectures, not no ceiling: a day with a lot of Cloud AI (a cram night
+    /// of dozens of questions) pauses it until midnight (the relay's cost caps), so the fine print says so.
+    static let fairUse = "Fair use applies."
 
     /// The trial timeline: Today, the reminder, the first charge. Day numbers count from today.
     struct TimelineStep: Equatable {

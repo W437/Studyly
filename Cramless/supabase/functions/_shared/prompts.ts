@@ -17,6 +17,7 @@ import type {
 } from "./contract.ts";
 import { PROMPTS } from "./generated.ts";
 import type { ContentBlock, Message } from "./provider.ts";
+import { DENIED_SOURCES } from "./research_sources.ts";
 
 export type Task = "generate" | "check" | "grade" | "confusions" | "lecture" | "cards" | "transcribe";
 
@@ -38,6 +39,8 @@ export function tutorSystem(req: TutorRequest): string {
   parts.push(prompt(hints ? "tutor-hints" : "tutor-explain"));
   if (req.minor) parts.push(prompt("tutor-minor"));
   if (req.course) parts.push(`The student's course: ${oneLine(req.course)}.`);
+  // Last, as it was when it was measured (tools/tutor_figure_ab.ts): what to do with the labels of a photographed picture.
+  parts.push(prompt("tutor-figures"));
   return parts.join("\n\n");
 }
 
@@ -53,13 +56,27 @@ export function assistantSystem(req: AssistantRequest): string {
 }
 
 /** Text from the student's own device as one short line, so a course name cannot add instructions of its own. */
-function oneLine(text: string): string {
-  return text.replace(/[\r\n\t`<>]+/g, " ").replace(/\s+/g, " ").trim().slice(0, 120);
+function oneLine(text: string, max = 120): string {
+  return text.replace(/[\r\n\t`<>]+/g, " ").replace(/\s+/g, " ").trim().slice(0, max);
 }
 
-/** The web research prompt. */
+/** What the student has added (a source's name with its size, "Cardiac cycle (6 pages)"), as a short block for the model
+ * to name when it cannot find an answer. The names are the student's own words (a classmate's deck can be called anything),
+ * so each is one plain line. Nothing when the app sent none. */
+export function materialsBlock(materials: readonly string[] | undefined): string {
+  const names = (materials ?? []).map((m) => oneLine(m)).filter((m) => m.length > 0).slice(0, 20);
+  return names.length > 0 ? `The student has added:\n${names.map((m) => `- ${m}`).join("\n")}` : "";
+}
+
+/** The web research prompt, ending with the sites it must never use (research_sources.ts). */
 export function researchSystem(): string {
-  return `${prompt("rules")}\n\n${prompt("research")}`;
+  const denied =
+    `Never read, use or cite a page from these sites, even if a search shows it, because their terms or licences do ` +
+    `not allow AI services to use their pages: ${
+      DENIED_SOURCES.join(", ")
+    }. If the only pages you can find are on them, ` +
+    `say that you could not find a source you may use.`;
+  return `${prompt("rules")}\n\n${prompt("research")}\n\n${denied}`;
 }
 
 /** What the research is asked, from the student's topic and focus. */
@@ -131,10 +148,49 @@ function itemForCheck(item: GeneratedItem): Record<string, unknown> {
   };
 }
 
-export function checkContent(pages: PageInput[], items: GeneratedItem[]): ContentBlock[] {
+/** The check's system prompt; a lenient check adds its own rule (check-lenient.md). */
+export function checkSystem(lenient = false): string {
+  return lenient ? `${systemFor("check")}\n\n${prompt("check-lenient")}` : systemFor("check");
+}
+
+/** What else a check request may carry: the source's title and section headings, which are part of the source, and the
+ * lenient switch. */
+export interface CheckExtras {
+  sourceTitle?: string;
+  headings?: string[];
+  lenient?: boolean;
+}
+
+/** The source's title and headings as plain lines (the student's own text, each one line); nothing when there are none. */
+function sourceBlock(title: string | undefined, headings: readonly string[] | undefined): string {
+  const lines: string[] = [];
+  const name = oneLine(title ?? "", 200);
+  if (name) lines.push(`Source title: ${name}`);
+  const parts = (headings ?? []).map((h) => oneLine(h)).filter((h) => h.length > 0).slice(0, 60);
+  if (parts.length > 0) lines.push("Section headings:", ...parts.map((h) => `- ${h}`));
+  return lines.join("\n");
+}
+
+/** The anchored lines and the `radius` lines on either side of each, within their page: the context a lenient check reads
+ * them in. */
+function withContext(pages: PageInput[], anchored: ReadonlySet<string>, radius: number): Set<string> {
+  const out = new Set(anchored);
+  for (const page of pages) {
+    page.lines.forEach((line, i) => {
+      if (!anchored.has(line.id)) return;
+      const to = Math.min(page.lines.length - 1, i + radius);
+      for (let j = Math.max(0, i - radius); j <= to; j++) out.add(page.lines[j].id);
+    });
+  }
+  return out;
+}
+
+export function checkContent(pages: PageInput[], items: GeneratedItem[], extras: CheckExtras = {}): ContentBlock[] {
   const anchored = new Set(items.flatMap((i) => i.anchors ?? []));
+  const about = sourceBlock(extras.sourceTitle, extras.headings);
   return [
-    ...pagesContent(pages, anchored),
+    ...(about ? [{ type: "text" as const, text: about }] : []),
+    ...pagesContent(pages, extras.lenient ? withContext(pages, anchored, 2) : anchored),
     {
       type: "text",
       text: `<items>\n${JSON.stringify(items.map(itemForCheck), null, 1)}\n</items>\n\nGive one verdict per item.`,
@@ -223,19 +279,28 @@ export function citableBlocks(text: string, maxBlocks = 80): { type: "text"; tex
   return (blocks.length > 0 ? blocks : [text]).map((t) => ({ type: "text", text: t }));
 }
 
-/** The conversation for the tutor: the earlier turns as text, and the last question with the passages (as sources) and, for "Explain my mistake", the question the student got wrong. */
+/** The conversation for the tutor, in the order that lets OpenAI's prompt cache serve the biggest part of each request
+ * again: the student's material first (the passages, then what they have added), then the earlier turns, then the last
+ * question with what belongs to it alone (a note that no passage matched, or the question they got wrong for "Explain my
+ * mistake"). The cache matches from the start of the input, so while the app sends the same passages in the same order the
+ * material is the same bytes for every question; the instructions before it are the same for the whole chat. */
 export function tutorMessages(req: TutorRequest): Message[] {
   const turns = [...req.messages];
   while (turns.length > 0 && turns[0].role !== "user") turns.shift();
   const last = turns.pop();
   if (!last || last.role !== "user") return [];
-  const out: Message[] = turns.map((m) => ({ role: m.role, content: m.text }));
-  const content: ContentBlock[] = req.sources.map((s): ContentBlock => ({
+  const out: Message[] = [];
+  const material: ContentBlock[] = req.sources.map((s): ContentBlock => ({
     type: "search_result",
     source: s.id,
     title: s.label ? `${s.title} · ${s.label}` : s.title,
     content: citableBlocks(s.text),
   }));
+  const added = materialsBlock(req.materials);
+  if (added) material.push({ type: "text", text: added });
+  if (material.length > 0) out.push({ role: "user", content: material });
+  for (const m of turns) out.push({ role: m.role, content: m.text });
+  const content: ContentBlock[] = [];
   if (req.sources.length === 0) {
     content.push({ type: "text", text: "(No passages from the student's material matched this question.)" });
   }

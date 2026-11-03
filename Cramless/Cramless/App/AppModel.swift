@@ -56,6 +56,8 @@ final class AppModel {
 
     /// What the badges read from the whole log, worked out once per revision.
     @ObservationIgnored let gameCache = GameCache()
+    /// The sections of each source (`AppModel+Coverage.swift`), worked out again only when the source changes.
+    @ObservationIgnored let coverageCache = CoverageCache()
     /// Switches the app icon (the system's, or a fake in tests).
     @ObservationIgnored var iconSwitcher: any AppIconSwitching = SystemIconSwitcher()
     #if DEBUG

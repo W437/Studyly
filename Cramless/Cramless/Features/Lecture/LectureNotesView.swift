@@ -68,6 +68,11 @@ struct LectureNotesView: View {
             focusOnce()
         }
         .onChange(of: app.revision) { _, _ in load() }
+        .onChange(of: app.ai.hasCloudConsent) { old, new in
+            // Cloud AI was allowed from this card: the notes are made at once.
+            guard new, !old, lecture?.notes == nil, lecture?.offlineNotesThin == true, !making else { return }
+            Task { await makeNotes() }
+        }
     }
 
     // MARK: Content
@@ -211,13 +216,32 @@ struct LectureNotesView: View {
                 Label("No notes yet", systemImage: "list.bullet.rectangle")
                     .clFont(.headline)
                     .foregroundStyle(CLColor.ink)
-                Text("Notes come from the transcript: sections with their times, the moments flagged for the exam, key terms and questions.")
-                    .clFont(.subheadline)
-                    .foregroundStyle(CLColor.ink2)
-                    .fixedSize(horizontal: false, vertical: true)
-                Button(action: { Task { await makeNotes() } }) {
+                let askForCloud = lecture.offlineNotesThin && app.ai.cloudAvailableInThisBuild && !app.ai.hasCloudConsent
+                Group {
+                    if lecture.offlineNotesThin, app.ai.cloudAvailableInThisBuild {
+                        Text("The offline rules can't make good notes from this lecture. Cloud AI can write them from the transcript.")
+                    } else if lecture.offlineNotesThin {
+                        Text("The offline rules can't make good notes from this lecture.")
+                    } else {
+                        Text("Notes come from the transcript: sections with their times, the moments flagged for the exam, key terms and questions.")
+                    }
+                }
+                .clFont(.subheadline)
+                .foregroundStyle(CLColor.ink2)
+                .fixedSize(horizontal: false, vertical: true)
+                Button(action: {
+                    // Cloud AI is the way for this lecture, and it isn't allowed yet: ask, then the notes are made.
+                    if askForCloud {
+                        app.router.present(.consent(.cloudAI(feature: AIJob.lecture.feature)))
+                    } else {
+                        Task { await makeNotes() }
+                    }
+                }) {
                     ZStack {
-                        Text("Make notes").opacity(making ? 0 : 1)
+                        Group {
+                            if askForCloud { Text("Use Cloud AI") } else { Text("Make notes") }
+                        }
+                        .opacity(making ? 0 : 1)
                         if making { ProgressView().tint(CLColor.background) }
                     }
                 }
@@ -416,7 +440,12 @@ struct LectureNotesView: View {
         making = false
         guard let fresh = app.source(sourceID), fresh.modelContext != nil else { return }
         app.saveLectureNotes(outcome, lecture: fresh)
-        CLHaptics.success()
+        if outcome.needsCloud {
+            // The offline rules had nothing worth keeping: the lecture stays without notes, and the card says why.
+            problem = outcome.note
+        } else {
+            CLHaptics.success()
+        }
         load()
     }
 
@@ -451,6 +480,9 @@ struct LectureNotesSnapshot: Equatable {
     var draftCount: Int
     var items: [Question]
     var transcriptPending: Bool
+    /// There are no notes yet and the offline rules couldn't make good ones from this transcript (their section titles
+    /// would be junk): only Cloud AI can (`LocalLectureNotes.make(qualityBar:)`).
+    var offlineNotesThin = false
 
     @MainActor
     init(source: Source, app: AppModel) {
@@ -468,6 +500,12 @@ struct LectureNotesSnapshot: Equatable {
             Question(id: $0.id, prompt: $0.prompt, label: $0.sourceRef?.label ?? source.title, time: $0.sourceRef?.start)
         }
         transcriptPending = app.isTranscriptPending(source)
+        if notes == nil, !transcriptPending, !segments.isEmpty {
+            // The offline rules write English only; and in English they need section titles worth showing.
+            let spoken = LocalGenerator.dominantLanguage(String(segments.map(\.text).joined(separator: " ").prefix(4000)))
+            offlineNotesThin = spoken != "en"
+                || LocalLectureNotes.make(title: source.title, segments: segments, flags: flags, qualityBar: true).thin
+        }
     }
 
     /// The segment being said at `seconds`: the one around it, else the last one before it.

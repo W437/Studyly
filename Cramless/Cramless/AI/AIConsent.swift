@@ -4,7 +4,11 @@ import Foundation
 /// goes to the relay only while it is at least `currentVersion`. Sending page photos is a separate switch
 /// (`settings.sendPhotos`) that only counts together with this consent.
 enum AIConsent {
-    /// Version 3: page text, typed answers and tutor questions go to OpenAI's models through Capling's relay; page photos only
+    /// Version 3: page text, typed answers and tutor questions go to OpenAI's models through Capling's relay, and with each question
+    /// to Cap the notes of the course it answers from (every course, when none is chosen): the text of pages and lectures, the
+    /// cards of imported decks and the names of the sources, all of it when it is short (about 6,000 words), otherwise the sources
+    /// the question names and the passages that fit it (`TutorSelection`), and, when Cap is asked to look through the notes, the
+    /// passages the lookup finds in any course (`search_notes`); page photos only
     /// with the second switch; nothing is used for training; and
     /// Ask Cap's tools: Cap now also sees the names of your courses, topics and exams, the exam dates and how ready you are, which
     /// topics are fading and how many cards are due, so it can make things for the right course, and, when you ask it to research

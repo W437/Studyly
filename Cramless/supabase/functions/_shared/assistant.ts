@@ -11,6 +11,7 @@ import type { AssistantRequest, AssistantToolName, AssistantTurn, StudyState, Tu
 import { ASSISTANT_TOOLS } from "./contract.ts";
 import { badRequest } from "./errors.ts";
 import { type Passage, taggedSources } from "./openai.ts";
+import { materialsBlock } from "./prompts.ts";
 
 export type ToolKind = "read" | "draft" | "navigate" | "research";
 
@@ -59,7 +60,7 @@ export const TOOL_SPECS: Record<AssistantToolName, ToolSpec> = {
     name: "create_flashcards",
     kind: "draft",
     description:
-      "Draft flashcards for the student to review. The app shows them in the chat; nothing is added until the student approves. One idea per card: a short front (a term or a question) and a short back. Make 4 to 12 unless they ask for a number.",
+      "Draft flashcards for the student to review. The app shows them in the chat; nothing is added until the student approves. One idea per card: a short front (a term or a question) and a short back. Make 4 to 12 unless they ask for a number. When the material supports fewer cards than that, draft the ones it supports, even two or three; never pad with a card that no passage backs.",
     arrayKey: "cards",
     parameters: object({
       course_id: { ...str, description: "The course id from the study state." },
@@ -74,7 +75,7 @@ export const TOOL_SPECS: Record<AssistantToolName, ToolSpec> = {
     name: "create_quiz_questions",
     kind: "draft",
     description:
-      "Draft practice questions for the student to review. Types: multiple_choice (3 or 4 options, exactly one right), short_answer (answered in the student's own words; give 2 to 4 key ideas a good answer contains), fill_blank (a sentence from the material with the hidden word or phrase wrapped in {{ }}). Make 3 to 10 unless they ask for a number.",
+      "Draft practice questions for the student to review. Types: multiple_choice (3 or 4 options, exactly one right), short_answer (answered in the student's own words; give 2 to 4 key ideas a good answer contains), fill_blank (a sentence from the material with the hidden word or phrase wrapped in {{ }}). Make 3 to 10 unless they ask for a number. When the material supports fewer questions, draft the ones it supports; never pad with a question that no passage backs.",
     arrayKey: "questions",
     parameters: object({
       course_id: { ...str, description: "The course id from the study state." },
@@ -217,19 +218,23 @@ export function studyBlock(state: StudyState): string {
 }
 
 export interface AssistantInput {
-  /** OpenAI input items: the chat, the last turn with its passages, then each round's output items and results. */
+  /** OpenAI input items: the student's material, the chat, the last turn, then each round's output items and results. */
   input: Record<string, unknown>[];
   passages: Passage[];
 }
 
-/** The model's input for a request. The study state and the passages go in the last student message, after the stable
- * part of the prompt (instructions, tools, earlier turns), so the cached prefix stays the same from round to round. */
+/** The model's input for a request. The student's material (the passages, then what they have added) goes first, ahead of the
+ * conversation, and reads the same for every question while the app sends the same passages in the same order: OpenAI's
+ * prompt cache matches from the start of the input, so after the first question it can serve the biggest part of each
+ * request again (the instructions and the tools before it are the same for the chat). The study state, which changes as
+ * they study, goes in the last student message with the question, so the cached prefix also stays the same from round to
+ * round of one reply. */
 export function assistantInput(req: AssistantRequest): AssistantInput {
   const turns = [...req.messages];
   while (turns.length > 0 && turns[0].role !== "user") turns.shift();
   const last = turns.pop();
   if (!last || last.role !== "user") throw badRequest("The last message must be the student's.");
-  const input: Record<string, unknown>[] = turns.map((m) => ({ role: m.role, content: m.text }));
+  const input: Record<string, unknown>[] = [];
   const tagged = taggedSources(
     req.sources.map((s: TutorSource) => ({
       id: s.id,
@@ -237,9 +242,11 @@ export function assistantInput(req: AssistantRequest): AssistantInput {
       text: s.text,
     })),
   );
+  const material = [req.sources.length > 0 ? tagged.text : "", materialsBlock(req.materials)].filter((p) => p !== "");
+  if (material.length > 0) input.push({ role: "user", content: material.join("\n\n") });
+  input.push(...turns.map((m) => ({ role: m.role, content: m.text })));
   const parts = [studyBlock(req.study)];
-  if (req.sources.length > 0) parts.push(tagged.text);
-  else parts.push("(No passages from the student's material matched this message.)");
+  if (req.sources.length === 0) parts.push("(No passages from the student's material matched this message.)");
   if (req.context) {
     parts.push(
       `The student is asking about a question they got wrong.\n<question>${req.context.itemPrompt}</question>\n` +
@@ -316,57 +323,53 @@ export function checkTurns(turns: AssistantTurn[]): AssistantTurn[] {
 
 // ---- Web research ----
 
-/** The sites web research may read: reference works, open textbooks, courses, universities, science and government
- * bodies. A server setting (RESEARCH_DOMAINS) replaces it. Domains include their subdomains. OpenAI accepts at most 100,
- * and not a bare top-level domain, so schools are named. */
+/** The sites web research may read. Each is public domain or openly licensed for reuse, including commercial use, and says
+ * which beside it. A site whose terms nobody here has read, that allows non-commercial use only (CC BY-NC, as MIT
+ * OpenCourseWare and Khan Academy do), whose items carry mixed licences, or that belongs to a commercial publisher is not
+ * here (NIH is listed by institute: nih.gov would also open NCBI's PubMed, PMC and Bookshelf, which keep their own licences).
+ * To add one, read its terms first and write what they allow beside it (tests/assistant.test.ts checks that every entry has
+ * its reason). A server setting (RESEARCH_DOMAINS) replaces the list. Domains include their subdomains. OpenAI
+ * accepts at most 100, and not a bare top-level domain. A site whose terms forbid AI use is never here, and never reaches
+ * the search whoever lists it (research_sources.ts). */
 export const RESEARCH_DOMAINS: readonly string[] = [
-  "wikipedia.org",
-  "wikibooks.org",
-  "wikiversity.org",
-  "britannica.com",
-  "khanacademy.org",
-  "openstax.org",
-  "libretexts.org",
-  "ck12.org",
-  "ocw.mit.edu",
-  "mit.edu",
-  "stanford.edu",
-  "harvard.edu",
-  "yale.edu",
-  "princeton.edu",
-  "cornell.edu",
-  "berkeley.edu",
-  "ox.ac.uk",
-  "cam.ac.uk",
-  "plato.stanford.edu",
-  "iep.utm.edu",
-  "nih.gov",
-  "medlineplus.gov",
-  "cdc.gov",
-  "who.int",
-  "nasa.gov",
-  "noaa.gov",
-  "nist.gov",
-  "usgs.gov",
-  "energy.gov",
-  "epa.gov",
-  "loc.gov",
-  "archives.gov",
-  "si.edu",
-  "nature.com",
-  "mayoclinic.org",
-  "clevelandclinic.org",
-  "law.cornell.edu",
-  "worldbank.org",
-  "imf.org",
-  "oecd.org",
-  "un.org",
-  "investopedia.com",
-  "merriam-webster.com",
-  "dictionary.cambridge.org",
-  "developer.mozilla.org",
-  "docs.python.org",
-  "mathworld.wolfram.com",
-  "hyperphysics.phy-astr.gsu.edu",
-  "chemguide.co.uk",
+  "niddk.nih.gov", // NIDDK, an NIH institute (US federal): its own pages are public domain (17 USC 105)
+  "nhlbi.nih.gov", // NHLBI, an NIH institute (US federal): its own pages are public domain (17 USC 105)
+  "nia.nih.gov", // NIA, an NIH institute (US federal): its own pages are public domain (17 USC 105)
+  "niaid.nih.gov", // NIAID, an NIH institute (US federal): its own pages are public domain (17 USC 105)
+  "nimh.nih.gov", // NIMH, an NIH institute (US federal): its own pages are public domain (17 USC 105)
+  "ninds.nih.gov", // NINDS, an NIH institute (US federal): its own pages are public domain (17 USC 105)
+  "nigms.nih.gov", // NIGMS, an NIH institute (US federal): its own pages are public domain (17 USC 105)
+  "nei.nih.gov", // NEI, an NIH institute (US federal): its own pages are public domain (17 USC 105)
+  "nichd.nih.gov", // NICHD, an NIH institute (US federal): its own pages are public domain (17 USC 105)
+  "nccih.nih.gov", // NCCIH, an NIH center (US federal): its own pages are public domain (17 USC 105)
+  "ods.od.nih.gov", // NIH Office of Dietary Supplements (US federal): its own pages are public domain (17 USC 105)
+  "cdc.gov", // US federal agency: public domain (17 USC 105)
+  "nasa.gov", // US federal agency: public domain (17 USC 105), per NASA's media usage guidelines
+  "noaa.gov", // US federal agency: public domain (17 USC 105)
+  "usgs.gov", // US federal agency: public domain (17 USC 105), per the USGS copyright policy
+  "loc.gov", // Library of Congress: its own pages are US federal work, public domain; some collection items carry rights
+  "archives.gov", // National Archives: US federal work, public domain
+  "epa.gov", // US federal agency: public domain (17 USC 105)
+  "energy.gov", // US federal agency: public domain (17 USC 105)
+  "nist.gov", // US federal agency: public domain in the US (17 USC 105)
+  "cancer.gov", // National Cancer Institute (US federal): its text is public domain
+  "genome.gov", // National Human Genome Research Institute (US federal): its text is public domain
+  "congress.gov", // Library of Congress (US federal): legislative information is public domain
+  "supremecourt.gov", // US federal judiciary: the Court's opinions are public domain
+  "www.gov.uk", // GOV.UK: Open Government Licence v3.0 unless a page says otherwise (the national site, not councils)
+  "legislation.gov.uk", // UK legislation: Open Government Licence v3.0
+  "europa.eu", // EU institutions: reuse allowed with attribution unless a page says otherwise (Commission reuse decision)
+  "wikipedia.org", // Wikimedia: text CC BY-SA 4.0
+  "wikibooks.org", // Wikimedia: text CC BY-SA 4.0
+  "wikiversity.org", // Wikimedia: text CC BY-SA 4.0
+  "wikisource.org", // Wikimedia: texts are public domain or freely licensed (CC BY-SA)
+  "wiktionary.org", // Wikimedia: text CC BY-SA 4.0
+  "wikimedia.org", // Wikimedia (Commons and others): files are public domain or freely licensed
+  "plos.org", // PLOS journals: articles are CC BY
+  "biomedcentral.com", // BMC journals: articles are CC BY
+  "elifesciences.org", // eLife: articles are CC BY 4.0
+  "frontiersin.org", // Frontiers journals: articles are CC BY
+  "gutenberg.org", // Project Gutenberg: ebooks in the US public domain, free to reuse
+  "developer.mozilla.org", // MDN Web Docs: text CC BY-SA 2.5, code samples CC0
+  "docs.python.org", // Python documentation: the PSF licence, which allows use, copying and changes
 ];

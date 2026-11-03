@@ -29,6 +29,8 @@ export interface JsonCall {
   content: ContentBlock[];
   schema: Schema;
   signal?: AbortSignal;
+  /** How long the call may take in all, retries included, when it needs more or less than the provider's default (90 s). */
+  timeoutMs?: number;
 }
 
 export interface JsonResult<T> {

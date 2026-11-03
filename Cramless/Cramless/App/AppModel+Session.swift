@@ -206,8 +206,7 @@ extension AppModel {
                 fixIDs.append(made.id)
             }
         }
-        let explanation = explained?.explanation
-            ?? "You've missed these \(candidate.missCount) times in the last two weeks."
+        let explanation = explained?.explanation ?? candidate.defaultExplanation
         let confusion = Confusion(course: course, name: explained?.name ?? candidate.name, explanation: explanation,
                                   itemIDs: candidate.itemIDs,
                                   fix: ConfusionFix(lesson: explained?.lesson ?? "", itemIDs: fixIDs),

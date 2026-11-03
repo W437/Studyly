@@ -55,7 +55,8 @@ enum OnDeviceGeneration {
         var n = first
         var seenPrompts: Set<String> = []
         for q in output.questions {
-            let prompt = clean(q.prompt), answer = clean(q.answer)
+            // A footnote number or a pronunciation guide the model copied from a printout is taken out before anything is judged.
+            let prompt = TextArtifacts.withoutMarkers(clean(q.prompt)), answer = TextArtifacts.withoutMarkers(clean(q.answer))
             guard !prompt.isEmpty, !answer.isEmpty else { continue }
             // Measured: the model sometimes writes the same question several times, and sometimes one whose
             // answer is already in it ("a key term for growth and development? → Growth and Development").
@@ -86,7 +87,7 @@ enum OnDeviceGeneration {
                 // The model often puts the whole sentence as the answer: the blank is then the answer's words that
                 // the cloze sentence leaves out ("During prophase, chromosomes ____." + "Chromosomes condense
                 // during prophase." → "condense").
-                let sentence = clean(q.clozeSentence)
+                let sentence = TextArtifacts.withoutMarkers(clean(q.clozeSentence))
                 let blank = blankWord(sentence: sentence, answer: answer) ?? answer
                 guard let cloze = clozeText(sentence: sentence, answer: blank) else { continue }
                 item.answer = blank
@@ -111,6 +112,11 @@ enum OnDeviceGeneration {
                 item.keyIdeas = usable
                 item.difficulty = min(0.7, 0.4 + 0.08 * Double(usable.count))
             }
+            // Measured: 37% of this model's questions had a zero in the blind ratings (a "Term" card, a cut-off prompt, a
+            // blank that is "Next"). The shared filter keeps those from being shown.
+            guard QuestionQuality.problem(with: item) == nil else { continue }
+            // Nor the same fact twice in other words (a card and a fill-in of one sentence).
+            guard !items.contains(where: { QuestionQuality.isNearDuplicate($0, item) }) else { continue }
             items.append(item)
             n += 1
         }
@@ -314,11 +320,54 @@ struct OnDeviceTutorCall: OnDeviceCall {
     }
 }
 
+/// Which of the sentences the offline search ranks best answers the question. The search has the line that answers a question among its best eight for
+/// 45% of the questions and puts it first for 18%; this iPhone's model reading the eight chooses it for 69% of those. Its answer is a number, so what is
+/// shown is always the notes' own sentence: nothing it writes reaches the student, and it needs no "covered" flag (which this iPhone's model sets false
+/// on every reply on iOS 27). It cannot be trusted to say that none of the sentences answers (it said so once in 148 questions), so whether the notes
+/// cover the question stays with the search's gate.
+struct OnDevicePickCall: OnDeviceCall {
+    typealias Output = FMPick
+    static let kind = OnDeviceCallKind.pick
+    static let schemaTokens = 60
+    static let responseTokens = 12
+    static let timeout = Duration.seconds(8)
+    static let instructions = """
+    You choose which sentence of a student's class notes answers a question. Reply with the number of the one sentence that answers it. \
+    If none of the sentences answers it, reply 0.
+    """
+
+    let question: String
+    /// What the student asked just before, for a question that leans on it ("and when did it end?").
+    var earlier: String?
+    let sentences: [String]
+
+    var prompt: String {
+        var lines: [String] = []
+        if let earlier, !earlier.isEmpty { lines.append("Earlier question: \(earlier)") }
+        lines.append("Question: \(question)")
+        lines.append("")
+        lines.append("Sentences:")
+        lines += sentences.enumerated().map { "[\($0.offset + 1)] \($0.element)" }
+        return lines.joined(separator: "\n")
+    }
+}
+
 enum OnDeviceTutoring {
+    /// How much of the question's weight a passage must carry for a quote from it to stand as support.
+    static let minimumRelation = 0.4
+
     /// The model's reply with its quotes checked against the passages: a quote counts only if it is in one of the
-    /// passages sent (the ones it cites first; case aside). A reply with no checked quote is not grounded and is
-    /// dropped (nil).
-    static func reply(from output: FMTutorReply, passages: [TutorSource]) -> (text: String, quotes: [(source: TutorSource, quote: String)])? {
+    /// passages sent (the ones it cites first; case aside), and, given the question's `terms` (`LocalRetriever.weightedTerms`),
+    /// only if that passage carries at least 40% of their weight: this iPhone's model has offered a real sentence about
+    /// "the violence of factions" as the cause of the French Revolution. A reply with no checked quote is not grounded and
+    /// is dropped (nil), and the offline tutor answers.
+    ///
+    /// `closest` are the sentences the offline search itself takes for the answer (`OnDeviceWindow.closest`): its best and a second that is nearly
+    /// as good. A quote that is one of them is about the question whatever words it uses: a question put in other words than the notes'
+    /// ("which religious teaching sums up the ethics?") shares few of them with the passage that answers it ("the golden rule of Jesus of
+    /// Nazareth"), and the share of words alone threw out replies that were right (10 of 29 with the answering line in front of the model, in the user tests).
+    static func reply(from output: FMTutorReply, passages: [TutorSource], terms: [String: Double]? = nil,
+                      closest: [String] = []) -> (text: String, quotes: [(source: TutorSource, quote: String)])? {
         guard output.covered else { return nil }
         let text = output.reply.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return nil }
@@ -328,9 +377,10 @@ enum OnDeviceTutoring {
             let q = quote.trimmingCharacters(in: .whitespacesAndNewlines)
             guard q.count >= 8 else { continue }
             let pool = cited + passages.filter { p in !cited.contains { $0.id == p.id } }
-            if let source = pool.first(where: { HighlightMark.locate(q, in: $0.text) != nil }) {
-                quotes.append((source: source, quote: q))
-            }
+            guard let source = pool.first(where: { HighlightMark.locate(q, in: $0.text) != nil }) else { continue }
+            if let terms, !terms.isEmpty, LocalRetriever.share(of: terms, in: source.text) < minimumRelation,
+               !closest.contains(where: { HighlightMark.locate(q, in: $0) != nil || HighlightMark.locate($0, in: q) != nil }) { continue }
+            quotes.append((source: source, quote: q))
         }
         guard !quotes.isEmpty else { return nil }
         return (text: text, quotes: quotes)

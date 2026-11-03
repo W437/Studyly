@@ -74,11 +74,11 @@ final class PaywallCopyTests: XCTestCase {
         XCTAssertEqual(PaywallCopy.cta(for: .examPass, price: pass, trialDays: nil), "Get Exam Pass for $14.99")
 
         XCTAssertEqual(PaywallCopy.terms(for: .yearly, price: yearly, trialDays: 7),
-                       "Free for 7 days, then $49.99 a year. Cancel anytime in two taps.")
+                       "Free for 7 days, then $49.99 a year. Cancel anytime in two taps. Fair use applies.")
         XCTAssertEqual(PaywallCopy.terms(for: .monthly, price: monthly, trialDays: nil),
-                       "Renews at $9.99 a month. Cancel anytime in two taps.")
+                       "Renews at $9.99 a month. Cancel anytime in two taps. Fair use applies.")
         XCTAssertEqual(PaywallCopy.terms(for: .examPass, price: pass, trialDays: nil),
-                       "$14.99 for 30 days, one time. Doesn't renew.")
+                       "$14.99 for 30 days, one time. Doesn't renew. Fair use applies.")
     }
 
     func testTimelineIsTodayThenTheReminderThenTheCharge() {

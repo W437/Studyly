@@ -78,6 +78,17 @@ struct CaptureRequest: Hashable, Sendable, Identifiable {
     var courseID: UUID?
     /// True inside onboarding: the flow hands back to it instead of closing.
     var isOnboarding = false
+    /// "Add questions for the rest": the flow writes a new draft set for a source already in the library, from the part of it decided
+    /// when the person asked (`AppModel.restRequest`), so writing the set again with Cloud AI, from the review, uses the same part
+    /// (`input` is not used). The source is never thrown away with its drafts.
+    var rest: Coverage.Rest? = nil
+    /// The source a rest adds questions to.
+    var restOf: UUID? { rest?.sourceID }
+
+    /// The request that adds questions for the rest of a source, from the part decided.
+    static func rest(_ plan: Coverage.Rest, in courseID: UUID?) -> CaptureRequest {
+        CaptureRequest(input: .text(title: "", body: ""), courseID: courseID, rest: plan)
+    }
 }
 
 enum AppSheet: Identifiable, Hashable, Sendable {
@@ -98,6 +109,8 @@ enum AppSheet: Identifiable, Hashable, Sendable {
     case sourcePage(sourceID: UUID, pageIndex: Int, highlight: [String])
     /// A lecture's notes, scrolled to a moment (a tutor citation, a question's timestamp).
     case lectureMoment(sourceID: UUID, time: Double?)
+    /// The card of an imported deck that a tutor citation's quote came from (`label` is the citation's: it numbers the card).
+    case deckCard(sourceID: UUID, quote: String, label: String)
     case paywall(PaywallContext)
     case examPass(examID: UUID?)
     case consent(ConsentReason)

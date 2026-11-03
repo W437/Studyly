@@ -77,6 +77,12 @@ export interface GenerateResponse {
 export interface CheckRequest {
   pages: PageInput[];
   items: GeneratedItem[];
+  /** The source's title and section headings: part of the source, so a name they supply counts (at most 200 characters; 60
+   * headings of 120). */
+  sourceTitle?: string;
+  headings?: string[];
+  /** Judge only whether each item is true by the cited lines and their context, ignoring missing names and attributions. */
+  lenient?: boolean;
 }
 
 export interface CheckVerdict {
@@ -141,8 +147,11 @@ export interface TutorRequest {
   minor: boolean;
   course?: string;
   messages: TutorMessage[];
+  /** Up to 100 passages. */
   sources: TutorSource[];
   context?: TutorContext;
+  /** What the student has added, as the app names it ("Cardiac cycle (6 pages)"): up to 20, each at most 120 characters. */
+  materials?: string[];
 }
 
 export interface TutorScriptEvent {
@@ -234,6 +243,8 @@ export interface AssistantRequest {
   messages: TutorMessage[];
   sources: TutorSource[];
   context?: TutorContext;
+  /** As the tutor's. */
+  materials?: string[];
   study: StudyState;
   /** The tools the app lets the model use this time. */
   tools: AssistantToolName[];
@@ -350,6 +361,8 @@ export interface LectureResponse {
   keyTerms: string[];
   examFlags: LectureExamFlag[];
   items: GeneratedItem[];
+  /** How many other exam-relevant ideas did not get a question (1 to 99); left out when none. */
+  leftOut?: number;
 }
 
 export interface CardsFromChatRequest {

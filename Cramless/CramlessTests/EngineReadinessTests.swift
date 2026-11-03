@@ -117,6 +117,93 @@ final class EngineReadinessTests: XCTestCase {
         XCTAssertEqual(GradeModel.letter(1), "A+")
     }
 
+    /// 94% on 16 questions that reach 17% of a 14-page reading is not an A: the rest of the reading is worth what nobody practised.
+    func testWhatTheQuestionsCoverDecidesTheProjectedGradeNotTheRing() {
+        let shortAnswer = GradeModel.uncalibrated(for: ExamFormat(multipleChoice: false, shortAnswer: true))
+        XCTAssertEqual(GradeModel.adjusted(readiness: 0.94, coverage: 0.17), 0.17 * 0.94 + 0.83 * 0.35, accuracy: 1e-12)
+        let thin = shortAnswer.grade(0.94, coverage: 0.17)
+        XCTAssertEqual(thin.letter, "F", "\(thin)")
+        XCTAssertLessThan(thin.percent, 0.5)
+        XCTAssertEqual(shortAnswer.grade(0.94).letter, "A", "what it said before")
+
+        // Full coverage, and a coverage nobody could tell, change nothing.
+        XCTAssertEqual(shortAnswer.grade(0.94, coverage: 1), shortAnswer.grade(0.94))
+        XCTAssertEqual(shortAnswer.grade(0.94, coverage: nil), shortAnswer.grade(0.94))
+        XCTAssertEqual(GradeModel.adjusted(readiness: 0.6, coverage: 1), 0.6)
+        // More of the material covered never lowers it, and no coverage ever raises it.
+        let steps = stride(from: 0.0, through: 1.0, by: 0.1).map { GradeModel.adjusted(readiness: 0.9, coverage: $0) }
+        XCTAssertEqual(steps, steps.sorted())
+        XCTAssertEqual(GradeModel.adjusted(readiness: 0.1, coverage: 0.5), 0.1, "a readiness under the floor is not lifted by it")
+        XCTAssertEqual(GradeModel.adjusted(readiness: 0, coverage: 0), 0)
+        XCTAssertEqual(GradeModel.unpractisedFloor, 0.35, "a judgement, not a measurement: the share of what nobody practised that still earns marks")
+        XCTAssertEqual(GradeModel.adjusted(readiness: 0.9, coverage: 2), 0.9, "a share is kept within 0…1")
+
+        // A multiple-choice exam keeps its guessing on top.
+        let choice = GradeModel.uncalibrated(for: ExamFormat(multipleChoice: true, shortAnswer: false))
+        XCTAssertEqual(choice.grade(0.94, coverage: 0.17).percent, 0.25 + 0.75 * GradeModel.adjusted(readiness: 0.94, coverage: 0.17), accuracy: 1e-12)
+        XCTAssertEqual(choice.grade(0.94, coverage: 0.17).letter, "F")
+    }
+
+    func testTheRingStaysTheMeanRecallOfTheQuestionsWhileTheGradeKnowsTheCoverage() {
+        let exam = ExamSnapshot(courseID: course, date: cal.adding(days: 14, to: now))
+        let id = UUID()
+        let twoDaysAgo = cal.adding(days: -2, to: now)
+        let memory = MemoryState(state: .review, stability: 60, difficulty: 3, due: cal.adding(days: 58, to: twoDaysAgo),
+                                 lastReview: twoDaysAgo, reps: 6)
+        let item = ItemSnapshot(id: id, topicID: topicA, courseID: course, memory: memory)
+        let plan = PlanBuilder(fsrs: FSRS(), calendar: cal, now: now, dailyMinutes: 15).plan(for: exam, items: [item])
+        let model = GradeModel.uncalibrated(for: ExamFormat(multipleChoice: false, shortAnswer: true))
+        let blind = engine.readiness(for: exam, items: [item], topics: topics, logs: [], plan: plan, grade: model)
+        let thin = engine.readiness(for: exam, items: [item], topics: topics, logs: [], plan: plan, grade: model, coverage: 0.17)
+        XCTAssertGreaterThan(blind.value, 0.9, "a well-practised handful of questions")
+        XCTAssertEqual(thin.value, blind.value, "the ring is the person's own practice")
+        XCTAssertEqual(thin.projected, blind.projected)
+        XCTAssertEqual(thin.coverage, 0.17)
+        XCTAssertNil(blind.coverage)
+        XCTAssertEqual(blind.projectedGrade, model.grade(plan.projectedReadiness))
+        XCTAssertEqual(thin.projectedGrade, model.grade(plan.projectedReadiness, coverage: 0.17))
+        XCTAssertLessThan(thin.projectedGrade.percent, blind.projectedGrade.percent - 0.4)
+        XCTAssertEqual(thin.projectedGrade.letter, "F")
+    }
+
+    /// The floor is gentler than it was (0.2): the free plan's 24 questions can't cover a long reading, and a grade pulled to the floor
+    /// had no remedy; a student who practised half the material and knows it well is no longer projected as failing it.
+    func testTheFloorIsGentleEnoughForAReadingTheQuestionsCannotCoverInFull() {
+        let shortAnswer = GradeModel.uncalibrated(for: ExamFormat(multipleChoice: false, shortAnswer: true))
+        let half = shortAnswer.grade(0.9, coverage: 0.5)
+        XCTAssertEqual(half.percent, 0.5 * 0.9 + 0.5 * 0.35, accuracy: 1e-12)
+        XCTAssertEqual(half.letter, "D", "62.5%, not the F it would have been at the old floor: \(half)")
+        XCTAssertGreaterThan(half.percent, 0.6)
+        XCTAssertEqual(GradeModel.adjusted(readiness: 0.9, coverage: 0), 0.35, "nothing practised is projected at the floor")
+        XCTAssertEqual(GradeModel.adjusted(readiness: 0.3, coverage: 0), 0.3, "never above the readiness itself")
+    }
+
+    /// Calibration is fitted to what each exam was projected from, so coverage is not held against a calibrated student twice: once in
+    /// the readiness the line is fitted to, and again in the readiness it is given.
+    func testACalibratedLineIsFittedToTheAdjustedReadinessAndReadsItAfterTheExamToo() {
+        let format = ExamFormat(multipleChoice: false, shortAnswer: true)
+        func started(_ ring: Double, coverage: Double?, got: Double) -> ExamSnapshot {
+            ExamSnapshot(courseID: course, date: now, format: format, readinessAtExam: ring, resultScore: got, coverageAtExam: coverage)
+        }
+        // Two exams on thin readings: a ring of 0.9 on a third of the material, and 0.8 on half.
+        let a = started(0.9, coverage: 1.0 / 3, got: 0.55)
+        let b = started(0.8, coverage: 0.5, got: 0.62)
+        XCTAssertEqual(a.adjustedReadinessAtExam ?? 0, GradeModel.adjusted(readiness: 0.9, coverage: 1.0 / 3), accuracy: 1e-12)
+        XCTAssertLessThan(a.adjustedReadinessAtExam ?? 1, a.readinessAtExam ?? 0)
+        XCTAssertEqual(ExamSnapshot(courseID: course, date: now, readinessAtExam: 0.9).adjustedReadinessAtExam, 0.9,
+                       "an exam that started before the coverage was kept is as it was")
+        XCTAssertNil(ExamSnapshot(courseID: course, date: now).adjustedReadinessAtExam)
+
+        let adjusted = GradeModel.make(format: format, history: [(a.adjustedReadinessAtExam!, 0.55), (b.adjustedReadinessAtExam!, 0.62)])
+        let raw = GradeModel.make(format: format, history: [(0.9, 0.55), (0.8, 0.62)])
+        XCTAssertTrue(adjusted.isCalibrated)
+        // The same exam on the same thin reading, projected by each line from what it is given now (the adjusted readiness):
+        let given = GradeModel.adjusted(readiness: 0.85, coverage: 0.4)
+        XCTAssertEqual(adjusted.percent(given), adjusted.grade(0.85, coverage: 0.4).percent, accuracy: 1e-12)
+        // A line fitted to the raw ring and then given an adjusted readiness would take the coverage off twice and project it lower.
+        XCTAssertLessThan(raw.percent(given), adjusted.percent(given) + 1e-9)
+    }
+
     func testCalibrationFitsLoggedGrades() {
         let format = ExamFormat()
         XCTAssertFalse(GradeModel.make(format: format, history: [(0.7, 0.8)]).isCalibrated, "one exam isn't enough")

@@ -8,6 +8,10 @@ import XCTest
 @MainActor
 final class AIOnDeviceTests: XCTestCase {
 
+    /// The model's choice of sentence has tests of its own (`TutorTests`); these script the model's own answer, which would otherwise come second.
+    override func setUp() { OnDeviceWindow.useModelPick = false }
+    override func tearDown() { OnDeviceWindow.useModelPick = true }
+
     private func app(_ steps: [ScriptedOnDeviceBackend.Step]) -> (AppModel, ScriptedOnDeviceBackend) {
         let app = AITestSupport.makeApp(mode: .local)
         let backend = ScriptedOnDeviceBackend(steps)
@@ -223,6 +227,76 @@ final class AIOnDeviceTests: XCTestCase {
         XCTAssertNil(OnDeviceTutoring.reply(from: invented, passages: passages))
         let uncovered = FMTutorReply(covered: false, reply: "Not covered.", passages: [], quotes: [])
         XCTAssertNil(OnDeviceTutoring.reply(from: uncovered, passages: passages))
+    }
+
+    func testAQuoteFromAPassageThatIsNotAboutTheQuestionIsNotSupport() {
+        // Elena's iPhone offered a real sentence of Federalist 10 ("the violence of faction") as the cause of the French Revolution.
+        let federalist = "Among the numerous advantages promised by a well constructed Union, none deserves to be more accurately developed than its tendency to break and control the violence of faction."
+        let revolution = "Historians trace the French Revolution to a financial crisis, bad harvests in 1787 and 1788, and a weak king."
+        func source(_ title: String, _ text: String) -> TutorMaterial {
+            TutorMaterial(sourceID: UUID(), title: title, kind: .text, pages: [PageText(index: 0, label: "1", lines: [TextLine(id: "p0.l0", text: text, box: nil)])])
+        }
+        let retriever = LocalRetriever(material: [source("Federalist No. 10", federalist), source("French Revolution", revolution)])
+        let passages = retriever.passages.enumerated().map { TutorSource(id: "s\($0.offset + 1)", title: $0.element.title, label: $0.element.label, text: $0.element.text) }
+        let terms = retriever.weightedTerms("What caused the French Revolution?")
+        XCTAssertFalse(terms.isEmpty)
+
+        let offTopic = FMTutorReply(covered: true, reply: "The French Revolution was caused by the violence of factions. What does that suggest?", passages: [1],
+                                    quotes: ["tendency to break and control the violence of faction."])
+        XCTAssertNotNil(OnDeviceTutoring.reply(from: offTopic, passages: passages), "without the question's words it is only a sentence of the notes")
+        XCTAssertNil(OnDeviceTutoring.reply(from: offTopic, passages: passages, terms: terms), "a sentence that has none of the question's words is no support")
+
+        let onTopic = FMTutorReply(covered: true, reply: "A financial crisis and bad harvests. What else?", passages: [2],
+                                   quotes: ["bad harvests in 1787 and 1788"])
+        XCTAssertEqual(OnDeviceTutoring.reply(from: onTopic, passages: passages, terms: terms)?.quotes.first?.source.id, "s2")
+        // One good quote keeps the reply; the unrelated one goes.
+        let both = FMTutorReply(covered: true, reply: "A financial crisis. What else?", passages: [1, 2],
+                                quotes: ["tendency to break and control the violence of faction.", "bad harvests in 1787 and 1788"])
+        XCTAssertEqual(OnDeviceTutoring.reply(from: both, passages: passages, terms: terms)?.quotes.map(\.source.id), ["s2"])
+        XCTAssertEqual(OnDeviceTutoring.minimumRelation, 0.4)
+    }
+
+    func testAQuoteTheSentenceSearchRanksClosestIsAboutTheQuestionWhateverWordsItUses() {
+        // "Which religious teaching does Mill say sums up the ethics?" shares only "ethics" with the sentence that answers it, so the share of the
+        // question's words alone (40%) threw out a right answer. A sentence the search put among the closest to the question is about it.
+        let golden = "In the golden rule of Jesus of Nazareth, we read the complete spirit of the ethics of utilitarianism. To do as one would be done by is the ideal."
+        let other = "Utilitarianism holds that actions are right in proportion as they promote happiness, and wrong as they produce the reverse of happiness."
+        func source(_ title: String, _ text: String) -> TutorMaterial {
+            TutorMaterial(sourceID: UUID(), title: title, kind: .text, pages: [PageText(index: 0, label: "1", lines: [TextLine(id: "p0.l0", text: text, box: nil)])])
+        }
+        let retriever = LocalRetriever(material: [source("Mill, Utilitarianism", golden), source("Mill, Utilitarianism, ch. 2", other)])
+        let passages = retriever.passages.enumerated().map { TutorSource(id: "s\($0.offset + 1)", title: $0.element.title, label: $0.element.label, text: $0.element.text) }
+        let reply = FMTutorReply(covered: true, reply: "Jesus's golden rule sums up the ethics. What does it ask of us?", passages: [1],
+                                 quotes: ["In the golden rule of Jesus of Nazareth, we read the complete spirit of the ethics of utilitarianism."])
+        // Whatever the share, the sentence search's own pick counts; with nothing to go by the old rule stands.
+        let closest = ["In the golden rule of Jesus of Nazareth, we read the complete spirit of the ethics of utilitarianism."]
+        XCTAssertNotNil(OnDeviceTutoring.reply(from: reply, passages: passages, terms: ["unrelated": 1, "words": 1], closest: closest))
+        XCTAssertNil(OnDeviceTutoring.reply(from: reply, passages: passages, terms: ["unrelated": 1, "words": 1]),
+                     "without the search's pick the question's words decide, as they did")
+        // A sentence the search did not rank near the question is not rescued by it.
+        XCTAssertNil(OnDeviceTutoring.reply(from: reply, passages: passages, terms: ["unrelated": 1, "words": 1], closest: ["Something else entirely, about harvests."]))
+    }
+
+    func testAnUnrelatedQuoteSendsTheQuestionToTheOfflineTutorInstead() async throws {
+        // The Federalist passage is retrieved (it shares a word with the question), the iPhone quotes it, and the answer the
+        // student gets is the offline tutor's lines from the passage that is about the question.
+        let federalist = "Revolution was feared in the states, and the advantages of the Union would, said Madison, control the violence of faction."
+        let revolution = "The French Revolution began in 1789 with the Estates-General, after a financial crisis and bad harvests."
+        func source(_ title: String, _ text: String) -> TutorMaterial {
+            TutorMaterial(sourceID: UUID(), title: title, kind: .text, pages: [PageText(index: 0, label: "1", lines: [TextLine(id: "p0.l0", text: text, box: nil)])])
+        }
+        let reply = #"{"covered": true, "reply": "It was caused by the violence of faction. What do you think?", "passages": [1], "quotes": ["control the violence of faction."]}"#
+        let (app, backend) = app([.json(reply)])
+        app.settings.tutorMode = .explain
+        let input = TutorInput(messages: [TutorMessage(role: .user, text: "What caused the French Revolution?")], course: nil,
+                               material: [source("Federalist No. 10", federalist), source("French Revolution", revolution)])
+        let answered = await app.ai.tutorReply(input)
+        let outcome = try XCTUnwrap(answered)
+        XCTAssertEqual(backend.requests.first?.kind, .tutor, "the model was asked")
+        XCTAssertEqual(outcome.origin, .rules, "its quote was about a different question")
+        XCTAssertTrue(outcome.fellBack)
+        XCTAssertTrue(outcome.text.contains("The French Revolution began in 1789"), outcome.text)
+        XCTAssertFalse(outcome.text.contains("violence of faction"), outcome.text)
     }
 
     func testOnDeviceTutorAnswersShortQuestionsWithCheckedCitations() async throws {

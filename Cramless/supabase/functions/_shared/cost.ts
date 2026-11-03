@@ -86,3 +86,11 @@ export function parseUsd(text: string): bigint | null {
  * a yearly plan nets, about 12¢ a day). A normal day costs a few cents. It starts as a guess to tune from real use
  * (DAILY_COST_CAP_USD; 0 turns it off). */
 export const DEFAULT_DAILY_COST_CAP_NANO = 100_000_000n;
+
+/** A paid student's day and week. The free day cap above is the whole of a free student's allowance, and a paid student's average day is held
+ * to it too (7 x 10¢ = 70¢ a week, the most they could cost before and still the most), but a cram night is the reason to pay: the night before
+ * an exam is ten Ask Cap answers at about a cent each, then the grading of a session, so a paid day may take up to 40¢ as long as the week
+ * (Monday to Sunday, the person's own) stays under 70¢. Seen in the third user test: a Pro student's cram night stopped at the 11th answer under
+ * the single 10¢ cap. (PAID_DAILY_COST_CAP_USD and PAID_WEEKLY_COST_CAP_USD; 0 turns each off.) */
+export const DEFAULT_PAID_DAILY_COST_CAP_NANO = 400_000_000n;
+export const DEFAULT_PAID_WEEKLY_COST_CAP_NANO = 700_000_000n;

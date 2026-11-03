@@ -26,6 +26,7 @@ supabase/
       provider.ts             the call and event types every route uses, and the Provider interface
       openai.ts               every route on OpenAI: strict structured outputs for the JSON routes, the tutor's streamed JSON answer with its quotes checked against the passages
       openai_assistant.ts     the assistant (tools) and web research
+      research_sources.ts     the sites web research never uses (OpenStax, Chegg, Quizlet, …): the one list, applied to the prompt, the search and the reply
       plans.ts items.ts mock.ts prompts.ts store*.ts entitlements.ts …
     tests/                    deno test: handlers in-process, a mock of OpenAI's Responses API, test PKI, in-memory store
 ```

@@ -39,6 +39,55 @@ final class AssistantSpyTransport: RelayTransport, @unchecked Sendable {
     }
 }
 
+/// A relay from before the limit was raised: it takes 24 passages in an assistant request and turns a longer list down as a bad
+/// request, in any round. Round one looks something up in the notes; the round after answers.
+final class LegacyAssistantTransport: RelayTransport, @unchecked Sendable {
+    private let lock = NSLock()
+    private var counts: [Int] = []
+    private var _lookedUp = false
+    private let query: String
+
+    init(lookingUp query: String) { self.query = query }
+
+    var sourceCounts: [Int] { lock.withLock { counts } }
+    var lookedUp: Bool { lock.withLock { _lookedUp } }
+
+    func assistant(_ request: AssistantRequest) -> AsyncThrowingStream<AssistantEvent, Error> {
+        lock.withLock { counts.append(request.sources.count) }
+        if request.sources.count > 24 {
+            return AsyncThrowingStream { $0.finish(throwing: RelayError.badRequest("The request isn't valid: /sources has more than 24 items.")) }
+        }
+        let first = request.turns.isEmpty
+        if first { lock.withLock { _lookedUp = true } }
+        let query = self.query
+        return AsyncThrowingStream { continuation in
+            continuation.yield(.start(model: "legacy"))
+            if first {
+                continuation.yield(.toolStart(callID: "c1", name: "search_notes"))
+                continuation.yield(.toolCall(callID: "c1", name: "search_notes", arguments: .object(["query": .string(query)])))
+                let call: AnyJSON = .object(["type": .string("function_call"), "name": .string("search_notes"), "call_id": .string("c1")])
+                continuation.yield(.done(model: "legacy", stop: "tool_calls", continuation: [call], limit: nil))
+            } else {
+                continuation.yield(.delta("Here is what the notes say."))
+                continuation.yield(.done(model: "legacy", stop: "end_turn", continuation: [], limit: nil))
+            }
+            continuation.finish()
+        }
+    }
+
+    func tutor(_ request: TutorRequest) -> AsyncThrowingStream<TutorEvent, Error> {
+        AsyncThrowingStream { $0.finish(throwing: RelayError.upstream("unused")) }
+    }
+    func generate(_ request: GenerateRequest) async throws -> GenerateResponse { throw RelayError.upstream("unused") }
+    func check(_ request: CheckRequest) async throws -> CheckResponse { throw RelayError.upstream("unused") }
+    func grade(_ request: GradeRequest) async throws -> GradeResponse { throw RelayError.upstream("unused") }
+    func confusions(_ request: ConfusionsRequest) async throws -> ConfusionsResponse { throw RelayError.upstream("unused") }
+    func lecture(_ request: LectureRequest) async throws -> LectureResponse { throw RelayError.upstream("unused") }
+    func cardsFromChat(_ request: CardsFromChatRequest) async throws -> CardsFromChatResponse { throw RelayError.upstream("unused") }
+    func transcribeImage(_ request: TranscribeImageRequest) async throws -> TranscribeImageResponse { throw RelayError.upstream("unused") }
+    func quota() async throws -> QuotaStatus { throw RelayError.upstream("unused") }
+}
+
 /// Ask Cap's assistant: the mock relay's scripted rounds run through the real tools, and what changes in the library is
 /// what is asserted (not the transcript). The Deno suite checks the same scripts against the real tool schemas.
 @MainActor
@@ -319,6 +368,75 @@ final class AssistantTests: AskTestCase {
         XCTAssertEqual(drafts.last?.basis.evidence?.label.hasPrefix("Lecture 6"), true)
     }
 
+    func testTheFirstRequestCarriesTheNotesNotSixHits() async throws {
+        let (app, bio, spy) = world()
+        _ = await ask("Make me flashcards on mitosis", app: app, bio: bio)
+        let all = LocalRetriever(material: app.tutorMaterial(courseID: bio.course.id)).passages
+        let asked = try XCTUnwrap(spy.requests.first)
+        XCTAssertGreaterThan(all.count, 6, "more than the six the first round used to start from")
+        XCTAssertEqual(asked.sources.map(\.text), all.map(\.text), "everything, in reading order, with ids that stay the same from round to round")
+        XCTAssertEqual(asked.sources.map(\.id), (1...all.count).map { "s\($0)" })
+        if spy.requests.count > 1 {
+            XCTAssertEqual(Array(spy.requests[1].sources.prefix(all.count)), asked.sources, "the start of every round is the same")
+        }
+    }
+
+    func testAnOldRelayThatTakes24PassagesIsKeptWithinThemInEveryRound() async throws {
+        let app = makeApp(mode: .mock, consent: true)
+        app.ai.assistantBeat = .zero
+        let legacy = LegacyAssistantTransport(lookingUp: "matter55")
+        app.ai.transportOverride = legacy
+        let bio = makeBio(app)
+        // About 4,000 words on pages of ten: far more than 24 passages, so the whole of it goes at first.
+        _ = try app.createSource(fromText: (0..<60).map { TutorFixtures.paragraph($0) }.joined(separator: "\n"), title: "Reading A", course: bio.course)
+        let thread = app.startChat(courseID: bio.course.id)
+        app.addQuestion("What do my notes say about matter3?", to: thread)
+        let reply = await app.ai.assistantReply(app.assistantInput(for: thread))
+        let outcome = try XCTUnwrap(reply)
+
+        let counts = legacy.sourceCounts
+        XCTAssertEqual(counts.count, 3, "refused, then the first round again, then the one after the lookup: \(counts)")
+        XCTAssertGreaterThan(counts[0], 24, "the first try carried the notes")
+        XCTAssertEqual(counts[1], 24, "asked again with the best 24")
+        XCTAssertLessThanOrEqual(counts[2], 24, "the lookup added passages, and the next round still holds only 24")
+        XCTAssertEqual(outcome.text, "Here is what the notes say.")
+        XCTAssertFalse(outcome.interrupted, "not 'lost the connection part way'")
+        XCTAssertNil(outcome.note)
+        XCTAssertTrue(legacy.lookedUp, "the reply did look something up")
+    }
+
+    func testASessionKeepsToItsLimitInEveryRound() throws {
+        let (app, bio, _) = world()
+        let retriever = LocalRetriever(material: [TutorFixtures.source("Reading A", paragraphs: 50)])
+        func session() -> AssistantSession {
+            AssistantSession(index: app.studyIndex(currentCourseID: bio.course.id), retriever: retriever, currentCourseID: bio.course.id)
+        }
+        let all = retriever.passages
+        XCTAssertGreaterThanOrEqual(all.count, 50)
+        // The new relay takes a hundred.
+        let plain = session()
+        plain.send(Array(all.prefix(30)))
+        plain.send(Array(all.dropFirst(30)))
+        XCTAssertEqual(plain.sources.count, all.count)
+        XCTAssertEqual(AssistantSession.maxSources, 100)
+        // An old one takes 24: after `restart`, whatever the lookups add, a request holds the first six and the newest.
+        let old = session()
+        old.restart(with: Array(all.prefix(24)), limit: 24)
+        XCTAssertEqual(old.sources.map(\.id), (1...24).map { "s\($0)" })
+        old.send(Array(all.dropFirst(24).prefix(14)))
+        XCTAssertEqual(old.sent.count, 38)
+        let ids = old.sources.map(\.id)
+        XCTAssertEqual(ids.count, 24)
+        XCTAssertEqual(Array(ids.prefix(6)), (1...6).map { "s\($0)" })
+        XCTAssertEqual(ids.last, "s38")
+        // A passage inside a joined one keeps the joined one's id.
+        let joined = TutorSelection.joined(Array(all.prefix(3)))
+        let third = session()
+        third.send([joined])
+        XCTAssertEqual(third.send([all[1]]).map(\.id), ["s1"])
+        XCTAssertEqual(third.send([all[5]]).map(\.id), ["s2"])
+    }
+
     func testPassagesKeepTheirIdsFromRoundToRound() throws {
         let (app, bio, _) = world()
         let retriever = LocalRetriever(material: app.tutorMaterial(courseID: bio.course.id))
@@ -329,6 +447,35 @@ final class AssistantTests: AskTestCase {
         XCTAssertEqual(session.send([retriever.passages[0]]).map(\.id), ["s1"], "a passage keeps its id")
         XCTAssertEqual(session.send([retriever.passages[3]]).map(\.id), ["s3"])
         XCTAssertEqual(session.sources.map(\.id), ["s1", "s2", "s3"])
+    }
+
+    func testLookupsNeverPushTheRequestOverWhatTheRelayTakesInAll() throws {
+        let (app, bio, _) = world()
+        // 20 passages of 12,000 characters: three tokens of 4,000 letters each, so a few words and a lot of text.
+        let pages = (0..<20).map { n in
+            PageText(index: n, label: "\(n + 1)", lines: [TextLine(id: "p\(n).l0", text: [String(repeating: "a", count: 4_000),
+                                                                                           String(repeating: "b", count: 4_000),
+                                                                                           String(repeating: "c", count: 4_000)].joined(separator: " ") + ".",
+                                                                    box: nil)])
+        }
+        let retriever = LocalRetriever(material: [TutorMaterial(sourceID: UUID(), title: "Kanji reader", kind: .text, pages: pages)])
+        XCTAssertEqual(retriever.passages.count, 20)
+        let session = AssistantSession(index: app.studyIndex(currentCourseID: bio.course.id), retriever: retriever, currentCourseID: bio.course.id)
+        session.send(Array(retriever.passages.prefix(10)))
+        session.send(Array(retriever.passages.suffix(10)))
+        let ids = session.sources.map(\.id)
+        let total = session.sources.reduce(0) { $0 + $1.text.utf16.count }
+        XCTAssertLessThanOrEqual(total, AssistantSession.maxCharacters)
+        XCTAssertLessThanOrEqual(AssistantSession.maxCharacters, 200_000)
+        XCTAssertEqual(Array(ids.prefix(6)), ["s1", "s2", "s3", "s4", "s5", "s6"], "the start of the request stays as it was")
+        XCTAssertEqual(ids.last, "s20", "the newest lookup stays")
+        XCTAssertLessThan(ids.count, 20, "the oldest lookups went")
+        // Ordinary passages are all there.
+        let ordinary = AssistantSession(index: app.studyIndex(currentCourseID: bio.course.id),
+                                        retriever: LocalRetriever(material: app.tutorMaterial(courseID: bio.course.id)),
+                                        currentCourseID: bio.course.id)
+        ordinary.send(Array(ordinary.retriever.passages.prefix(4)))
+        XCTAssertEqual(ordinary.sources.count, 4)
     }
 
     // MARK: The web

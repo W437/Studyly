@@ -64,7 +64,7 @@ enum DeviceProbe {
                 let grade = await app.ai.gradeNow(subject, answer: .text(answer))
                 grades.append(["answer": answer, "seconds": Date().timeIntervalSince(started),
                                "gradedBy": grade.gradedBy.rawValue, "model": grade.model, "score": grade.score,
-                               "verdict": grade.verdict.rawValue, "confidence": grade.confidence,
+                               "verdict": grade.verdict.rawValue, "mode": grade.mode.rawValue, "confidence": grade.confidence,
                                "hits": grade.hitIdeaIDs, "missing": grade.missing.map { "\($0)" },
                                "feedback": grade.feedback, "fix": grade.fix, "marks": grade.marks.count])
             }

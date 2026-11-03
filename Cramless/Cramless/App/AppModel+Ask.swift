@@ -29,12 +29,23 @@ extension AppModel {
         return ordered.first { !readableSources(courseID: $0.id).isEmpty }?.id ?? ordered.first?.id
     }
 
-    /// The sources Cap can read in a course (nil: every course): pages with text, or a lecture's transcript. A
-    /// Quizlet or Anki import has cards but nothing to quote, so it doesn't count.
+    /// The sources Cap can read in a course (nil: every course): pages with text, a lecture's transcript, or the cards of an
+    /// imported Quizlet, Anki or CSV deck (the tutor reads a card as a passage, `tutorMaterial`).
     func readableSources(courseID: UUID?) -> [Source] {
         let sources = liveCourse(courseID).map(\.liveSources) ?? courses.flatMap(\.liveSources)
         return sources.filter { source in
-            source.kind == .lecture ? !source.segments.isEmpty : source.pages.contains { !$0.text.isEmpty }
+            if source.kind == .lecture { return !source.segments.isEmpty }
+            if source.kind.isDeck { return hasCards(source) }
+            return source.pages.contains { !$0.text.isEmpty }
+        }
+    }
+
+    /// A deck has something to read while one of its cards is still in the course (the same cards `deckCards` lists). Stops at
+    /// the first, because a screen asks this every time it draws.
+    private func hasCards(_ source: Source) -> Bool {
+        guard let course = source.course else { return false }
+        return course.items.contains { item in
+            item.deletedAt == nil && (item.status == .active || item.status == .suspended) && item.sourceRef?.sourceID == source.id
         }
     }
 

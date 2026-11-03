@@ -12,6 +12,12 @@ import Foundation
 ///
 /// The on-device model may rewrite a section's title and bullets afterwards (`AIRouter.lectureNotes`); the
 /// sections and their times always come from here.
+///
+/// A rule can name a section by a word that isn't a topic: a verb ("Noticed"), a word the whole lecture says
+/// ("Pressure" twice, "Heart"), a filler ("Diagram"). The offline result, which is all the person gets without a
+/// model, therefore passes a quality bar (`make(qualityBar:)`): a section with such a title is folded into its
+/// neighbour, and if fewer than two good sections are left the result is `thin` and no offline notes are offered at all:
+/// the router says Cloud AI is the way (`AIRouter.lectureNotes`).
 enum LocalLectureNotes {
 
     struct Section: Equatable, Sendable {
@@ -32,6 +38,9 @@ enum LocalLectureNotes {
         var keyTerms: [String]
         var examFlags: [LectureExamFlag]
         var items: [GeneratedItem]
+        /// Fewer than two sections have a title worth showing (only with `make(qualityBar: true)`): offline notes
+        /// aren't offered.
+        var thin = false
 
         var notes: LectureNotes {
             LectureNotes(summary: summary,
@@ -40,16 +49,23 @@ enum LocalLectureNotes {
         }
     }
 
-    static func make(title: String, segments: [TranscriptSegment], flags: [ExamFlag], maxItems: Int = 8) -> Result {
+    static func make(title: String, segments: [TranscriptSegment], flags: [ExamFlag], maxItems: Int = AIFreeLimits.lectureQuestions,
+                     qualityBar: Bool = false) -> Result {
         let segs = segments.filter { !$0.text.trimmingCharacters(in: .whitespaces).isEmpty }.sorted { $0.start < $1.start }
         guard !segs.isEmpty else {
             return Result(title: title, summary: "", sections: [], keyTerms: [], examFlags: [], items: [])
         }
-        let groups = sectionize(segs)
+        var groups = sectionize(segs)
+        var names = groups.map { sectionTitle($0) }
+        var thin = false
+        if qualityBar {
+            (groups, names) = applyingQualityBar(groups, names)
+            thin = groups.count < 2 || names.contains { $0 == nil }
+        }
         var sections: [Section] = []
         for (n, group) in groups.enumerated() {
             let text = group.map(\.text).joined(separator: " ")
-            sections.append(Section(id: "n\(n + 1)", title: sectionTitle(group) ?? "Part \(n + 1)",
+            sections.append(Section(id: "n\(n + 1)", title: names[n] ?? "Part \(n + 1)",
                                     start: group.first!.start, end: group.last!.end, segmentIDs: group.map(\.id),
                                     text: text, bullets: bullets(from: group)))
         }
@@ -84,7 +100,63 @@ enum LocalLectureNotes {
             summary += (summary.isEmpty ? "" : " ") + "Flagged for the \(word): \(LocalGrader.lowerFirst(point))."
         }
         return Result(title: title, summary: summary, sections: sections, keyTerms: keyTerms(segs, titles: titles),
-                      examFlags: examFlags, items: items)
+                      examFlags: examFlags, items: items, thin: thin)
+    }
+
+    // MARK: Quality bar
+
+    /// Words that name no topic whatever a lecture is about.
+    private static let fillerTitles: Set<String> = Set([
+        "thing", "things", "stuff", "way", "ways", "time", "times", "idea", "ideas", "point", "points", "part", "parts",
+        "case", "cases", "fact", "facts", "kind", "kinds", "lot", "lots", "number", "numbers", "example", "examples",
+        "question", "questions", "problem", "problems", "answer", "answers", "today", "class", "lecture", "chapter",
+        "section", "slide", "slides", "diagram", "figure", "graph", "picture", "board", "page", "exam", "midterm", "quiz",
+        "test", "homework", "reading", "notes", "word", "words", "name", "term", "terms", "value", "values", "result",
+        "results", "level", "step", "steps", "side", "end", "area", "form", "type", "order", "change", "changes",
+        "beginning", "start", "difference", "differences", "review", "summary", "recap", "introduction",
+    ])
+
+    /// Whether a section's title names a topic: two or more words that no earlier section used, or a single word that is
+    /// not a past-tense verb ("Noticed"), a filler ("Diagram"), a word nearly every section says ("Pressure",
+    /// "Heart" in a lecture on the heart), or a repeat. `sectionStems` are the content stems of every section's text.
+    static func isGoodTitle(_ title: String?, earlier: [String], sectionStems: [Set<String>]) -> Bool {
+        guard let title, !title.hasPrefix("Part ") else { return false }
+        let key = title.lowercased()
+        if earlier.contains(where: { $0.lowercased() == key }) { return false }
+        let words = title.split(separator: " ")
+        if words.count >= 2 { return true }
+        let word = Lexicon.fold(title)
+        guard word.count >= 4, !fillerTitles.contains(word) else { return false }
+        if word.hasSuffix("ed"), word.count >= 6 { return false }
+        // A word nearly every section says ("heart" in a lecture on the heart) names none of them.
+        let stem = Lexicon.stem(word)
+        let saying = sectionStems.filter { $0.contains(stem) }.count
+        return !(sectionStems.count >= 5 && Double(saying) >= 0.8 * Double(sectionStems.count))
+    }
+
+    /// Folds every section with a poor title into the one before it (the first one into the one after), so nothing of
+    /// the lecture is lost and no junk title is shown. Titles are `nil` for a section no title was found for.
+    static func applyingQualityBar(_ groups: [[TranscriptSegment]], _ names: [String?]) -> ([[TranscriptSegment]], [String?]) {
+        let stems = groups.map { Set(Lexicon.contentStems($0.map(\.text).joined(separator: " "))) }
+        var outGroups: [[TranscriptSegment]] = []
+        var outNames: [String?] = []
+        var carry: [TranscriptSegment] = []
+        for (i, group) in groups.enumerated() {
+            if isGoodTitle(names[i], earlier: outNames.compactMap { $0 }, sectionStems: stems) {
+                outGroups.append(carry + group)
+                outNames.append(names[i])
+                carry = []
+            } else if outGroups.isEmpty {
+                carry += group
+            } else {
+                outGroups[outGroups.count - 1] += group
+            }
+        }
+        if !carry.isEmpty, outGroups.isEmpty {
+            // Not one section had a title worth keeping.
+            return ([carry], [nil])
+        }
+        return (outGroups, outNames)
     }
 
     // MARK: Sections

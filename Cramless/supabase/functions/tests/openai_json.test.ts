@@ -2,9 +2,11 @@
 // mock of the Responses API, which checks each request's shape (a strict structured output, nothing stored, not streamed)
 // and answers with canned whole responses.
 
-import { assert, assertEquals, assertStringIncludes } from "@std/assert";
+import { assert, assertEquals, assertRejects, assertStringIncludes } from "@std/assert";
 import { TERRA } from "../_shared/cost.ts";
 import { defaultDeps } from "../_shared/deps.ts";
+import { ApiError } from "../_shared/errors.ts";
+import type { JsonCall } from "../_shared/provider.ts";
 import { OpenAIProvider, strictSchema, withoutNulls } from "../_shared/openai.ts";
 import { contractSchema, providerSchema } from "../_shared/schemas.ts";
 import { validate } from "../_shared/schema.ts";
@@ -87,7 +89,9 @@ Deno.test("generate: one Responses call to Terra with a strict structured output
 });
 
 Deno.test("strict schemas: every property required, the optional ones nullable; the reply is read back without its nulls", () => {
-  for (const name of ["GenerateResponse", "CheckResponse", "GradeResponse", "TranscribeImageResponse"]) {
+  for (
+    const name of ["GenerateResponse", "CheckResponse", "GradeResponse", "TranscribeImageResponse", "LectureResponse"]
+  ) {
     const plain = providerSchema(name);
     const strict = strictSchema(plain);
     // deno-lint-ignore no-explicit-any
@@ -113,6 +117,100 @@ Deno.test("strict schemas: every property required, the optional ones nullable; 
   const before = JSON.stringify(plain);
   strictSchema(plain);
   assertEquals(JSON.stringify(plain), before);
+});
+
+Deno.test("lecture: leftOut is an optional property of the contract that the model must write, as null when nothing was left out", () => {
+  const plain = providerSchema("LectureResponse");
+  assertEquals("leftOut" in plain.properties, true);
+  assertEquals(
+    plain.required.includes("leftOut"),
+    false,
+    "optional in the contract: old replies and old apps have none",
+  );
+  const strict = strictSchema(plain);
+  assertEquals(strict.required.includes("leftOut"), true, "strict mode wants every property written");
+  assertEquals(strict.properties.leftOut.anyOf.map((b: { type: string }) => b.type), ["integer", "null"]);
+});
+
+/** Records how long each call to the model was given in all. */
+class TimeoutSpy extends OpenAIProvider {
+  readonly seen: number[] = [];
+  protected override async *attempts<E>(
+    external: AbortSignal | undefined,
+    once: (signal: AbortSignal, markSent: () => void) => AsyncGenerator<E>,
+    timeoutMs = this.timeoutMs,
+  ): AsyncGenerator<E> {
+    this.seen.push(timeoutMs);
+    yield* super.attempts(external, once, timeoutMs);
+  }
+}
+
+const OK_CALL: JsonCall = {
+  model: TERRA,
+  effort: "low",
+  maxTokens: 10,
+  system: "s",
+  content: [{ type: "text", text: "hi" }],
+  schema: {
+    type: "object",
+    properties: { ok: { type: "boolean" } },
+    required: ["ok"],
+    additionalProperties: false,
+  },
+};
+
+Deno.test("a JSON call may carry its own time limit, retries included; without one it gets the provider's 90 s", async () => {
+  const mock = startMockOpenAI();
+  try {
+    const spy = new TimeoutSpy({ apiKey: TEST_OPENAI_KEY, baseURL: `${mock.url}/v1`, maxRetries: 0 });
+    mock.answer(replyJsonResponse({ ok: true }));
+    mock.answer(replyJsonResponse({ ok: true }));
+    await spy.json(OK_CALL);
+    await spy.json({ ...OK_CALL, timeoutMs: 115_000 });
+    assertEquals(spy.seen, [90_000, 115_000]);
+  } finally {
+    await mock.close();
+  }
+});
+
+Deno.test("a JSON call that outlasts its own limit is cut off there with the timeout error, not at the provider's", async () => {
+  const mock = startMockOpenAI();
+  try {
+    const provider = new OpenAIProvider({
+      apiKey: TEST_OPENAI_KEY,
+      baseURL: `${mock.url}/v1`,
+      maxRetries: 1,
+      retryDelayMs: 0,
+      timeoutMs: 60_000,
+    });
+    mock.answer({ sse: [], hang: true });
+    const started = performance.now();
+    const error = await assertRejects(() => provider.json({ ...OK_CALL, timeoutMs: 300 }), ApiError);
+    assertEquals(error.status, 504);
+    assertStringIncludes(error.message, "took too long");
+    // The limit covers the call whole, a retry included: it is not 300 ms for each try.
+    assert(performance.now() - started < 3000, "stopped at its own limit, not the provider's 60 s");
+    assertEquals(mock.requests.length, 1, "and the timed-out call was not tried again");
+  } finally {
+    await mock.close();
+  }
+});
+
+Deno.test("generate: a set of forty has room to think and to write, and the 16,000 for sixteen is unchanged", async () => {
+  await withMock(async (mock, r) => {
+    const request = fixtureJson("requests/generate");
+    mock.answer(replyJsonResponse(withoutModel("generate")));
+    await (await r.ai("generate", { body: { ...request, maxItems: 40 } })).body?.cancel();
+    assertEquals(mock.requests[0].body.max_output_tokens, 30_000);
+    mock.answer(replyJsonResponse(withoutModel("generate")));
+    await (await r.ai("generate", { body: { ...request, maxItems: 24 } })).body?.cancel();
+    assertEquals(mock.requests[1].body.max_output_tokens, 20_400);
+    mock.answer(replyJsonResponse(withoutModel("generate")));
+    await (await r.ai("generate", { body: request })).body?.cancel();
+    assertEquals(mock.requests[2].body.max_output_tokens, 16_000);
+    // The prompt the model reads for the set spreads the questions over the whole text.
+    assertStringIncludes(mock.requests[2].body.instructions, "The last third of the text matters as much as the first");
+  });
 });
 
 Deno.test("generate: optional fields the model writes as null are dropped before the reply is checked", async () => {
@@ -244,6 +342,106 @@ Deno.test("check, confusions, lecture and cards run on Terra with their own sche
     }
     assertStringIncludes(textOf(mock.requests[2].body), "[s4 6:40–11:40] …");
     assertStringIncludes(textOf(mock.requests[2].body), "[12:05 = 725 s] midterm");
+  });
+});
+
+Deno.test("check: the source's title and headings reach the model, a lenient check adds its rule and the lines around the cited ones, and the verdicts keep their shape", async () => {
+  await withMock(async (mock, r) => {
+    const pages = fixtureJson("requests/generate").pages;
+    const items = fixtureJson("generate").items.slice(0, 2);
+    const verdicts = {
+      verdicts: [{ id: "i1", verdict: "supported", reason: "On the page." }, {
+        id: "i2",
+        verdict: "fixed",
+        reason: "Added the number.",
+        fixedAnswer: "Two cells.",
+      }],
+    };
+    const lineIds: string[] = pages.flatMap((p: { lines: { id: string }[] }) => p.lines.map((l) => l.id));
+    const anchored = new Set<string>(items.flatMap((i: { anchors: string[] }) => i.anchors));
+    const neighbour = lineIds.find((id, k) => !anchored.has(id) && anchored.has(lineIds[k - 1]))!;
+    assert(neighbour, "the fixture has a line right after a cited one");
+
+    mock.answer(replyJsonResponse(verdicts));
+    const titled = await (await r.ai("check", {
+      body: {
+        pages,
+        items,
+        sourceTitle: "Biology textbook\nUnit 3 <b>Cell Biology</b>",
+        headings: ["Mitosis: How Cells Divide", "  What happens after mitosis? "],
+      },
+    })).json();
+    // The reply is the contract's, unchanged.
+    assertEquals(validate(contractSchema("CheckResponse"), titled), []);
+    assertEquals(titled.verdicts.map((v: { id: string; verdict: string }) => [v.id, v.verdict]), [
+      ["i1", "supported"],
+      ["i2", "fixed"],
+    ]);
+    const sent = mock.requests[0].body;
+    const text = textOf(sent);
+    assertStringIncludes(text, "Source title: Biology textbook Unit 3 b Cell Biology /b");
+    assertStringIncludes(text, "Section headings:\n- Mitosis: How Cells Divide\n- What happens after mitosis?");
+    assert(text.indexOf("Source title") < text.indexOf("<page "), "the title leads the pages");
+    assertStringIncludes(sent.instructions, "They are part of the source, like the lines.");
+    assertStringIncludes(sent.instructions, "Don't mark an item unsupported because the cited lines lack a name");
+    assert(!sent.instructions.includes("lenient"), "a strict check says nothing of leniency");
+    assert(!text.includes(`[${neighbour}]`), "only the cited lines");
+
+    // A lenient check: its rule, and the lines around the cited ones.
+    mock.answer(replyJsonResponse(verdicts));
+    const lenient = await (await r.ai("check", { body: { pages, items, lenient: true } })).json();
+    assertEquals(validate(contractSchema("CheckResponse"), lenient), []);
+    const sentLenient = mock.requests[1].body;
+    assertStringIncludes(sentLenient.instructions, "This is a lenient check.");
+    assertStringIncludes(sentLenient.instructions, "Be strict: when in doubt, it's unsupported.");
+    assertStringIncludes(textOf(sentLenient), `[${neighbour}]`);
+    assert(!textOf(sentLenient).includes("Source title"), "no title was sent, so no title block");
+
+    // The shipped app sends neither: the request is as it was.
+    mock.answer(replyJsonResponse(verdicts));
+    await (await r.ai("check", { body: { pages, items } })).json();
+    const old = mock.requests[2].body;
+    assertEquals(old.instructions, mock.requests[0].body.instructions);
+    assert(!textOf(old).includes("Source title") && !textOf(old).includes(`[${neighbour}]`));
+  });
+});
+
+Deno.test("lecture: leftOut reaches the app when the model reports ideas it left out, and is left out of the reply when it reports none", async () => {
+  await withMock(async (mock, r) => {
+    const segments = ["s3", "s4", "s5"].map((id, i) => ({ id, start: i * 400, end: i * 400 + 300, text: "…" }));
+    const request = {
+      course: "Bio",
+      title: "Lecture 6",
+      segments,
+      flags: [{ time: 725, text: "midterm" }],
+      maxItems: 10,
+    };
+    const cases: [unknown, number | undefined][] = [
+      [4, 4],
+      [null, undefined], // strict mode writes the optional property as null
+      [0, undefined],
+      [250, 99],
+      [-3, undefined],
+      [undefined, undefined], // an older reply has no such property
+    ];
+    for (const [asked, expected] of cases) {
+      r.store.counters.clear(); // the free plan has one lecture a week
+      const reply = withoutModel("lecture");
+      if (asked !== undefined) reply.leftOut = asked;
+      mock.answer(replyJsonResponse(reply));
+      const body = await (await r.ai("lecture", { body: request })).json();
+      assertEquals(validate(contractSchema("LectureResponse"), body), [], String(asked));
+      assertEquals(body.leftOut, expected, String(asked));
+      assertEquals("leftOut" in body, expected !== undefined, `${asked}: the field is absent, not null`);
+      assertEquals(body.items.length, 3, "the notes and questions are as the model wrote them");
+    }
+    // The model is asked for up to the app's ten, and for the count of ideas it left out.
+    const sent = mock.requests[0].body;
+    assertStringIncludes(textOf(sent), "maxItems: 10");
+    assertStringIncludes(sent.instructions, "leftOut: how many other exam-relevant ideas");
+    assertEquals(sent.text.format.schema, strictSchema(providerSchema("LectureResponse")));
+    assertEquals(sent.text.format.schema.properties.leftOut.anyOf.length, 2);
+    assertEquals(sent.max_output_tokens, 16_000);
   });
 });
 
@@ -407,4 +605,21 @@ Deno.test("real mode without a key answers upstream, and the mock refuses a malf
   } finally {
     await mock.close();
   }
+});
+
+Deno.test("a spent OpenAI balance on a JSON route: 503, 'unavailable', a Retry-After of 600 seconds, asked once, and the meter is given back", async () => {
+  await withMock(async (mock, r) => {
+    mock.answer({
+      status: 429,
+      error: { message: "You exceeded your current quota", type: "insufficient_quota", code: "insufficient_quota" },
+    });
+    const res = await r.ai("grade", { body: fixtureJson("requests/grade") });
+    assertEquals(res.status, 503);
+    assertEquals(res.headers.get("Retry-After"), "600");
+    const error = await errorOf(res);
+    assertEquals(error.code, "upstream");
+    assertEquals(error.message, "Cloud AI is unavailable right now. Try again later.");
+    assertEquals(error.retryAfter, 600);
+    assertEquals(mock.requests.length, 1, "a spent balance is not asked again");
+  });
 });

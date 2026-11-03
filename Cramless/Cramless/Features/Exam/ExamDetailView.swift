@@ -47,6 +47,10 @@ struct ExamDetailModel {
     var result: Double?
     var readinessAtExam: Double?
     var projectedAtExam: ProjectedGrade
+    /// How much of the material its questions reach (for an exam still to come).
+    var coverage: ExamPresentation.CoverageNote?
+    /// There is a reading with something left to write questions for ("Add questions for the rest").
+    var offersRest = false
     var materials: [Material]
     var sessionMinutes: Int
     var sessionReady: Bool
@@ -85,6 +89,18 @@ struct ExamDetailModel {
         result = exam.resultScore
         readinessAtExam = exam.readinessAtExam
         projectedAtExam = app.projectedGrade(for: exam)
+        if case .past = phase {
+            coverage = nil
+            offersRest = false
+        } else {
+            // Adding questions is for the weeks before: on the eve and on the day, the note only says how much they reach.
+            var canAdd = false
+            if case .ahead = phase { canAdd = true }
+            let summary = app.coverage(for: exam)
+            let target = summary.flatMap { app.restTarget(in: $0) }
+            coverage = summary.map { ExamPresentation.coverageNote($0, canAddMore: canAdd && target != nil) }
+            offersRest = canAdd && target != nil
+        }
         let items = course.liveItems
         let counts = Dictionary(grouping: items.compactMap { $0.sourceRef?.sourceID }, by: { $0 }).mapValues(\.count)
         materials = course.liveSources.sorted { $0.createdAt > $1.createdAt }.map { source in
@@ -176,7 +192,7 @@ private struct ExamDetailContent: View {
     private var hero: some View {
         VStack(spacing: 10) {
             ReadinessRing(value: shownReadiness, size: 176, lineWidth: 16, caption: ringCaption, animatesFromZero: true)
-                .accessibilityLabel(Text(ringCaption == "ready" ? "Readiness" : ringCaption.capitalized))
+                .accessibilityLabel(Text(ringLabel))
                 .padding(.top, 8)
             if case .past = model.phase {} else {
                 ReflowPill(text: "\(CLFormat.delta(model.readiness.deltaThisWeek)) this week",
@@ -192,8 +208,27 @@ private struct ExamDetailContent: View {
                 .foregroundStyle(CLColor.ink2)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
+            // The ring is how well the questions are remembered; this is how much of the material they reach.
+            if let note = model.coverage {
+                CoverageNoteCard(sentence: note.sentence, detail: note.mainGap, isThin: note.isThin,
+                                 offersMore: note.offersMore && model.offersRest, onAdd: addForTheRest)
+                    .padding(.top, 6)
+            }
         }
         .frame(maxWidth: .infinity)
+    }
+
+    /// The ring says what it is, and how much of the material the questions behind it reach.
+    private var ringLabel: String {
+        let name = ringCaption == "ready" ? "Readiness" : ringCaption.capitalized
+        guard let note = model.coverage else { return name }
+        return "\(name). \(note.sentence)"
+    }
+
+    /// The same flow as importing a source, for the parts of the exam's material no question reaches. The part is decided now.
+    private func addForTheRest() {
+        guard let exam = app.exam(model.id), let request = app.restRequest(for: exam) else { return }
+        app.router.present(.captureFlow(request))
     }
 
     private var shownReadiness: Double {
@@ -308,14 +343,24 @@ private struct ExamDetailContent: View {
                     .foregroundStyle(CLColor.ink2)
                     .fixedSize(horizontal: false, vertical: true)
             }
-            Text(grade.isCalibrated ? "A projection calibrated to your past grades, not a promise."
-                 : "A projection from your recall history, not a promise. It calibrates as you log grades.")
+            Text(gradeFootnote(grade))
                 .clFont(.footnote)
                 .foregroundStyle(CLColor.ink3)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .clCard()
         .accessibilityElement(children: .combine)
+    }
+
+    /// What the projection rests on: the questions' recall and, when it can be told, how much of the material they reach.
+    private func gradeFootnote(_ grade: ProjectedGrade) -> String {
+        if model.coverage == nil {
+            return grade.isCalibrated ? "A projection calibrated to your past grades, not a promise."
+                : "A projection from your recall history, not a promise. It calibrates as you log grades."
+        }
+        return grade.isCalibrated
+            ? "A projection calibrated to your past grades, not a promise. It counts how much of your material your questions cover."
+            : "A projection from your recall history and how much of your material your questions cover, not a promise. It calibrates as you log grades."
     }
 
     private var pathCard: some View {

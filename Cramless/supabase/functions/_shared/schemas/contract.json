@@ -265,7 +265,11 @@
         "sections": { "type": "array", "items": { "$ref": "#/$defs/LectureSection" } },
         "keyTerms": { "type": "array", "items": { "type": "string" } },
         "examFlags": { "type": "array", "items": { "$ref": "#/$defs/LectureExamFlag" } },
-        "items": { "type": "array", "items": { "$ref": "#/$defs/GeneratedItem" } }
+        "items": { "type": "array", "items": { "$ref": "#/$defs/GeneratedItem" } },
+        "leftOut": {
+          "type": "integer",
+          "description": "How many other exam-relevant ideas in the lecture did not get a question; null when every one did."
+        }
       },
       "required": ["model", "title", "summary", "sections", "keyTerms", "examFlags", "items"],
       "additionalProperties": false

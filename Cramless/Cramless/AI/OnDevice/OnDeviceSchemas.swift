@@ -116,3 +116,9 @@ struct FMCard: Codable, Equatable, Sendable {
     @Guide(description: "The answer in one sentence, in the conversation's words")
     var back: String
 }
+
+@Generable(description: "Which sentence of a student's notes answers a question")
+struct FMPick: Codable, Equatable, Sendable {
+    @Guide(description: "The number of the one sentence that answers the question; 0 when none of them does", .range(0...12))
+    var number: Int
+}

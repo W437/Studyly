@@ -1,7 +1,8 @@
 // Plans and quotas. Free: 3 AI scans a week (up to 10 pages each), 20 graded answers and 10 tutor messages a
 // day, AI notes for 1 lecture a week; reviews are never metered (they're on the device). Paid plans (Pro, Squad,
 // Exam Pass) are unlimited with fair use: a ceiling no student reaches in normal use, never shown as a limit.
-// Under every plan's meters sits one cost cap: what a person's model calls may cost in a day (`dailyCostError`).
+// Under every plan's meters sits a cost cap: what a person's model calls may cost in a day (`dailyCostError`): 10¢ on the free plan, 40¢ on a paid
+// plan, whose week (Monday to Sunday) may cost 70¢ (`weeklyCostError`), so that a cram night is possible and the average day is not more than before.
 // Days and weeks are the person's local ones (their profile's time zone; weeks start on Monday).
 
 import type { MeterKey, Period, Plan, QuotaMeter, QuotaStatus } from "./contract.ts";
@@ -169,6 +170,15 @@ const FAIR_USE_NAMES: Record<Meter, string> = {
 export function dailyCostError(plan: Plan, now: Date, timeZone: string): ApiError {
   const retryAfter = Math.max(1, Math.ceil((periodEnd("day", now, timeZone).getTime() - now.getTime()) / 1000));
   return new ApiError("quota_exceeded", "That's all the cloud AI for today. It starts again at midnight.", {
+    quota: { plan, meters: [] },
+    retryAfter,
+  });
+}
+
+/** The 429 for a paid person's week cost cap: the same words, until Monday's local midnight. */
+export function weeklyCostError(plan: Plan, now: Date, timeZone: string): ApiError {
+  const retryAfter = Math.max(1, Math.ceil((periodEnd("week", now, timeZone).getTime() - now.getTime()) / 1000));
+  return new ApiError("quota_exceeded", "That's all the cloud AI for this week. It starts again on Monday.", {
     quota: { plan, meters: [] },
     retryAfter,
   });

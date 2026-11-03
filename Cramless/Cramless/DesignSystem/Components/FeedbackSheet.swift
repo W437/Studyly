@@ -6,15 +6,18 @@ import SwiftUI
 // `sessionFooter(feedback:…)` swaps it in (SessionParts.swift). At the accessibility sizes the panel keeps only the
 // headline and Continue, and the view shows the details in its card (`FeedbackDetails`).
 
-/// The colours of a result: mint right, sun partly, rose not yet.
+/// The colours of a result: mint right, sun partly, rose not yet, and sky where nothing is judged yet.
 enum FeedbackTone: Sendable, Equatable {
     case mint, sun, rose
+    /// An answer to compare with the model answer, marked by the person: no verdict's colour yet.
+    case neutral
 
     var fill: Color {
         switch self {
         case .mint: CLColor.mintSoft
         case .sun: CLColor.sunSoft
         case .rose: CLColor.roseSoft
+        case .neutral: CLColor.skySoft
         }
     }
 
@@ -23,6 +26,7 @@ enum FeedbackTone: Sendable, Equatable {
         case .mint: CLColor.mintInk
         case .sun: CLColor.sunInk
         case .rose: CLColor.roseInk
+        case .neutral: CLColor.skyInk
         }
     }
 
@@ -31,16 +35,17 @@ enum FeedbackTone: Sendable, Equatable {
         case .mint: CLColor.mint
         case .sun: CLColor.sun
         case .rose: CLColor.rose
+        case .neutral: CLColor.sky
         }
     }
 
-    /// Continue's fill on the panel. "Not yet" moves on in tangerine, the primary action's colour: a red button
-    /// reads as an alarm.
+    /// Continue's fill on the panel. "Not yet" (and an answer still to be marked) moves on in tangerine, the primary action's
+    /// colour: a red button reads as an alarm.
     var button: Color {
         switch self {
         case .mint: CLColor.mint
         case .sun: CLColor.sun
-        case .rose: CLColor.tangerine
+        case .rose, .neutral: CLColor.tangerine
         }
     }
 
@@ -48,7 +53,7 @@ enum FeedbackTone: Sendable, Equatable {
         switch self {
         case .mint: CLColor.mintEdge
         case .sun: CLColor.sunEdge
-        case .rose: CLColor.tangerineEdge
+        case .rose, .neutral: CLColor.tangerineEdge
         }
     }
 }
@@ -99,6 +104,8 @@ struct FeedbackPanel<Primary: View, Secondary: View>: View {
                     Text(feedback.headline)
                         .clFont(.brandTitle(28))
                         .foregroundStyle(feedback.tone.ink)
+                        // A longer headline ("Compare with the answer.") wraps to a second line beside Cap instead of being cut off.
+                        .fixedSize(horizontal: false, vertical: true)
                         .accessibilityAddTraits(.isHeader)
                     if feedback.combo >= 3 {
                         ComboChip(count: feedback.combo)

@@ -38,6 +38,8 @@ const located = (quote: string, text: string) => {
 
 const NOT_COVERED =
   /(doesn['’]?t|does not|don['’]?t|do not|isn['’]?t|is not|aren['’]?t|are not|never|nothing|no (mention|information|details?|number|explanation))[^.?!]{0,60}(cover|say|says|mention|include|explain|state|give|list|describe|tell|contain|specif|address|discuss|in your|in the (notes|material|sources|pages?)|there)/i;
+// The tutor's current wording for "the notes can't answer this": it says it couldn't find it, not that the notes are silent.
+const NOT_FOUND = /(couldn['’]?t|could not|can['’]?t|cannot)\s+find/i;
 const DECLINES = /(can['’]?t|cannot|won['’]?t|not able|unable|only help|instead|rather|let['’]?s|happy to)/i;
 
 interface Scored {
@@ -84,8 +86,9 @@ function score(rec: Rec, c: Case): Scored {
   if (quotes.length > 0) checks.quotes = quotes.every((q) => q.valid);
   if (c.question) checks.question = /\?["')\]”’]*$/.test(answer.trim());
   if (c.leak) checks.leak = !c.leak(answer);
-  if (c.notCovered) checks.notCovered = NOT_COVERED.test(answer) && !(c.forbid?.test(answer) ?? false);
-  else if (c.forbid) checks.forbid = !c.forbid.test(answer);
+  if (c.notCovered) {
+    checks.notCovered = (NOT_FOUND.test(answer) || NOT_COVERED.test(answer)) && !(c.forbid?.test(answer) ?? false);
+  } else if (c.forbid) checks.forbid = !c.forbid.test(answer);
   if (c.must) checks.must = c.must.test(answer);
   if (c.decline) {
     checks.decline = (c.must !== undefined || DECLINES.test(answer)) && words <= (c.maxWords ?? 90) &&

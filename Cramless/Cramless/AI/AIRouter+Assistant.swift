@@ -18,7 +18,7 @@ extension AIRouter {
     func assistantAvailable(question: String, hasContext: Bool) -> Bool {
         guard let app, !hasContext, transport != nil else { return false }
         if let retry = assistantRetryAt, retry > app.now { return false }
-        if TutorPolicy.isRefused(question) || LocalTutor.isSmallTalk(question) { return false }
+        if TutorPolicy.decline(for: question) != nil || LocalTutor.isSmallTalk(question) { return false }
         return route(.tutor, content: question).usesCloud
     }
 
@@ -64,10 +64,14 @@ extension AIRouter {
         let material = input.material
         let retriever = await Task.detached(priority: .userInitiated) { LocalRetriever(material: material) }.value
         if Task.isCancelled { return }
+        // The passages the reply starts from: as many of the notes as the request holds (`TutorSelection`), so the model can
+        // answer from them or draft from them; what else it needs it looks up itself (`search_notes`).
         let retrieval = Self.retrieve(retriever, messages: input.messages, context: nil, limit: 6)
         let session = AssistantSession(index: app.studyIndex(currentCourseID: input.courseID), retriever: retriever,
                                        currentCourseID: input.courseID)
-        session.send(retrieval.hits.map(\.passage))
+        let selection = TutorSelection.select(retriever: retriever, searchText: retrieval.searchText, titleText: retrieval.studentText,
+                                              budget: TutorSelection.assistant)
+        session.send(selection.passages)
 
         var turns: [AssistantTurn] = []
         var steps: [AssistantStep] = []
@@ -86,11 +90,16 @@ extension AIRouter {
             emit(.step(step))
         }
 
-        rounds: for round in 0..<4 {
+        // A relay from before the limit was raised takes 24 passages and answers more as a bad request: asked again, once, with
+        // the best 24, if nothing has been shown yet, and then kept to 24 in every round (a lookup adds passages to the next one).
+        var legacy = false
+        var round = 0
+        rounds: while round < 4 {
             if Task.isCancelled { return }
+            // Within the relay's limits (code points): one source with a long name must not make every reply fail.
             let request = AssistantRequest(
                 mode: mode, minor: settings.isMinor, course: input.courseName, messages: Array(input.messages.suffix(10)),
-                sources: session.sources, context: nil, study: session.index.state, tools: app.assistantTools, turns: turns)
+                sources: session.sources, context: nil, study: session.index.state, tools: app.assistantTools, turns: turns).fitted()
             var calls: [AssistantToolCall] = []
             var continuation: [AnyJSON] = []
             var stop = "end_turn"
@@ -145,6 +154,14 @@ extension AIRouter {
                 }
             } catch {
                 failure = HTTPRelayTransport.map(error)
+                if let refused = failure, !started, round == 0, !legacy,
+                   Self.refusesSourceCount(refused, sources: request.sources.count, legacyLimit: TutorSelection.legacyAssistantLimit) {
+                    legacy = true
+                    failure = nil
+                    session.restart(with: selection.reduced(to: TutorSelection.legacyAssistantLimit).passages,
+                                    limit: TutorSelection.legacyAssistantLimit)
+                    continue rounds
+                }
                 break rounds
             }
             if Task.isCancelled { return }
@@ -186,6 +203,7 @@ extension AIRouter {
                 }
             }
             turns.append(AssistantTurn(continuation: continuation, results: results))
+            round += 1
         }
         for reveal in reveals { await reveal.value }
         if Task.isCancelled { return }
@@ -331,22 +349,34 @@ extension AIRouter {
             let material = app.tutorMaterial(courseID: nil)
             retriever = await Task.detached(priority: .userInitiated) { LocalRetriever(material: material) }.value
         }
-        var found = retriever.search(query, limit: 6).map(\.passage)
+        // The best few and what stands next to the best of them, so a lookup that hits the middle of an argument reads it.
+        var found = TutorSelection.lookup(retriever: retriever, query: query)
         // A source's name finds its passages too: "Lecture 6", "the week 5 slides".
         let folded = AssistantDrafts.fold(query)
-        for passage in retriever.passages where found.count < 6 && !found.contains(where: { $0.key == passage.key }) {
+        for passage in retriever.passages where found.count < 12 && !found.contains(where: { $0.key == passage.key }) {
             let head = AssistantDrafts.fold(passage.title.split(separator: ":").first.map(String.init) ?? passage.title)
             if head.count >= 4, folded.contains(head) { found.append(passage) }
         }
         let sent = session.send(found)
-        let passages: [AnyJSON] = sent.map { id, p in
-            .object(["id": .string(id), "label": .string(p.label), "text": .string(String(p.text.prefix(900)))])
-        }
         let hits = sent.map { NotesLookup.Hit(label: $0.passage.label, preview: String($0.passage.text.prefix(90))) }
         let title = hits.isEmpty ? String(localized: "Nothing in your notes for “\(query)”") : String(localized: "Read \(CLFormat.count(hits.count, "passage"))")
         let step = AssistantStep(id: call.callID, tool: .searchNotes, status: .done, courseName: scope, title: title,
                                  payload: .lookup(NotesLookup(query: query, hits: hits)))
-        return AssistantToolRun(step: step, output: AnyJSON.result(["passages": .array(passages)]).jsonString)
+        return AssistantToolRun(step: step, output: Self.lookupOutput(sent))
+    }
+
+    /// What the model reads of a lookup: each passage's id, label and text, the text cut (to 900 characters, and further when
+    /// there are many) so that the whole stays under what the relay takes of a tool's result (`RelayLimits.toolOutput`): one
+    /// result over it makes the relay refuse the whole next round.
+    static func lookupOutput(_ sent: [(id: String, passage: LocalRetriever.Passage)]) -> String {
+        guard !sent.isEmpty else { return AnyJSON.result(["passages": .array([])]).jsonString }
+        let overhead = sent.reduce(0) { $0 + $1.id.unicodeScalars.count + $1.passage.label.unicodeScalars.count + 60 }
+        let room = max(60, (RelayLimits.toolOutput - 500 - overhead) / sent.count)
+        let each = min(900, room)
+        let passages: [AnyJSON] = sent.map { id, p in
+            .object(["id": .string(id), "label": .string(p.label), "text": .string(p.text.clipped(toScalars: each))])
+        }
+        return AnyJSON.result(["passages": .array(passages)]).jsonString
     }
 
     // MARK: Looking things up on the web
@@ -372,7 +402,7 @@ extension AIRouter {
         step.payload = .research(result)
         update(step)
         let request = ResearchRequest(minor: app.settings.isMinor, topic: topic,
-                                      focus: call.arguments["focus"]?.string?.clTrimmed.clNonEmpty, course: course?.name)
+                                      focus: call.arguments["focus"]?.string?.clTrimmed.clNonEmpty, course: course?.name).fitted()
         do {
             for try await event in transport.research(request) {
                 switch event {

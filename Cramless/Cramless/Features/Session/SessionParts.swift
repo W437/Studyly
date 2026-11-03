@@ -251,9 +251,11 @@ struct SourceButton: View {
     }
 }
 
-/// A gentle note when a better grade needs consent or Pro. Never a wall: the grade above still counts.
+/// A gentle note when a better grade needs consent or Pro. Never a wall: the grade above still counts. `selfMarked`: the person is
+/// marking the answer themselves, so there is no grade above, and what is on offer is a grade from Cloud AI.
 struct SuggestionBanner: View {
     let suggestion: AISuggestion
+    var selfMarked = false
 
     @Environment(AppModel.self) private var app
 
@@ -294,11 +296,12 @@ struct SuggestionBanner: View {
     private var message: String {
         switch suggestion {
         case .allowCloud:
-            "Cloud AI can double-check answers like this one. The grade above already counts."
+            selfMarked ? String(localized: "Cloud AI can grade answers like this one for you.")
+                : "Cloud AI can double-check answers like this one. The grade above already counts."
         case .allowPhotos:
             "Sending page photos lets Cloud AI read diagrams and handwriting."
         case .upgrade(_, let line):
-            "\(line) This answer was checked on your iPhone and still counts."
+            selfMarked ? line : "\(line) This answer was checked on your iPhone and still counts."
         }
     }
 

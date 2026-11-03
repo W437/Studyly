@@ -53,6 +53,7 @@ import {
   sanitizeExamFlags,
   sanitizeGrade,
   sanitizeItems,
+  sanitizeLeftOut,
   sanitizeLines,
   sanitizeSections,
   sanitizeTopics,
@@ -82,11 +83,13 @@ import {
   SCAN_WINDOW_MINUTES,
   SHOWN_METERS,
   usageKeys,
+  weeklyCostError,
 } from "../_shared/plans.ts";
 import {
   assistantSystem,
   cardsContent,
   checkContent,
+  checkSystem,
   confusionsContent,
   generateContent,
   gradeContent,
@@ -98,7 +101,7 @@ import {
   tutorMessages,
   tutorSystem,
 } from "../_shared/prompts.ts";
-import { providerSchema, requireValid } from "../_shared/schemas.ts";
+import { providerSchema, requireSourceBudget, requireValid } from "../_shared/schemas.ts";
 import { EventStream, type TutorEventData } from "../_shared/sse.ts";
 import type { ScanKind, UserContext } from "../_shared/store.ts";
 import type { Caller } from "../_shared/auth.ts";
@@ -139,6 +142,8 @@ interface Meta {
   model?: string;
   mock?: boolean;
   usage?: Usage;
+  /** What OpenAI answered when it refused the call (the server log only). */
+  upstream?: string;
 }
 
 interface Ctx {
@@ -231,17 +236,28 @@ function record(c: Ctx, model: string, usage: Usage, status: number): void {
  * response, so what is still running isn't in it yet: a burst can pass the cap by what is in flight. MOCK replies cost nothing. If
  * the sum can't be read the request goes ahead (the meters still hold) and the failure is logged. */
 async function checkDailyCost(c: Ctx): Promise<void> {
-  const cap = c.deps.env.dailyCostCapNano;
-  if (cap <= 0n || c.deps.env.mock) return;
-  let spent: bigint;
+  const env = c.deps.env;
+  const paid = isPaid(c.user.plan);
+  const dayCap = paid ? env.paidDailyCostCapNano : env.dailyCostCapNano;
+  const weekCap = paid ? env.paidWeeklyCostCapNano : 0n;
+  if ((dayCap <= 0n && weekCap <= 0n) || env.mock) return;
   try {
-    const since = localMidnight(periodStart("day", c.now, c.user.timeZone), c.user.timeZone);
-    spent = await c.deps.store.spentSince(c.caller.userId, since);
-  } catch {
+    if (dayCap > 0n) {
+      const since = localMidnight(periodStart("day", c.now, c.user.timeZone), c.user.timeZone);
+      if ((await c.deps.store.spentSince(c.caller.userId, since)) >= dayCap) {
+        throw dailyCostError(c.user.plan, c.now, c.user.timeZone);
+      }
+    }
+    if (weekCap > 0n) {
+      const since = localMidnight(periodStart("week", c.now, c.user.timeZone), c.user.timeZone);
+      if ((await c.deps.store.spentSince(c.caller.userId, since)) >= weekCap) {
+        throw weeklyCostError(c.user.plan, c.now, c.user.timeZone);
+      }
+    }
+  } catch (e) {
+    if (e instanceof ApiError) throw e;
     log({ fn: "ai", route: `/${c.route}`, status: 500, code: "daily_cost_check_failed", plan: c.user.plan });
-    return;
   }
-  if (spent >= cap) throw dailyCostError(c.user.plan, c.now, c.user.timeZone);
 }
 
 interface RealResult<T> {
@@ -289,6 +305,19 @@ function call<T>(c: Ctx, result: JsonResult<T>): JsonResult<T> {
 
 // ---- Routes ----
 
+/** The most a generate call may write, thinking included. A question is about 150 tokens of JSON (the fixture's 16 average 546
+ * characters), so 40 are about 6,000 and the 16,000 that has always been enough for 16 would leave 10,000 for the thinking;
+ * bigger sets get room in proportion (30,000 at 40) so a long text's reasoning cannot cut the reply off, which is billed and
+ * lost. Never less than 16,000. */
+export function generateTokens(maxItems: number): number {
+  return Math.min(32_000, Math.max(16_000, 6_000 + 600 * maxItems));
+}
+
+/** How long a generate call may take in all, a retry included. The app asks for up to 20 questions in a request and waits 120 s; a
+ * question takes about 3.3 s, so the slowest tenth of a set of 20 comes close to the 90 s every other model call is given. The
+ * platform ends a function at about 150 s, so this leaves room to answer after the model gives up. */
+export const GENERATE_TIMEOUT_MS = 115_000;
+
 async function generate(c: Ctx, body: GenerateRequest): Promise<Response> {
   const max = isPaid(c.user.plan) ? PAGES_PER_SCAN.paid : PAGES_PER_SCAN.free;
   if (body.pages.length > max) {
@@ -312,7 +341,8 @@ async function generate(c: Ctx, body: GenerateRequest): Promise<Response> {
         await c.deps.provider.json<Omit<GenerateResponse, "model">>({
           model: TERRA,
           effort: "medium",
-          maxTokens: 16_000,
+          maxTokens: generateTokens(body.maxItems),
+          timeoutMs: GENERATE_TIMEOUT_MS,
           system: systemFor("generate"),
           content: generateContent(body),
           schema: providerSchema("GenerateResponse"),
@@ -366,8 +396,12 @@ async function check(c: Ctx, body: CheckRequest): Promise<Response> {
         model: TERRA,
         effort: "medium",
         maxTokens: 12_000,
-        system: systemFor("check"),
-        content: checkContent(body.pages, grounded),
+        system: checkSystem(body.lenient === true),
+        content: checkContent(body.pages, grounded, {
+          sourceTitle: body.sourceTitle,
+          headings: body.headings,
+          lenient: body.lenient === true,
+        }),
         schema: providerSchema("CheckResponse"),
         signal: c.req.signal,
       }),
@@ -468,6 +502,7 @@ async function lecture(c: Ctx, body: LectureRequest): Promise<Response> {
       maxItems: body.maxItems,
     });
     const keyTerms = [...new Set(res.value.keyTerms.map((t) => t.trim()).filter((t) => t.length > 0))].slice(0, 20);
+    const leftOut = sanitizeLeftOut(res.value.leftOut);
     return {
       body: {
         model: res.model,
@@ -477,6 +512,7 @@ async function lecture(c: Ctx, body: LectureRequest): Promise<Response> {
         keyTerms,
         examFlags: sanitizeExamFlags(res.value.examFlags, duration),
         items,
+        ...(leftOut !== undefined ? { leftOut } : {}),
       },
       model: res.model,
       usage: res.usage,
@@ -546,6 +582,7 @@ async function tutor(c: Ctx, body: TutorRequest): Promise<Response> {
   }
   const ids = new Set<string>();
   body.sources = body.sources.filter((s) => !ids.has(s.id) && ids.add(s.id));
+  requireSourceBudget(body.sources);
   const charge = await consume(c, { meter: "tutor" });
 
   const stream = new EventStream(c.deps.pingIntervalMs);
@@ -635,6 +672,7 @@ async function realTutor(c: Ctx, body: TutorRequest, stream: EventStream, signal
   } catch (error) {
     const err = providerError(error);
     status = err.status;
+    c.meta.upstream = err.upstream;
     if (err.usage) usage = err.usage;
     if (!sentDelta) await refund(c, charge);
     stream.send("error", { code: err.code, message: err.message });
@@ -660,6 +698,7 @@ async function assistant(c: Ctx, body: AssistantRequest): Promise<Response> {
   const turns = checkTurns(body.turns);
   const ids = new Set<string>();
   body.sources = body.sources.filter((s) => !ids.has(s.id) && ids.add(s.id));
+  requireSourceBudget(body.sources);
   const charge = await chargeRound(c, turns.length);
   let reserved = false;
   try {
@@ -857,6 +896,7 @@ async function realAssistant(
   } catch (error) {
     const err = providerError(error);
     status = err.status;
+    c.meta.upstream = err.upstream;
     if (err.usage) usage = err.usage;
     if (!shown && !keepsCharge(err)) await refund(c, charge);
     stream.send("error", { code: err.code, message: err.message });
@@ -957,6 +997,7 @@ async function realResearch(c: Ctx, body: ResearchRequest, stream: EventStream, 
   } catch (error) {
     const err = providerError(error);
     status = err.status;
+    c.meta.upstream = err.upstream;
     if (err.usage) usage = err.usage;
     if (!shown && !keepsCharge(err)) await refund(c, charge);
     stream.send("error", { code: err.code, message: err.message });
@@ -981,6 +1022,7 @@ function finishTutor(c: Ctx, model: string, usage: Usage, status: number): void 
     cache_read_tokens: usage.cacheReadTokens,
     cache_write_tokens: usage.cacheWriteTokens,
     cost_usd: c.deps.env.mock ? undefined : formatUsd(costNano(model, usage)),
+    upstream: c.meta.upstream,
   });
 }
 
@@ -1050,6 +1092,7 @@ export function aiHandler(deps: Deps): (req: Request) => Promise<Response> {
       const err = toApiError(error);
       status = err.status;
       code = err.code;
+      meta.upstream = err.upstream;
       return errorResponse(err);
     } finally {
       const usage = meta.usage;
@@ -1067,6 +1110,7 @@ export function aiHandler(deps: Deps): (req: Request) => Promise<Response> {
         cache_read_tokens: usage?.cacheReadTokens,
         cache_write_tokens: usage?.cacheWriteTokens,
         cost_usd: usage && meta.model && !meta.mock ? formatUsd(costNano(meta.model, usage)) : undefined,
+        upstream: meta.upstream,
       });
     }
   };

@@ -216,6 +216,8 @@ struct SheetDestination: View {
             NavigationStack { SourcePageView(sourceID: id, pageIndex: index, highlight: highlight) }
         case .lectureMoment(let id, let time):
             NavigationStack { LectureNotesView(sourceID: id, focusTime: time) }
+        case .deckCard(let id, let quote, let label):
+            NavigationStack { DeckCardView(sourceID: id, quote: quote, label: label) }
         case .paywall(let context): PaywallView(context: context)
         case .examPass(let id): ExamPassView(examID: id)
         case .consent(let reason): ConsentSheet(reason: reason)

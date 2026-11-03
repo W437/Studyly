@@ -1,9 +1,11 @@
 import Foundation
+import NaturalLanguage
 
 // Words as the offline rules see them: one tokenizer, one normaliser, one stemmer and one fuzzy matcher, shared by
 // the grader, the generator, the retriever and the grounding check, so "the same word" means one thing everywhere.
 //
-// English only. Every function is pure and deterministic; nothing here touches a model or the network.
+// English (and the languages written with spaces) for the stemmer and the matchers; the tokenizer also splits Japanese and Chinese, which have no spaces, into words, so
+// that retrieval can see them. Every function is pure and deterministic; nothing here touches a model or the network.
 //
 // Ranges are Swift `Character` offsets into the original text, the unit `HighlightMark` uses, so a range the grader
 // returns can be drawn on the person's own answer without conversion.
@@ -63,9 +65,21 @@ enum Lexicon {
             buffer = ""
         }
 
+        // Japanese and Chinese have no spaces, so a sentence would be one "word" and nothing could match it: a run of Han, kana or katakana is cut into
+        // words by the system's tokenizer (kana in the text means Japanese; Han alone is taken for Chinese).
+        var cjk: (NLTokenizer, NLLanguage)?   // one tokenizer for every run of the text: making one is most of the cost
         var index = 0
         while index < chars.count {
             let c = chars[index]
+            if isCJK(c) {
+                flush(at: index)
+                var end = index
+                while end < chars.count, isCJK(chars[end]) { end += 1 }
+                if cjk == nil { cjk = (NLTokenizer(unit: .word), chars.contains { isKana($0) } ? .japanese : .simplifiedChinese) }
+                out += cjkTokens(chars, from: index, to: end, with: cjk!.0, language: cjk!.1)
+                index = end
+                continue
+            }
             if c.isLetter || c.isNumber {
                 if start == nil { start = index }
                 buffer.append(c)
@@ -100,9 +114,66 @@ enum Lexicon {
         return words.joined(separator: " ")
     }
 
+    // MARK: Japanese and Chinese
+
+    private static func isKana(_ c: Character) -> Bool {
+        guard c.unicodeScalars.count == 1, let v = c.unicodeScalars.first?.value else { return false }
+        return (0x3040...0x30FF).contains(v) || (0x31F0...0x31FF).contains(v) || (0xFF66...0xFF9F).contains(v)
+    }
+
+    /// Japanese and Chinese are written without spaces, so splitting at spaces counts a whole sentence as one word. This is what the run of Han and
+    /// kana in `text` is worth in words (about one for every two characters) and 0 for any other text: add it to a count of the space-separated
+    /// words wherever the length of a sentence decides something.
+    static func cjkWords(in text: String) -> Int {
+        var n = 0
+        for c in text where isCJK(c) { n += 1 }
+        return (n + 1) / 2
+    }
+
+    /// The words of `text` between spaces, and the words a Japanese or Chinese run is worth (`cjkWords`).
+    static func wordCount(_ text: String) -> Int {
+        text.split(separator: " ").count + cjkWords(in: text)
+    }
+
+    /// A character of a language written without spaces: Han (also as Japanese kanji), hiragana, katakana.
+    private static func isCJK(_ c: Character) -> Bool {
+        guard let v = c.unicodeScalars.first?.value else { return false }
+        return (0x4E00...0x9FFF).contains(v) || (0x3400...0x4DBF).contains(v) || (0xF900...0xFAFF).contains(v) || isKana(c)
+    }
+
+    /// The words of a run of `chars[from..<to]`, with their ranges in the whole text. Particles (a hiragana word of one or two letters, the common
+    /// Chinese ones) are stop words; the rest are content.
+    private static func cjkTokens(_ chars: [Character], from: Int, to: Int, with tokenizer: NLTokenizer, language: NLLanguage) -> [Token] {
+        let run = String(chars[from..<to])
+        tokenizer.string = run
+        tokenizer.setLanguage(language)   // after the string: a language set before it is not kept, and 維新 falls apart into two characters
+        var out: [Token] = []
+        var low = from, cursor = run.startIndex
+        tokenizer.enumerateTokens(in: run.startIndex..<run.endIndex) { range, _ in
+            // Ranges are walked forward from the last one: the run's characters are counted once, not once per word.
+            low += run.distance(from: cursor, to: range.lowerBound)
+            let word = String(run[range])
+            let high = low + run.distance(from: range.lowerBound, to: range.upperBound)
+            out.append(Token(word: word, stem: word, range: low..<high, isStopWord: isCJKFunctionWord(word), isNegation: false, isNumber: false, endsClause: false))
+            low = high
+            cursor = range.upperBound
+            return true
+        }
+        if out.isEmpty { out = [Token(word: String(run), stem: String(run), range: from..<to, isStopWord: false, isNegation: false, isNumber: false, endsClause: false)] }
+        return out
+    }
+
+    private static let chineseParticles: Set<String> = ["的", "了", "是", "在", "和", "有", "不", "也", "就", "都", "而", "及", "与", "或", "之", "其", "于", "为", "对", "把", "被", "吗", "呢", "吧", "啊"]
+
+    private static func isCJKFunctionWord(_ word: String) -> Bool {
+        if chineseParticles.contains(word) { return true }
+        // Hiragana only, one or two letters: the particles and endings (の, を, は, です, ます, いつ).
+        return word.count <= 2 && word.unicodeScalars.allSatisfy { (0x3040...0x309F).contains($0.value) }
+    }
+
     private static func isApostrophe(_ c: Character) -> Bool { c == "'" || c == "\u{2019}" || c == "\u{2018}" }
 
-    private static let clausePunctuation: Set<Character> = [",", ".", ";", ":", "!", "?", "(", ")", "\u{2014}", "\u{2013}", "\n"]
+    private static let clausePunctuation: Set<Character> = [",", ".", ";", ":", "!", "?", "(", ")", "\u{2014}", "\u{2013}", "\n", "\u{3001}", "\u{3002}", "\u{FF01}", "\u{FF1F}", "\u{FF0C}"]
     /// Words that end a negation's reach: "not mitosis, but growth".
     private static let contrastWords: Set<String> = ["but", "however", "although", "though", "whereas", "yet"]
 

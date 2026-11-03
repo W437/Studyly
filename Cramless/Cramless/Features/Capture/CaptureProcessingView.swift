@@ -324,7 +324,7 @@ struct CaptureSteps: View {
             CaptureStepRow(state: state(.writing), title: CaptureRun.Step.writing.title, detail: run.writtenDetail)
                 .id(CaptureRun.Step.writing)
             CaptureStepRow(state: state(.checking), title: CaptureRun.Step.checking.title,
-                           detail: run.checkLine ?? "So nothing made up gets through")
+                           detail: run.checkLine ?? run.partLine ?? "So nothing made up gets through")
                 .id(CaptureRun.Step.checking)
         }
     }

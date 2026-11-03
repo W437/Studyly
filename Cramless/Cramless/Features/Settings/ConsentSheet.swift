@@ -155,17 +155,17 @@ struct ConsentSheet: View {
         var sent: String
         switch reason {
         case .cloudAI:
-            sent = "The text of your pages and lectures, answers you type when they're graded, and your questions to Cap. So Cap can make things for the right course, it also sees the names of your courses, topics and exams, your exam dates, how ready you are, which topics are fading and how many cards are due. If you ask it to research something online, that topic is searched on trusted study sites. Page photos only go if you turn on the switch below."
+            sent = "Your questions to Cap, and with each one the notes of the course Cap is answering from (every course, if you chose All courses): the text of your pages and lectures, the cards of decks you imported and the names of what you added. All of it when it's short, otherwise the parts that fit your question. When you ask Cap to look through your notes, the passages it finds in any of your courses go too. Also the answers you type when they're graded. So Cap can make things for the right course, it also sees the names of your courses, topics and exams, your exam dates, how ready you are, which topics are fading and how many cards are due. If you ask it to research something online, that topic is searched on trusted study sites. Page photos only go if you turn on the switch below."
         case .photos:
             sent = "Photos of the pages you scan, made smaller first, along with their text, for as long as this switch is on."
             if !hasConsent {
-                sent += " This also turns on Cloud AI, so your pages' text, typed answers and questions to Cap go too."
+                sent += " This also turns on Cloud AI, so your notes, typed answers and questions to Cap go too."
             }
         }
         return [
             Point(icon: "doc.text", title: "What's sent", text: sent),
             Point(icon: "server.rack", title: "Who reads it",
-                  text: "\(AIConsent.processor), through Capling's own server, never straight from your phone to an AI company."),
+                  text: "\(AIConsent.processor), through Capling's own server, never straight from your phone to an AI company. Our server doesn't keep what you send."),
             Point(icon: "hand.raised", title: "Never used for training",
                   text: "Your notes and answers are never used to train AI models."),
             Point(icon: "switch.2", title: "Your choice",

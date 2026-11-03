@@ -150,6 +150,35 @@ enum ExamPresentation {
         }
     }
 
+    // MARK: What the questions cover
+
+    /// Below this share the coverage note turns amber.
+    static let thinCoverage = 0.5
+    /// From this share on there is little enough left that the note stops offering more questions.
+    static let wellCovered = 0.9
+
+    /// The exam screen's line about how much of the material the questions reach, under the ring.
+    struct CoverageNote: Equatable, Sendable {
+        /// "Your questions cover 17% of your material."
+        var sentence: String
+        /// The source that holds most of what is left, with its own share: "Palsgraf: 18%".
+        var mainGap: String?
+        /// Below half: an amber tone, never an alarm.
+        var isThin: Bool
+        /// Enough is left to offer "Add questions for the rest".
+        var offersMore: Bool
+    }
+
+    /// `canAddMore`: a source with something left to cover can be written questions for.
+    static func coverageNote(_ summary: Coverage.Summary, canAddMore: Bool) -> CoverageNote {
+        // Judged on the number the person reads, so "50%" is never amber.
+        let shown = Double(Int((summary.share * 100).rounded())) / 100
+        return CoverageNote(sentence: "Your questions cover \(CLFormat.percent(summary.share)) of your material.",
+                            mainGap: summary.mainGap.map { "\($0.title): \(CLFormat.percent($0.share))" },
+                            isThin: shown < thinCoverage,
+                            offersMore: canAddMore && shown < wellCovered)
+    }
+
     /// "Capling projected 87%, you got 91%." and what that means for projections.
     static func gradeComparison(projected: Double, got: Double, calibratedNow: Bool) -> (headline: String, note: String) {
         let headline = "Capling projected \(CLFormat.percent(projected)), you got \(CLFormat.percent(got))."

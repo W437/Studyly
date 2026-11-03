@@ -153,7 +153,7 @@ struct FixedOnDeviceProbe: OnDeviceProbe {
 /// given one it answers anyway, in nonsense (measured in Dozen with Hebrew), so this gate is the only protection.
 /// Three steps, each able to stop the text: too few letters; a script other than Latin for more than a tenth of
 /// the letters (a few Greek letters in a physics page pass); for text long enough to judge, the recogniser's
-/// dominant language must be English; then the model's `supportsLocale` for English.
+/// dominant language, when it is sure of it (`minimumConfidence`), must be English; then the model's `supportsLocale` for English.
 ///
 /// The recogniser runs **without language hints**. Measured (macOS 27, Oct 2026) on full sentences: with no hints
 /// it read Spanish 0.99, French, German and English 1.00 correctly; with an English hint of 1.0, or even 0.6, it read
@@ -181,13 +181,18 @@ enum OnDeviceLanguageGate {
         return supportsLocale(Locale(identifier: "en")) ? .supported : .unsupportedByModel
     }
 
-    /// The recogniser's answer with no hints, when it is sure (0.5 or more); nil otherwise.
+    /// How sure the recogniser must be of a language for it to count: its probability for it, at least this. A real paragraph reads
+    /// 0.95 or more. An English chemistry worksheet of equations read Polish at 0.63, so a lower bar made the app write the
+    /// questions in Polish, and would have kept the page from this iPhone's model as "not English".
+    static let minimumConfidence = 0.8
+
+    /// The recogniser's answer with no hints, when it is sure (`minimumConfidence`); nil otherwise.
     static func dominantLanguage(_ text: String) -> NLLanguage? {
         let recognizer = NLLanguageRecognizer()
         recognizer.processString(text)
         guard let dominant = recognizer.dominantLanguage, dominant != .undetermined else { return nil }
         let confidence = recognizer.languageHypotheses(withMaximum: 1)[dominant] ?? 0
-        return confidence >= 0.5 ? dominant : nil
+        return confidence >= minimumConfidence ? dominant : nil
     }
 
     private static func isLatin(_ s: Unicode.Scalar) -> Bool {

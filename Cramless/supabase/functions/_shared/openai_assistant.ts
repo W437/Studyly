@@ -6,9 +6,11 @@
 // round ends with `done` carrying the `continuation` (the model's own reasoning and call items, nothing else), which the
 // app returns with the tool results. Nothing is stored at OpenAI (`store: false`).
 //
-// research(): one request with OpenAI's web search, limited to the sites the relay allows, forced to search at least
-// once. It reports the search as it happens (started, searching, the sources found), then the summary as text with the
-// pages it rests on.
+// research(): one request with OpenAI's web search, limited to the sites the relay allows (never one in research_sources.ts),
+// forced to search at least once. It reports the search as it happens (started, searching, the sources found), then the
+// summary as text with the pages it rests on. A page on a denied site is dropped from both lists. A reply is shown only if
+// it cites a page the student may see, once a denied page has turned up at all: pages the search merely consulted do not
+// vouch for a summary that cites a denied one.
 
 import type { AssistantCall, AssistantStreamEvent, ResearchCall, ResearchStreamEvent } from "./provider.ts";
 import { ArrayItemStream, StringFieldStream } from "./argstream.ts";
@@ -19,6 +21,7 @@ import { ApiError } from "./errors.ts";
 import {
   answerEvents,
   AnswerStream,
+  cacheKey,
   FORMAT,
   NETWORK,
   OpenAIProvider,
@@ -26,6 +29,7 @@ import {
   REPLY_SCHEMA,
   streamError,
 } from "./openai.ts";
+import { isDeniedHost, isDeniedUrl, withoutDenied } from "./research_sources.ts";
 import { parseSse } from "./sse.ts";
 
 interface OpenCall {
@@ -37,14 +41,16 @@ interface OpenCall {
   count: number;
 }
 
-/** A page the research may show: https, on one of the allowed sites (or a subdomain of one). The search is limited to them
- * at OpenAI; this keeps the relay from passing on anything else that comes back. */
+/** A page the research may show: https, on one of the allowed sites (or a subdomain of one), and not on a site the relay
+ * never uses. An entry may be a whole site ("wikipedia.org", which holds "www.wikipedia.org") or one host ("www.gov.uk", which
+ * leaves out the councils' sites). The search is limited to the allowed sites at OpenAI; this keeps the relay from passing on
+ * anything else that comes back. */
 export function onAllowedSite(url: string, domains: readonly string[]): boolean {
   try {
     const u = new URL(url);
     if (u.protocol !== "https:") return false;
-    const host = u.hostname.toLowerCase().replace(/^www\./, "");
-    return domains.some((d) => host === d || host.endsWith(`.${d}`));
+    const host = u.hostname.toLowerCase();
+    return domains.some((d) => host === d || host.endsWith(`.${d}`)) && !isDeniedHost(host);
   } catch {
     return false;
   }
@@ -76,10 +82,12 @@ export function readableQuery(query: string): string {
 
 export class OpenAIAssistantProvider extends OpenAIProvider {
   override async *assistant(call: AssistantCall): AsyncGenerator<AssistantStreamEvent> {
+    const key = await cacheKey(call.input as { content: unknown }[]);
     const body = JSON.stringify({
       model: call.model,
       instructions: `${call.system}\n\n${FORMAT}`,
       input: call.input,
+      ...(key ? { prompt_cache_key: key } : {}),
       ...(call.tools.length > 0 ? { tools: call.tools, tool_choice: "auto", parallel_tool_calls: true } : {}),
       reasoning: { effort: call.effort },
       include: ["reasoning.encrypted_content"],
@@ -279,6 +287,10 @@ export class OpenAIAssistantProvider extends OpenAIProvider {
   }
 
   override async *research(call: ResearchCall): AsyncGenerator<ResearchStreamEvent> {
+    // OpenAI's web search takes an allow-list and nothing to exclude a site, so a denied site is left out of the list,
+    // whoever put it there. An empty list would mean no limit at all, so with none left the search does not run.
+    const domains = withoutDenied(call.domains);
+    if (domains.length === 0) throw new ApiError("upstream", "Cloud AI isn't set up for this on this server.", {}, 503);
     const body = JSON.stringify({
       model: call.model,
       instructions: call.system,
@@ -286,7 +298,7 @@ export class OpenAIAssistantProvider extends OpenAIProvider {
       tools: [{
         type: "web_search",
         search_context_size: "low",
-        filters: { allowed_domains: [...call.domains] },
+        filters: { allowed_domains: domains },
       }],
       tool_choice: "required",
       max_tool_calls: call.maxSearches,
@@ -296,7 +308,11 @@ export class OpenAIAssistantProvider extends OpenAIProvider {
       stream: true,
       store: false,
     });
-    yield* this.attempts(call.signal, (signal, markSent) => this.#researchOnce(body, signal, call, markSent), 150_000);
+    yield* this.attempts(
+      call.signal,
+      (signal, markSent) => this.#researchOnce(body, signal, { ...call, domains }, markSent),
+      150_000,
+    );
   }
 
   async *#researchOnce(
@@ -314,11 +330,32 @@ export class OpenAIAssistantProvider extends OpenAIProvider {
     let held = "";
     let searches = 0;
     let usage: Usage = { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 };
+    // The pages the reply cited that the student may see, and the pages dropped from sources and citations because their
+    // site is one the relay never uses (research_sources.ts).
     const cited = new Set<string>();
+    const denied = new Set<string>();
+    const usable = (url: string): boolean => {
+      if (isDeniedUrl(url)) {
+        denied.add(url);
+        return false;
+      }
+      return onAllowedSite(url, call.domains);
+    };
+    // The summary is shown once a search has finished and, if a denied page turned up, once it cites a page the student may
+    // see. A page the search only consulted does not count: the summary may rest on the denied one. Until then the words wait.
+    const mayShow = () => searches > 0 && (denied.size === 0 || cited.size > 0);
     const start = (): ResearchStreamEvent[] => {
       if (started) return [];
       started = true;
       return [{ type: "start", model }];
+    };
+    const release = function* (): Generator<ResearchStreamEvent> {
+      if (held === "" || !mayShow()) return;
+      yield* start();
+      markSent();
+      const words = held;
+      held = "";
+      yield { type: "delta", text: words };
     };
 
     for await (const message of parseSse(stream)) {
@@ -354,35 +391,28 @@ export class OpenAIAssistantProvider extends OpenAIProvider {
             const seen = new Set<string>();
             const sources = (Array.isArray(action.sources) ? action.sources : [])
               .flatMap((s: { url?: unknown }) => typeof s?.url === "string" ? [cleanUrl(s.url)] : [])
-              .filter((url: string) => onAllowedSite(url, call.domains) && !seen.has(url) && seen.add(url))
+              .filter((url: string) => usable(url) && !seen.has(url) && seen.add(url))
               .slice(0, 12)
               .map((url: string) => ({ url, domain: hostOf(url) }));
             yield { type: "search", id: String(e.item.id ?? e.output_index), phase: "done", queries, sources };
-            if (held) {
-              yield { type: "delta", text: held };
-              held = "";
-            }
+            yield* release();
           }
           break;
         case "response.output_text.delta":
           if (typeof e.delta === "string" && e.delta) {
             text += e.delta;
             // Words written before any search has finished are not research: they wait to see whether one follows.
-            if (searches > 0) {
-              for (const event of start()) yield event;
-              markSent();
-              yield { type: "delta", text: e.delta };
-            } else {
-              held += e.delta;
-            }
+            held += e.delta;
+            yield* release();
           }
           break;
         case "response.output_text.annotation.added": {
           const a = e.annotation;
-          if (a?.type === "url_citation" && typeof a.url === "string" && onAllowedSite(a.url, call.domains)) {
+          if (a?.type === "url_citation" && typeof a.url === "string") {
             const url = cleanUrl(a.url);
-            if (!cited.has(url)) {
+            if (!cited.has(url) && usable(url)) {
               cited.add(url);
+              yield* release();
               yield {
                 type: "citation",
                 url,
@@ -423,6 +453,18 @@ export class OpenAIAssistantProvider extends OpenAIProvider {
       throw cut;
     }
     usage = { ...usage, webSearches: searches };
+    if (denied.size > 0 && cited.size === 0) {
+      // A denied page turned up and the reply cites no page the student may see: it may rest on the denied one, so none of it
+      // is shown. The search was billed all the same.
+      const none = new ApiError(
+        "upstream",
+        "Cap couldn't find a page it's allowed to use for that. Try different words.",
+        {},
+        502,
+      );
+      none.usage = usage;
+      throw none;
+    }
     if (searches === 0 || text.trim() === "" || status === "content_filter") {
       const empty = new ApiError(
         "upstream",

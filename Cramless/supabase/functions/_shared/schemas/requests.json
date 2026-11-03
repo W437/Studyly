@@ -72,6 +72,11 @@
       },
       "required": ["id", "kind", "prompt", "answer"]
     },
+    "Materials": {
+      "type": "array",
+      "maxItems": 20,
+      "items": { "type": "string", "maxLength": 120 }
+    },
     "TutorMessage": {
       "type": "object",
       "properties": {
@@ -97,7 +102,10 @@
       "type": "object",
       "properties": {
         "pages": { "type": "array", "minItems": 1, "maxItems": 40, "items": { "$ref": "#/$defs/PageInput" } },
-        "items": { "type": "array", "minItems": 1, "maxItems": 60, "items": { "$ref": "#/$defs/GeneratedItem" } }
+        "items": { "type": "array", "minItems": 1, "maxItems": 60, "items": { "$ref": "#/$defs/GeneratedItem" } },
+        "sourceTitle": { "type": "string", "maxLength": 200 },
+        "headings": { "type": "array", "maxItems": 60, "items": { "type": "string", "maxLength": 120 } },
+        "lenient": { "type": "boolean" }
       },
       "required": ["pages", "items"]
     },
@@ -123,7 +131,7 @@
         "messages": { "type": "array", "minItems": 1, "maxItems": 40, "items": { "$ref": "#/$defs/TutorMessage" } },
         "sources": {
           "type": "array",
-          "maxItems": 12,
+          "maxItems": 100,
           "items": {
             "type": "object",
             "properties": {
@@ -143,7 +151,8 @@
             "given": { "type": "string", "maxLength": 8000 }
           },
           "required": ["itemPrompt", "expected", "given"]
-        }
+        },
+        "materials": { "$ref": "#/$defs/Materials" }
       },
       "required": ["mode", "minor", "messages", "sources"]
     },
@@ -347,8 +356,9 @@
         "minor": { "type": "boolean" },
         "course": { "type": "string", "maxLength": 200 },
         "messages": { "type": "array", "minItems": 1, "maxItems": 40, "items": { "$ref": "#/$defs/TutorMessage" } },
-        "sources": { "type": "array", "maxItems": 24, "items": { "$ref": "#/$defs/TutorSourceInput" } },
+        "sources": { "type": "array", "maxItems": 100, "items": { "$ref": "#/$defs/TutorSourceInput" } },
         "context": { "$ref": "#/$defs/TutorContextInput" },
+        "materials": { "$ref": "#/$defs/Materials" },
         "study": { "$ref": "#/$defs/StudyState" },
         "tools": { "type": "array", "maxItems": 8, "items": { "$ref": "#/$defs/AssistantToolName" } },
         "turns": { "type": "array", "maxItems": 3, "items": { "$ref": "#/$defs/AssistantTurn" } }

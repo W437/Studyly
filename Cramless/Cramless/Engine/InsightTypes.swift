@@ -65,6 +65,9 @@ struct ExamReadiness: Equatable, Sendable {
     var targetReachedOn: Date? = nil
     /// Topics in scope with no material yet.
     var coverageGaps: Int = 0
+    /// The share (0…1) of the exam's material its questions reach, when it can be told. `value` doesn't take it into account (it is
+    /// the mean recall of the questions the app made); `projectedGrade` does.
+    var coverage: Double? = nil
 }
 
 struct StreakState: Equatable, Sendable {

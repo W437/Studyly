@@ -128,6 +128,16 @@ function swiftStructs(source: string): Map<string, SwiftField[]> {
 
 const ROOT = new URL("../../../", import.meta.url);
 
+/** Fields the relay accepts or returns before the app's Swift types have them (all optional, so the shipped build is
+ * unaffected). The parity tests below leave these out of the comparison whether or not the Swift type has them yet, so the
+ * relay and the app can land in either order. Delete an entry once its Swift field exists. */
+const RELAY_AHEAD: Record<string, string[]> = {
+  TutorRequest: ["materials"],
+  CheckRequest: ["sourceTitle", "headings", "lenient"],
+  LectureResponse: ["leftOut"],
+};
+const ahead = (type: string, fields: string[]) => fields.filter((f) => !(RELAY_AHEAD[type] ?? []).includes(f)).sort();
+
 const SWIFT_TO_SCHEMA: Record<string, string> = {
   LineInput: "LineInput",
   GeneratedItem: "GeneratedItem",
@@ -183,7 +193,11 @@ Deno.test("contract.json has the Swift reply types' fields, and their optionalit
     const fields = swift.get(swiftName);
     assert(fields && fields.length > 0, `Swift struct ${swiftName} not found`);
     const def = CONTRACT_SCHEMA.$defs[schemaName];
-    assertEquals(Object.keys(def.properties).sort(), fields.map((f) => f.name).sort(), `${schemaName} fields`);
+    assertEquals(
+      ahead(schemaName, Object.keys(def.properties)),
+      ahead(schemaName, fields.map((f) => f.name)),
+      `${schemaName} fields`,
+    );
     const required = new Set<string>(def.required);
     for (const f of fields) {
       assertEquals(!required.has(f.name), f.optional, `${schemaName}.${f.name}: optional in Swift ↔ not required`);
@@ -197,9 +211,19 @@ Deno.test("requests.json has the Swift request types' fields; it requires none t
     const fields = swift.get(name);
     assert(fields && fields.length > 0, `Swift struct ${name} not found`);
     const def = REQUEST_SCHEMA.$defs[name];
-    assertEquals(Object.keys(def.properties).sort(), fields.map((f) => f.name).sort(), `${name} fields`);
+    assertEquals(ahead(name, Object.keys(def.properties)), ahead(name, fields.map((f) => f.name)), `${name} fields`);
     for (const r of def.required as string[]) {
       assert(!fields.find((f) => f.name === r)!.optional, `${name}.${r} is optional in Swift but required here`);
+    }
+  }
+});
+
+Deno.test("the fields the relay has ahead of the app are all optional", () => {
+  for (const [type, fields] of Object.entries(RELAY_AHEAD)) {
+    const def = type.endsWith("Request") ? REQUEST_SCHEMA.$defs[type] : CONTRACT_SCHEMA.$defs[type];
+    for (const field of fields) {
+      assert(field in def.properties, `${type}.${field} is in the schema`);
+      assert(!(def.required as string[]).includes(field), `${type}.${field} must stay optional`);
     }
   }
 });

@@ -8,6 +8,15 @@ import Foundation
 /// Calibrated: once two or more past exams have both `readinessAtExam` and a logged `resultScore`, a
 /// least-squares line `percent = a + b · readiness` through them (slope kept within 0.2…2; with no spread in
 /// readiness, the default slope shifted to their mean). Always shown as a projection.
+///
+/// Readiness is how well the person remembers the questions the app made, which says nothing of the material those questions never
+/// reach. So the grade is projected from `adjusted(readiness:coverage:)`: the share of the material the questions cover counts at the
+/// readiness, and the rest at what a student scores on what they never practised. (The ring on the exam screen stays the mean recall
+/// of the questions, which is the person's own practice and is theirs to move.)
+///
+/// A calibrated line is fitted to the same adjusted readiness (`ExamSnapshot.adjustedReadinessAtExam`), not to the ring's value, so
+/// the coverage is not held against a student twice: once in the readiness the line is fitted to, and again in the readiness it is
+/// given.
 struct GradeModel: Sendable, Equatable {
     var intercept: Double
     var slope: Double
@@ -38,6 +47,27 @@ struct GradeModel: Sendable, Equatable {
     func grade(_ readiness: Double) -> ProjectedGrade {
         let p = percent(readiness)
         return ProjectedGrade(percent: p, letter: Self.letter(p), isCalibrated: isCalibrated)
+    }
+
+    /// The grade when the questions are known to cover only `coverage` (0…1) of the material; unchanged when the coverage isn't known.
+    func grade(_ readiness: Double, coverage: Double?) -> ProjectedGrade {
+        grade(Self.adjusted(readiness: readiness, coverage: coverage))
+    }
+
+    /// What a student scores on material they never practised. This is a judgement, not a measurement: nothing in the app measures it.
+    /// It stands for what a student still answers from general knowledge and from having sat in the class, plus the exam's own
+    /// multiple-choice floor, and it keeps a poorly covered exam from being projected as zero, and a handful of questions on a long
+    /// reading from being projected as an A. (It was 0.2 at first; 0.35 is gentler on a reading the free plan's question count can't
+    /// cover in full, and is the value to change if grades logged after exams say the projection runs high or low.)
+    static let unpractisedFloor = 0.35
+
+    /// `readiness` over the share of the material the questions cover, the rest at `unpractisedFloor`:
+    /// `coverage × readiness + (1 − coverage) × 0.35`. Full coverage is unchanged, and coverage never raises a projection (a readiness
+    /// already under the floor stays where it is).
+    static func adjusted(readiness: Double, coverage: Double?) -> Double {
+        guard let coverage else { return readiness }
+        let c = min(1, max(0, coverage))
+        return min(readiness, c * readiness + (1 - c) * unpractisedFloor)
     }
 
     /// The usual US letter scale.
@@ -202,9 +232,10 @@ struct ReadinessEngine: Sendable {
         }
     }
 
-    /// Everything the exam screens show.
+    /// Everything the exam screens show. `coverage`: the share of the exam's material its questions reach (nil when it can't be told),
+    /// which the projected grade takes into account and `value` (the ring) does not.
     func readiness(for exam: ExamSnapshot, items: [ItemSnapshot], topics: [TopicSnapshot], logs: [ReviewSnapshot],
-                   plan: StudyPlan, grade: GradeModel) -> ExamReadiness {
+                   plan: StudyPlan, grade: GradeModel, coverage: Double? = nil) -> ExamReadiness {
         let scope = scope(of: exam, in: items)
         let current = value(of: exam, items: items)
         let weekAgo = value(of: exam, items: items, at: calendar.adding(days: -7, to: now), logsByItem: Self.byItem(logs))
@@ -212,9 +243,9 @@ struct ReadinessEngine: Sendable {
         return ExamReadiness(examID: exam.id, value: current, projected: plan.projectedReadiness,
                              deltaThisWeek: current - weekAgo,
                              daysLeft: max(0, calendar.dayDistance(from: now, to: exam.date)), topics: topicList,
-                             projectedGrade: grade.grade(plan.projectedReadiness), itemsInScope: scope.count,
+                             projectedGrade: grade.grade(plan.projectedReadiness, coverage: coverage), itemsInScope: scope.count,
                              unseenItems: scope.filter { !$0.isStudied }.count, target: exam.target,
                              targetReachedOn: plan.targetReachedOn,
-                             coverageGaps: topicList.filter { $0.value == nil }.count)
+                             coverageGaps: topicList.filter { $0.value == nil }.count, coverage: coverage)
     }
 }

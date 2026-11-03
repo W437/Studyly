@@ -20,6 +20,9 @@ struct DraftReviewView: View {
     var onFinish: ((UUID?) -> Void)? = nil
     /// Writes the set again; the capture flow passes it, so allowing Cloud AI here rewrites the set with it.
     var onRewrite: (() -> Void)? = nil
+    /// The pages of the PDF a "questions for the rest" review is about; nil for a review of the whole source. The formulas card counts
+    /// and reads only these.
+    var restPages: [Int]? = nil
     /// Onboarding: back to choosing a page.
     var onStartOver: (() -> Void)? = nil
 
@@ -41,7 +44,16 @@ struct DraftReviewView: View {
     @State private var finished = false
     @State private var context = DraftContext()
     @State private var scrollTarget: String?
+    /// PDF pages of this source whose text layer lost its formulas, and the state of reading them with Cloud AI.
+    @State private var formulaPages = 0
+    @State private var formulasProblem: String?
+    /// The formulas card's steps (`FormulasSteps`).
+    @State private var steps = FormulasSteps()
+    @State private var formulasTask: Task<Void, Never>?
     @FocusState private var classFieldFocused: Bool
+
+    /// The pages are being read with Cloud AI (the Add button waits for it).
+    private var readingFormulas: Bool { steps.reading }
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -50,6 +62,10 @@ struct DraftReviewView: View {
                     header
                     CaptureOriginNote(systemImage: originIcon, text: originText, tone: report?.origin == .rules ? .sun : .sky)
                         .padding(.top, 16)
+                    if let extraNote {
+                        CaptureOriginNote(systemImage: "info.circle", text: extraNote, tone: .sun).padding(.top, 8)
+                    }
+                    if formulaPages > 0 { formulasCard.padding(.top, 8) }
                     if let suggestion = visibleSuggestion { suggestionCard(suggestion).padding(.top, 12) }
                     if isOnboarding { classCard.padding(.top, 16) }
                     if kindsPresent.count > 1 { filterChips.padding(.top, 18) }
@@ -99,9 +115,11 @@ struct DraftReviewView: View {
             }
             Button("Discard \(CLFormat.count(rows.count, "question"))", role: .destructive) {
                 finished = true
-                // A lecture keeps its recording, transcript and notes; so does material reviewed later from elsewhere.
-                // A page the capture flow has just read goes with its questions.
-                app.discardDrafts(sourceID: sourceID, keepSource: context.isLecture || onFinish == nil)
+                // A lecture keeps its recording, transcript and notes; so does material reviewed later from elsewhere, and a source
+                // that already has questions (a set added for the rest of it). A page the capture flow has just read goes with its
+                // questions.
+                app.discardDrafts(sourceID: sourceID,
+                                  keepSource: context.isLecture || onFinish == nil || !app.items(fromSource: sourceID).isEmpty)
                 finish(nil)
             }
             Button("Cancel", role: .cancel) {}
@@ -109,8 +127,16 @@ struct DraftReviewView: View {
             Text("Nothing has been added to a course yet.")
         }
         .onAppear(perform: load)
+        .onDisappear { formulasTask?.cancel() }
         .onChange(of: app.revision) { _, _ in load() }
-        .onChange(of: unlockKey) { old, new in rewriteIfUnlocked(old: old, new: new) }
+        .onChange(of: unlockKey) { old, new in
+            switch steps.consentChanged(cloudAllowed: app.ai.hasCloudConsent, photosAllowed: AIConsent.photosGranted(app.settings)) {
+            case .read: if !finished { startFormulasRead() }
+            case .hold: break
+            case .ordinary: rewriteIfUnlocked(old: old, new: new)
+            }
+        }
+        .onChange(of: app.router.sheet) { _, sheet in endFormulasStepsIfAbandoned(sheet) }
     }
 
     // MARK: Header
@@ -249,6 +275,101 @@ struct DraftReviewView: View {
         guard satisfied else { return }
         finished = true
         onRewrite()
+    }
+
+    /// What else the run has to say: a long reading read in parts, the pages left out, a check done on this iPhone, why this
+    /// iPhone wrote the set, the lecture ideas that didn't become questions. (For the offline rules the note is the origin
+    /// line itself.)
+    private var extraNote: String? {
+        guard let report, report.origin != .rules, let note = report.note, !note.isEmpty else { return nil }
+        return note
+    }
+
+    // MARK: Formulas
+
+    /// The text layer of a PDF lost its typeset formulas (`PageLayout.formulasMayBeMissing`). The page can be read as an
+    /// image with Cloud AI to get them back, when the set was made in the capture flow (which can write it again).
+    private var formulasCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            CaptureOriginNote(systemImage: "function", text: Source.missingFormulasNote, tone: .sky)
+            if onRewrite != nil, app.ai.cloudAvailableInThisBuild {
+                Button {
+                    CLHaptics.tap()
+                    switch steps.tapped(cloudAllowed: app.ai.hasCloudConsent, photosAllowed: AIConsent.photosGranted(app.settings)) {
+                    case .askCloudAI: app.router.present(.consent(.cloudAI(feature: AIJob.transcribeImage.feature)))
+                    case .askPhotos: app.router.present(.consent(.photos))
+                    case .read: startFormulasRead()
+                    }
+                } label: {
+                    ZStack {
+                        Group {
+                            if !app.ai.hasCloudConsent {
+                                Text("Use Cloud AI")
+                            } else if !AIConsent.photosGranted(app.settings) {
+                                Text("Allow page photos")
+                            } else {
+                                Text("Read the pages with Cloud AI")
+                            }
+                        }
+                        .opacity(readingFormulas ? 0 : 1)
+                        if readingFormulas { ProgressView().tint(CLColor.onFill) }
+                    }
+                }
+                .buttonStyle(.cl(.dark, size: .small, fullWidth: false))
+                .disabled(readingFormulas || finished)
+            }
+            if let formulasProblem {
+                Text(formulasProblem)
+                    .clFont(.footnote)
+                    .foregroundStyle(CLColor.roseInk)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    private func startFormulasRead() {
+        guard !steps.reading else { return }
+        formulasTask = Task { await readFormulasWithCloud() }
+    }
+
+    /// The consent sheet closed. If the card's steps didn't get as far as the read (Cloud AI or the photos weren't allowed), they are
+    /// over, and allowing Cloud AI from the offer later writes the set again as usual. Decided after the consent change itself has
+    /// been seen, which can arrive in the same update.
+    private func endFormulasStepsIfAbandoned(_ sheet: AppSheet?) {
+        guard sheet == nil, steps.started, !steps.reading else { return }
+        Task { @MainActor in
+            steps.sheetClosed(cloudAllowed: app.ai.hasCloudConsent, photosAllowed: AIConsent.photosGranted(app.settings))
+        }
+    }
+
+    /// Renders the flagged pages, reads them with Cloud AI (merged into the pages' lines, so questions made already keep their
+    /// anchors), and writes the set again from the better text. The Add button waits for it.
+    private func readFormulasWithCloud() async {
+        guard !steps.reading, !finished else { return }
+        steps.readStarted()
+        formulasProblem = nil
+        let result = await app.readPDFPagesWithCloud(sourceID: sourceID, onlyPages: restPages.map(Set.init))
+        guard !Task.isCancelled else {
+            steps.readEnded(continuing: false)
+            return
+        }
+        switch result {
+        case .read:
+            steps.readEnded(continuing: false)
+            guard !finished, let onRewrite else { return }
+            finished = true
+            onRewrite()
+        case .notAllowed(let suggestion):
+            // Presenting what would allow it; the card's steps go on when it is allowed.
+            steps.readEnded(continuing: suggestion != nil)
+            if let suggestion { app.router.present(suggestion.sheet) }
+        case .failed(let message):
+            steps.readEnded(continuing: false)
+            formulasProblem = message
+        case .nothingFound:
+            steps.readEnded(continuing: false)
+            formulasProblem = "Cloud AI couldn't find text on those pages either."
+        }
     }
 
     // MARK: Class (onboarding)
@@ -466,7 +587,7 @@ struct DraftReviewView: View {
             }
             Button(addTitle, action: approve)
                 .buttonStyle(.cl(.primary))
-                .disabled(keptCount == 0 || finished || (isOnboarding && className.trimmingCharacters(in: .whitespaces).isEmpty)
+                .disabled(keptCount == 0 || finished || readingFormulas || (isOnboarding && className.trimmingCharacters(in: .whitespaces).isEmpty)
                           || (!isOnboarding && courseID == nil))
         }
         .padding(.horizontal, CLSpace.gutter)
@@ -478,7 +599,7 @@ struct DraftReviewView: View {
     // MARK: Actions
 
     private func approve() {
-        guard !finished, keptCount > 0 else { return }
+        guard !finished, !readingFormulas, keptCount > 0 else { return }
         finished = true
         let keep = Set(rows.map(\.id)).subtracting(excluded)
         var target: Course?
@@ -513,6 +634,7 @@ struct DraftReviewView: View {
         let items = app.draftItems(sourceID: sourceID)
         report = app.draftReport(sourceID: sourceID)
         context = DraftContext(source: source)
+        formulaPages = source.map { $0.modelContext != nil ? $0.pagesWithMissingFormulas.filter { restPages?.contains($0.pageIndex) ?? true }.count : 0 } ?? 0
         let topics = Dictionary((source?.course?.topics ?? []).map { ($0.id, $0.name) }, uniquingKeysWith: { first, _ in first })
         rows = items.filter { $0.modelContext != nil }.map {
             DraftRow(item: $0, topic: $0.topicID.flatMap { topics[$0] } ?? "")
@@ -745,4 +867,55 @@ struct DraftPeek: Identifiable {
     let anchors: [String]
     let time: Double?
     let isLecture: Bool
+}
+
+// MARK: - The formulas card's steps
+
+/// The steps the formulas card walks through on the review: allow Cloud AI, allow page photos, read the pages, then write the set again
+/// (once, by the read). Allowing Cloud AI from the card must not also trigger the automatic rewrite that allowing it from the offer
+/// does: that would spend scans on text that still lacks its formulas, and the read after it would spend more.
+struct FormulasSteps: Equatable {
+    /// The card has started its steps.
+    private(set) var started = false
+    private(set) var reading = false
+
+    enum Next: Equatable { case askCloudAI, askPhotos, read }
+
+    /// What the review does when consent changes while these steps may be under way.
+    enum Reaction: Equatable {
+        /// Both are allowed now: read the pages.
+        case read
+        /// The steps are under way and one is still missing: wait, and don't rewrite.
+        case hold
+        /// The steps aren't under way: the offer's own rule applies.
+        case ordinary
+    }
+
+    /// The card's button was tapped: what comes next.
+    mutating func tapped(cloudAllowed: Bool, photosAllowed: Bool) -> Next {
+        started = true
+        if !cloudAllowed { return .askCloudAI }
+        return photosAllowed ? .read : .askPhotos
+    }
+
+    /// Consent changed (Cloud AI or the page photos were allowed or withdrawn).
+    func consentChanged(cloudAllowed: Bool, photosAllowed: Bool) -> Reaction {
+        guard started else { return .ordinary }
+        if cloudAllowed, photosAllowed, !reading { return .read }
+        return .hold
+    }
+
+    /// The consent sheet closed: the steps are over unless both are allowed (then the change already started the read).
+    mutating func sheetClosed(cloudAllowed: Bool, photosAllowed: Bool) {
+        guard started, !reading, !(cloudAllowed && photosAllowed) else { return }
+        started = false
+    }
+
+    mutating func readStarted() { reading = true }
+
+    /// The read ended. `continuing`: a sheet was presented to allow what was missing, and the steps go on when it is allowed.
+    mutating func readEnded(continuing: Bool) {
+        reading = false
+        started = continuing
+    }
 }

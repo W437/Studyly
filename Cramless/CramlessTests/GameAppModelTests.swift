@@ -452,6 +452,21 @@ final class GameAppModelTests: XCTestCase {
         XCTAssertTrue(app.earnedBadges().isSuperset(of: [.ready, .calledIt]))
     }
 
+    /// A ring of 90% on a third of the material and a 55% grade: the projection (made from the adjusted readiness) called it, the ring did not.
+    func testAGradeThatTheCoverageAdjustedProjectionCalledCountsAsCalledIt() {
+        let course = makeCourse()
+        let exam = Exam(course: course, title: "Midterm", date: cal.adding(days: -2, to: clock.now), now: cal.adding(days: -20, to: clock.now))
+        exam.readinessAtExam = 0.9
+        exam.coverageAtExam = 0.3
+        exam.resultScore = 0.55
+        app.context.insert(exam)
+        app.save()
+        XCTAssertEqual(ExamSnapshot(exam).adjustedReadinessAtExam ?? 0, 0.3 * 0.9 + 0.7 * 0.35, accuracy: 1e-12)
+        let facts = app.achievementFacts()
+        XCTAssertEqual(facts.readyExams, 1, "the ring was 90%")
+        XCTAssertEqual(facts.calledItExams, 1, "and the projection, 51.5%, was within 5 points of the 55% grade")
+    }
+
     func testARepairedDayEarnsTheComebackBadge() {
         let day = cal.adding(days: -3, to: clock.now)
         app.context.insert(DayRecord(dayKey: cal.dayKey(for: day), day: cal.startOfDay(for: day), repaired: true))

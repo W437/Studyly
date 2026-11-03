@@ -1,4 +1,5 @@
 import Foundation
+import PDFKit
 import SwiftData
 
 // Drafts: a generated set becomes draft items (status `.draft`) in a course, the person approves or rejects them in
@@ -26,8 +27,12 @@ struct DraftInput: Sendable {
     var note: String?
     var suggestion: AISuggestion?
     var fellBack: Bool
+    /// The source's pages (`SourcePage.pageIndex`) this set didn't read (a part that failed, or waits for next week's scans): the
+    /// drafts an earlier set made for them stay (`AppModel.makeDrafts`), so a fuller set is never swapped for a smaller one.
+    var unreadPages: Set<Int> = []
 
     init(_ outcome: GenerationOutcome) {
+        unreadPages = Set(outcome.parts.filter { $0.status != .read }.flatMap(\.pageIndexes))
         title = outcome.title
         topics = outcome.topics
         items = outcome.items
@@ -159,7 +164,9 @@ extension AppModel {
     /// A lecture's notes and its draft questions: the notes are saved on the source, the questions become drafts.
     @discardableResult
     func saveLectureNotes(_ outcome: LectureOutcome, lecture: Source, course: Course? = nil) -> [StudyItem] {
-        lecture.notes = outcome.notes
+        // The offline rules found no notes worth keeping (`needsCloud`): nothing empty is saved, so the lecture still says
+        // "No notes yet" and offers to make them with Cloud AI. Questions from the moments the person flagged still come.
+        if !outcome.needsCloud { lecture.notes = outcome.notes }
         // "Lecture 7" becomes "Lecture 7: Cell division" when the notes found a name for it.
         if let colon = outcome.title.range(of: ": "), !lecture.title.contains(":") {
             let name = outcome.title[colon.upperBound...].trimmingCharacters(in: .whitespaces)
@@ -167,18 +174,49 @@ extension AppModel {
         }
         touch(lecture)
         guard !outcome.items.isEmpty else {
-            if lecture.status == .read { lecture.status = .ready }
+            if lecture.status == .read, !outcome.needsCloud { lecture.status = .ready }
             save()
             return []
         }
         return makeDrafts(DraftInput(outcome), source: lecture, course: course)
     }
 
+    /// A set written again (Cloud AI allowed, a better read of the pages) came out weaker than the drafts it would replace: Cloud AI
+    /// didn't answer this time, and this iPhone's model or the offline rules wrote it. Such a set never replaces the questions in
+    /// review (they would be deleted for a weaker set), whatever the run was for.
+    func keepsEarlierDrafts(over outcome: GenerationOutcome, source: Source) -> Bool {
+        guard let report = draftReport(sourceID: source.id), !outcome.origin.mayReplace(report.origin) else { return false }
+        return !draftItems(sourceID: source.id).isEmpty
+    }
+
+    /// Says in the review why the earlier questions stayed: Cloud AI couldn't be reached (or the free scans are used up, which also
+    /// offers the plans), so the questions it wrote are kept.
+    func noteEarlierDraftsKept(over outcome: GenerationOutcome, source: Source) {
+        guard var report = draftReport(sourceID: source.id) else { return }
+        report.note = AIRouter.keptNote(outcome.cloudFailure, limitReached: outcome.limitReached, earlier: report.origin)
+        if outcome.limitReached != nil, let suggestion = outcome.suggestion { report.suggestion = DraftReport.Suggestion(suggestion) }
+        writeDraftReport(report, sourceID: source.id)
+    }
+
     @discardableResult
     func makeDrafts(_ input: DraftInput, source: Source, course: Course? = nil) -> [StudyItem] {
         var report = draftReport(sourceID: source.id)
-        // A set made again (with Cloud AI, say) replaces the one before it.
-        for old in draftItems(sourceID: source.id) { removeItem(old) }
+        // A set made again (with Cloud AI, say) replaces the one before it, except for the pages it didn't read: the questions already
+        // written for those stay, and the note says so (a partial run never swaps a fuller set for a smaller one).
+        var keptPages = Set<Int>()
+        for old in draftItems(sourceID: source.id) {
+            if let page = old.sourceRef?.pageIndex, input.unreadPages.contains(page) {
+                keptPages.insert(page)
+            } else {
+                removeItem(old)
+            }
+        }
+        var input = input
+        if !keptPages.isEmpty {
+            let pages = source.sortedPages
+            let ranges = pages.indices.filter { keptPages.contains(pages[$0].pageIndex) }.map { $0..<($0 + 1) }
+            input.note = GenerationPlan.joined([input.note, GenerationPlan.keptEarlierNote(pages: ranges, labels: pages.map(\.label))])
+        }
 
         let target: Course
         if let course {
@@ -279,7 +317,7 @@ extension AppModel {
         let course = source(sourceID)?.course
         if let source = source(sourceID) {
             if keepSource {
-                source.status = source.kind == .lecture ? .ready : .read
+                source.status = source.kind == .lecture || !items(fromSource: sourceID).isEmpty ? .ready : .read
                 touch(source)
                 removeDraftReport(sourceID: sourceID)
             } else {
@@ -442,6 +480,55 @@ extension AppModel {
             }
         }
         return self.source(sourceID)?.pages.contains(where: { !$0.lines.isEmpty }) == true ? .read : .nothingFound
+    }
+
+    /// Reads the pages of a PDF whose text layer lost its typeset formulas (`Source.pagesWithMissingFormulas`) as images, with
+    /// Cloud AI: each flagged page is drawn from the kept PDF, kept as the page's image, and sent through the same route as a
+    /// photo (`transcribe-image`, which needs Cloud AI and the photos switch, both checked again right before each page
+    /// goes). One scan's worth of pages at a time; the rest stay flagged. The better reading is merged into the page's text layer
+    /// (`PageLayout.merged`): the lines stay as they were and the formulas are added beside them, so questions already made keep
+    /// their anchors. The set should be written again afterwards. `onlyPages`: the pages (`SourcePage.pageIndex`) of the part of the
+    /// PDF the review is about, for a review of "questions for the rest", which is written from those pages only: reading others would
+    /// upload their images for nothing, and spend the scan on them.
+    func readPDFPagesWithCloud(sourceID: UUID, onlyPages: Set<Int>? = nil) async -> CloudReadResult {
+        guard let source = source(sourceID), source.kind == .pdf, let fileName = source.fileName else {
+            return .failed("This PDF is gone.")
+        }
+        let flagged = source.pagesWithMissingFormulas.filter { onlyPages?.contains($0.pageIndex) ?? true }
+        guard !flagged.isEmpty else { return .read }
+        let url = FileStore.url(for: fileName)
+        let folder = PageImageStore.sourceFolder(sourceID)
+        var read = 0
+        for page in flagged.prefix(AIFreeLimits.pagesPerScan(ai.plan)) {
+            if Task.isCancelled { break }
+            guard page.modelContext != nil else { continue }
+            let index = page.pageIndex
+            let drawn: (jpeg: Data, width: Int, height: Int)? = await Task.detached(priority: .userInitiated) {
+                guard let document = PDFDocument(url: url), let pdfPage = document.page(at: index),
+                      let image = PDFReader.render(pdfPage, scale: PDFReader.renderScale),
+                      let stored = try? PageImagePipeline.normalize(cgImage: image) else { return nil }
+                return (stored.jpeg, stored.width, stored.height)
+            }.value
+            guard let drawn, let path = try? FileStore.write(drawn.jpeg, folder: folder, name: PageImageStore.pageFileName(index)) else {
+                return .failed("This page couldn't be drawn from the PDF.")
+            }
+            switch await ai.transcribeImage(at: FileStore.url(for: path), page: index, label: page.label) {
+            case .lines(let lines, _):
+                guard !lines.isEmpty, page.modelContext != nil else { continue }
+                page.imageFileName = path
+                page.width = Double(drawn.width)
+                page.height = Double(drawn.height)
+                // The page keeps its lines, ids and all (the questions made from them point at those ids: their source link, their
+                // grading context, their coverage) and gains what the reading adds: the formulas.
+                replaceLines(of: page, with: PageLayout.merged(old: page.lines, cloud: lines, pageIndex: index))
+                read += 1
+            case .notAllowed(let suggestion):
+                return .notAllowed(suggestion)
+            case .failed(let message):
+                return .failed(message)
+            }
+        }
+        return read > 0 ? .read : .nothingFound
     }
 
     // MARK: - Helpers

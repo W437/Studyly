@@ -82,6 +82,25 @@ export function providerSchema(name: string): Schema {
   return schema;
 }
 
+/** The most text the passages of one tutor or assistant request may hold in all, in characters. The schema limits each passage
+ * (20,000) and their number (100) but not the sum, so under the body limit one hand-built request could carry a million
+ * characters and cost 26 cents on the tutor (52 on the assistant, whose body may be twice as big). The app sends about 40,000 at
+ * most (6,000 words). */
+export const MAX_SOURCE_CHARS = 200_000;
+
+/** The passages hold no more than MAX_SOURCE_CHARS in all, or a plain `bad_request` (413). Checked before anything is metered
+ * or the model is asked, so a refused request costs nothing. */
+export function requireSourceBudget(sources: readonly { text: string }[]): void {
+  let total = 0;
+  for (const source of sources) total += source.text.length;
+  if (total > MAX_SOURCE_CHARS) {
+    throw badRequest(
+      "That's more of your notes than Cap can read in one question. Try asking about one part of them.",
+      413,
+    );
+  }
+}
+
 /** Validates a request body against its schema; a 400 naming the first problem otherwise. */
 export function requireValid<T>(name: string, value: unknown): T {
   const issues = validate(requestSchema(name), value);

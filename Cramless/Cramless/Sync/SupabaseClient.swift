@@ -28,7 +28,7 @@ final class SupabaseClient: Sendable {
 
     /// A new anonymous user: AI quotas and entitlements work without an account.
     func signUpAnonymously() async throws -> AuthSession {
-        try await authSession(path: "auth/v1/signup", body: ["data": JSONValue.object([:])])
+        try await authSession(path: "auth/v1/signup", body: ["data": JSONValue.object([:])], kind: .signUp)
     }
 
     /// Sign in with Apple: the identity token from `ASAuthorizationAppleIDCredential` and the raw nonce whose
@@ -112,11 +112,13 @@ final class SupabaseClient: Sendable {
 
     // MARK: Plumbing
 
-    enum Kind { case auth, rest, function, storage }
+    /// `signUp` is the anonymous sign-up: GoTrue answers 429 when one address makes too many an hour, and that is a wait,
+    /// not a mistake, so it surfaces as `.upstream` (`AccountService` retries those) instead of `.badRequest`.
+    enum Kind { case auth, signUp, rest, function, storage }
 
-    private func authSession(path: String, query: [URLQueryItem] = [], body: [String: JSONValue]) async throws
+    private func authSession(path: String, query: [URLQueryItem] = [], body: [String: JSONValue], kind: Kind = .auth) async throws
         -> AuthSession {
-        let data = try await send(method: "POST", path: path, query: query, body: try encode(body), kind: .auth)
+        let data = try await send(method: "POST", path: path, query: query, body: try encode(body), kind: kind)
         guard let session = Self.parseSession(data) else { throw RelayError.decoding("auth session") }
         return session
     }
@@ -185,6 +187,7 @@ final class SupabaseClient: Sendable {
         let message = messageOf(data) ?? "HTTP \(status)"
         switch status {
         case 401, 403: return .unauthorized
+        case 429 where kind == .signUp: return .upstream(message)
         case 400, 404, 405, 409, 413, 415, 422, 429: return .badRequest(message)
         default:
             if kind == .function, status < 500 { return .badRequest(message) }

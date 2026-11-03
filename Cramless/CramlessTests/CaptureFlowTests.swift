@@ -55,6 +55,53 @@ final class CaptureFlowTests: CaptureTestCase {
         XCTAssertEqual(app.source(sourceID)?.course?.id, course.id)
     }
 
+    func testASetWrittenAgainByAWeakerTierKeepsTheCloudQuestionsAndTheReviewSaysWhy() async throws {
+        let app = makeFlowApp(mode: .relay)
+        let relay = RecordingTransport()
+        app.ai.transportOverride = relay
+        let course = makeCourse(app)
+        let first = try await run(app, CaptureRequest(input: .sample, courseID: course.id))
+        guard case .review(let sourceID) = first.phase else { return XCTFail("expected the review, got \(first.phase)") }
+        let written = app.draftItems(sourceID: sourceID)
+        XCTAssertEqual(written.count, 15)
+        XCTAssertEqual(app.draftReport(sourceID: sourceID)?.origin, .cloud)
+
+        // The formulas read worked, and then Cloud AI couldn't be reached to write the set again: the rules wrote one. It never replaces
+        // the questions in review, which would have been deleted for it.
+        relay.failures["generate"] = .offline
+        let again = try await run(app, CaptureRequest(input: .sample, courseID: course.id), regenerating: sourceID, skipMathGate: true)
+        guard case .review(let id) = again.phase else { return XCTFail("expected the review, got \(again.phase)") }
+        XCTAssertEqual(id, sourceID)
+        XCTAssertEqual(again.stepLog.last, .done)
+        XCTAssertEqual(app.draftItems(sourceID: sourceID).map(\.id), written.map(\.id), "the same questions, not a basic set")
+        XCTAssertTrue(app.draftItems(sourceID: sourceID).allSatisfy { $0.origin == .cloud })
+        var report = try XCTUnwrap(app.draftReport(sourceID: sourceID))
+        XCTAssertEqual(report.origin, .cloud)
+        XCTAssertEqual(report.note, "Cloud AI couldn't be reached, so your earlier questions are kept.")
+        XCTAssertTrue(again.cards.isEmpty, "no questions of the weaker set land on the screen")
+
+        // The week's free scans are used up when it is written again: the same, and the plans are offered.
+        relay.failures["generate"] = .quotaExceeded(QuotaStatus(plan: .free, meters: [QuotaMeter(key: .scans, used: 3, limit: 3, period: .week)]),
+                                                    message: "That's this week's 3 AI scans on the free plan.")
+        let limited = try await run(app, CaptureRequest(input: .sample, courseID: course.id), regenerating: sourceID, skipMathGate: true)
+        guard case .review = limited.phase else { return XCTFail("expected the review, got \(limited.phase)") }
+        XCTAssertEqual(app.draftItems(sourceID: sourceID).map(\.id), written.map(\.id))
+        report = try XCTUnwrap(app.draftReport(sourceID: sourceID))
+        XCTAssertEqual(report.note, "You've used this week's free Cloud AI scans, so your earlier questions are kept.")
+        guard case .upgrade(.scans, _)? = report.suggestion?.aiSuggestion else { return XCTFail("\(String(describing: report.suggestion))") }
+
+        // Cloud AI answers: a set from the same tier replaces them, as ever.
+        relay.failures["generate"] = nil
+        app.ai.setServerQuota(nil)
+        app.ai.resetUsage()
+        let better = try await run(app, CaptureRequest(input: .sample, courseID: course.id), regenerating: sourceID, skipMathGate: true)
+        guard case .review = better.phase else { return XCTFail("expected the review, got \(better.phase)") }
+        let replaced = app.draftItems(sourceID: sourceID)
+        XCTAssertEqual(replaced.count, 15)
+        XCTAssertTrue(Set(replaced.map(\.id)).isDisjoint(with: written.map(\.id)), "new questions")
+        XCTAssertNil(app.draftReport(sourceID: sourceID)?.note)
+    }
+
     func testOfflineTheRulesWriteTheSetAndTheReviewSaysSo() async throws {
         let app = makeFlowApp(mode: .local, consent: false)
         let course = makeCourse(app)
@@ -153,6 +200,40 @@ final class CaptureFlowTests: CaptureTestCase {
 
         let onward = try await run(app, request, regenerating: source.id, skipMathGate: true)
         XCTAssertNotEqual(onward.phase, .failed(.mathLike), "the person chose to go on")
+    }
+
+    func testAPDFWhoseFormulasVanishedIsNotStoppedAsMath() async throws {
+        let app = makeFlowApp(mode: .local)
+        let course = makeCourse(app)
+        let source = Source(course: course, kind: .pdf, title: "Chain rule", status: .read, now: app.now)
+        app.context.insert(source)
+        course.sources.append(source)
+        let lines = ["The chain rule is a formula for the derivative of a composite function.",
+                     "It is expressed in Leibniz's notation as", "and", "Intuitively, rates of change multiply along the chain."].enumerated().map {
+            TextLine(id: "p0.l\($0.offset)", text: $0.element, box: nil)
+        }
+        let page = SourcePage(source: source, pageIndex: 0, label: "1", text: lines.map(\.text).joined(separator: "\n"), lines: lines)
+        page.read = PageRead(engine: .pdfText, confidence: 1, issue: .mathLike)
+        app.context.insert(page)
+        source.pages.append(page)
+        app.save()
+
+        let ran = try await run(app, CaptureRequest(input: .images([]), courseID: course.id), regenerating: source.id)
+
+        XCTAssertNotEqual(ran.phase, .failed(.mathLike), "the words are right; the review says the formulas may be missing")
+        XCTAssertTrue(page.formulasMayBeMissing)
+    }
+
+    func testAnEmptyOfflineSetCarriesTheOfferToCloudAI() async throws {
+        let app = makeFlowApp(mode: .mock, consent: false)
+        let course = makeCourse(app)
+        // Text the offline rules find nothing to ask about.
+        let request = CaptureRequest(input: .text(title: "Notes", body: "ok so yeah then we go on to the next one and so on and so forth, you know."),
+                                     courseID: course.id)
+        let first = try await run(app, request)
+        guard case .failed(.noQuestions(let note?)) = first.phase else { return XCTFail("expected no questions, got \(first.phase)") }
+        XCTAssertEqual(note, "The offline rules couldn't find questions on this page.")
+        XCTAssertEqual(first.noQuestionsSuggestion, .allowCloud(feature: AIJob.generate.feature))
     }
 
     func testLeavingPartWayThrowsAwayWhatWasMade() async throws {

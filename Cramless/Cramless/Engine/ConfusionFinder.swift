@@ -23,7 +23,9 @@ struct ConfusionCandidate: Sendable, Equatable, Identifiable {
     var id: String
     var courseID: UUID?
     var topicID: UUID?
-    /// "Anaphase vs telophase", or the topic's name for repeated misses.
+    /// "Anaphase vs telophase" for two short answers that were swapped, or the topic's name for repeated misses. When the rules have
+    /// no honest name (the answers are sentences, not terms; the questions have no topic) it is `unnamed`: a plain description, never
+    /// a name made up from the text of a question. Cloud AI names a mix-up in plain words when it is allowed.
     var name: String
     var reason: Reason
     var itemIDs: [UUID]
@@ -31,6 +33,19 @@ struct ConfusionCandidate: Sendable, Equatable, Identifiable {
     var missCount: Int
     var lastMissAt: Date
     var mistakes: [Mistake]
+
+    /// What the screens call a mix-up the rules can't name. It says what it is, and `defaultExplanation` says how many misses on
+    /// how many questions.
+    static let unnamed = "Questions you keep missing"
+
+    var isNamed: Bool { name != Self.unnamed }
+
+    /// What the rules can say about it: nothing that isn't counted for a mix-up they couldn't name ("3 misses on these 2 questions"),
+    /// and the count of misses for one they could.
+    var defaultExplanation: String {
+        isNamed ? "You've missed these \(missCount) times in the last two weeks."
+            : ConfusionFinder.description(misses: missCount, questions: itemIDs.count)
+    }
 }
 
 /// Finds confusion candidates in the last 14 days of answers:
@@ -78,6 +93,19 @@ struct ConfusionFinder: Sendable {
         let parts = trimmed.split(separator: " ")
         let short = parts.prefix(words).joined(separator: " ")
         return parts.count > words ? short + "…" : short
+    }
+
+    /// A short answer that can stand as a name ("Anaphase", "Sister chromatids"): not a sentence cut short.
+    static func isTerm(_ text: String) -> Bool {
+        let t = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !t.isEmpty, !t.hasSuffix("…") else { return false }
+        return t.trimmingCharacters(in: .punctuationCharacters).split(separator: " ").count <= 3
+    }
+
+    /// How many misses on how many questions, for a mix-up with no name: "3 misses on these 2 questions", "2 misses on this question".
+    static func description(misses: Int, questions: Int) -> String {
+        let m = max(1, misses), q = max(1, questions)
+        return "\(m == 1 ? "1 miss" : "\(m) misses") on \(q == 1 ? "this question" : "these \(q) questions")"
     }
 
     static func joinNames(_ names: [String]) -> String {
@@ -168,10 +196,12 @@ struct ConfusionFinder: Sendable {
             let names = ids.compactMap { byID[$0] }.map { Self.shortName($0.expected) }
             let uniqueNames = Array(Set(names)).sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
             let first = byID[ids[0]]
+            // Named only when the swapped answers are terms; two sentences cut short are no name.
+            let swapName = uniqueNames.allSatisfy(Self.isTerm) ? Self.joinNames(uniqueNames) : ConfusionCandidate.unnamed
             out.append(ConfusionCandidate(
                 id: Self.stableID("swap", ids), courseID: first?.courseID,
                 topicID: Set(ids.compactMap { byID[$0]?.topicID }).count == 1 ? first?.topicID : nil,
-                name: Self.joinNames(uniqueNames), reason: .swappedAnswers, itemIDs: ids,
+                name: swapName, reason: .swappedAnswers, itemIDs: ids,
                 missCount: ids.reduce(0) { $0 + (misses[$1] ?? 0) },
                 lastMissAt: ids.compactMap { lastMiss[$0] }.max() ?? now,
                 mistakes: mistakes(ids, byID: byID, misses: misses, lastGiven: lastGiven)))
@@ -188,12 +218,11 @@ struct ConfusionFinder: Sendable {
             let sorted = ids.sorted()
             if dismissed.contains(where: { Set(sorted).isSubset(of: $0) }) { continue }
             guard let first = byID[sorted[0]] else { continue }
-            let mostMissed = sorted.max { (misses[$0] ?? 0, $1) < (misses[$1] ?? 0, $0) } ?? sorted[0]
-            let name = first.topicID.flatMap { topicNames[$0] }
-                ?? Self.shortName(byID[mostMissed]?.expected ?? first.expected)
+            // The topic's name, which is the person's own; the text of a question is not a name.
+            let name = first.topicID.flatMap { topicNames[$0] }.map { Self.joinNames([$0]) } ?? ConfusionCandidate.unnamed
             out.append(ConfusionCandidate(
                 id: Self.stableID("miss", sorted), courseID: first.courseID, topicID: first.topicID,
-                name: Self.joinNames([name]), reason: .repeatedMisses, itemIDs: sorted,
+                name: name, reason: .repeatedMisses, itemIDs: sorted,
                 missCount: sorted.reduce(0) { $0 + (misses[$1] ?? 0) },
                 lastMissAt: sorted.compactMap { lastMiss[$0] }.max() ?? now,
                 mistakes: mistakes(sorted, byID: byID, misses: misses, lastGiven: lastGiven)))

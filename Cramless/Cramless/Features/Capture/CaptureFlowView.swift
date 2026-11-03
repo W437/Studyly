@@ -26,10 +26,12 @@ struct CaptureFlowView: View {
                                    preview: run?.preview ?? CapturePagePreview(input: request.input),
                                    readingWithCloud: readingWithCloud, cloudNote: cloudNote,
                                    tryAnother: tryAnother, readWithCloud: { Task { await readWithCloud() } },
-                                   useAnyway: useAnyway, makeCards: makeCards, close: close)
+                                   useAnyway: useAnyway, makeCards: makeCards, close: close,
+                                   suggestion: run?.noQuestionsSuggestion)
                     .transition(.opacity)
             } else if case .review(let id) = run?.phase {
-                DraftReviewView(sourceID: id, isOnboarding: request.isOnboarding, onFinish: finished, onRewrite: rewrite)
+                DraftReviewView(sourceID: id, isOnboarding: request.isOnboarding, onFinish: finished, onRewrite: rewrite,
+                                restPages: request.rest?.pages)
                     .transition(.move(edge: .bottom))
                     .zIndex(1)
             } else if let run {
@@ -41,7 +43,22 @@ struct CaptureFlowView: View {
         }
         .animation(CLMotion.settle, value: phaseKey)
         .captureDebugCanvas()
-        .task { start() }
+        .task { start(regenerating: request.restOf, skipMathGate: request.restOf != nil) }
+        .onChange(of: unlockKey) { old, new in rewriteIfUnlocked(old: old, new: new) }
+    }
+
+    /// No questions could be written offline and the problem screen offered Cloud AI (or the plans): the set is written
+    /// again as soon as the person allows it, as the review does.
+    private var unlockKey: String { "\(app.ai.hasCloudConsent)-\(app.ai.plan.isPaid)" }
+
+    private func rewriteIfUnlocked(old: String, new: String) {
+        guard old != new, case .noQuestions = currentFailure, let suggestion = run?.noQuestionsSuggestion else { return }
+        let satisfied: Bool = switch suggestion {
+        case .allowCloud: app.ai.hasCloudConsent
+        case .allowPhotos: AIConsent.photosGranted(app.settings)
+        case .upgrade: app.ai.plan.isPaid
+        }
+        if satisfied { rewrite() }
     }
 
     private var currentFailure: CaptureRun.Failure? {
@@ -86,10 +103,11 @@ struct CaptureFlowView: View {
         next.start()
     }
 
-    /// Cloud AI was allowed from the review: the same page, written again.
+    /// Cloud AI was allowed from the review: the same page, written again. A rest is written from the same part of the source as the
+    /// first time (the request carries it), and skips the notation check it skipped then.
     private func rewrite() {
         guard let id = run?.sourceID else { return }
-        start(regenerating: id)
+        start(regenerating: id, skipMathGate: request.restOf != nil)
     }
 
     private func useAnyway() {
@@ -222,6 +240,8 @@ struct CaptureProblemView: View {
     let useAnyway: () -> Void
     let makeCards: () -> Void
     let close: () -> Void
+    /// With no questions: what would write some (Cloud AI when consent is what's missing, the plans when a free limit is).
+    var suggestion: AISuggestion? = nil
 
     @Environment(AppModel.self) private var app
 
@@ -376,9 +396,29 @@ struct CaptureProblemView: View {
         }
     }
 
+    /// The offer on a screen with no questions, while it still applies.
+    private var visibleSuggestion: AISuggestion? {
+        guard case .noQuestions = failure, let suggestion else { return nil }
+        switch suggestion {
+        case .allowCloud: return app.ai.cloudAvailableInThisBuild && !app.ai.hasCloudConsent ? suggestion : nil
+        case .allowPhotos: return nil
+        case .upgrade: return app.ai.plan.isPaid ? nil : suggestion
+        }
+    }
+
     private var actions: some View {
         VStack(spacing: 8) {
-            if canReadWithCloud {
+            if let offer = visibleSuggestion {
+                Button {
+                    CLHaptics.tap()
+                    app.router.present(offer.sheet)
+                } label: {
+                    if case .upgrade = offer { Text("See plans") } else { Text("Use Cloud AI") }
+                }
+                .buttonStyle(.cl(.primary))
+                Button(tryAnotherTitle, action: tryAnother)
+                    .buttonStyle(.cl(.soft))
+            } else if canReadWithCloud {
                 Button(action: readWithCloud) {
                     ZStack {
                         Text("Read it with Cloud AI").opacity(readingWithCloud ? 0 : 1)

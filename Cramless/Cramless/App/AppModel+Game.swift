@@ -219,7 +219,8 @@ extension AppModel {
                fsrs.retrievability(elapsedDays: log.elapsedDays, stability: log.stabilityBefore) < ReviewOutcome.fadingRecall {
                 facts.saves += 1
             }
-            // A run is right answers the app checked, in one session; a flashcard's self-rating neither builds nor breaks it.
+            // A run is right answers in one session; a flashcard's self-rating neither builds nor breaks it. An own-words answer the
+            // person marked themselves ("self") counts like any other, by its rating, as the session's own run counts it.
             if let kind = item?.kind, kind != .flashcard {
                 let session = log.sessionID ?? Self.noSession
                 if right {
@@ -368,7 +369,10 @@ extension AppModel {
         for exam in examSnapshots() {
             guard let ready = exam.readinessAtExam else { continue }
             if ready >= AchievementFacts.readyAt { facts.readyExams += 1 }
-            if let grade = exam.resultScore, abs(grade - ready) <= AchievementFacts.calledItWithin { facts.calledItExams += 1 }
+            // Called it: what Capling projected from (the readiness with the coverage taken into account, as the projection was) was
+            // within a few points of the grade.
+            if let grade = exam.resultScore, let projected = exam.adjustedReadinessAtExam,
+               abs(grade - projected) <= AchievementFacts.calledItWithin { facts.calledItExams += 1 }
         }
         gameCache.facts = (revision, facts)
         return facts

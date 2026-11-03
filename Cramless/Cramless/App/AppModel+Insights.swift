@@ -34,13 +34,16 @@ extension AppModel {
 
     // MARK: Exams
 
+    /// Readiness for an exam. The ring's number is the mean recall of its questions; the projected grade also knows how much of the
+    /// material those questions reach (`coverage(for:)`).
     func readiness(for exam: Exam) -> ExamReadiness {
         let snapshot = ExamSnapshot(exam)
         let items = itemSnapshots(in: exam.course)
         let plan = planBuilder().plan(for: snapshot, items: items)
         return ReadinessEngine(fsrs: fsrs, calendar: calendar, now: now).readiness(
             for: snapshot, items: items, topics: topicSnapshots(in: exam.course),
-            logs: reviewSnapshots(courseID: exam.course?.id), plan: plan, grade: gradeModel(for: snapshot))
+            logs: reviewSnapshots(courseID: exam.course?.id), plan: plan, grade: gradeModel(for: snapshot),
+            coverage: coverage(for: exam)?.share)
     }
 
     /// The exam's day-by-day plan and its projected readiness curve.
@@ -61,13 +64,14 @@ extension AppModel {
         return ReadinessEngine(fsrs: fsrs, calendar: calendar, now: now).value(of: exam, items: items)
     }
 
-    /// The grade model for an exam: calibrated once two past exams have both readiness and a logged grade.
+    /// The grade model for an exam: calibrated once two past exams have both readiness and a logged grade. The line is fitted to the
+    /// readiness each exam was projected from (with its coverage taken into account), the same kind of value it is given later.
     func gradeModel(for exam: ExamSnapshot) -> GradeModel {
         let past = fetch(FetchDescriptor<Exam>(predicate: #Predicate {
             $0.deletedAt == nil && $0.resultScore != nil && $0.readinessAtExam != nil
         }))
         let history = past.compactMap { e -> (readiness: Double, score: Double)? in
-            guard e.id != exam.id, let r = e.readinessAtExam, let s = e.resultScore else { return nil }
+            guard e.id != exam.id, let r = ExamSnapshot(e).adjustedReadinessAtExam, let s = e.resultScore else { return nil }
             return (r, s)
         }
         return GradeModel.make(format: exam.format, history: history)
@@ -263,7 +267,7 @@ extension ExamSnapshot {
     init(_ exam: Exam) {
         self.init(id: exam.id, courseID: exam.course?.id, title: exam.title, date: exam.date, scope: Set(exam.scope),
                   target: exam.targetReadiness, format: exam.format, readinessAtExam: exam.readinessAtExam,
-                  resultScore: exam.resultScore)
+                  resultScore: exam.resultScore, coverageAtExam: exam.coverageAtExam)
     }
 }
 

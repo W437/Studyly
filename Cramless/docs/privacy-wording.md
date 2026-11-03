@@ -13,6 +13,17 @@ only "made for students 13 and up", and the age-rating answer `ageAssurance` is 
 deleted item stays on the server, marked deleted, until the account is deleted, and that signing in makes a new account and leaves
 the anonymous one behind.
 
+**Update, 2026-11-03.** Ask Cap's tutor used to send four passages that matched the question; it now sends the notes of the course
+(everything when they come to about 6,000 words or fewer, otherwise the sources the question names and the best-matching passages),
+the cards of imported decks, and the names of the sources. The paragraph and the table row below, and the three screens' words, were
+changed to say so. The owner should read them again before the policy is published.
+
+**Correction, 2026-11-03 (later).** Saying that only the notes of the course being asked about go with a question was half of it. With each question Cap gets the notes
+of the course it is answering from (every course when none is chosen), and when Cap is asked to look through the notes (the
+`search_notes` tool) the passages it finds go too, from any of the student's courses, because a lookup without a course searches them
+all (`AI/AIRouter+Assistant.swift`, `searchNotes`). The policy paragraph, the table row and the three screens' words now say both. The
+owner reviews this wording before release.
+
 ## 1. The privacy policy: a section for Ask Cap
 
 > ### Ask Cap, our study assistant
@@ -22,9 +33,11 @@ the anonymous one behind.
 > time in Settings.
 >
 > When you use it, Capling's server sends your request to an AI provider to be answered. That includes your message and the recent
-> messages in the chat, a few passages from your notes that match your question, and an overview of your study, so that Cap can pick
-> the right course: the names of your courses, topics and exams, your exam dates, how ready you are, which topics are fading and how
-> many cards are due. If you turn on "Also send page photos", photos of the pages you scan go too. Capling uses OpenAI for all of it: Ask Cap's
+> messages in the chat, the notes of the course Cap is answering from (of every course, if you chose All courses): the text of your pages
+> and lectures, the cards of decks you imported and the names of what you added, all of it when it is short and otherwise the parts
+> that fit your question; when you ask Cap to look through your notes, the passages it finds in any of your courses; and an overview of
+> your study, so that Cap can pick the right course: the names of your courses, topics and
+> exams, your exam dates, how ready you are, which topics are fading and how many cards are due. If you turn on "Also send page photos", photos of the pages you scan go too. Capling uses OpenAI for all of it: Ask Cap's
 > answers, its tools, web research, questions made from scans, grading and lecture notes. Your phone never talks to an AI company
 > directly: requests go through our own server.
 >
@@ -50,7 +63,7 @@ Where each fact comes from:
 | Fact | Where |
 |---|---|
 | Cloud AI is off until allowed; under 13 never; photos are a second switch | `AI/AIConsent.swift`, `AI/AIRouting.swift`, `Features/Settings/ConsentSheet.swift` |
-| What the model is sent: the messages, up to 24 passages, and the study overview (course, topic and exam names, exam dates, readiness, fading topics, due counts) | `supabase/functions/_shared/assistant.ts` (`studyBlock`), `_shared/contract.ts` (`AssistantRequest`) |
+| What the model is sent with each question to Cap: the messages; the notes of the course Cap answers from (every course when none is chosen) as passages: all of them up to about 6,000 words, otherwise the sources the question names and the best-matching passages, at most 100 passages; the cards of imported decks (one passage a card); the names of the sources (`materials`, at most 20); when Cap is asked to look through the notes, the passages the lookup finds in any of the courses (`search_notes`, `AI/AIRouter+Assistant.swift`: a lookup with no course named searches every course); and, for the assistant, the study overview (course, topic and exam names, exam dates, readiness, fading topics, due counts) | `AI/TutorSelection.swift`, `AI/AIRouter+Tutor.swift`, `App/AppModel+AI.swift` (`tutorMaterial`), `AI/TutorDeck.swift` (`TutorMaterial.listing`), `supabase/functions/_shared/assistant.ts` (`studyBlock`), `_shared/contract.ts` (`TutorRequest`, `AssistantRequest`) |
 | OpenAI for every AI route (the tutor, the assistant, web research, questions from scans, grading, lecture notes) | `_shared/deps.ts`, `_shared/openai.ts`, `AI/AIConsent.swift` (`processor`), `docs/BUILD.md` "Every route on OpenAI". Change the sentence if the wiring changes |
 | Drafts are shown first; "Let Cap do it" per kind; never for under 18; undo | `Features/Settings/AssistantPage.swift`, `App/AppModel+Assistant.swift` |
 | Web research: Pro only, never under 18, about 50 trusted sites, summary with links, saved only on a tap, no site learns anything | `_shared/assistant.ts` (`RESEARCH_DOMAINS`), `_shared/plans.ts`, `AI/AIRouter+Assistant.swift`, `Features/Ask/Assistant/WebSourceTile.swift` (logos drawn in code) |
@@ -83,7 +96,7 @@ that process the same rows; they are not extra data types).
 | Identifiers ▸ User ID | Yes | The account ID |
 | Purchases ▸ Purchase History | Yes | Subscription transactions |
 | User Content ▸ Photos or Videos | Yes | Page photos, only with "Send page photos": read by AI, and stored with sync |
-| User Content ▸ Other User Content | Yes | Notes text, cards, questions, answers, Ask Cap messages, course, topic and exam names |
+| User Content ▸ Other User Content | Yes | Notes text, cards (imported decks too), questions, answers, Ask Cap messages, course, source, topic and exam names |
 | Search History | Yes | The topics a student asks Cap to research online |
 | Usage Data ▸ Product Interaction | Yes | Review history, study sessions and daily records that sync |
 | Usage Data ▸ Other Usage Data | Yes | The AI request record (feature, model, tokens, cost, time) and the daily counters |
@@ -110,8 +123,9 @@ questionnaire is in front of you, and tell me what it asks.
 ## 5. The words inside the app
 
 Kept in step with this page on 2026-10-27: the consent sheet (`ConsentSheet.swift`), Settings ▸ AI and privacy (`AIPrivacyPage.swift`),
-and `AIConsent.swift`'s version note. They now say Cap also sees exam dates, readiness and fading topics, and that OpenAI is the only processor (2026-11-02). Consent
-version 3 has not shipped, so it didn't need a fourth; once it has, a change in what is sent is version 4.
+and `AIConsent.swift`'s version note. They now say Cap also sees exam dates, readiness and fading topics, and that OpenAI is the only processor (2026-11-02), and that with
+each question to Cap the notes of the course it answers from go along (the text of pages and lectures, the cards of imported decks, the names of what was added: all of it when short,
+otherwise the parts that fit the question; 2026-11-03), and that when Cap is asked to look through the notes the passages it finds in any of the courses go too (2026-11-03, later). Consent version 3 has not shipped, so it didn't need a fourth; once it has, a change in what is sent is version 4.
 
 ## Check before you publish
 

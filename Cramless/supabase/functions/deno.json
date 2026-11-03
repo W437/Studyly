@@ -11,7 +11,9 @@
     "bundle": "deno run --allow-read=. --allow-write=_shared/generated.ts _shared/bundle.ts",
     "mock-openai": "deno run --allow-net --allow-read=. tests/_mock_openai.ts",
     "live": "deno run -A tools/live_check.ts",
-    "live-openai": "deno run -A tools/live_openai.ts"
+    "live-openai": "deno run -A tools/live_openai.ts",
+    "generate-ab": "deno run -A tools/generate_ab.ts",
+    "tutor-figure-ab": "deno run -A tools/tutor_figure_ab.ts"
   },
   "fmt": {
     "lineWidth": 120,

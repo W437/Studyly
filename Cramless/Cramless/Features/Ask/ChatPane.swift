@@ -26,13 +26,12 @@ struct ChatEntry: Identifiable, Equatable {
         return thread.sortedMessages.map(ChatEntry.init)
     }
 
-    /// Cap's reply for a question the notes don't cover (the offline tutor's words, or the cloud's).
-    var isNotCovered: Bool {
-        role == .assistant && (text == LocalTutor.notCovered || text.hasPrefix("Your material doesn't cover")
-                               || text.hasPrefix("Your notes don't cover"))
-    }
+    /// Cap's reply for a question the notes don't cover (the offline tutor's words, or the cloud's), or when there is nothing
+    /// in the notes yet: either way, adding notes is the way on.
+    var isNotCovered: Bool { role == .assistant && LocalTutor.isNotCoveredReply(text) }
 
-    var isRefusal: Bool { role == .assistant && text == TutorPolicy.refusal }
+    /// Cap declined: an essay, an exam, homework.
+    var isRefusal: Bool { role == .assistant && TutorPolicy.isDecline(text) }
 }
 
 /// The tutor chat: the course chip and Cap's style, the messages (Cap's streaming in), the suggestions and the glass
@@ -124,6 +123,7 @@ struct ChatPane: View {
                 if let thread { app.setChatCourse(thread, to: picked) } else { pendingCourseID = picked }
             }
             TutorModeControl(thread: thread)
+            FreeAnswersNote()
         }
     }
 
@@ -159,12 +159,12 @@ struct ChatPane: View {
             let lastQuestion = entries.last { $0.role == .user }?.text ?? ""
             CLFlow(spacing: 8, lineSpacing: 0) {
                 if last.isRefusal {
-                    let topic = AskPolicy.topic(ofRefused: lastQuestion)
+                    let topic = declinedTopic(lastQuestion)
                     SuggestionChip(title: topic.map { "Explain \($0) from my notes" } ?? "Explain the key ideas",
                                    systemImage: "text.book.closed") {
                         ask(topic.map { "Explain \($0) from my notes" } ?? "Explain the key ideas", sendAs: nil)
                     }
-                    SuggestionChip(title: topic.map { "Quiz me on \($0)" } ?? "Quiz me on this", systemImage: "checklist") {
+                    SuggestionChip(title: topic.map { "Quiz me on \($0)" } ?? "Quiz me on my notes", systemImage: "checklist") {
                         quiz(hint: topic ?? "")
                     }
                 } else if last.isNotCovered {
@@ -264,6 +264,15 @@ struct ChatPane: View {
         CitationOpener.open(group, app: app)
     }
 
+    /// What a declined request was about, among the course's topics and what its sources are about (nil: none, so the chips are the
+    /// plain ones).
+    private func declinedTopic(_ question: String) -> String? {
+        let scope = app.liveCourse(courseID).map { [$0] } ?? app.courses
+        let names = scope.flatMap(\.liveTopics).map(\.name)
+            + app.readableSources(courseID: courseID).flatMap { AskPolicy.names(inTitle: $0.title) }
+        return AskPolicy.topic(ofRefused: question, among: names)
+    }
+
     /// A practice session on the topic the chat is about (the course's topic whose name the chat uses most).
     private func quiz(hint: String) {
         let scope = app.liveCourse(courseID).map { [$0] } ?? app.courses
@@ -296,7 +305,7 @@ struct ChatPane: View {
 // MARK: - Opening a citation
 
 enum CitationOpener {
-    /// The page with the quote's lines highlighted, or the lecture at that moment, as a sheet.
+    /// The page with the quote's lines highlighted, the lecture at that moment, or the card of a deck, as a sheet.
     @MainActor
     static func open(_ group: CitationGroup, app: AppModel) {
         guard let first = group.citations.first, let id = first.sourceID, let source = app.source(id), source.deletedAt == nil else {
@@ -304,7 +313,10 @@ enum CitationOpener {
             return
         }
         CLHaptics.tap()
-        if source.kind == .lecture || (first.pageIndex == nil && first.start != nil) {
+        if source.kind.isDeck {
+            // A deck has cards, not pages: the card the quote came from.
+            app.router.present(.deckCard(sourceID: id, quote: first.quote, label: first.label))
+        } else if source.kind == .lecture || (first.pageIndex == nil && first.start != nil) {
             app.router.present(.lectureMoment(sourceID: id, time: first.start))
         } else {
             app.router.present(.sourcePage(sourceID: id, pageIndex: first.pageIndex ?? 0, highlight: anchors(group, app: app)))

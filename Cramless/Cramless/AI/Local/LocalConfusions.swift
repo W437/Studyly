@@ -3,8 +3,9 @@ import Foundation
 /// Mistake patterns by the offline rules (tier T0). Two patterns plain code can see:
 ///
 /// - **a swap**: the answer given to one item is the expected answer of another ("telophase" for the anaphase
-///   question, "anaphase" for the telophase one). Named "Anaphase vs telophase", with a two-line lesson from the
-///   two expected answers and a choice question for each item between the two confused answers;
+///   question, "anaphase" for the telophase one). Named "Anaphase vs telophase" when the answers are terms (when they are
+///   sentences there is no honest name, and the screens say how many misses on how many questions), with a two-line lesson from
+///   the two expected answers and a choice question for each item between the two confused answers;
 /// - **a weak topic**: two or more items of one topic missed three or more times between them.
 ///
 /// It can't explain *why* two ideas get mixed up; the cloud does that when allowed.
@@ -21,7 +22,10 @@ enum LocalConfusions {
             }) else { continue }
             used.formUnion([a.itemId, b.itemId])
             let first = Lexicon.trimmedSentence(b.expected), second = Lexicon.trimmedSentence(a.expected)
-            let name = "\(Lexicon.capitalizedFirst(first)) vs \(LocalGrader.lowerFirst(second))"
+            // Two terms swapped are named for what they are ("Anaphase vs telophase"); two sentences are not, and the screens say how
+            // many misses on how many questions instead.
+            let named = ConfusionFinder.isTerm(first) && ConfusionFinder.isTerm(second)
+            let name = named ? "\(Lexicon.capitalizedFirst(first)) vs \(LocalGrader.lowerFirst(second))" : ConfusionCandidate.unnamed
             let lesson = "For “\(Lexicon.trimmedSentence(a.prompt))”, the answer is \(LocalGrader.lowerFirst(second)). "
                 + "For “\(Lexicon.trimmedSentence(b.prompt))”, it's \(LocalGrader.lowerFirst(first))."
             let questions = [a, b].enumerated().map { n, m -> GeneratedItem in
@@ -31,8 +35,10 @@ enum LocalConfusions {
                                      choices: [Choice(text: m.expected, correct: true), Choice(text: other, correct: false)],
                                      anchors: [], difficulty: 0.4)
             }
-            out.append(ConfusionOut(name: name,
-                                    explanation: "You've answered \(LocalGrader.lowerFirst(first)) where it was \(LocalGrader.lowerFirst(second)), and the other way round.",
+            let explanation = named
+                ? "You've answered \(LocalGrader.lowerFirst(first)) where it was \(LocalGrader.lowerFirst(second)), and the other way round."
+                : ConfusionFinder.description(misses: a.misses + b.misses, questions: 2)
+            out.append(ConfusionOut(name: name, explanation: explanation,
                                     itemIds: [a.itemId, b.itemId], lesson: lesson, questions: questions))
         }
 

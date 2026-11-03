@@ -41,6 +41,12 @@ enum LocalGrader {
     // MARK: - Own words
 
     static func gradeOwnWords(_ subject: GradeSubject, _ answer: String) -> GradeOutcome {
+        // A calculation's answer is a number, and its key ideas describe the method a right number never states: when the person's number is
+        // the model answer's, it is right (never the other way: a different number goes to the grading below, or to a model).
+        if NumericAnswer.agrees(modelAnswer: subject.modelAnswer, typed: answer) {
+            return outcome(score: 1, verdict: .correct, confidence: 0.95, marks: [], hit: subject.keyIdeas.map(\.id), missing: [],
+                           feedback: "Right.", fix: "")
+        }
         let tokens = Lexicon.tokens(answer)
         let content = tokens.filter(\.isContent)
         guard !content.isEmpty else {

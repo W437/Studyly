@@ -67,19 +67,33 @@ struct PageStructure: Sendable {
     private enum Kind { case noise, heading, leadIn, bullet, definition, text }
 
     static func read(_ input: [TextLine]) -> PageStructure {
-        let lines = input.map { TextLine(id: $0.id, text: clean($0.text), box: $0.box) }.filter { !$0.text.isEmpty }
+        // A Markdown heading ("## Statins": pasted notes, copied web pages, a chatbot's answer) is a heading whatever its length;
+        // the marks are not part of the text.
+        var lines: [TextLine] = []
+        var marked: [Bool] = []
+        for line in input {
+            let (text, isMarked) = markdownHeading(in: clean(line.text))
+            guard !text.isEmpty else { continue }
+            lines.append(TextLine(id: line.id, text: text, box: line.box))
+            marked.append(isMarked)
+        }
         var lineTexts: [String: String] = [:]
         var lineOrder: [String: Int] = [:]
         for (i, line) in lines.enumerated() { lineTexts[line.id] = line.text; lineOrder[line.id] = i }
 
-        var kinds = lines.map { classify($0) }
+        var kinds = lines.indices.map { marked[$0] ? Kind.heading : classify(lines[$0]) }
         // A heading followed by a lowercase line is a wrapped line of a paragraph ("During mitosis the DNA is copied"
         // / "and separated …"), not a heading.
-        for i in lines.indices where kinds[i] == .heading && !lines[i].text.hasSuffix("?") {
+        for i in lines.indices where kinds[i] == .heading && !marked[i] && !lines[i].text.hasSuffix("?") {
             if let next = lines[(i + 1)...].first(where: { classify($0) != .noise }), let first = next.text.first,
                first.isLowercase, !isBullet(next.text), !lines[i].text.contains(":") {
                 kinds[i] = .text
             }
+        }
+        // A heading right after a line that stops on an abbreviation or an initial is the rest of a name the line splitter cut in two
+        // ("Brown v." / "Board of Education of Topeka"; "… by Edsger W." / "Dijkstra in 1956 …").
+        for i in lines.indices where kinds[i] == .heading && !marked[i] && i > 0 {
+            if let previous = lines[..<i].last(where: { classify($0) != .noise }), cutsAName(previous.text) { kinds[i] = .text }
         }
         // With boxes, the title is the tallest heading near the top; smaller lines above it are a running header
         // ("Unit 3 Cell Biology" over "Mitosis: How Cells Divide").
@@ -214,6 +228,29 @@ struct PageStructure: Sendable {
     private static func clean(_ text: String) -> String {
         text.replacingOccurrences(of: "\u{00A0}", with: " ")
             .split(whereSeparator: \.isWhitespace).joined(separator: " ")
+    }
+
+    private static let markdownTitle = Pattern(#"^#{1,6}\s+(\S.*?)(?:\s+#+)?$"#)
+    private static let endsOnInitial = Pattern(#"(?:\b[A-Z][a-z]+|\b[A-Z]\.)\s+[A-Z]\.$"#)
+
+    /// "## Statins" → ("Statins", true). Up to six marks, a space, then a title of at most 24 words; a closing run of marks is dropped.
+    static func markdownHeading(in text: String) -> (text: String, isHeading: Bool) {
+        guard let title = markdownTitle.capture(1, in: text) else { return (text, false) }
+        return title.split(separator: " ").count <= 24 ? (title, true) : (text, false)
+    }
+
+    /// The text stops on an abbreviation or on a first-name initial: the next piece is the rest of the same sentence.
+    static func cutsAName(_ text: String) -> Bool {
+        let t = text.trimmingCharacters(in: .whitespaces)
+        return TextArtifacts.endsOnAbbreviation(t) || endsOnInitial.matches(t)
+    }
+
+    /// The piece starts like the rest of a name or a citation, not like a new sentence: a capitalised word that isn't a function word,
+    /// or a number.
+    static func continuesAName(_ text: String) -> Bool {
+        guard let first = text.split(separator: " ").first.map(String.init), let c = first.first else { return false }
+        if c.isNumber { return true }
+        return c.isUppercase && !Lexicon.stopWords.contains(Lexicon.fold(first).trimmingCharacters(in: .punctuationCharacters))
     }
 
     private static let bulletMarks: Set<Character> = ["•", "·", "▪", "●", "◦", "‣", "-", "–", "*", "■", "□", "○"]
@@ -396,16 +433,24 @@ struct PageStructure: Sendable {
             text += line.text
             spans.append((line.id, start..<text.count))
         }
-        var units: [Unit] = []
+        var pieces: [(text: String, lower: Int, upper: Int)] = []
         let chars = Array(text)
         text.enumerateSubstrings(in: text.startIndex..., options: [.bySentences]) { sub, range, _, _ in
             guard let sentence = sub?.trimmingCharacters(in: .whitespacesAndNewlines), sentence.count > 2 else { return }
             let lower = text.distance(from: text.startIndex, to: range.lowerBound)
             let upper = min(chars.count, text.distance(from: text.startIndex, to: range.upperBound))
-            let ids = spans.filter { $0.range.overlaps(lower..<max(lower + 1, upper)) }.map(\.id)
-            units.append(Unit(text: sentence, lineIDs: ids))
+            // "Edsger W." / "Dijkstra in 1956 …", "Paul v." / "Chicago and Northwestern …": one sentence the splitter cut after a
+            // name's abbreviation.
+            if let last = pieces.last, cutsAName(last.text), continuesAName(sentence) {
+                pieces[pieces.count - 1] = (last.text + " " + sentence, last.lower, upper)
+            } else {
+                pieces.append((sentence, lower, upper))
+            }
         }
-        return units
+        return pieces.map { piece in
+            let ids = spans.filter { $0.range.overlaps(piece.lower..<max(piece.lower + 1, piece.upper)) }.map(\.id)
+            return Unit(text: piece.text, lineIDs: ids)
+        }
     }
 
     // MARK: Definitions

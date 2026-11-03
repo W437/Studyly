@@ -177,6 +177,79 @@ final class SessionTests: XCTestCase {
         XCTAssertEqual(AppModel.rating(forScore: 0.75, kind: .diagram, durationMs: 20_000), .hard)
     }
 
+    /// An own-words answer the person marked themselves (no model graded it) is logged as "self" and counts in a run like any other
+    /// answer, by the rating it ended with: the run on the screen and the one the quests read from the log are the same.
+    func testASelfMarkedAnswerCountsInTheRunLikeAnyOtherAndTheQuestsSeeTheSameRun() throws {
+        let course = makeCourse()
+        let ideas = [KeyIdea(id: "k1", label: "One", terms: ["one"]), KeyIdea(id: "k2", label: "Two", terms: ["two"])]
+        for i in 0..<5 { makeItem(in: course, kind: .recall, prompt: "Question \(i)?", answer: "One and two.", keyIdeas: ideas) }
+        app.save()
+        let runner = SessionRunner(app: app, request: SessionRequest(kind: .daily), options: .init(liveActivity: false, requeues: false))
+        runner.start()
+        func record(_ rating: Rating, score: Double, by who: String) {
+            runner.record(rating: rating, score: score, answer: "an answer", gradedBy: who, durationMs: 9000,
+                          outcome: SessionRunner.Outcome(rating: rating))
+            runner.advance()
+        }
+        // Right, right, a self-marked wrong answer, a self-marked right one, right: the run is broken in the middle (the screen used to
+        // go on counting through it, four against the quests' two).
+        record(.good, score: 1, by: "rules")
+        record(.good, score: 1, by: "cloud")
+        XCTAssertEqual(runner.combo(), 2)
+        record(.again, score: 0, by: "self")
+        XCTAssertEqual(runner.combo(), 0, "marking it wrong yourself breaks the run, as a wrong answer does")
+        record(.good, score: 0.9, by: "self")
+        XCTAssertEqual(runner.combo(), 1, "and marking one right builds it, by its rating")
+        record(.good, score: 1, by: "rules")
+        XCTAssertEqual(runner.combo(), 2)
+        XCTAssertEqual(runner.answers.map(\.outcome), [.right, .right, .wrong, .right, .right])
+        runner.finish()
+        // The quests read the same run from the log.
+        XCTAssertEqual(app.questFacts(forDay: cal.dayKey(for: clock.now)).bestRun, 2, "the screen and the quests agree")
+
+        let logs = app.fetch(FetchDescriptor<ReviewLog>(sortBy: [SortDescriptor(\.reviewedAt)]))
+        XCTAssertEqual(logs.count, 5)
+        XCTAssertEqual(Set(logs.map(\.gradedBy)), ["rules", "cloud", "self"])
+        XCTAssertEqual(logs.filter { $0.gradedBy == "self" }.map(\.score).sorted(), [0, 0.9])
+    }
+
+    /// 0 or 1 of 3 ticked, then "Counts as Good": the log used to say Good over the ticks' score, and `wasCorrect` (which needs 0.6)
+    /// then called it a miss: the session's correct count, a mix-up's miss count and the "right first time" tally all disagreed with
+    /// the rating FSRS was given. The view logs `Grading.score(standingFor:near:)` of the rating the person ended with.
+    func testAMarkTheyOverrodeIsLoggedWithAScoreThatAgreesWithItsRating() throws {
+        let course = makeCourse()
+        let ideas = (1...3).map { KeyIdea(id: "k\($0)", label: "Idea \($0)", terms: ["idea\($0)"]) }
+        let first = makeItem(in: course, kind: .recall, prompt: "First?", answer: "All three.", keyIdeas: ideas)
+        let second = makeItem(in: course, kind: .recall, prompt: "Second?", answer: "All three.", keyIdeas: ideas)
+        let confusion = Confusion(course: course, name: "Idea 1 vs Idea 2", explanation: "", itemIDs: [first.id, second.id], missCount: 0,
+                                  now: clock.now)
+        app.context.insert(confusion)
+        app.save()
+        let runner = SessionRunner(app: app, request: SessionRequest(kind: .daily), options: .init(liveActivity: false, requeues: false))
+        runner.start()
+        // One of three ticked (a score of 0.33), and the person says it counts as Good.
+        let ticks = SelfCheck.score(ticked: ["k1"], of: ideas)
+        XCTAssertEqual(AppModel.rating(forScore: ticks, kind: .recall, durationMs: 40_000), .again, "what the ticks alone would say")
+        let rating = Rating.good
+        let score = Grading.score(standingFor: rating, near: ticks)
+        let review = try XCTUnwrap(runner.record(rating: rating, score: score, answer: "an answer", gradedBy: "self", durationMs: 40_000,
+                                                 outcome: SessionRunner.Outcome(rating: rating)))
+        runner.advance()
+        XCTAssertTrue(review.wasCorrect, "Good by the rating and right by the score")
+        XCTAssertEqual(runner.rightFirstTime, 1)
+        XCTAssertEqual(app.studySession(try XCTUnwrap(runner.sessionID))?.correctCount, 1)
+        XCTAssertEqual(confusion.missCount, 0, "not a miss")
+        let log = try XCTUnwrap(app.fetch(FetchDescriptor<ReviewLog>()).first)
+        XCTAssertEqual(log.rating, .good)
+        XCTAssertTrue(log.wasCorrect)
+        XCTAssertEqual(log.gradedBy, "self")
+
+        // The contradiction this replaces: the same mark with the ticks' own score logged over it.
+        let stale = try XCTUnwrap(runner.record(rating: .good, score: ticks, answer: "an answer", gradedBy: "person", durationMs: 40_000,
+                                                outcome: SessionRunner.Outcome(rating: .good)))
+        XCTAssertFalse(stale.wasCorrect, "the old log said Good and counted a miss (it is here, a second entry for the next question)")
+    }
+
     // MARK: Rating previews
 
     func testIntervalPreviewOrdersTheRatingsAndWritesNothing() throws {
@@ -311,6 +384,29 @@ final class SessionTests: XCTestCase {
         XCTAssertEqual(app.adoptConfusion(candidate, explained: nil, withFixQuestions: false).id, confusion.id)
         XCTAssertNil(app.confusionCandidate(forSession: sessionID), "its items are in an open confusion now")
         XCTAssertEqual(app.todayConfusionNote()?.id, confusion.id)
+    }
+
+    /// Two swapped answers that are sentences give no name to make of them: the mix-up is stored as what it is, with how many misses on
+    /// how many questions, and Cap's line doesn't pretend it has a name.
+    func testASwapOfSentencesIsStoredWithoutAMadeUpName() throws {
+        let course = makeCourse()
+        let first = "The sister chromatids are pulled to opposite poles of the cell"
+        let second = "The nuclear envelope re-forms around each new set of chromosomes"
+        let a = makeItem(in: course, kind: .recall, prompt: "What happens in anaphase?", answer: first)
+        let b = makeItem(in: course, kind: .recall, prompt: "What happens in telophase?", answer: second)
+        app.save()
+        let (session, _) = app.startSession(SessionRequest(kind: .daily))
+        app.recordReview(itemID: a.id, rating: .again, score: 0, answer: second, gradedBy: "rules", sessionID: session.id)
+        app.recordReview(itemID: b.id, rating: .again, score: 0, answer: first, gradedBy: "rules", sessionID: session.id)
+
+        let candidate = try XCTUnwrap(app.confusionCandidate(forSession: session.id))
+        XCTAssertEqual(candidate.name, ConfusionCandidate.unnamed)
+        XCTAssertEqual(candidate.defaultExplanation, "2 misses on these 2 questions")
+        let confusion = app.adoptConfusion(candidate, explained: nil, withFixQuestions: false)
+        XCTAssertEqual(confusion.name, "Questions you keep missing")
+        XCTAssertEqual(confusion.explanation, "2 misses on these 2 questions")
+        let note = try XCTUnwrap(app.todayConfusionNote())
+        XCTAssertEqual(SessionCopy.mixUpLine(note.name), "These questions keep tripping you up.")
     }
 
     func testFixItNowTurnsTheExplanationsQuestionsIntoTheFix() throws {

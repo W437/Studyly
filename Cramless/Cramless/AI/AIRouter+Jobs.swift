@@ -17,7 +17,7 @@ extension AIRouter {
         var fellBack = false
         if route.usesCloud, cloudStillAllowed(), let transport {
             do {
-                let response = try await transport.confusions(ConfusionsRequest(course: course, mistakes: mistakes))
+                let response = try await transport.confusions(ConfusionsRequest(course: course, mistakes: mistakes).fitted())
                 let known = Set(mistakes.map(\.itemId))
                 let valid = response.confusions.compactMap { confusion -> ConfusionOut? in
                     var c = confusion
@@ -52,6 +52,8 @@ extension AIRouter {
         let transcript = input.segments.map(\.text).joined(separator: " ")
         let route = route(.lecture, content: String(transcript.prefix(4000)))
         var fellBack = false
+        // Why the cloud didn't write the notes, when it was asked and didn't (nil: it was never asked: off, or not allowed now).
+        var cloudFailure: CloudFailure?
         var limitReached = route.limitReached
 
         tiers: for tier in route.tiers {
@@ -59,9 +61,12 @@ extension AIRouter {
             switch tier {
             case .cloud:
                 guard cloudStillAllowed(), let transport else { continue }
-                let request = LectureRequest(course: input.course, title: input.title,
-                                             segments: input.segments.map { SegmentInput(id: $0.id, start: $0.start, end: $0.end, text: $0.text) },
-                                             flags: input.flags.map { FlagInput(time: $0.time, text: $0.text) },
+                let request = LectureRequest(course: input.course.clipped(toScalars: RelayLimits.course),
+                                             title: input.title.clipped(toScalars: RelayLimits.title),
+                                             segments: input.segments.map {
+                                                 SegmentInput(id: $0.id, start: $0.start, end: $0.end, text: $0.text.clipped(toScalars: RelayLimits.lineText))
+                                             },
+                                             flags: input.flags.map { FlagInput(time: $0.time, text: $0.text.clipped(toScalars: RelayLimits.flagText)) },
                                              maxItems: input.maxItems)
                 do {
                     let response = try await transport.lecture(request)
@@ -69,21 +74,25 @@ extension AIRouter {
                     let (kept, dropped) = GroundingCheck.apply(response.items, texts: texts, anchorsOnly: true)
                     let notes = LectureNotes(summary: response.summary, sections: response.sections, keyTerms: response.keyTerms,
                                              origin: ItemOrigin.cloud.rawValue)
+                    // The relay stops at the cap on questions and says how many exam-relevant ideas it left over.
                     return LectureOutcome(title: response.title, notes: notes, examFlags: response.examFlags, items: kept,
-                                          dropped: dropped, origin: .cloud, model: response.model, fellBack: fellBack)
+                                          dropped: dropped, origin: .cloud, model: response.model,
+                                          note: GenerationPlan.leftOutNote(response.leftOut ?? 0), fellBack: fellBack,
+                                          leftOut: response.leftOut)
                 } catch {
                     let relay = HTTPRelayTransport.map(error)
                     if let key = absorbQuotaError(relay, meter: .lectures) {
                         limitReached = key
-                        fellBack = true
-                        break tiers
+                        fellBack = true   // the free limit removes the cloud only: this iPhone's model is tried next
                     }
+                    cloudFailure = Self.cloudFailure(for: relay)
                     fellBack = true
                 }
             case .onDevice, .privateCloud:
                 if var outcome = await onDeviceLecture(local, texts: texts, tier: tier) {
                     outcome.fellBack = fellBack
-                    outcome.suggestion = route.suggestion
+                    outcome.suggestion = limitReached.map(limitSuggestion) ?? route.suggestion
+                    outcome.limitReached = limitReached
                     return outcome
                 }
                 fellBack = true
@@ -91,13 +100,51 @@ extension AIRouter {
                 break
             }
         }
-        let (kept, dropped) = GroundingCheck.apply(local.items, texts: texts)
         let suggestion = route.suggestion ?? limitReached.map(limitSuggestion)
-        let note: String? = local.sections.isEmpty ? "There's no transcript to make notes from yet."
-            : "Notes from the offline rules: sections, flagged moments and key terms from the transcript."
-        return LectureOutcome(title: local.title, notes: local.notes, examFlags: local.examFlags, items: kept, dropped: dropped,
-                              origin: .rules, model: LocalGrader.model, note: note, suggestion: suggestion,
-                              limitReached: limitReached, fellBack: fellBack)
+        guard !local.sections.isEmpty else {
+            return LectureOutcome(title: local.title, notes: local.notes, examFlags: local.examFlags, items: [], dropped: [],
+                                  origin: .rules, model: LocalGrader.model, note: "There's no transcript to make notes from yet.",
+                                  suggestion: suggestion, limitReached: limitReached, fellBack: fellBack)
+        }
+        // The offline notes pass a quality bar: sections titled by a verb, a filler or a word the whole lecture says are
+        // folded into their neighbours, and with fewer than two good sections none are offered at all.
+        // The rules' words are English: a lecture in another language gets no offline notes, however its sections came out.
+        let english = LocalGenerator.dominantLanguage(String(transcript.prefix(4000))) == "en"
+        let offline = LocalLectureNotes.make(title: input.title, segments: input.segments, flags: input.flags,
+                                             maxItems: input.maxItems, qualityBar: true)
+        let (kept, dropped) = english ? GroundingCheck.apply(offline.items, texts: texts) : ([], [])
+        if offline.thin || !english {
+            let empty = LectureNotes(summary: "", sections: [], keyTerms: [], origin: ItemOrigin.rules.rawValue)
+            return LectureOutcome(title: offline.title, notes: empty, examFlags: offline.examFlags, items: kept, dropped: dropped,
+                                  origin: .rules, model: LocalGrader.model,
+                                  note: Self.needsCloudNote(route: route, limitReached: limitReached, cloudFailure: cloudFailure,
+                                                            english: english),
+                                  suggestion: suggestion, limitReached: limitReached, fellBack: fellBack, needsCloud: true)
+        }
+        return LectureOutcome(title: offline.title, notes: offline.notes, examFlags: offline.examFlags, items: kept, dropped: dropped,
+                              origin: .rules, model: LocalGrader.model,
+                              note: "Notes from the offline rules: sections, flagged moments and key terms from the transcript.",
+                              suggestion: suggestion, limitReached: limitReached, fellBack: fellBack)
+    }
+
+    /// Why no offline notes were made, and what would make them. It says only what is true: the week's free notes used up, Cloud AI
+    /// asked and not reachable (or still getting ready), or simply off, with the way to turn it on when there is one.
+    static func needsCloudNote(route: AIRoute, limitReached: QuotaMeter.Key?, cloudFailure: CloudFailure?,
+                               english: Bool = true) -> String {
+        let base = english ? "The offline rules can't make good notes from this lecture."
+            : "This lecture doesn't look like English, and the offline rules only make notes from English lectures."
+        if limitReached != nil {
+            return "\(base) This week's free lecture notes are used up. Cloud AI can write them once they reset, or with Capling Pro."
+        }
+        if let cloudFailure {
+            switch cloudFailure {
+            case .gettingReady: return "\(base) Cloud AI is getting ready. Try again in a minute."
+            case .refused(let message): return "\(base) \(message)"
+            default: return "\(base) Cloud AI couldn't be reached. Try again later."
+            }
+        }
+        if case .allowCloud = route.suggestion { return "\(base) Cloud AI can." }
+        return base
     }
 
     private func onDeviceLecture(_ local: LocalLectureNotes.Result, texts: [String: String], tier: AITier) async -> LectureOutcome? {
@@ -157,9 +204,12 @@ extension AIRouter {
             switch tier {
             case .cloud:
                 guard cloudStillAllowed(), let transport else { continue }
+                // The relay takes 1 to 60 messages of 1 to 8,000 code points: the last 60 that say something (a reply that only drafted
+                // cards has no text), each cut to its length. Without any, there is nothing for it to read.
+                let request = CardsFromChatRequest(course: course, messages: messages, maxItems: maxItems).fitted()
+                guard !request.messages.isEmpty else { continue }
                 do {
-                    let response = try await transport.cardsFromChat(CardsFromChatRequest(course: course, messages: messages,
-                                                                                          maxItems: maxItems))
+                    let response = try await transport.cardsFromChat(request)
                     let items = response.items.filter { !$0.prompt.isEmpty && !$0.answer.isEmpty }.prefix(maxItems)
                     if !items.isEmpty { return CardsOutcome(items: Array(items), origin: .cloud, model: response.model, fellBack: fellBack) }
                 } catch {
@@ -198,8 +248,12 @@ extension AIRouter {
         guard route.usesCloud, let transport else { return .notAllowed(route.suggestion) }
         guard let app, app.settings.sendPhotos, cloudStillAllowed() else { return .notAllowed(.allowPhotos) }
         do {
-            let response = try await transport.transcribeImage(TranscribeImageRequest(image: base64JPEG, page: page, label: label))
-            return .lines(response.lines.map { TextLine(id: $0.id, text: $0.text, box: nil) }, model: response.model)
+            let response = try await transport.transcribeImage(TranscribeImageRequest(image: base64JPEG, page: page,
+                                                                                    label: label.clipped(toScalars: RelayLimits.label)))
+            // A page reading opens a scan (or rides on the one a reading before it opened): the question-writing that follows rides
+            // on it too (`ScanWindow`).
+            recordScanRequest(.transcribe, pages: 1)
+            return .lines(response.lines.map { TextLine(id: $0.id, text: $0.text.withPlainSubscriptC, box: nil) }, model: response.model)
         } catch {
             let relay = HTTPRelayTransport.map(error)
             switch relay {

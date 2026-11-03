@@ -2,7 +2,7 @@
 // pointed at a local mock of the Responses API (which checks each request's shape as the real API would), and with a
 // scripted provider where only what the route does matters. Plus the MOCK-mode scripts against the real tool schemas.
 
-import { assert, assertEquals, assertStringIncludes, assertThrows } from "@std/assert";
+import { assert, assertEquals, assertRejects, assertStringIncludes, assertThrows } from "@std/assert";
 import type { AssistantCall, AssistantStreamEvent } from "../_shared/provider.ts";
 import {
   ASSISTANT_TOOLS,
@@ -26,6 +26,7 @@ import { FIXTURES } from "../_shared/generated.ts";
 import { assistantFixture } from "../_shared/mock.ts";
 import { defangTags, taggedSources } from "../_shared/openai.ts";
 import { cleanUrl, OpenAIAssistantProvider, readableQuery } from "../_shared/openai_assistant.ts";
+import { DENIED_SOURCES } from "../_shared/research_sources.ts";
 import { describeIssues, validate } from "../_shared/schema.ts";
 import { errorOf, fixtureJson, rig, ScriptedProvider, sseEvents, testEnv } from "./_harness.ts";
 import { MemoryStore } from "./_memory_store.ts";
@@ -138,10 +139,13 @@ Deno.test("assistant on OpenAI: a call streams as it is written, and the round e
     assertEquals(sent.tools.map((t: Json) => t.name), [...ASSISTANT_TOOLS]);
     assertEquals(sent.parallel_tool_calls, true);
     assertEquals(sent.reasoning.effort, "low");
+    // The material first (so the provider's cache can serve it again), then the study state with the question.
+    assertEquals(sent.input[0].role, "user");
+    assertStringIncludes(sent.input[0].content, '<source id="s1"');
     const last = sent.input[sent.input.length - 1];
     assertEquals(last.role, "user");
     assertStringIncludes(last.content, '<study_state today="2026-10-22" current_course="c1">');
-    assertStringIncludes(last.content, '<source id="s1"');
+    assert(!last.content.includes("<source "), "the passages are sent once");
     assert(last.content.endsWith("Make me flashcards on mitosis"));
     assertStringIncludes(sent.instructions, "You can also act for the student");
 
@@ -225,6 +229,65 @@ Deno.test("assistant on OpenAI: a note's body streams as it is written", async (
       name: "create_note",
       arguments: args,
     });
+  });
+});
+
+Deno.test("assistant on OpenAI: fewer cards than asked for are passed on whole, and the model is told to draft what the notes support", async () => {
+  await withMock(async (mock, r) => {
+    // The student asked for six; the notes support two. The relay neither pads the draft nor turns it away.
+    mock.answer(replyToolCalls([{ name: "create_flashcards", args: CARDS }]));
+    const { events } = await ask(r, request({ messages: [{ role: "user", text: "Make me 6 flashcards on mitosis" }] }));
+    assertEquals(events.filter((e) => e.event === "tool_item").length, 2);
+    const call = events.find((e) => e.event === "tool_call")!.data as Json;
+    assertEquals(call.arguments.cards.length, 2);
+    assertEquals(r.store.used("user-1", "drafts", TODAY), 1, "a short draft is a draft: the day's count stands");
+
+    const sent = mock.requests[0].body;
+    assertStringIncludes(
+      sent.instructions,
+      "draft the ones they support, even if that is only two or three, instead of none",
+    );
+    assertStringIncludes(sent.instructions, "how many fewer than asked you drafted, and why");
+    const tool = sent.tools.find((t: Json) => t.name === "create_flashcards");
+    assertStringIncludes(
+      tool.description,
+      "When the material supports fewer cards than that, draft the ones it supports",
+    );
+    assertStringIncludes(tool.description, "never pad with a card that no passage backs");
+    const quiz = sent.tools.find((t: Json) => t.name === "create_quiz_questions");
+    assertStringIncludes(quiz.description, "never pad with a question that no passage backs");
+  });
+});
+
+Deno.test("assistant on OpenAI: the passages and what the student has added lead the input, up to a hundred passages", async () => {
+  await withMock(async (mock, r) => {
+    const sources = Array.from({ length: 100 }, (_, i) => ({
+      id: `s${i + 1}`,
+      title: "Cardiac cycle",
+      label: `Part ${i + 1}`,
+      text: Array.from({ length: 60 }, (_, w) => `word${i + 1}x${w}`).join(" ") + ".",
+    }));
+    const body = request({ sources, materials: ["Cardiac cycle (6 pages)", "Lecture 7 (38 min)"] });
+    mock.answer(replyStream({ answer: "Hi.", citations: [] }, { chunk: 200 }));
+    const { res } = await ask(r, body);
+    assertEquals(res.status, 200);
+    const input = mock.requests[0].body.input;
+    assertEquals(input.length, 2, "the material, then the question with the study state");
+    assertStringIncludes(input[0].content, '<source id="s100"');
+    assert(input[0].content.endsWith("The student has added:\n- Cardiac cycle (6 pages)\n- Lecture 7 (38 min)"));
+    assert(input[1].content.endsWith("Make me flashcards on mitosis"));
+    assert(
+      /^cap-[0-9a-f]{32}$/.test(mock.requests[0].body.prompt_cache_key),
+      "the material names the cache key, as for the tutor",
+    );
+
+    // One too many passages, or materials, is refused with the field named; a request without them is as it was.
+    assertEquals((await r.ai("assistant", { body: request({ sources: [...sources, sources[0]] }) })).status, 400);
+    const many = await r.ai("assistant", { body: request({ materials: Array.from({ length: 21 }, () => "x") }) });
+    assertEquals((await errorOf(many)).message, "The request isn't valid: /materials has more than 20 items.");
+    mock.answer(replyStream({ answer: "Hi.", citations: [] }, { chunk: 200 }));
+    await ask(r, request());
+    assert(!JSON.stringify(mock.requests[1].body.input).includes("The student has added"));
   });
 });
 
@@ -754,21 +817,21 @@ Deno.test("research on OpenAI: the search, the sources it found, the summary and
   await withMock(async (mock, r) => {
     mock.answer(replyWebSearch({
       searches: [{
-        queries: ["site:openstax.org mitosis meiosis differences", "site:britannica.com “meiosis” stages"],
+        queries: ["site:wikipedia.org mitosis meiosis differences", "site:genome.gov “meiosis” stages"],
         sources: [
-          "https://openstax.org/books/biology/pages/11-1?utm_source=openai",
-          "https://openstax.org/books/biology/pages/11-1",
-          "https://www.britannica.com/science/meiosis",
+          "https://en.wikipedia.org/wiki/Meiosis?utm_source=openai",
+          "https://en.wikipedia.org/wiki/Meiosis",
+          "https://www.genome.gov/genetics-glossary/Meiosis",
         ],
       }],
       text: SUMMARY,
       cites: [
         {
-          url: "https://openstax.org/books/biology/pages/11-1?utm_source=openai",
-          title: "11.1 The Process of Meiosis | OpenStax",
+          url: "https://en.wikipedia.org/wiki/Meiosis?utm_source=openai",
+          title: "Meiosis - Wikipedia",
         },
-        { url: "https://openstax.org/books/biology/pages/11-1", title: "again" },
-        { url: "https://www.britannica.com/science/meiosis", title: "Meiosis | Britannica" },
+        { url: "https://en.wikipedia.org/wiki/Meiosis", title: "again" },
+        { url: "https://www.genome.gov/genetics-glossary/Meiosis", title: "Meiosis | NHGRI" },
       ],
       usage: { input: 8000, cached: 4000, output: 200 },
     }));
@@ -786,17 +849,13 @@ Deno.test("research on OpenAI: the search, the sources it found, the summary and
     assertEquals(search.map((s) => s.phase), ["started", "searching", "done"]);
     assertEquals(search[2].queries, ["mitosis meiosis differences", "meiosis stages"]);
     assertEquals(search[2].sources, [
-      { url: "https://openstax.org/books/biology/pages/11-1", domain: "openstax.org" },
-      { url: "https://www.britannica.com/science/meiosis", domain: "britannica.com" },
+      { url: "https://en.wikipedia.org/wiki/Meiosis", domain: "en.wikipedia.org" },
+      { url: "https://www.genome.gov/genetics-glossary/Meiosis", domain: "genome.gov" },
     ]);
     assertEquals(events.filter((e) => e.event === "delta").map((e) => e.data.text).join(""), SUMMARY);
     assertEquals(events.filter((e) => e.event === "citation").map((e) => e.data), [
-      {
-        url: "https://openstax.org/books/biology/pages/11-1",
-        title: "11.1 The Process of Meiosis | OpenStax",
-        domain: "openstax.org",
-      },
-      { url: "https://www.britannica.com/science/meiosis", title: "Meiosis | Britannica", domain: "britannica.com" },
+      { url: "https://en.wikipedia.org/wiki/Meiosis", title: "Meiosis - Wikipedia", domain: "en.wikipedia.org" },
+      { url: "https://www.genome.gov/genetics-glossary/Meiosis", title: "Meiosis | NHGRI", domain: "genome.gov" },
     ]);
     assertEquals(events.at(-1)!.data, { model: "gpt-6.1-terra", searches: 1 });
 
@@ -842,15 +901,15 @@ Deno.test("research on OpenAI: an answer given without searching is never shown;
 Deno.test("research on OpenAI: only https pages on the allowed sites are passed on, as sources and as citations", async () => {
   await withMock(async (mock, r) => {
     const wiki = "https://en.wikipedia.org/wiki/Mitosis";
-    const khan = "https://www.khanacademy.org/science/biology";
+    const nasa = "https://www.nasa.gov/science/biology";
     const urls = [
       wiki,
-      "http://openstax.org/books/biology", // not https
+      "http://en.wikipedia.org/wiki/Mitosis", // not https
       "https://wikipedia.org.evil.example/wiki/x", // an allowed name inside someone else's
       "https://notwikipedia.org/wiki/x", // ends with the name but is not a subdomain of it
-      "https://evil.example/?next=https://openstax.org/", // the name in the query
+      "https://evil.example/?next=https://en.wikipedia.org/", // the name in the query
       "javascript:alert(1)",
-      khan,
+      nasa,
     ];
     mock.answer(replyWebSearch({
       searches: [{ queries: ["mitosis"], sources: urls }],
@@ -859,15 +918,15 @@ Deno.test("research on OpenAI: only https pages on the allowed sites are passed 
     }));
     const { events } = await ask(r, researchBody(), "research");
     const done = events.filter((e) => e.event === "search").map((e) => e.data as Json).find((x) => x.phase === "done")!;
-    assertEquals(done.sources.map((x: Json) => x.url), [wiki, khan]);
-    assertEquals(events.filter((e) => e.event === "citation").map((e) => e.data.url), [wiki, khan]);
+    assertEquals(done.sources.map((x: Json) => x.url), [wiki, nasa]);
+    assertEquals(events.filter((e) => e.event === "citation").map((e) => e.data.url), [wiki, nasa]);
   }, { paid: true });
 });
 
 Deno.test("research on OpenAI: a stream that ends after the search keeps its cost, the search counted, and the allowance", async () => {
   await withMock(async (mock, r) => {
     const whole = replyWebSearch({
-      searches: [{ queries: ["mitosis"], sources: ["https://openstax.org/books/biology/pages/11-1"] }],
+      searches: [{ queries: ["mitosis"], sources: ["https://en.wikipedia.org/wiki/Mitosis"] }],
       text: SUMMARY,
     }) as Json;
     mock.answer({ sse: whole.sse.slice(0, -1) }); // everything but response.completed
@@ -881,8 +940,210 @@ Deno.test("research on OpenAI: a stream that ends after the search keeps its cos
   }, { paid: true });
 });
 
+// ---- The research source policy: sites that forbid AI use are never used ----
+
+const OPENSTAX = "https://openstax.org/books/biology/pages/11-1";
+const WIKI = "https://en.wikipedia.org/wiki/Meiosis";
+
+/** The search results of a billed research reply, as the app's cost row should show them: the tokens and one search. */
+const billedResearch = formatUsd(
+  costNano(TERRA, { inputTokens: 8000, outputTokens: 200, cacheReadTokens: 0, cacheWriteTokens: 0, webSearches: 1 }),
+);
+
+Deno.test("research on OpenAI: the search is never open to a denied site, and the model is told which sites to avoid", async () => {
+  await withMock(async (mock, r) => {
+    mock.answer(replyWebSearch({
+      searches: [{ queries: ["meiosis"], sources: [WIKI] }],
+      text: SUMMARY,
+      cites: [{ url: WIKI, title: "Meiosis - Wikipedia" }],
+    }));
+    await ask(r, researchBody(), "research");
+    const sent = mock.requests[0].body;
+    const open: string[] = sent.tools[0].filters.allowed_domains;
+    assert(open.length > 20 && open.includes("wikipedia.org"));
+    for (const site of DENIED_SOURCES) {
+      assert(!open.includes(site), `${site} is not open to the search`);
+      assertStringIncludes(sent.instructions, site);
+    }
+    assertStringIncludes(sent.instructions, "Prefer open and permissive sources");
+    assertStringIncludes(sent.instructions, "Cite each page you relied on");
+  }, { paid: true });
+});
+
+Deno.test("research on OpenAI: a denied site in the list the provider is given is left out, and a list of only denied sites does not run", async () => {
+  const mock = startMockOpenAI();
+  try {
+    const call = {
+      model: TERRA,
+      effort: "low" as const,
+      maxTokens: 4000,
+      system: "s",
+      input: "Topic: meiosis",
+      domains: ["openstax.org", "wikipedia.org", "assets.openstax.org", "quizlet.com", "nih.gov", "nlm.nih.gov"],
+      maxSearches: 3,
+    };
+    mock.answer(replyWebSearch({
+      searches: [{ queries: ["meiosis"], sources: [WIKI] }],
+      text: SUMMARY,
+      cites: [{ url: WIKI, title: "Meiosis - Wikipedia" }],
+    }));
+    const kinds: string[] = [];
+    for await (const event of provider(mock).research(call)) kinds.push(event.type);
+    assert(kinds.includes("citation") && kinds.at(-1) === "done");
+    assertEquals(mock.requests[0].body.tools[0].filters.allowed_domains, ["wikipedia.org"]);
+
+    // Nothing left to search: an empty list would mean no limit at OpenAI, so no request is made at all.
+    const none = await assertRejects(async () => {
+      for await (const _ of provider(mock).research({ ...call, domains: ["openstax.org", "cnx.org"] }));
+    }, ApiError);
+    assertEquals(none.status, 503);
+    assertEquals(mock.requests.length, 1);
+  } finally {
+    await mock.close();
+  }
+});
+
+Deno.test("research on OpenAI: a denied page is dropped from the sources and the citations; the rest of the reply stands", async () => {
+  await withMock(async (mock, r) => {
+    const nasa = "https://www.nasa.gov/science/biology/cellular-molecular-biology";
+    const found = [
+      OPENSTAX,
+      "https://assets.openstax.org/x.pdf",
+      WIKI,
+      "https://cnx.org/contents/abc",
+      "https://www.quizlet.com/set/1",
+      "https://openstax.org./books/biology", // the final dot is the same site
+      "https://pmc.ncbi.nlm.nih.gov/articles/PMC1234567/", // NCBI keeps its items' own licences
+      nasa,
+    ];
+    mock.answer(replyWebSearch({
+      searches: [{ queries: ["site:openstax.org meiosis", "meiosis stages"], sources: found }],
+      text: SUMMARY,
+      cites: [
+        { url: OPENSTAX, title: "11.1 The Process of Meiosis | OpenStax" },
+        { url: WIKI, title: "Meiosis - Wikipedia" },
+        { url: "https://cnx.org/contents/abc", title: "Connexions" },
+        { url: "https://pmc.ncbi.nlm.nih.gov/articles/PMC1234567/", title: "PubMed Central" },
+        { url: nasa, title: "NASA" },
+      ],
+    }));
+    const { events } = await ask(r, researchBody(), "research");
+    const done = events.filter((e) => e.event === "search").map((e) => e.data as Json).find((x) => x.phase === "done")!;
+    assertEquals(done.sources.map((x: Json) => x.url), [WIKI, nasa]);
+    assertEquals(events.filter((e) => e.event === "citation").map((e) => e.data.url), [WIKI, nasa]);
+    assertEquals(events.filter((e) => e.event === "delta").map((e) => e.data.text).join(""), SUMMARY);
+    assertEquals(events.at(-1)!.event, "done");
+    assertEquals(r.store.requests.at(-1)!.status, 200);
+    assertEquals(r.store.used("user-1", "research", TODAY), 1);
+  }, { paid: true });
+});
+
+Deno.test("research on OpenAI: a reply whose pages are all on denied sites is not shown; it was billed, so the cost and the allowance stand", async () => {
+  await withMock(async (mock, r) => {
+    mock.answer(replyWebSearch({
+      searches: [{
+        queries: ["site:openstax.org meiosis"],
+        sources: [
+          OPENSTAX,
+          "https://assets.openstax.org/x.pdf",
+          "https://www.quizlet.com/set/1",
+          "https://pubmed.ncbi.nlm.nih.gov/12345678/",
+          "https://www.statpearls.com/point-of-care/12345",
+        ],
+      }],
+      text: SUMMARY,
+      cites: [
+        { url: OPENSTAX, title: "11.1 The Process of Meiosis | OpenStax" },
+        { url: "https://www.ncbi.nlm.nih.gov/books/NBK430685/", title: "StatPearls" },
+      ],
+    }));
+    const { events } = await ask(r, researchBody(), "research");
+    assertEquals(events.filter((e) => e.event === "delta").length, 0, "none of the summary is shown");
+    assertEquals(events.filter((e) => e.event === "citation").length, 0);
+    const done = events.filter((e) => e.event === "search").map((e) => e.data as Json).find((x) => x.phase === "done")!;
+    assertEquals(done.sources, [], "and no denied page is listed");
+    const last = events.at(-1)!;
+    assertEquals(last.event, "error");
+    assertEquals(last.data.code, "upstream");
+    assertStringIncludes(last.data.message, "couldn't find a page it's allowed to use");
+    const row = r.store.requests.at(-1)!;
+    assertEquals([row.status, row.costUsd], [502, billedResearch], "OpenAI billed the search and the tokens");
+    assertEquals(r.store.used("user-1", "research", TODAY), 1, "so the allowance stays spent");
+  }, { paid: true });
+});
+
+Deno.test("research on OpenAI: a summary that cites a denied page is not shown because an allowed page was also consulted", async () => {
+  await withMock(async (mock, r) => {
+    const consulted = [OPENSTAX, WIKI];
+    const cases: [string, { url: string; title: string }[]][] = [
+      ["it cites only the denied page", [{ url: OPENSTAX, title: "11.1 The Process of Meiosis | OpenStax" }]],
+      ["it cites nothing at all", []],
+    ];
+    for (const [why, cites] of cases) {
+      mock.answer(replyWebSearch({ searches: [{ queries: ["meiosis"], sources: consulted }], text: SUMMARY, cites }));
+      const { events } = await ask(r, researchBody(), "research");
+      assertEquals(events.filter((e) => e.event === "delta").length, 0, `${why}: none of the summary is shown`);
+      assertEquals(events.filter((e) => e.event === "citation").length, 0, why);
+      const done = events.filter((e) => e.event === "search").map((e) => e.data as Json).find((x) =>
+        x.phase === "done"
+      )!;
+      assertEquals(
+        done.sources.map((x: Json) => x.url),
+        [WIKI],
+        `${why}: the allowed page the search read is still listed`,
+      );
+      assertEquals(events.at(-1)!.event, "error", why);
+      assertStringIncludes(events.at(-1)!.data.message, "couldn't find a page it's allowed to use");
+      assertEquals(r.store.requests.at(-1)!.costUsd, billedResearch, `${why}: billed all the same`);
+    }
+    assertEquals(r.store.used("user-1", "research", TODAY), 2, "and both count");
+    r.store.counters.clear(); // research is three a day
+
+    // Citing the allowed page is what lets the summary through; and with no denied page at all nothing changes, cited or not.
+    mock.answer(replyWebSearch({
+      searches: [{ queries: ["meiosis"], sources: consulted }],
+      text: SUMMARY,
+      cites: [{ url: WIKI, title: "Meiosis - Wikipedia" }],
+    }));
+    const shown = await ask(r, researchBody(), "research");
+    assertEquals(shown.events.filter((e) => e.event === "delta").map((e) => e.data.text).join(""), SUMMARY);
+    assertEquals(shown.events.at(-1)!.event, "done");
+    mock.answer(replyWebSearch({ searches: [{ queries: ["meiosis"], sources: [WIKI] }], text: SUMMARY }));
+    const plain = await ask(r, researchBody(), "research");
+    assertEquals(plain.events.filter((e) => e.event === "delta").map((e) => e.data.text).join(""), SUMMARY);
+    assertEquals(plain.events.at(-1)!.event, "done");
+  }, { paid: true });
+});
+
+Deno.test("research on OpenAI: the summary waits while only denied pages have turned up, and is shown once a page the student may see does", async () => {
+  await withMock(async (mock, r) => {
+    // Two searches; the words are written after the first, whose pages were all denied, and the second finds Wikipedia.
+    const whole = replyWebSearch({
+      searches: [{ queries: ["a"], sources: [OPENSTAX] }, { queries: ["b"], sources: [WIKI] }],
+      text: SUMMARY,
+      cites: [{ url: WIKI, title: "Meiosis - Wikipedia" }],
+    }) as unknown as { sse: { event: string; data: unknown }[] };
+    const first = whole.sse.findIndex((e) => e.event === "response.output_text.delta");
+    const last = whole.sse.findLastIndex((e) => e.event === "response.output_text.delta");
+    const words = whole.sse.splice(first, last - first + 1);
+    const afterFirstSearch = whole.sse.findIndex((e) =>
+      e.event === "response.output_item.done" && (e.data as Json).item?.type === "web_search_call"
+    );
+    whole.sse.splice(afterFirstSearch + 1, 0, ...words);
+    mock.answer(whole as never);
+
+    const { events } = await ask(r, researchBody(), "research");
+    const kinds = events.map((e) => e.event === "search" ? `search:${e.data.phase}` : e.event);
+    const firstDelta = kinds.indexOf("delta");
+    const secondSearchDone = kinds.lastIndexOf("search:done");
+    assert(firstDelta > secondSearchDone, `no words before the second search found a page: ${kinds.join(" ")}`);
+    assertEquals(events.filter((e) => e.event === "delta").map((e) => e.data.text).join(""), SUMMARY);
+    assertEquals(events.at(-1)!.event, "done");
+  }, { paid: true });
+});
+
 Deno.test("readableQuery and cleanUrl", () => {
-  assertEquals(readableQuery("site:openstax.org “meiosis” vs mitosis site:khanacademy.org"), "meiosis vs mitosis");
+  assertEquals(readableQuery("site:wikipedia.org “meiosis” vs mitosis site:cdc.gov"), "meiosis vs mitosis");
   assertEquals(cleanUrl("https://a.org/x?utm_source=openai"), "https://a.org/x");
   assertEquals(cleanUrl("https://a.org/x?id=3&utm_source=openai"), "https://a.org/x?id=3");
   assertEquals(cleanUrl("not a url"), "not a url");
@@ -994,11 +1255,91 @@ Deno.test("the tools: every one is named in the contract, strict, and says what 
   }
 });
 
-Deno.test("research sites: a short list of reference works, schools and public bodies; none a bare top-level domain", () => {
+Deno.test("research sites: only public-domain and openly licensed sources, none a bare top-level domain", () => {
   assert(RESEARCH_DOMAINS.length > 20 && RESEARCH_DOMAINS.length <= 100);
   for (const d of RESEARCH_DOMAINS) assert(/^[a-z0-9.-]+\.[a-z]{2,}$/.test(d), d);
-  assert(RESEARCH_DOMAINS.includes("wikipedia.org") && RESEARCH_DOMAINS.includes("khanacademy.org"));
   assertEquals(new Set(RESEARCH_DOMAINS).size, RESEARCH_DOMAINS.length);
+  // What it keeps: Wikimedia, US and UK government, open-access journals, Project Gutenberg.
+  for (
+    const d of [
+      "wikipedia.org",
+      "wikisource.org",
+      "wikimedia.org",
+      "niddk.nih.gov",
+      "nhlbi.nih.gov",
+      "niaid.nih.gov",
+      "cancer.gov",
+      "cdc.gov",
+      "nasa.gov",
+      "noaa.gov",
+      "usgs.gov",
+      "loc.gov",
+      "archives.gov",
+      "www.gov.uk",
+      "europa.eu",
+      "plos.org",
+      "biomedcentral.com",
+      "elifesciences.org",
+      "frontiersin.org",
+      "gutenberg.org",
+    ]
+  ) assert(RESEARCH_DOMAINS.includes(d), `${d} stays`);
+  // What it does not: commercial publishers, encyclopedias, health and education brands, universities, and every site whose
+  // licence is non-commercial, mixed or unread (MIT OpenCourseWare, Khan Academy, LibreTexts, CK-12 and WHO are non-commercial).
+  for (
+    const d of [
+      "britannica.com",
+      "merriam-webster.com",
+      "dictionary.cambridge.org",
+      "investopedia.com",
+      "mayoclinic.org",
+      "clevelandclinic.org",
+      "medlineplus.gov",
+      "nih.gov",
+      "ncbi.nlm.nih.gov",
+      "pmc.ncbi.nlm.nih.gov",
+      "pubmed.ncbi.nlm.nih.gov",
+      "statpearls.com",
+      "nature.com",
+      "khanacademy.org",
+      "libretexts.org",
+      "ck12.org",
+      "ocw.mit.edu",
+      "mit.edu",
+      "stanford.edu",
+      "plato.stanford.edu",
+      "iep.utm.edu",
+      "harvard.edu",
+      "yale.edu",
+      "princeton.edu",
+      "cornell.edu",
+      "law.cornell.edu",
+      "berkeley.edu",
+      "ox.ac.uk",
+      "cam.ac.uk",
+      "si.edu",
+      "who.int",
+      "un.org",
+      "worldbank.org",
+      "imf.org",
+      "oecd.org",
+      "mathworld.wolfram.com",
+      "hyperphysics.phy-astr.gsu.edu",
+      "chemguide.co.uk",
+      "arxiv.org",
+    ]
+  ) assert(!RESEARCH_DOMAINS.includes(d), `${d} is out`);
+});
+
+Deno.test("research sites: every entry says, beside it, what licence or terms let research read it", async () => {
+  const source = await Deno.readTextFile(new URL("../_shared/assistant.ts", import.meta.url));
+  const block = source.slice(source.indexOf("export const RESEARCH_DOMAINS"));
+  const listed = block.slice(0, block.indexOf("];")).split("\n").slice(1);
+  const entries = listed.map((line) => /^\s+"([a-z0-9.-]+)",\s+\/\/\s+(\S.{14,})$/.exec(line)).filter((m) =>
+    m !== null
+  );
+  assertEquals(entries.length, listed.filter((line) => line.trim() !== "").length, "a line without its reason");
+  assertEquals(entries.map((m) => m![1]), [...RESEARCH_DOMAINS], "the comments are on the entries, in order");
 });
 
 Deno.test("RESEARCH_DOMAINS replaces the list; nonsense is ignored with a fault", () => {

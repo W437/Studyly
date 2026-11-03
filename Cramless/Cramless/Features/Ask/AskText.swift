@@ -7,17 +7,20 @@ import Foundation
 // MARK: - Starters
 
 /// Questions to start an empty chat with, drawn from the material Cap can read: a mix-up the person keeps making,
-/// questions the pages ask themselves, terms the pages define, the steps of a sequence. Each one is kept only when
-/// the retriever finds it covered (the same rule the offline tutor uses), so a starter never gets "your notes
-/// don't cover that".
+/// questions the pages ask themselves, terms the pages define, the steps of a sequence, the terms on the front of an
+/// imported deck's cards. Each one is kept only when the retriever finds it covered (the same rule the offline tutor
+/// uses), so a starter never gets "your notes don't cover that".
 enum AskStarters {
     static func make(material: [TutorMaterial], confusions: [String], limit: Int = 3) -> [String] {
         guard limit > 0 else { return [] }
-        var byKind: [[String]] = [[], [], [], []]
+        var byKind: [[String]] = [[], [], [], [], []]
         for name in confusions {
             if let question = differenceQuestion(name) { byKind[0].append(question) }
         }
         for source in material {
+            for card in source.cards {
+                if let question = cardQuestion(card) { byKind[4].append(question) }
+            }
             for page in source.pages {
                 let structure = PageStructure.read(page.lines)
                 for section in structure.sections where section.isQuestion {
@@ -65,6 +68,17 @@ enum AskStarters {
     static func isCovered(_ question: String, by retriever: LocalRetriever) -> Bool {
         guard let best = retriever.search(question, limit: 4).first else { return false }
         return best.coverage >= LocalTutor.minimumCoverage || best.matched.count >= 2
+    }
+
+    /// A card whose front is a term ("Krebs cycle") → "What is the Krebs cycle?"-style question; a front that is a question is
+    /// asked as it is. Nil for a front that is neither (a sentence, a formula, a few words too many).
+    static func cardQuestion(_ card: TutorCard) -> String? {
+        let front = card.front.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+        let count = front.split(separator: " ").count
+        if front.hasSuffix("?") { return (3...12).contains(count) ? front : nil }
+        guard (1...4).contains(count), front.contains(where: \.isLetter), !front.contains("{{"),
+              !front.hasSuffix("."), !front.hasSuffix(":") else { return nil }
+        return "What is \(lowerFirst(front))?"
     }
 
     /// "Anaphase vs telophase" → "What's the difference between anaphase and telophase?"
@@ -326,23 +340,45 @@ enum CapMarkdown {
 
 // MARK: - After a declined request
 
-/// What Cap offers instead of writing an essay or "humanizing" text: to explain the topic from the notes, or to quiz
-/// the person on it. The topic is what the request was about, minus the request ("write my essay on mitosis").
+/// What Cap offers instead of writing an essay, doing an exam or "humanizing" text: to explain the topic from the notes, or to
+/// quiz the person on it. The topic is one the student's own material has (a topic of the course, or what a source is about),
+/// found by the words of the request that aren't the request ("write my essay on mitosis" → "Mitosis"). A request that names
+/// none gets the plain offers ("Explain the key ideas", "Quiz me on my notes"), never words picked out of the sentence.
 enum AskPolicy {
-    static func topic(ofRefused question: String) -> String? {
-        let requestWords: Set<String> = [
-            "write", "writing", "rewrite", "make", "sound", "sounds", "seem", "seems", "look", "looks", "more", "human",
-            "humanize", "humanise",
-            "humanizer", "humaniser", "like", "wrote", "my", "me", "i", "an", "a", "the", "on", "about", "for", "this",
-            "that", "it", "paragraph", "text", "can", "could", "you", "please", "essay", "paper", "report",
-            "assignment", "coursework", "homework", "whole", "full", "entire", "bypass", "beat", "avoid", "get",
-            "past", "fool", "ai", "gpt", "detector", "detection", "turnitin", "gptzero", "undetectable", "so", "and",
-            "to", "of", "in", "help", "with", "words", "word", "page", "pages", "two", "three", "five", "1000",
-        ]
-        let words = question.lowercased()
-            .components(separatedBy: CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "'-")).inverted)
-            .filter { !$0.isEmpty && !requestWords.contains($0) && $0.count > 1 }
-        guard !words.isEmpty, words.count <= 5 else { return nil }
-        return words.joined(separator: " ")
+    /// The words of a request that say what is being asked for, not what it is about.
+    private static let requestStems: Set<String> = Set([
+        "write", "writing", "rewrite", "make", "sound", "seem", "look", "more", "human", "humanize", "humanise", "humanizer",
+        "humaniser", "wrote", "paragraph", "text", "please", "essay", "paper", "report", "assignment", "coursework", "homework",
+        "whole", "full", "entire", "bypass", "beat", "avoid", "get", "past", "fool", "detector", "detection", "turnitin", "gptzero",
+        "undetectable", "help", "words", "word", "page", "pages", "do", "give", "answers", "answer", "exam", "test", "quiz", "midterm",
+        "final", "finals", "problems", "problem", "just", "lab", "submit", "turn", "hand", "cheat", "take", "online", "solve", "finish",
+        "complete", "worksheet", "hw", "irac", "thesis", "dissertation", "reflection", "draft", "compose", "generate", "produce",
+    ].map(Lexicon.stem))
+
+    /// The topic the declined request is about: the name, among `names`, that shares the most words with it; nil when none shares
+    /// one.
+    static func topic(ofRefused question: String, among names: [String]) -> String? {
+        let asked = Set(Lexicon.contentStems(question)).subtracting(requestStems)
+        guard !asked.isEmpty else { return nil }
+        var best: (name: String, shared: Int)?
+        for name in names {
+            let clean = name.trimmingCharacters(in: .whitespacesAndNewlines)
+            let shared = Set(Lexicon.contentStems(clean)).subtracting(requestStems).intersection(asked).count
+            if shared > (best?.shared ?? 0) { best = (clean, shared) }
+        }
+        return best?.name
+    }
+
+    /// What a source's title is about, as names to offer: "Lecture 6: Cell division" → "Cell division" and "Lecture 6", "Federalist
+    /// No. 10 (Madison, 1787)" → itself, an imported deck's " (Quizlet)" left off.
+    static func names(inTitle title: String) -> [String] {
+        var clean = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let tag = clean.range(of: #"\s*\((quizlet|anki|csv)\)$"#, options: [.regularExpression, .caseInsensitive]) {
+            clean.removeSubrange(tag)
+        }
+        guard let colon = clean.firstIndex(of: ":") else { return clean.isEmpty ? [] : [clean] }
+        let before = String(clean[..<colon]).trimmingCharacters(in: .whitespaces)
+        let after = String(clean[clean.index(after: colon)...]).trimmingCharacters(in: .whitespaces)
+        return [after, before].filter { !$0.isEmpty }
     }
 }

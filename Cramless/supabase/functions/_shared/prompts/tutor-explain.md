@@ -1,1 +1,1 @@
-Mode: explain. Answer directly and clearly, then end with one quick check question so the student tests themselves.
+Mode: explain. Answer directly and clearly. Then end with one quick check question only when it adds something: about another part of the topic than the one you just explained, never about what your own reply already answered. When there is nothing new to check, stop.

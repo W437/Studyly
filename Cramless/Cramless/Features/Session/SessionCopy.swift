@@ -74,12 +74,56 @@ enum SessionCopy {
         }
     }
 
-    /// Who graded it, for the line under the feedback.
+    /// Who graded it, for the line under the feedback. The rules matched the answer to the key ideas, which is all they claim: it is
+    /// never "checked" on the iPhone as a model's check is.
     static func gradedBy(_ origin: ItemOrigin) -> String {
         switch origin {
         case .cloud: "Checked with Cloud AI"
-        default: "Checked on your iPhone"
+        case .onDevice: "Checked on your iPhone"
+        default: String(localized: "Matched to the key ideas on your iPhone")
         }
+    }
+
+    // MARK: Marking it yourself
+
+    /// The panel's headline while the person compares their answer with the model answer: no verdict before they have marked.
+    static var selfCheckHeadline: LocalizedStringResource { "Compare with the answer." }
+
+    /// The pill over the person's answer.
+    static var selfCheckPill: String { String(localized: "Check it yourself") }
+
+    /// Why a model didn't grade this one, in plain words, from what the route knew.
+    static func selfCheckLine(_ reason: SelfCheckReason?) -> String {
+        switch reason {
+        case .cloudOff: String(localized: "Cloud AI is off, so you mark this one.")
+        case .freeLimit: String(localized: "You've used today's free AI checks, so you mark this one.")
+        case .offline: String(localized: "No connection, so you mark this one.")
+        case .unreachable: String(localized: "Cloud AI couldn't be reached, so you mark this one.")
+        case .deviceUnavailable, nil: String(localized: "Your iPhone's AI is off or unavailable, so you mark this one.")
+        }
+    }
+
+    /// The line once they have changed a tick.
+    static var markedByYou: String { String(localized: "Marked by you") }
+
+    /// What a self-check says to VoiceOver when it lands.
+    static func selfCheckAnnouncement(ticked: Int, total: Int) -> String {
+        String(localized: "Compare your answer with the model answer, then tick the key ideas you had. Ticked: \(ticked) of \(total).")
+    }
+
+    // MARK: Free checks left
+
+    /// A quiet line under the answer box once the free Cloud AI checks for the day run low (5 or fewer, and at least one): the
+    /// iPhone's own AI and the person's marks carry on after them.
+    static func freeChecksLeft(_ left: Int?) -> String? {
+        guard let left, (1...5).contains(left) else { return nil }
+        return left == 1 ? "1 free Cloud AI check left today" : "\(left) free Cloud AI checks left today"
+    }
+
+    /// The same for Ask's tutor: 3 or fewer free answers left today.
+    static func freeAnswersLeft(_ left: Int?) -> String? {
+        guard let left, (1...3).contains(left) else { return nil }
+        return left == 1 ? "1 free answer left today" : "\(left) free answers left today"
     }
 
     // MARK: Mix-ups
@@ -87,6 +131,8 @@ enum SessionCopy {
     /// Cap's line about a confusion: "You keep mixing up anaphase and telophase." A topic-shaped one ("Mendelian
     /// genetics") reads "Mendelian genetics keeps tripping you up."
     static func mixUpLine(_ name: String) -> String {
+        // A mix-up the rules couldn't name says what it is, with no made-up name in front of the verb.
+        if name == ConfusionCandidate.unnamed { return String(localized: "These questions keep tripping you up.") }
         let parts = name.components(separatedBy: " vs ")
         guard parts.count == 2 else { return "\(name) keeps tripping you up." }
         return "You keep mixing up \(lowerFirst(parts[0])) and \(lowerFirst(parts[1]))."
@@ -94,6 +140,7 @@ enum SessionCopy {
 
     /// "anaphase and telophase" for a summary or a fix ("You told anaphase and telophase apart").
     static func mixUpPair(_ name: String) -> String {
+        if name == ConfusionCandidate.unnamed { return String(localized: "them") }
         let parts = name.components(separatedBy: " vs ")
         guard parts.count == 2 else { return lowerFirst(name) }
         return "\(lowerFirst(parts[0])) and \(lowerFirst(parts[1]))"

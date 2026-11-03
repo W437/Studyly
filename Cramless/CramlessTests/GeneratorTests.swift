@@ -38,13 +38,24 @@ final class GeneratorTests: XCTestCase {
     }
 
     func testPhaseRecallItemsHaveAKeyIdeaPerBullet() throws {
-        let prophase = try XCTUnwrap(result.items.first { $0.prompt == "What happens in prophase?" })
-        XCTAssertEqual(prophase.keyIdeas.count, 2)
-        XCTAssertTrue(prophase.keyIdeas[0].terms.contains("condense"))
-        XCTAssertTrue(prophase.keyIdeas[1].terms.contains("breaks down"))
-        // Page-wide words never stand alone as a term: "chromosomes" would let any answer through.
-        for idea in prophase.keyIdeas { XCTAssertFalse(idea.terms.contains("chromosomes"), idea.label) }
-        XCTAssertEqual(Set(prophase.anchors), ["p0.l8", "p0.l12", "p0.l16", "p0.l20", "p0.l24"])
+        // Which of the four phases a 16-question set asks as a recall (the others come out as cards or choices) depends on what else competes for
+        // its places, so every phase that is asked as one is checked.
+        let phases = result.items.filter { $0.kind == .recall && $0.prompt.hasPrefix("What happens in ") }
+        XCTAssertGreaterThanOrEqual(phases.count, 2, "\(result.items.map(\.prompt))")
+        let expected: [String: (terms: [String], anchors: Set<String>)] = [
+            "prophase": (["condense", "breaks down"], ["p0.l8", "p0.l12", "p0.l16", "p0.l20", "p0.l24"]),
+            "metaphase": (["line up", "spindle"], ["p0.l9", "p0.l13", "p0.l17", "p0.l21", "p0.l25"]),
+            "telophase": (["nuclear", "unwind"], ["p0.l11", "p0.l15", "p0.l19", "p0.l23", "p0.l27", "p0.l29", "p0.l30"]),
+        ]
+        for item in phases {
+            XCTAssertEqual(item.keyIdeas.count, 2, item.prompt)
+            // Page-wide words never stand alone as a term: "chromosomes" would let any answer through.
+            for idea in item.keyIdeas { XCTAssertFalse(idea.terms.contains("chromosomes"), idea.label) }
+            let phase = String(item.prompt.dropFirst("What happens in ".count).dropLast())
+            guard let want = expected[phase] else { continue }
+            for (n, term) in want.terms.enumerated() { XCTAssertTrue(item.keyIdeas[n].terms.contains(term), "\(phase): \(item.keyIdeas[n].terms)") }
+            XCTAssertEqual(Set(item.anchors), want.anchors, phase)
+        }
     }
 
     func testGeneratedKeyIdeasAcceptTheirOwnModelAnswers() {
