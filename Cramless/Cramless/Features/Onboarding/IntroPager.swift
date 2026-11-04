@@ -51,7 +51,7 @@ struct IntroPage: Identifiable, Sendable {
                   sceneDescription: "Demo: Wednesday's 15 minutes are missed, and Thursday and Friday absorb them, 22 and 18 minutes. A reminder arrives: 22 minutes tonight and you're done."),
         IntroPage(id: 5, scene: .askCap, title: "A tutor that\nknows your notes.",
                   body: "Stuck? Ask Cap. Answers cite your own material, and it nudges you to think before it tells.",
-                  sceneDescription: "Demo: you ask Cap why anaphase matters. Cap answers and cites textbook page 87 and lecture 6 at 12:05. On-device first. Never trains on your notes. You approve every set."),
+                  sceneDescription: "Demo: you ask Cap why anaphase matters. Cap answers and cites textbook page 87 and lecture 6 at 12:05. Works offline. Never trains on your notes. You approve every set."),
     ]
 }
 

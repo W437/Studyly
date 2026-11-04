@@ -8,8 +8,10 @@ import NaturalLanguage
 
 /// The build's switches for the model tiers. Turning one off takes that tier out without touching other code.
 enum AIBuild {
-    /// This iPhone's model (Foundation Models).
-    static let onDeviceModelEnabled = true
+    /// This iPhone's model (Foundation Models). Off since 2026-11-04 (docs/BUILD.md, "Apple's answer tier is off"): Cap answers
+    /// from Cloud AI, or from the offline rules when there is no network or no allowance. The tutor, grading, question writing,
+    /// lecture notes and cards that had an on-device model step take the offline path instead.
+    static let onDeviceModelEnabled = false
     /// Private Cloud Compute (iOS 27). It needs an entitlement Apple grants on request; no key is guessed and it
     /// stays off. Switching it on also needs a consent line and an `AIConsent.currentVersion` bump.
     static let privateCloudEnabled = false
@@ -85,11 +87,17 @@ protocol OnDeviceProbe {
 @MainActor
 struct SystemOnDeviceProbe: OnDeviceProbe {
     var allowed: Bool
+    /// The build switch as this probe reads it. Only tests and the phone lab (`OfflineBench`, DEBUG) pass `true` to look at
+    /// the model while the build keeps it off.
+    var buildEnabled: Bool
 
-    nonisolated init(allowed: Bool) { self.allowed = allowed }
+    nonisolated init(allowed: Bool, buildEnabled: Bool = AIBuild.onDeviceModelEnabled) {
+        self.allowed = allowed
+        self.buildEnabled = buildEnabled
+    }
 
     func capability() -> OnDeviceCapability {
-        guard AIBuild.onDeviceModelEnabled else { return .unavailable(.disabledByBuild) }
+        guard buildEnabled else { return .unavailable(.disabledByBuild) }
         guard allowed else { return .unavailable(.notChecked) }
         #if targetEnvironment(simulator)
         // A simulator whose Mac lacks the model assets still reports "available" (measured in Dozen), and the
@@ -115,7 +123,7 @@ struct SystemOnDeviceProbe: OnDeviceProbe {
     }
 
     func supportsLocale(_ locale: Locale) -> Bool {
-        guard AIBuild.onDeviceModelEnabled, allowed else { return false }
+        guard buildEnabled, allowed else { return false }
         return SystemLanguageModel.default.supportsLocale(locale)
     }
 

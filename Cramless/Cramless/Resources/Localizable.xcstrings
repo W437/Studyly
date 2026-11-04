@@ -1900,6 +1900,7 @@
     "No answer" : {},
     "No card is ticked." : {},
     "No connection, so you mark this one." : {},
+    "No counted limits. A day with a lot of Cloud AI pauses it until midnight; the offline rules never pause." : {},
     "No counted limits. A day with a lot of Cloud AI pauses it until midnight; your iPhone's own AI and the offline rules never pause." : {},
     "No exam yet" : {},
     "No exam yet. %lld minutes today." : {
@@ -2005,6 +2006,7 @@
     "One more." : {},
     "One tiny tweak." : {},
     "One topic has no material yet. Add some and it joins your sessions." : {},
+    "Only Cloud AI counts. The offline rules are free and never do. Days reset at midnight, weeks on Monday." : {},
     "Only Cloud AI counts. Your iPhone's own AI and the offline rules are free and never do. Days reset at midnight, weeks on Monday." : {},
     "Only with Cloud AI on" : {},
     "Ooh! Ooh! I have a question." : {},

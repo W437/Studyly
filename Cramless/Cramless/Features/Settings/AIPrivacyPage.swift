@@ -47,10 +47,13 @@ struct AIPrivacyPage: View {
 
             CLSectionHeader(title: "On this iPhone")
             VStack(spacing: 0) {
-                SettingsInfoCard(icon: "iphone", tint: deviceReady ? .mint : .sky,
-                                 title: deviceReady ? "Apple Intelligence is ready" : "This iPhone's own AI",
-                                 text: deviceText)
-                Rectangle().fill(CLColor.hairline).frame(height: 0.5).padding(.leading, 62)
+                // While the build keeps Apple's model off there is nothing to report about it.
+                if deviceTierShown {
+                    SettingsInfoCard(icon: "iphone", tint: deviceReady ? .mint : .sky,
+                                     title: deviceReady ? "Apple Intelligence is ready" : "This iPhone's own AI",
+                                     text: deviceText)
+                    Rectangle().fill(CLColor.hairline).frame(height: 0.5).padding(.leading, 62)
+                }
                 SettingsInfoCard(icon: "text.book.closed", tint: .sky, title: "Offline rules, always",
                                  text: "Questions, checks of fill-ins and choices, and Cap's answers from your notes, with no network and no AI. They never count against a limit. Answers in your own words you mark yourself, unless an AI is there to check them.")
             }
@@ -118,6 +121,8 @@ struct AIPrivacyPage: View {
 
     private var deviceReady: Bool { ai.onDeviceCapability.availability.isAvailable }
 
+    private var deviceTierShown: Bool { ai.onDeviceCapability.availability != .unavailable(.disabledByBuild) }
+
     private var deviceText: LocalizedStringResource {
         switch ai.onDeviceCapability.availability {
         case .available:
@@ -169,6 +174,19 @@ struct AIPrivacyPage: View {
 struct QuotaCard: View {
     let status: QuotaStatus
 
+    // What never counts: the offline rules, and Apple's model only while the build has it on (`AIBuild.onDeviceModelEnabled`).
+    private static var freeFootnote: LocalizedStringResource {
+        AIBuild.onDeviceModelEnabled
+            ? "Only Cloud AI counts. Your iPhone's own AI and the offline rules are free and never do. Days reset at midnight, weeks on Monday."
+            : "Only Cloud AI counts. The offline rules are free and never do. Days reset at midnight, weeks on Monday."
+    }
+
+    private static var paidFootnote: LocalizedStringResource {
+        AIBuild.onDeviceModelEnabled
+            ? "No counted limits. A day with a lot of Cloud AI pauses it until midnight; your iPhone's own AI and the offline rules never pause."
+            : "No counted limits. A day with a lot of Cloud AI pauses it until midnight; the offline rules never pause."
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             CLSectionHeader(title: status.plan.isPaid ? "Your AI" : "Free limits")
@@ -189,13 +207,13 @@ struct QuotaCard: View {
                     .accessibilityLabel(Text("\(Self.name(meter.key)): \(Self.usage(meter))"))
                 }
                 if !status.plan.isPaid {
-                    Text("Only Cloud AI counts. Your iPhone's own AI and the offline rules are free and never do. Days reset at midnight, weeks on Monday.")
+                    Text(Self.freeFootnote)
                         .clFont(.footnote)
                         .foregroundStyle(CLColor.ink2)
                         .fixedSize(horizontal: false, vertical: true)
                 } else {
                     // Not "unlimited": a day with a lot of Cloud AI (a cram night) reaches a cost limit that starts again at midnight.
-                    Text("No counted limits. A day with a lot of Cloud AI pauses it until midnight; your iPhone's own AI and the offline rules never pause.")
+                    Text(Self.paidFootnote)
                         .clFont(.footnote)
                         .foregroundStyle(CLColor.ink2)
                         .fixedSize(horizontal: false, vertical: true)

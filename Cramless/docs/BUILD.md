@@ -1270,6 +1270,25 @@ What the app side changed after the two tests (`capling-14-day-user-test`, `...-
   compiled in (the settings file blank again afterwards), exported with the same profiles (version 1.0 (4), widget 4, `Apple Distribution: Loopware LLC`, get-task-allow false, no device list). SHA-256 2b70b68f00301341740ade3d6d57b4f1c711049cf086e2e60a2ecc3aa3ab5407; files, gitignored:
   `Cramless/build/archive/Capling-1.0-4/`. **Uploaded at 19:50 with the owner's approval** (delivery 6b6f8051-034d-4dc7-9016-14012734af8b), `VALID` at 19:53 and **attached to version 1.0 in place of build 3** (`capling_asc.mjs build 4`); read back: version 1.0 `PREPARE_FOR_SUBMISSION`,
   build 4 `VALID`, no review submissions. Nothing is submitted; not on a phone.
+- **Apple's answer tier is off (2026-11-04, night; not in a build yet).** `AIBuild.onDeviceModelEnabled` is now `false`. The AI ladder is Cloud AI (OpenAI, through the relay) first and the offline rules
+  below it; the iPhone's Apple Intelligence model sat between them and answered only with no network, no consent or the allowance used up, and was judged too weak for tutoring and grading in this app. The probe now answers
+  `.unavailable(.disabledByBuild)` on every iPhone, so the tutor, the grading of answers in the student's own words, question writing, lecture notes and cards that had a model step take their offline path
+  (`LocalTutor`, `LocalGrader`, `LocalGenerator`, `LocalLectureNotes`), which is what a phone without Apple Intelligence did already. The code stays: the switch is the one place to turn the tier back on, and the model's choice of
+  sentence (`OnDeviceWindow.useModelPick`) and the iPhone-model tests keep running on `FixedOnDeviceProbe`. Copy that promised "your iPhone's own AI" went with it: Settings ▸ AI and privacy shows no "This iPhone's own AI"
+  card and its free-limits footnote says "the offline rules", and the onboarding badge "On-device first" is "Works offline". `SystemOnDeviceProbe` takes `buildEnabled:` (default the switch) so a test or the phone lab
+  (`OfflineBench`, DEBUG) can still look at the model. Tests: `AIOnDeviceTests`, `RouterTests`, `SelfCheckTests`, `LocalizationTests` and `TutorPrivacyCopyTests` (78, all pass; the others use a fixed probe and do not see the
+  switch; the full suite was not run). Build 1.0 (4) still has the model on.
+- **What a smaller cloud-tutor request saves (2026-11-05; the app is unchanged).** `TutorSelection.tutor` sends up to 4,000 words (about 89 passages, 10.5k tokens, a cent at Terra's $1 per million input tokens). The app's own selection was run
+  for the 14 test students' 168 questions at four word budgets (harness command `bench request`; 141 questions have a gold line): in how many the gold line is inside the request, at 4,000 words 134 of 141 (95%), 2,000 words 110 (78%),
+  1,000 words 89 (63%), 500 words 68 (48%) (a named source and the 12 best passages of the others go whatever the room, so the small budgets send 2,160, 1,317 and 909 words). Then 56 of those questions (4 covered per student) went through the
+  relay's `tutor` route with the real key (`supabase/functions/tools/tutor_cost_ab.ts`: the relay's prompt, Terra at low effort, 224 requests, $1.48, and $0.48 for the merge check below), the replies scored against the gold lines with the offline check's scorer:
+  tokens in 10,575 / 6,638 / 4,790 / 3,891 (counted beforehand with a stand-in tokenizer, o200k_base: 10,515 / 6,579 / 4,731 / 3,832), about 110 tokens out (0.055 cent); **cost per answer as the relay logs it 1.10 / 0.72 / 0.47 / 0.35 cents**
+  (-35%, -57%, -69%; the shorter prompts also read 14% and 28% of their tokens from the cache, with no cache 1.11 / 0.72 / 0.53 / 0.45, -35%, -52%, -60%); **replies that show the gold line 40 / 33 / 26 / 20 of 56** (71%, 59%, 46%, 36%). With the
+  line missing from the request the model mostly says it cannot find it (10 of 18 at 2,000 words, 17 of 26 at 1,000, 20 of 34 at 500) and otherwise answers from another passage. So a smaller request costs answers faster than it saves money:
+  the 35% cut at 2,000 words loses 7 correct answers in 56. The offline sentence search does not rescue it: its best 12 sentences (570 words) hold the line in 80 of 141 (57%).
+  **A cut that keeps every word:** a 4,000-word request is 88.5 passages but only 22 distinct pages, and each passage costs a `<source id=... title=...>` wrapper (about 36 tokens). Sending the neighbouring passages of one page as one block
+  (the same words), the same 56 questions: 8,066 tokens in (-24%), **0.85 cent per answer (-23%), 43 replies show the line against 40** (6 gained, 3 lost: noise, not a loss), 1.41 citations an answer against 1.46. `TutorSelection` already joins
+  neighbours in its whole-material mode and credits a quote to the member that holds it; doing the same in the other modes is an app change that was not made. Scripts and outputs: `~/Documents/capling-user-test/after-round3/cost/`.
 
 ### Ask Cap as an assistant (2026-10-27)
 

@@ -291,7 +291,8 @@ sleep 4; xcrun simctl io <udid> screenshot shot.png
   `item.modelContext != nil` before reading blobs. Count days with `calendar.dayDistance(from:to:)`.
 - **Engines are pure**: no `Date()`, no `@Model`, no SwiftData; `now` and `calendar` are parameters.
 - **AI never blocks and never commits on its own.** Every AI job has an offline answer first (the rules),
-  then the on-device model, then the relay (cloud) only after consent and within quota. Generated sets arrive
+  then the on-device model (off in the shipped build since 2026-11-04: `AIBuild.onDeviceModelEnabled`, docs/BUILD.md),
+  then the relay (cloud) only after consent and within quota. Generated sets arrive
   as drafts the person approves. Grading highlights only quotes found verbatim in the answer. Tutor answers cite
   the person's material or say it isn't covered. Failures fall back quietly to the offline path. Cloud requests
   are built from what is true after any wait (consent sheet, network).

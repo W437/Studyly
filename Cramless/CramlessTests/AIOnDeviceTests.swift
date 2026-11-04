@@ -327,10 +327,19 @@ final class AIOnDeviceTests: XCTestCase {
 
     // MARK: The device and the schemas
 
+    func testTheBuildKeepsApplesModelOff() {
+        // Whatever the phone has, the shipped probe says the model is off in this version (docs/BUILD.md, "Apple's answer tier is off").
+        XCTAssertFalse(AIBuild.onDeviceModelEnabled)
+        XCTAssertEqual(SystemOnDeviceProbe(allowed: true).capability().availability, .unavailable(.disabledByBuild))
+        XCTAssertEqual(SystemOnDeviceProbe(allowed: false).capability().availability, .unavailable(.disabledByBuild))
+        XCTAssertFalse(SystemOnDeviceProbe(allowed: true).supportsLocale(Locale(identifier: "en_US")))
+    }
+
     func testTheRealProbeNeverClaimsTheSimulatorsModel() {
-        XCTAssertEqual(SystemOnDeviceProbe(allowed: false).capability().availability, .unavailable(.notChecked))
+        // With the switch on, the probe's own guards still hold: nothing is asked under tests, and the simulator's model is never claimed.
+        XCTAssertEqual(SystemOnDeviceProbe(allowed: false, buildEnabled: true).capability().availability, .unavailable(.notChecked))
         #if targetEnvironment(simulator)
-        XCTAssertEqual(SystemOnDeviceProbe(allowed: true).capability().availability, .unavailable(.simulator))
+        XCTAssertEqual(SystemOnDeviceProbe(allowed: true, buildEnabled: true).capability().availability, .unavailable(.simulator))
         #endif
         XCTAssertFalse(AIBuild.privateCloudEnabled, "Private Cloud Compute stays dormant without the entitlement")
     }

@@ -115,7 +115,7 @@ enum OfflineBench {
             report["finished"] = true
             save(); sampler.stop(); return
         }
-        let capability = await MainActor.run { SystemOnDeviceProbe(allowed: true).capability() }
+        let capability = await MainActor.run { SystemOnDeviceProbe(allowed: true, buildEnabled: true).capability() }
         report["modelAvailability"] = "\(capability.availability)"
         report["modelContextSize"] = capability.contextSize
         var results: [[String: Any]] = []

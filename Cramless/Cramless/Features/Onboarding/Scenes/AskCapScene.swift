@@ -15,7 +15,7 @@ struct AskCapScene: View {
 
     /// In the order they land: the first row, then the second.
     static let badgeTexts: [(symbol: String, text: String)] = [
-        ("iphone", "On-device first"),
+        ("iphone", "Works offline"),
         ("checkmark.seal", "You approve every set"),
         ("lock", "Never trains on your notes"),
     ]
