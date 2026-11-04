@@ -1277,7 +1277,12 @@ What the app side changed after the two tests (`capling-14-day-user-test`, `...-
   sentence (`OnDeviceWindow.useModelPick`) and the iPhone-model tests keep running on `FixedOnDeviceProbe`. Copy that promised "your iPhone's own AI" went with it: Settings ▸ AI and privacy shows no "This iPhone's own AI"
   card and its free-limits footnote says "the offline rules", and the onboarding badge "On-device first" is "Works offline". `SystemOnDeviceProbe` takes `buildEnabled:` (default the switch) so a test or the phone lab
   (`OfflineBench`, DEBUG) can still look at the model. Tests: `AIOnDeviceTests`, `RouterTests`, `SelfCheckTests`, `LocalizationTests` and `TutorPrivacyCopyTests` (78, all pass; the others use a fixed probe and do not see the
-  switch; the full suite was not run). Build 1.0 (4) still has the model on.
+  switch; the full suite was not run). Build 1.0 (5) is the first build without the model tier.
+- **Build 1.0 (5) (2026-11-05, 00:47).** `CURRENT_PROJECT_VERSION` 5: build 4 plus commit 056ae19 (the iPhone model's choice of sentence, dormant now) and 9068eff (the Apple tier off), archived from commit d6d258a with the real host (32 characters)
+  and anon key (208 characters) compiled in (the settings file blank again afterwards), exported with the same profiles (version 1.0 (5), widget 5, `Apple Distribution: Loopware LLC`, get-task-allow false, no device list, iPhone only). SHA-256
+  b9a3dd17cde15000acc9b97dd2b50d07787412e347636bb6ace55ebf00eca5e5; files, gitignored: `Cramless/build/archive/Capling-1.0-5/`. **Uploaded at 00:48 with the owner's approval** (delivery 10818e3f-0a3c-4e34-8a03-2e3e5e244018), `VALID` at 00:51 and
+  **attached to version 1.0 in place of build 4** (`capling_asc.mjs build 5`); read back: version 1.0 `PREPARE_FOR_SUBMISSION`, build 5 `VALID`, no review submissions. Tested before it: the 78 tests of the five affected classes; the owner chose to upload
+  without the full suite, which has not been run on this commit. Nothing is submitted; not on a phone.
 - **What a smaller cloud-tutor request saves (2026-11-05; the app is unchanged).** `TutorSelection.tutor` sends up to 4,000 words (about 89 passages, 10.5k tokens, a cent at Terra's $1 per million input tokens). The app's own selection was run
   for the 14 test students' 168 questions at four word budgets (harness command `bench request`; 141 questions have a gold line): in how many the gold line is inside the request, at 4,000 words 134 of 141 (95%), 2,000 words 110 (78%),
   1,000 words 89 (63%), 500 words 68 (48%) (a named source and the 12 best passages of the others go whatever the room, so the small budgets send 2,160, 1,317 and 909 words). Then 56 of those questions (4 covered per student) went through the
@@ -1411,7 +1416,8 @@ The Capling record on the Loopware team (app 6828649543) is filled in by `script
   and the four `subscriptionStatusUrl*` attributes; a read straight after the PATCH can show null for a few seconds).
 - **Before real users**: the free Supabase plan pauses a project after a week idle, so upgrade it; set a spend limit on the OpenAI
   project; register `capling.app` (Squad invite links point at it); wire the age check.
-- **Build 1.0 (4)** (2026-11-04, evening): build 3 and the offline tutor and iPhone model changes; uploaded with the owner's approval, `VALID`, attached to version 1.0 in place of build 3; nothing submitted for review.
+- **Build 1.0 (5)** (2026-11-05, after midnight): build 4 plus the iPhone model's choice of sentence (dormant) and the Apple model tier switched off; uploaded with the owner's approval, `VALID`, attached to version 1.0 in place of build 4; nothing submitted for review.
+- **Build 1.0 (4)** (2026-11-04, evening): build 3 and the offline tutor and iPhone model changes; uploaded with the owner's approval, `VALID`, attached to version 1.0 in place of build 3, replaced by build 5; nothing submitted for review.
 - **Build 1.0 (3)** (2026-11-04): the fixes after the 14-day tests, with the real host and anon key compiled in (details under "App fixes after the 14-day tests"). Uploaded the same day with the owner's approval, `VALID`, and attached to version 1.0 in place of
   build 2 (which does not contain the fixes); replaced by build 4 the same evening; nothing submitted for review.
 - **Build 1.0 (2)**: the full suite passed on a blank `Secrets.xcconfig` (1,082 run, 24 skipped, 0 failures), then the Release archive
@@ -1451,7 +1457,7 @@ The Capling record on the Loopware team (app 6828649543) is filled in by `script
   12 cents a day (`cost.ts`), so the 40 cent day sits inside a 70 cent week (7 x the old 10 cents): the most a paid person can cost in a week is what it was, and a cram night is possible. **Checked in production:** a Pro test
   account asked 13 tutor turns in a row: 12 answered by Cloud AI (11.61 cents on the relay's log; the 12th began past 10 cents, where version 11 stopped a Pro account) and 1 declined offline as an essay request. Version 13 (2026-11-04, the owner's approval) carries the prompt rules above and below on top of these caps. The defaults are in code;
   the secrets `PAID_DAILY_COST_CAP_USD` / `PAID_WEEKLY_COST_CAP_USD` (0 turns each off) tune them without a deploy. The wording "unlimited" in the store text, if it is there, is the owner's.
-- Build 1.0 (4) is uploaded and attached to version 1.0 (2026-11-04); it is processed (`VALID`, installable through TestFlight) and nothing is submitted. Submitting for review is yours. The store description still says "unlimited scans, PDFs and lectures": the owner chose to leave it (4 Nov; the counts of scans, PDFs and lectures are unlimited, only the Cloud AI part pauses on a very heavy day, which the paywall's fine print and Settings say).
+- Build 1.0 (5) is uploaded and attached to version 1.0 (2026-11-05, replacing build 4); it is processed (`VALID`, installable through TestFlight) and nothing is submitted. Submitting for review is yours. The store description still says "unlimited scans, PDFs and lectures": the owner chose to leave it (4 Nov; the counts of scans, PDFs and lectures are unlimited, only the Cloud AI part pauses on a very heavy day, which the paywall's fine print and Settings say).
 - Prompt quality over the real API: the prompts held up on one sample page with the same models answering
   through subagents (above). Once the key is in, run `deno task live`, then tune with more real pages: other
   subjects, handwriting, long PDFs.
