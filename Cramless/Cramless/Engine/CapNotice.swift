@@ -22,6 +22,8 @@ struct CapNotice: Identifiable, Equatable, Sendable {
             case undoFixMyWeek(noticeID: String)
             /// "Take it": a mock of this exam.
             case takeMock(examID: UUID)
+            /// "Yes, harder": a harder question for this one.
+            case raiseQuestion(itemID: UUID)
         }
 
         /// "Fix it · 2 min".

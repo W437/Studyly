@@ -3,7 +3,8 @@ import SwiftUI
 /// "Yes, harder": Cap writes the harder question, the student reads it and adds it or doesn't. Added, the easy one takes a rest, and Undo is
 /// there for a moment. Nothing joins a session until "Add it".
 ///
-/// DEBUG hook: `CRAMLESS_ROUTE=ladder` opens this sheet on a question from the demo world, with `CRAMLESS_LADDER=writing|proposal|added`
+/// DEBUG hooks: `CRAMLESS_LADDER=offer` shows the card on Today, from the real engine (`AppModel+NoticeHarness`); `CRAMLESS_NOTICE_TAP=<ms>`
+/// presses its button. `CRAMLESS_ROUTE=ladder` opens this sheet on a question from the demo world, with `CRAMLESS_LADDER=writing|proposal|added`
 /// holding that state (`writing` waits there; `added` adds the mock relay's question).
 struct LadderSheet: View {
     let parentID: UUID
@@ -194,8 +195,6 @@ enum LadderCopy {
     }
 
     static var noticeAction: String { String(localized: "Yes, harder") }
-    /// The tag on the card: what it spends.
-    static var noticeTag: String { String(localized: "1 draft") }
 
     /// A fill-in's question is its sentence, with the blank showing.
     @MainActor

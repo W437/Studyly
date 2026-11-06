@@ -95,7 +95,47 @@ final class LadderEngineTests: XCTestCase {
         XCTAssertEqual(LadderCopy.noticeLine(next: .cloze), "Next time, the same idea as a fill-in?")
         XCTAssertEqual(LadderCopy.noticeLine(next: .recall), "Next time, the same idea in your own words?")
         XCTAssertEqual(LadderCopy.noticeAction, "Yes, harder")
-        XCTAssertEqual(LadderCopy.noticeTag, "1 draft")
+    }
+
+    // MARK: The card
+
+    private func inputs(_ change: (inout NoticeInputs) -> Void = { _ in }) -> NoticeInputs {
+        var inputs = NoticeInputs(now: now, calendar: calendar, fsrs: FSRS())
+        change(&inputs)
+        return inputs
+    }
+
+    private func offer(_ topic: String? = "Limiting reagents", next: ItemKind = .apply) -> NoticeTooEasy {
+        NoticeTooEasy(itemID: UUID(), next: next, topicName: topic)
+    }
+
+    func testTheCardNamesTheIdeaSaysWhatItSpendsAndOpensTheSheet() throws {
+        let first = offer(), second = offer("Moles")
+        let cards = NoticeEngine(inputs { $0.tooEasy = [first, second] }).candidates()
+        XCTAssertEqual(cards.map(\.kind), [.tooEasy], "one idea at a time")
+        let card = try XCTUnwrap(cards.first)
+        XCTAssertEqual(card.id, NoticeEngine.tooEasyID(first.itemID))
+        XCTAssertFalse(card.notifiable, "there's no hurry in it")
+        let said = NoticeContent.card(card, firstName: "Maya", now: now, calendar: calendar)
+        XCTAssertEqual(said.title, "Limiting reagents is too easy now")
+        XCTAssertEqual(said.detail, "Next time, the same idea in a real problem?")
+        XCTAssertEqual(said.action?.title, "Yes, harder")
+        XCTAssertEqual(said.action?.run, .raiseQuestion(itemID: first.itemID))
+        XCTAssertEqual(said.cost, "1 draft")
+    }
+
+    func testTheSwitchTurnsItOffAndAnExamTomorrowQuietsIt() {
+        var off = NoticeSettings()
+        off.off = [.tooEasy]
+        XCTAssertTrue(NoticeEngine(inputs { $0.tooEasy = [offer()]; $0.settings = off }).candidates().isEmpty)
+        let tomorrow = ExamSnapshot(id: UUID(), courseID: nil, title: "Quiz", date: now.addingTimeInterval(86_400), scope: [], target: 0.8)
+        XCTAssertTrue(NoticeEngine(inputs { $0.tooEasy = [offer()]; $0.exams = [tomorrow] }).candidates().isEmpty)
+    }
+
+    func testItWaitsBehindWhatNeedsHelp() {
+        let fix = NoticeMixUp(note: ConfusionNote(id: UUID(), name: "A vs B", missCount: 1, recentMisses: 1, recentAnswers: 2), itemIDs: [])
+        let cards = NoticeEngine(inputs { $0.tooEasy = [offer()]; $0.mixUps = [fix] }).candidates()
+        XCTAssertEqual(cards.map(\.kind), [.mixUp, .tooEasy])
     }
 }
 
@@ -189,7 +229,7 @@ final class LadderAppModelTests: CaptureTestCase {
         XCTAssertEqual(draft.sourceRef?.anchorIDs, ["p0.l2"], "only lines it was given")
         XCTAssertEqual(w.parent.status, .active, "nothing changes until it's added")
         XCTAssertTrue(w.app.draftItems(sourceID: try XCTUnwrap(draft.sourceRef?.sourceID)).isEmpty, "not with the source's new questions")
-        XCTAssertTrue(w.app.ladderOffers().isEmpty, "one offer for one idea")
+        XCTAssertEqual(w.app.ladderOffers().map(\.itemID), [w.parent.id], "the card can come back for a draft not decided on")
 
         // Asked again, it's the same draft: nothing is spent twice.
         let again = await w.app.writeRung(for: w.parent.id)
@@ -211,6 +251,7 @@ final class LadderAppModelTests: CaptureTestCase {
         XCTAssertEqual(rung.memory.state, .review)
         XCTAssertEqual(rung.memory.stability, 14)
         XCTAssertEqual(w.parent.status, .suspended)
+        XCTAssertTrue(w.app.ladderOffers().isEmpty, "the idea has moved up: nothing more to offer for it")
         let after = w.app.readinessValue(of: snapshot)
         XCTAssertLessThan(abs(after - before) * 100, Ladder.maxReadinessDrop, "readiness moves less than 2 points")
     }
@@ -292,6 +333,20 @@ final class LadderAppModelTests: CaptureTestCase {
         let writing = await w.app.writeRung(for: w.parent.id)
         XCTAssertEqual(writing, .failed("Cap couldn't write a harder one from these lines."))
         XCTAssertNil(w.app.rungDraft(of: w.parent.id))
+    }
+
+    func testTheCardsButtonOpensTheSheetAndKeepsTheCardAwayForItsWeek() throws {
+        let w = try world()
+        XCTAssertNil(w.app.perform(CapNotice.Action(title: "Yes, harder", systemImage: "arrow.up.right", run: .raiseQuestion(itemID: w.parent.id))))
+        XCTAssertEqual(w.app.router.sheet, .ladder(parentID: w.parent.id))
+        XCTAssertNotNil(w.app.noticeLedger.acted[NoticeEngine.tooEasyID(w.parent.id)])
+    }
+
+    func testTheEngineSeesATooEasyQuestion() throws {
+        let w = try world()
+        let inputs = w.app.noticeInputs()
+        XCTAssertEqual(inputs.tooEasy.map(\.itemID), [w.parent.id])
+        XCTAssertEqual(inputs.tooEasy.first?.next, .cloze)
     }
 
     func testTheLinkSyncs() throws {

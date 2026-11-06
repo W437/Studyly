@@ -34,6 +34,11 @@ enum NoticeContent {
                              detail: MockCopy.cardLine(questions: offer.questions, minutes: offer.minutes),
                              action: .init(title: String(localized: "Take it"), systemImage: "doc.text", run: .takeMock(examID: offer.examID)),
                              link: .exam(offer.examID), cost: costLine(notice.cost))
+        case .tooEasy(let offer):
+            return CapNotice(id: notice.id, kind: .tooEasy, title: LadderCopy.noticeTitle(topic: offer.topicName),
+                             detail: LadderCopy.noticeLine(next: offer.next),
+                             action: .init(title: LadderCopy.noticeAction, systemImage: "arrow.up.right", run: .raiseQuestion(itemID: offer.itemID)),
+                             cost: costLine(notice.cost))
         }
     }
 
@@ -160,7 +165,7 @@ enum NoticeContent {
         case .mixUp(let note):
             if note.name == ConfusionCandidate.unnamed { return String(localized: "Still tripping on the same questions? A 2-minute fix is ready.") }
             return String(localized: "Still mixing up \(SessionCopy.mixUpPair(note.name))? A 2-minute fix is ready.")
-        case .welcomeBack, .mockOffer:
+        case .welcomeBack, .mockOffer, .tooEasy:
             return nil
         }
     }

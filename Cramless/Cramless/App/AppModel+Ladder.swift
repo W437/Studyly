@@ -24,14 +24,16 @@ extension AppModel {
     private static let declineDays = 30
 
     /// Questions worth moving up, the strongest first, only those whose swap keeps every exam's readiness within `Ladder.maxReadinessDrop`.
-    func ladderOffers() -> [LadderOffer] {
+    func ladderOffers(items given: [ItemSnapshot]? = nil, exams givenExams: [ExamSnapshot]? = nil) -> [LadderOffer] {
         guard ai.cloudStillAllowed() else { return [] }
-        let items = itemSnapshots()
+        let items = given ?? itemSnapshots()
         let strong = items.filter { $0.memory.state == .review && $0.memory.stability >= Ladder.strongStability && !$0.reported }
             .sorted { $0.memory.stability > $1.memory.stability }.prefix(30)
         guard !strong.isEmpty else { return [] }
-        let exams = examSnapshots(upcomingOnly: true)
-        let climbed = Set(fetch(FetchDescriptor<StudyItem>(predicate: #Predicate { $0.rungOf != nil && $0.deletedAt == nil })).compactMap(\.rungOf))
+        let exams = givenExams ?? examSnapshots(upcomingOnly: true)
+        // A draft still waiting doesn't count: the card comes back for it, and writing finds the same draft, so nothing is spent twice.
+        let climbed = Set(fetch(FetchDescriptor<StudyItem>(predicate: #Predicate { $0.rungOf != nil && $0.deletedAt == nil }))
+            .filter { $0.status != .draft }.compactMap(\.rungOf))
         let snoozed = ladderSnoozes()
         let candidates = strong.compactMap { snapshot -> Ladder.Candidate? in
             guard let item = item(snapshot.id) else { return nil }
