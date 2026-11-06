@@ -1,0 +1,58 @@
+{
+  "model": "mock",
+  "confusions": [
+    {
+      "name": "Metaphase vs telophase",
+      "explanation": "Metaphase lines the chromosomes up; telophase rebuilds the nuclei around them.",
+      "itemIds": [
+        "i7",
+        "i10"
+      ],
+      "lesson": "The one difference is what happens to the chromosomes. In metaphase they line up across the middle of the cell, still together. In telophase they have already reached the poles and new nuclear envelopes form around them. Metaphase: the middle. Telophase: the end.",
+      "questions": [
+        {
+          "id": "l1",
+          "kind": "mcq",
+          "topic": "Phases of mitosis",
+          "prompt": "The chromosomes are lined up across the middle of the cell. Which phase is it?",
+          "answer": "Metaphase",
+          "explanation": "Lined up in the middle is metaphase.",
+          "keyIdeas": [],
+          "choices": [
+            {
+              "text": "Metaphase",
+              "correct": true
+            },
+            {
+              "text": "Telophase",
+              "correct": false
+            }
+          ],
+          "anchors": [],
+          "difficulty": 0.4
+        },
+        {
+          "id": "l2",
+          "kind": "mcq",
+          "topic": "Phases of mitosis",
+          "prompt": "New nuclear envelopes are forming at the two ends of the cell. Which phase is it?",
+          "answer": "Telophase",
+          "explanation": "Rebuilding the nuclei at the ends is telophase.",
+          "keyIdeas": [],
+          "choices": [
+            {
+              "text": "Metaphase",
+              "correct": false
+            },
+            {
+              "text": "Telophase",
+              "correct": true
+            }
+          ],
+          "anchors": [],
+          "difficulty": 0.4
+        }
+      ]
+    }
+  ]
+}

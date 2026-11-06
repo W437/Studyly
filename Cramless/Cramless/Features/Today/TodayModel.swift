@@ -107,8 +107,11 @@ struct TodaySnapshot: Equatable, Sendable {
     var practice: TodayPractice?
     /// "Your plan": two days back, today and four ahead.
     var strip: [TodayPlanDay] = []
-    /// Cap's cards for today, at most three, the first one shown.
+    /// Cap's cards still to show today, at most three, the first one on screen.
     var notices: [CapNotice] = []
+    /// Where that first one stands among today's: "2 of 3".
+    var noticePosition = 1
+    var noticeTotal = 0
     /// No session has ever been finished: the band says "Welcome".
     var firstDay = false
     /// The person's memory sky, laid out for the band.
@@ -216,7 +219,9 @@ struct TodaySnapshot: Equatable, Sendable {
         }
         snapshot.practice = practice(in: snapshot.sky)
         snapshot.strip = app.todayStrip(summary: summary, tonightMinutes: snapshot.eveExam == nil ? nil : snapshot.eveMinutes)
-        snapshot.notices = app.todayNotices()
+        snapshot.notices = app.todayNotices(session: session)
+        let place = app.todayNoticePlace(session: session)
+        (snapshot.noticePosition, snapshot.noticeTotal) = (place.position, snapshot.notices.first?.isConfirmation == true ? 1 : place.count)
         if app.hasFinishedAnySession(), !app.settings.quietMode { snapshot.quests = app.questsToday() }
         #if DEBUG
         debugOverride(&snapshot, app: app)
@@ -272,6 +277,7 @@ struct TodaySnapshot: Equatable, Sendable {
     private static func debugOverride(_ snapshot: inout TodaySnapshot, app: AppModel) {
         if let raw = TestHarness.value("CRAMLESS_TODAY_NOTICES"), let n = Int(raw) {
             snapshot.notices = Array(TodayNoticesDemo.notices(base: snapshot.notices).prefix(max(0, n)))
+            (snapshot.noticePosition, snapshot.noticeTotal) = (1, snapshot.notices.count)
         }
         guard let state = TestHarness.value("CRAMLESS_TODAY") else { return }
         let firstExam = snapshot.exams.first

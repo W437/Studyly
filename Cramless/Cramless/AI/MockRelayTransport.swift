@@ -150,7 +150,11 @@ struct MockRelayTransport: RelayTransport {
     func confusions(_ request: ConfusionsRequest) async throws -> ConfusionsResponse {
         try await pause(Latency.confusions)
         try magic(request.mistakes.map(\.given) + [request.course])
-        return try load(ConfusionsResponse.self, "confusions")
+        guard request.lookAlike == true else { return try load(ConfusionsResponse.self, "confusions") }
+        // The look-alike's lesson, about the two questions it was asked about.
+        var response = try load(ConfusionsResponse.self, "confusions-lookalike")
+        for index in response.confusions.indices { response.confusions[index].itemIds = request.mistakes.map(\.itemId) }
+        return response
     }
 
     func lecture(_ request: LectureRequest) async throws -> LectureResponse {

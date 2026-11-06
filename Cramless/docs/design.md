@@ -265,10 +265,24 @@ same sky, taken apart.
   share it) from the shared exam plans. "Calendar" opens the streak page, whose month marks exams and eves and goes one month
   ahead. Once a first session is done, today's quests fold into one line ("0 of 3 quests today · 5 of 12 this week") that opens
   them in a sheet.
-- **Cap noticed** (`TodayNoticeCard`, `CapNotice`): one card at a time with "1 of N", its action ("Fix it · 2 min") and Later
-  (until tomorrow, with a toast). In Stage 1 the cards are today's open mix-ups; Stage 2's notice engine deals them. On an exam's
-  eve the slot is his quiet line instead: "Cap is quiet tonight. Bio 101 and AP Psychology can wait until after Chem 110 Quiz." Two exams on one day share the evening: one
-  session, both named, and neither waits.
+- **Cap noticed** (`TodayNoticeCard`, `CapNotice`, dealt by `NoticeEngine`, said by `NoticeContent`): one card at a time with "2 of 3", its
+  action, Later (until tomorrow, with a toast), what the action costs ("No AI", "Under 1¢") and a menu with "Don't show these". At most three
+  a day, one per kind; a card acted on stays away for 7 days. Counts and minutes, never a percentage. On an exam's eve (any exam tomorrow) the
+  slot is his quiet line instead: "Cap is quiet tonight. Bio 101 and AP Psychology can wait until after Chem 110 Quiz." Two exams on one day share the
+  evening: one session, both named, and neither waits.
+  - Mix-up: "You keep mixing up anaphase and telophase." / "Missed 3 of the last 4 times. Want a 2-minute fix?" / "Fix it · 2 min" / "No AI".
+  - Look-alike: "Metaphase and telophase look alike" / "Both are on Wednesday's Bio 101 Midterm. Learn the one difference now?" / "Show me" /
+    "Under 1¢" ("No AI" when Cloud AI won't be asked). The sheet (`LookAlikeView`) sets the two side by side with their sources and the one
+    difference: at once by the rules when Cloud AI won't be asked; otherwise "Cap is writing it" until the lesson is ready, shown once, "Written by
+    Cap from your two questions". "Try 2 questions" or "Not a look-alike".
+  - Fading: "18 questions will be dim by exam day" / "From Lecture 3, for your Bio 101 Midterm. 6 more minutes today and tomorrow keeps them." /
+    "Fix my week" / "No AI". After it: "Plan updated" / "6 more minutes today and tomorrow for Lecture 3." / OK, Undo. The minutes show on the day
+    card and the plan strip.
+  - Welcome back: "Welcome back, Maya" / "Your best streak, 23 days, is still yours. 5 minutes today lights your flame again." / "Start 5 min" /
+    "No AI". Never a restored streak: nothing to lose, nothing faked. In Quiet mode the card stays and says "Your stars waited for you. 5 minutes today is a good start."
+  - Mock offer: "A mock exam for your Bio 101 Midterm" / "20 questions like the real one · 25 min" / "Take it" / "Free". 2 to 7 days before the exam, never on the eve or the day.
+  - In the week before an exam a card may also come as one notification instead of that day's reminder and streak nudge: no counts, because they
+    would be stale (`NoticeContent.pingBody`). Settings ▸ Study has a switch per kind, Settings ▸ Notifications the "Cap noticed" switch.
 - **Exams** (`TodayExamsRow`): tiles in a row, two and the edge of the next on any phone (a 46 pt ring, the name, when, rose within three days, "+15% this week" with an
   arrow), "See all" to the Progress tab. With material and no exam: "When is your next exam?" and "Add an exam" (the editor asks
   for a course's name when there is none). Hidden on the eve.

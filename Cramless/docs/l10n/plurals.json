@@ -308,6 +308,48 @@
       }
     }
   },
+  "%lld questions will be dim by exam day": {
+    "one": "%lld question will be dim by exam day",
+    "other": "%lld questions will be dim by exam day"
+  },
+  "%lld more minutes %@ keeps them.": {
+    "value": "%#@minutes@ %2$@ keeps them.",
+    "substitutions": {
+      "minutes": {
+        "argNum": 1,
+        "one": "%arg more minute",
+        "other": "%arg more minutes"
+      }
+    }
+  },
+  "%lld more minutes %@ keeps %lld of them.": {
+    "value": "%#@minutes@ %2$@ keeps %3$lld of them.",
+    "substitutions": {
+      "minutes": {
+        "argNum": 1,
+        "one": "%arg more minute",
+        "other": "%arg more minutes"
+      }
+    }
+  },
+  "%lld more minutes %@ for %@.": {
+    "value": "%#@minutes@ %2$@ for %3$@.",
+    "substitutions": {
+      "minutes": {
+        "argNum": 1,
+        "one": "%arg more minute",
+        "other": "%arg more minutes"
+      }
+    }
+  },
+  "%lld drafts": {
+    "one": "%lld draft",
+    "other": "%lld drafts"
+  },
+  "Try %lld questions": {
+    "one": "Try %lld question",
+    "other": "Try %lld questions"
+  },
   "Ask about %@. I answer from your %lld sources and show you where.": {
     "value": "Ask about %1$@. I answer from your %#@sources@ and show you where.",
     "substitutions": {

@@ -257,6 +257,7 @@ struct SheetDestination: View {
         case .todayReasons: TodayReasonsSheet()
         case .quests: TodayQuestsSheet()
         case .help: HelpSheet()
+        case .lookAlike(let a, let b, _): LookAlikeView(a: a, b: b)
         case .streakMonth: StreakMonthSheet()
         case .skyMemory: SkyMemorySheet()
         case .looksWrong(let id, let given): LooksWrongSheet(itemID: id, given: given)

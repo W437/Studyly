@@ -62,6 +62,7 @@ import {
 import { log } from "../_shared/log.ts";
 import {
   assistantFixture,
+  confusionsFixture,
   fixtureOverride,
   fixtureText,
   gradeFixture,
@@ -515,7 +516,7 @@ async function grade(c: Ctx, body: GradeRequest): Promise<Response> {
 }
 
 async function confusions(c: Ctx, body: ConfusionsRequest): Promise<Response> {
-  return await jsonRoute<ConfusionsResponse>(c, { meter: "extras" }, () => "confusions", async () => {
+  return await jsonRoute<ConfusionsResponse>(c, { meter: "extras" }, () => confusionsFixture(body), async () => {
     c.meta.model = TERRA;
     const res = call(
       c,

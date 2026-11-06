@@ -59,6 +59,7 @@ Deno.test("MOCK: every JSON route answers its fixture byte for byte, with believ
     ["check", { pages: fixtureJson("requests/generate").pages, items: generate.items }, "check", 1500],
     ["grade", fixtureJson("requests/grade"), "grade-partial", 900],
     ["confusions", confusionsBody, "confusions", 1800],
+    ["confusions", { ...confusionsBody, lookAlike: true }, "confusions-lookalike", 1800],
     ["lecture", lectureBody, "lecture", 2500],
     ["cards-from-chat", cardsBody, "cards-from-chat", 1200],
     ["transcribe-image", transcribeBody, "transcribe-image", 1500],

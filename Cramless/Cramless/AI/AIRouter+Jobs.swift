@@ -39,6 +39,32 @@ extension AIRouter {
                                  fellBack: fellBack)
     }
 
+    /// The one difference between two look-alikes, before any mistake: the relay writes it when allowed (it counts on the relay's
+    /// `extras` meter), else the rules set the two side by side. Runs only after the person asked to see it.
+    func lookAlikeLesson(course: String, _ a: LookAlikeSide, _ b: LookAlikeSide) async -> ConfusionsOutcome {
+        let local = ConfusionsOutcome(confusions: [LocalConfusions.sideBySide(a, b)], origin: .rules, model: LocalGrader.model)
+        let route = route(.confusions)
+        guard route.usesCloud, cloudStillAllowed(), let transport else {
+            var quiet = local
+            quiet.suggestion = route.suggestion
+            return quiet
+        }
+        let mistakes = [a, b].map { MistakeInput(itemId: $0.itemID.uuidString, topic: $0.topic, prompt: $0.prompt, expected: $0.answer, given: "", misses: 0) }
+        do {
+            let response = try await transport.confusions(ConfusionsRequest(course: course, mistakes: mistakes, lookAlike: true).fitted())
+            let known = Set(mistakes.map(\.itemId))
+            if var lesson = response.confusions.first(where: { !$0.lesson.isEmpty && !Set($0.itemIds).isDisjoint(with: known) }) {
+                lesson.itemIds = lesson.itemIds.filter { known.contains($0) }
+                return ConfusionsOutcome(confusions: [lesson], origin: .cloud, model: response.model)
+            }
+        } catch {
+            var fallen = local
+            fallen.fellBack = true
+            return fallen
+        }
+        return local
+    }
+
     // MARK: Lecture notes
 
     /// Notes, flagged moments and draft questions for a recorded lecture. The relay writes them when allowed; on

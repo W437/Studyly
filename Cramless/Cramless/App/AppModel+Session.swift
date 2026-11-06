@@ -55,10 +55,22 @@ extension AppModel {
     /// Cap's note on Today: the open confusion with the most misses (most recent first on a tie), unless the
     /// person said "Later" to it today.
     func todayConfusionNote() -> ConfusionNote? {
-        let open = fetch(FetchDescriptor<Confusion>(predicate: #Predicate { $0.deletedAt == nil }))
-            .filter { $0.status == .open && $0.course?.deletedAt == nil && !isConfusionSnoozed($0.id) }
+        openConfusionNotes().first { !isConfusionSnoozed($0.id) }
+    }
+
+    /// Open mix-ups in live courses, the most missed first (the most recent first on a tie), each with its recent answers: what the
+    /// mix-up cards are made from.
+    func openConfusionNotes(limit: Int = 5) -> [ConfusionNote] {
+        openConfusions().prefix(limit).map(confusionNote)
+    }
+
+    func openConfusions() -> [Confusion] {
+        fetch(FetchDescriptor<Confusion>(predicate: #Predicate { $0.deletedAt == nil }))
+            .filter { $0.status == .open && $0.course?.deletedAt == nil }
             .sorted { ($0.missCount, $0.lastSeenAt) > ($1.missCount, $1.lastSeenAt) }
-        guard let confusion = open.first else { return nil }
+    }
+
+    func confusionNote(_ confusion: Confusion) -> ConfusionNote {
         let recent = recentAnswers(itemIDs: confusion.itemIDs, limit: 4)
         return ConfusionNote(id: confusion.id, name: confusion.name, missCount: confusion.missCount,
                              recentMisses: recent.filter { !$0.wasCorrect }.count, recentAnswers: recent.count)
@@ -86,20 +98,13 @@ extension AppModel {
 
     // MARK: - Confusions
 
-    private static let snoozeKey = "capling.study.confusionSnooze"
-
     /// "Later" on Cap's note: the confusion stays open and comes back tomorrow.
     func snoozeConfusion(_ id: UUID) {
-        var snoozed = defaults.dictionary(forKey: Self.snoozeKey) as? [String: String] ?? [:]
-        let today = calendar.dayKey(for: now)
-        snoozed = snoozed.filter { $0.value == today }
-        snoozed[id.uuidString] = today
-        defaults.set(snoozed, forKey: Self.snoozeKey)
+        snoozeNotice(NoticeEngine.mixUpID(id))
     }
 
     func isConfusionSnoozed(_ id: UUID) -> Bool {
-        let snoozed = defaults.dictionary(forKey: Self.snoozeKey) as? [String: String] ?? [:]
-        return snoozed[id.uuidString] == calendar.dayKey(for: now)
+        noticeLedger.snoozed.contains(NoticeEngine.mixUpID(id))
     }
 
     /// "Not a mix-up": it isn't offered again (the finder skips dismissed groups).
@@ -160,12 +165,22 @@ extension AppModel {
         }
     }
 
-    /// Names and explains a candidate (the offline rules at once; Cloud AI when allowed). Nothing is saved.
+    /// Names and explains a candidate by the offline rules alone, at once. What the summary shows before any tap: no AI is asked.
+    func explainByRules(_ candidate: ConfusionCandidate) -> (explained: ConfusionOut?, origin: ItemOrigin) {
+        let ids = Set(candidate.itemIDs.map(\.uuidString))
+        return (LocalConfusions.find(mistakeInputs(for: candidate)).first { !ids.isDisjoint(with: $0.itemIds) }, .rules)
+    }
+
+    /// Names and explains a candidate (Cloud AI when allowed, else the rules). Runs only after "Fix it now", and gives up on the cloud
+    /// after `AppModel.lessonWait`. Nothing is saved.
     func explainConfusion(_ candidate: ConfusionCandidate) async -> (explained: ConfusionOut?, origin: ItemOrigin) {
         let inputs = mistakeInputs(for: candidate)
         guard !inputs.isEmpty else { return (nil, .rules) }
-        let outcome = await ai.confusions(course: course(candidate.courseID)?.name ?? "", mistakes: inputs,
-                                          anchorTexts: anchorTexts(for: candidate))
+        let course = course(candidate.courseID)?.name ?? ""
+        let anchors = anchorTexts(for: candidate)
+        let outcome = await Self.withinLessonWait(fallback: ConfusionsOutcome(confusions: LocalConfusions.find(inputs), origin: .rules, model: LocalGrader.model)) {
+            await self.ai.confusions(course: course, mistakes: inputs, anchorTexts: anchors)
+        }
         let ids = Set(candidate.itemIDs.map(\.uuidString))
         return (outcome.confusions.first { !ids.isDisjoint(with: $0.itemIds) }, outcome.origin)
     }
@@ -313,14 +328,4 @@ extension AppModel {
         finishSession(session)
     }
     #endif
-}
-
-/// Cap's note on Today about the top open confusion.
-struct ConfusionNote: Equatable, Sendable, Identifiable {
-    var id: UUID
-    var name: String
-    var missCount: Int
-    /// Wrong answers among the latest answers to its items, and how many answers that was.
-    var recentMisses: Int
-    var recentAnswers: Int
 }

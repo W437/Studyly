@@ -3,7 +3,7 @@
 // with believable latency. The tutor replays its script's delays. Real-mode output processing (anchor filtering)
 // doesn't apply: the fixtures are the reference answers.
 
-import type { AssistantRequest, GradeRequest, TutorRequest } from "./contract.ts";
+import type { AssistantRequest, ConfusionsRequest, GradeRequest, TutorRequest } from "./contract.ts";
 import { FIXTURES } from "./generated.ts";
 
 /** How long each route "thinks" in MOCK mode. */
@@ -43,6 +43,11 @@ export function gradeFixture(req: GradeRequest): "grade-correct" | "grade-partia
     ).length;
   if (req.keyIdeas.length > 0 && hit === req.keyIdeas.length) return "grade-correct";
   return hit > 0 ? "grade-partial" : "grade-incorrect";
+}
+
+/** A look-alike pair gets the lesson on its one difference, anything else the mix-ups. */
+export function confusionsFixture(req: ConfusionsRequest): "confusions" | "confusions-lookalike" {
+  return req.lookAlike ? "confusions-lookalike" : "confusions";
 }
 
 /** Hints first (always for a minor), else the explaining script. */

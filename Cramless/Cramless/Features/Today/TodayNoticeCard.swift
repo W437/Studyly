@@ -1,10 +1,13 @@
 import SwiftUI
 
-/// "Cap noticed": one of Cap's cards (`CapNotice`) at a time, with "1 of N" when more wait behind it, its one action and "Later"
-/// (until tomorrow). Today shows the first of `AppModel.todayNotices()`; in Stage 1 they are the open mix-ups.
+/// "Cap noticed": one of Cap's cards (`CapNotice`) at a time, with "2 of 3" when there are others today, its one action, "Later" (until
+/// tomorrow) and what the button costs. Today shows the first of `AppModel.todayNotices()`. The menu's "Don't show these" switches the
+/// kind off (Settings ▸ Study turns it on again). "Plan updated" (after "Fix my week") has "OK" and Undo instead.
 ///
-/// DEBUG: `CRAMLESS_TODAY_NOTICES=0|1|2|3` deals that many (see `TodaySnapshot`), `CRAMLESS_TODAY_LATER=<ms>` presses Later that long
-/// after launch (`TodayView`).
+/// DEBUG: `CRAMLESS_TODAY_NOTICES=0|1|2|3` deals that many (see `TodaySnapshot`), `CRAMLESS_NOTICES=mixup,lookalike,fading,back,mock|all|none`
+/// shapes the world so the real engine finds them and `CRAMLESS_NOTICE_STATE=second|later|done|allLater` puts them part way through the
+/// day (`AppModel+NoticeHarness`); `CRAMLESS_TODAY_LATER=<ms>` presses Later and `CRAMLESS_NOTICE_TAP=<ms>` the button, that long after
+/// launch (`TodayView`).
 struct TodayNoticeCard: View {
     let notice: CapNotice
     /// Its place among today's cards, from 1, and how many there are.
@@ -13,6 +16,7 @@ struct TodayNoticeCard: View {
     var onAction: (CapNotice.Action) -> Void
     var onLater: () -> Void
     var onOpen: (CapNotice.Link) -> Void
+    var onHide: () -> Void = {}
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
@@ -20,30 +24,26 @@ struct TodayNoticeCard: View {
             VStack(alignment: .leading, spacing: 4) {
                 HStack(alignment: .firstTextBaseline) {
                     CLEyebrow(text: "Cap noticed", color: CLColor.tangerineInk)
+                        .accessibilityHidden(true)
                     Spacer(minLength: 8)
-                    if total > 1 {
+                    if total > 1, !notice.isConfirmation {
                         Text(verbatim: TodayCopy.noticeCount(index, of: total))
                             .clFont(.footnoteEmphasis)
                             .foregroundStyle(CLColor.ink3)
                             .monospacedDigit()
+                            .accessibilityHidden(true)
                     }
+                    if !notice.isConfirmation { menu }
                 }
-                .accessibilityHidden(true)
+                // The menu's hit area reaches over the title's first line; it stays on top.
+                .zIndex(1)
                 titleView
                 Text(verbatim: notice.detail)
                     .clFont(.subheadline)
                     .foregroundStyle(CLColor.ink2)
                     .fixedSize(horizontal: false, vertical: true)
-                ReflowStack(verticalAlignment: .center, spacing: 6) {
-                    if let action = notice.action {
-                        Button(action.title) { onAction(action) }
-                            .buttonStyle(.cl(.dark, size: .medium, fullWidth: false))
-                    }
-                    Button("Later", action: onLater)
-                        .buttonStyle(.cl(.ghost, size: .medium, fullWidth: false))
-                        .accessibilityHint("Cap brings it up tomorrow")
-                }
-                .padding(.top, 10)
+                buttons
+                    .padding(.top, 10)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
@@ -51,6 +51,71 @@ struct TodayNoticeCard: View {
         .accessibilityElement(children: .contain)
         .accessibilityLabel(Text(verbatim: total > 1 ? "\(String(localized: "Cap noticed")), \(TodayCopy.noticeCount(index, of: total))"
                                  : String(localized: "Cap noticed")))
+    }
+
+    /// A button's words are never cut: what it costs goes beside the buttons when all of it fits, and under them when it doesn't.
+    @ViewBuilder private var buttons: some View {
+        if notice.isConfirmation {
+            ReflowStack(verticalAlignment: .center, spacing: 6) {
+                Button("OK", action: onLater)
+                    .buttonStyle(.cl(.dark, size: .medium, fullWidth: false))
+                if let action = notice.action {
+                    Button(action.title) { onAction(action) }
+                        .buttonStyle(.cl(.ghost, size: .medium, fullWidth: false))
+                        .accessibilityHint("Takes the minutes off your plan")
+                }
+            }
+        } else {
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 6) {
+                    actionButtons
+                    costCaption.padding(.leading, 2)
+                }
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 6) { actionButtons }
+                    costCaption
+                }
+                VStack(alignment: .leading, spacing: 6) {
+                    actionButtons
+                    costCaption
+                }
+            }
+        }
+    }
+
+    @ViewBuilder private var actionButtons: some View {
+        if let action = notice.action {
+            Button(action.title) { onAction(action) }
+                .buttonStyle(.cl(.dark, size: .medium, fullWidth: false))
+        }
+        Button("Later", action: onLater)
+            .buttonStyle(.cl(.ghost, size: .medium, fullWidth: false))
+            .accessibilityHint("Cap brings it up tomorrow")
+    }
+
+    @ViewBuilder private var costCaption: some View {
+        if let cost = notice.cost {
+            Text(verbatim: cost)
+                .clFont(.caption)
+                .foregroundStyle(CLColor.ink3)
+        }
+    }
+
+    /// The menu's hit area is a full 44 points; the negative padding keeps it from making the card's top row taller.
+    private var menu: some View {
+        Menu {
+            Button("Don't show these", systemImage: "eye.slash", action: onHide)
+        } label: {
+            Image(systemName: "ellipsis")
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(CLColor.ink3)
+                .frame(width: CLMetrics.minHitTarget, height: CLMetrics.minHitTarget)
+                .contentShape(Rectangle())
+        }
+        .padding(.vertical, -14)
+        .padding(.trailing, -12)
+        .padding(.leading, -8)
+        .accessibilityLabel("More")
     }
 
     @ViewBuilder private var titleView: some View {

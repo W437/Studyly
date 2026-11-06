@@ -438,6 +438,21 @@ Deno.test("lecture: leftOut is cleaned to a whole number from 1 to 99, and nothi
   }
 });
 
+Deno.test("a look-alike request may say so: a boolean, or nothing at all", () => {
+  const mistake = {
+    itemId: "i7",
+    topic: "Phases",
+    prompt: "Which phase?",
+    expected: "Metaphase",
+    given: "",
+    misses: 0,
+  };
+  const schema = requestSchema("ConfusionsRequest");
+  assertEquals(validate(schema, { course: "Bio", mistakes: [mistake] }).length, 0, "old apps send nothing");
+  assertEquals(validate(schema, { course: "Bio", mistakes: [mistake], lookAlike: true }).length, 0);
+  assert(validate(schema, { course: "Bio", mistakes: [mistake], lookAlike: "yes" }).length > 0);
+});
+
 Deno.test("lecture, confusions, cards and transcription replies are cleaned too", async () => {
   const provider = new ScriptedProvider();
   const r = rig({ provider });

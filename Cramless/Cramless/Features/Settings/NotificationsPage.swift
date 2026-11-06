@@ -25,6 +25,8 @@ struct NotificationsPage: View {
                 kind("graduationcap", .sky, "Exam countdowns", "A week before an exam, and the evening before")
                 kind("flame", .rose, "Streak", "At 8:30 PM when a streak of 3 days or more isn't done yet")
                 kind("bell", .sun, "Free trial", "Two days before a free week ends, so you're never charged by surprise")
+                SettingsToggleRow(title: "Cap noticed", subtitle: "In the week before an exam, one a day at most, instead of that day's reminder.",
+                                  isOn: Binding(get: { app.settings.notices.notify }, set: { app.settings.notices.notify = $0 }))
             }
             CLList {
                 NavigationLink(value: Route.settingsPage(.study)) {
