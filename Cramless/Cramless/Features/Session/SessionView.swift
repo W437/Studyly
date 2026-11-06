@@ -388,7 +388,48 @@ struct SessionQuestionHost: View {
         // Not clipped: the answer panel's fill runs on past this frame, under the home indicator, to the screen's
         // bottom edge.
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .onChange(of: app.recheckDelivery) { _, delivery in
+            if let delivery { act(on: delivery) }
+        }
+        #if DEBUG
+        .task { await openLooksWrongHook() }
+        #endif
     }
+
+    /// "Looks wrong?" came out while this question is open. A question that was wrong counts as right; one that went to Cap, or out, leaves this
+    /// session with nothing recorded; one the page agrees with stays as it was graded.
+    private func act(on delivery: RecheckDelivery) {
+        guard let entry = runner.current, entry.itemID == delivery.itemID else { return }
+        switch delivery.result {
+        case .fixed:
+            app.takeRecheckDelivery()
+            runner.record(rating: .good, score: 1, answer: delivery.given, gradedBy: "cloud",
+                          durationMs: min(runner.elapsedMs(), 60_000), outcome: .right)
+            withAnimation(CLMotion.settle) { runner.advance() }
+        case .stands:
+            app.takeRecheckDelivery()
+        case .retired, .needsEdit, .queued:
+            app.takeRecheckDelivery()
+            withAnimation(CLMotion.settle) { runner.skipWithoutRecording() }
+        case .regrade:
+            break // The own-words view runs it: the grade is its own.
+        }
+    }
+
+    #if DEBUG
+    /// `CRAMLESS_LOOKSWRONG=sheet|checking|fixed|stands|retired|queued`, with `CRAMLESS_SESSION_STATE=mcq-answered CRAMLESS_SESSION_PICK=wrong`
+    /// (or any answered state): opens the sheet over the first question, in that state (`LooksWrongSheet`).
+    private func openLooksWrongHook() async {
+        guard TestHarness.value("CRAMLESS_LOOKSWRONG") != nil,
+              !Self.didOpenLooksWrongHook else { return }
+        Self.didOpenLooksWrongHook = true
+        try? await nap(1600)
+        guard let entry = runner.current else { return }
+        app.router.present(.looksWrong(itemID: entry.itemID, given: TestHarness.value("CRAMLESS_SESSION_ANSWER") ?? "Metaphase"))
+    }
+
+    private static var didOpenLooksWrongHook = false
+    #endif
 
     /// The way a question comes and goes: on from the trailing edge, back from the leading edge after an Undo, rising in place when the
     /// flashcard before it flew off by a swipe; a fade under Reduce Motion.

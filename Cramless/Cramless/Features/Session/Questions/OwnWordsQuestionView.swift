@@ -135,6 +135,12 @@ struct OwnWordsQuestionView: View {
             }
         }
         .sessionFooter(feedback: panel, primary: { footer }, secondary: { secondary })
+        // "My answer should count" from the sheet: the grader looks again.
+        .onChange(of: app.recheckDelivery) { _, delivery in
+            guard let delivery, delivery.itemID == item.id, delivery.result == .regrade else { return }
+            app.takeRecheckDelivery()
+            gradeAgain()
+        }
         .onChange(of: text) { _, new in
             guard submitted == nil else { return }
             let typed = !new.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -553,6 +559,7 @@ struct OwnWordsQuestionView: View {
                 .buttonStyle(.cl(.soft, size: .medium))
                 .disabled(regrading)
             }
+            if runner.offersLooksWrong { LooksWrongButton(item: item, given: submitted) }
         } else {
             Button("I don't know yet") {
                 text = ""

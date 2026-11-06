@@ -19,6 +19,8 @@ extension AppModel {
         ai.clearSuggestion()
         // The account the relay needs is made now, in the background, so the first cloud job finds it ready.
         if settings.ageBand != .under13 { account.prepare() }
+        // Questions reported before this can be checked now.
+        Task { await runPendingRechecks() }
     }
 
     /// Settings ▸ AI and privacy ▸ Cloud AI off: nothing more is sent, and photos go off with it.

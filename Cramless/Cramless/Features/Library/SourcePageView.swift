@@ -14,6 +14,8 @@ struct SourcePageView: View {
     let sourceID: UUID
     let pageIndex: Int
     let highlight: [String]
+    /// Brings its own close: shown over a sheet that isn't the router's.
+    var closes = false
 
     @Environment(AppModel.self) private var app
     @Environment(\.dismiss) private var dismiss
@@ -23,10 +25,11 @@ struct SourcePageView: View {
     @State private var zoomed = false
     @State private var revealed = false
 
-    init(sourceID: UUID, pageIndex: Int, highlight: [String]) {
+    init(sourceID: UUID, pageIndex: Int, highlight: [String], closes: Bool = false) {
         self.sourceID = sourceID
         self.pageIndex = pageIndex
         self.highlight = highlight
+        self.closes = closes
         _shown = State(initialValue: pageIndex)
     }
 
@@ -119,7 +122,7 @@ struct SourcePageView: View {
         .navigationSubtitle(source.title)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            if isCoverRoot {
+            if closes || isCoverRoot {
                 ToolbarItem(placement: .topBarLeading) {
                     Button(role: .close) { dismiss() }
                 }

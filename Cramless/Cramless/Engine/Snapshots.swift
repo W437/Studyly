@@ -14,10 +14,12 @@ struct ItemSnapshot: Sendable, Hashable, Identifiable {
     var createdAt: Date
     /// The generator's difficulty guess, 0 (easy) … 1 (hard).
     var difficultyHint: Double
+    /// The student said it looks wrong and Cap hasn't settled it: out of sessions, still in readiness.
+    var reported: Bool
 
     init(id: UUID = UUID(), kind: ItemKind = .flashcard, topicID: UUID? = nil, courseID: UUID? = nil,
          memory: MemoryState = .new, status: ItemStatus = .active, createdAt: Date = .distantPast,
-         difficultyHint: Double = 0.5) {
+         difficultyHint: Double = 0.5, reported: Bool = false) {
         self.id = id
         self.kind = kind
         self.topicID = topicID
@@ -26,6 +28,7 @@ struct ItemSnapshot: Sendable, Hashable, Identifiable {
         self.status = status
         self.createdAt = createdAt
         self.difficultyHint = difficultyHint
+        self.reported = reported
     }
 
     var lapses: Int { memory.lapses }

@@ -296,14 +296,17 @@ struct DiagramQuestionView: View {
     }
 
     @ViewBuilder private var secondary: some View {
-        if let grade, !grade.isCorrect {
-            Button {
-                CLHaptics.tap()
-                app.router.present(.explain(itemID: item.id, given: givenLabels.joined(separator: ", ")))
-            } label: {
-                Label("Explain my mistake", systemImage: "bubble.left")
+        if let grade {
+            if !grade.isCorrect {
+                Button {
+                    CLHaptics.tap()
+                    app.router.present(.explain(itemID: item.id, given: givenLabels.joined(separator: ", ")))
+                } label: {
+                    Label("Explain my mistake", systemImage: "bubble.left")
+                }
+                .buttonStyle(.cl(.soft, size: .medium))
             }
-            .buttonStyle(.cl(.soft, size: .medium))
+            if runner.offersLooksWrong { LooksWrongButton(item: item, given: givenLabels.joined(separator: ", ")) }
         }
     }
 

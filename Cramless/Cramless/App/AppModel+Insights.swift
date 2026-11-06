@@ -420,7 +420,7 @@ extension AppModel {
 extension ItemSnapshot {
     init(_ item: StudyItem, courseID: UUID?) {
         self.init(id: item.id, kind: item.kind, topicID: item.topicID, courseID: courseID, memory: item.memory,
-                  status: item.status, createdAt: item.createdAt, difficultyHint: item.difficultyHint)
+                  status: item.status, createdAt: item.createdAt, difficultyHint: item.difficultyHint, reported: item.reported)
     }
 }
 
