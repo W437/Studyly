@@ -71,6 +71,7 @@ struct HeroWorld: View {
             world
             if let cap {
                 CapView(cap, size: geometry.capSize, refreshed: capCheer)
+                    .environment(\.capSpeaksBeside, geometry.style == .band)
                     .padding(.leading, 6)
                     .padding(.bottom, 2)
             }

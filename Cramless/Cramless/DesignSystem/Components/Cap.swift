@@ -201,6 +201,11 @@ struct MotionCurve: Sendable {
 
 /// What Cap does at a moment: the pose it means, the motion that plays when the moment arrives, sparkles, and how
 /// it waits. `docs/design.md` ▸ Cap has the table.
+extension EnvironmentValues {
+    /// Cap's bubble sits beside him rather than over his head, for a place too short for words above him.
+    @Entry var capSpeaksBeside = false
+}
+
 /// A line a screen has Cap say at a moment it chose: `id` rises with each new one, so the same words can be said twice.
 struct CapScriptedLine: Equatable, Sendable {
     var id: Int
@@ -287,6 +292,7 @@ struct CapView: View {
     /// Where he and his bubble are, while he is talking, so the bubble can stay on screen.
     @State private var capMidX: CGFloat = 0
     @State private var bubbleSize: CGSize = .zero
+    @Environment(\.capSpeaksBeside) private var speaksBeside
     @Environment(\.clReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
 
@@ -508,17 +514,24 @@ struct CapView: View {
             CapBubble(text: line.text, tail: -speechShift)
                 .onGeometryChange(for: CGSize.self) { $0.size } action: { bubbleSize = $0 }
                 .frame(width: 320)
-                .offset(x: speechShift, y: -(bubbleSize.height + 2) + size * 0.1)
+                .offset(x: speechShift, y: speechLift)
                 .opacity(bubbleSize.width > 0 && capMidX != 0 ? 1 : 0)
                 .transition(reduceMotion ? .opacity : .scale(scale: 0.55, anchor: .bottom).combined(with: .opacity))
                 .id(line.id)
         }
     }
 
-    /// How far the bubble moves from over his head to stay inside the screen.
+    /// How far the bubble moves from over his head to stay inside the screen. Beside him (a short band, where words over his
+    /// head would cover the greeting) it starts just past his middle, so its tail still points at him.
     private var speechShift: CGFloat {
         guard bubbleSize.width > 0 else { return 0 }
-        return CGFloat(CapSpeech.shift(capMidX: Double(capMidX), bubbleWidth: Double(bubbleSize.width), screenWidth: Double(CapScreen.width)))
+        let beside = speaksBeside ? bubbleSize.width / 2 + size * 0.12 : 0
+        return beside + CGFloat(CapSpeech.shift(capMidX: Double(capMidX + beside), bubbleWidth: Double(bubbleSize.width), screenWidth: Double(CapScreen.width)))
+    }
+
+    /// How far the bubble rises: its tail just over his head, or level with his head when it sits beside him.
+    private var speechLift: CGFloat {
+        speaksBeside ? -bubbleSize.height + size * 0.42 : -(bubbleSize.height + 2) + size * 0.1
     }
 }
 
