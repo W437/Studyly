@@ -204,7 +204,11 @@ sleep 4; xcrun simctl io <udid> screenshot shot.png
   - Capture: `CRAMLESS_CAPTURE_PHASE=reading|ideas|writing|checking|done|review|error:<kind>`,
     `CRAMLESS_CAPTURE_INPUT=photo|text`, `CRAMLESS_REVIEW_EDIT|UNTICK|SCROLL|PEEK|APPROVE|ALLOW`,
     `CRAMLESS_RECORD_FLAG|PAUSE|STOP`, `CRAMLESS_NOTES_FOCUS`, `CRAMLESS_IMPORT`, `CRAMLESS_PASTE_TEXT`,
-    `CRAMLESS_CANVAS=375x667` (SE size).
+    `CRAMLESS_CANVAS=375x667` (SE size). A lecture's notes (`CRAMLESS_ROUTE=lectureNotes`): `CRAMLESS_NOTES_FOCUS=<s>` opens cued on that moment
+    ("Play from …"), `CRAMLESS_LECTURE_PLAY=<s>` opens playing from it (the seeded lecture has no audio: `DemoLecturePlayback` runs the clock, silently).
+  - A source page: `CRAMLESS_ROUTE=sourcePage` zooms to a question's lines and circles them (`PageFocus`), `sourcePage:<n>` is that page of the first
+    source, `sourcePage:text` a typed page (it scrolls to the lines, then circles them), `CRAMLESS_PAGE_ANCHORS=p0.l3,p0.l9` names the lines (across
+    columns: no zoom, a circle each), `CRAMLESS_PAGE_FOCUS=0` keeps the old look (marks only).
   - Library and exams: `CRAMLESS_SCENARIO=eve|past|graded|missed|repair|thin|calibrated|ontrack|crowded|empty|bright|mocked|fewItems` (each documented in
     `AppModel.applyHarnessScenario`; `calibrated` logs two past grades so the letter shows; `bright`: nothing is fading), `CRAMLESS_SCROLL=<section>`,
     `CRAMLESS_SEARCH=<words>`, `CRAMLESS_GRADE=<n>`. `CRAMLESS_ROUTE=course:<n>` opens the nth course (`course:3` is Spanish II,
