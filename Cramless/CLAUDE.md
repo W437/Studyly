@@ -58,7 +58,7 @@ DERIVED=build-x scripts/xc.sh build                   # another derived-data fol
     - The game loop (quests, badges, skies, icons, celebrations): `GameEngineTests`, `GameAppModelTests`, `GameRenderTests`,
       `CelebrationTests`. Cap and the feel: `CapClipTests`, `CapTouchTests`, `FeelTests`.
     - Progress, exams, library: `ProgressPresentationTests`, `ExamPresentationTests`, `Library*Tests`, `DraftTests`,
-      `StudyAppModelTests`, `StudyDemoWorldTests`.
+      `StudyAppModelTests`, `StudyDemoWorldTests`. An exam's scope: `SyllabusTests`, `ExamGapTests`, and `ExamDateFinderTests` (in `LectureTests.swift`).
     - Capture, imports, lectures: `Capture*Tests`, `Import*Tests`, `OCRTests`, `GeneratorTests`, `LectureTests`, `AILectureTests`.
     - Ask Cap and the AI layer (`AI/`): `Ask*Tests`, `AssistantTests`, `TutorTests`, `GraderTests`, `AITransportTests`,
       `AISSEParserTests`, `AIOnDeviceTests`, `RelayContractTests`.
@@ -179,7 +179,7 @@ sleep 4; xcrun simctl io <udid> screenshot shot.png
     simulator for iOS 27; no status-bar inset); `CRAMLESS_TODAY_TYPE=xxxl|ax1…ax5` draws Today at that text size without changing
     the simulator's own setting (others may share it). Routes `todayWhy`, `quests` (the sheets) and `skyList` (the sky as a list,
     "Study something else"); `streak` shows the month with exams and eves marked.
-  - Cap's cards, from the real engine (`App/AppModel+NoticeHarness.swift`): `CRAMLESS_NOTICES=mixup,lookalike,fading,back,mock|all|none` shapes the demo world so those kinds and no others fire
+  - Cap's cards, from the real engine (`App/AppModel+NoticeHarness.swift`): `CRAMLESS_NOTICES=mixup,lookalike,fading,back,mock,gap,lecturedate|all|none` shapes the demo world so those kinds and no others fire
     (`lookalike`: the Bio midterm 9 days out; `fading`: 6 days out with its questions 20 days overdue, and 30 more own-words ones added so a session can't hold them; `back`: 8 days away after a 23-day run; `mock`: the Bio midterm 5 days out); `CRAMLESS_NOTICE_STATE=second|later|done|allLater`
     puts the deck part way through the day (`done`: "Plan updated"). `CRAMLESS_ROUTE=lookAlike` opens the sheet on the best pair, `CRAMLESS_LOOKALIKE=rules|cloud|writing` holds its lesson in that state.
     `CRAMLESS_ROUTE=settings:notifications CRAMLESS_NOTICES=fading` shows the ping in the page's planned list.
@@ -212,11 +212,12 @@ sleep 4; xcrun simctl io <udid> screenshot shot.png
     `CRAMLESS_CAPTURE_INPUT=photo|text`, `CRAMLESS_REVIEW_EDIT|UNTICK|SCROLL|PEEK|APPROVE|ALLOW`,
     `CRAMLESS_RECORD_FLAG|PAUSE|STOP`, `CRAMLESS_NOTES_FOCUS`, `CRAMLESS_IMPORT`, `CRAMLESS_PASTE_TEXT` (`sample`, or `long`: about 21 pages),
     `CRAMLESS_CANVAS=375x667` (SE size).
-  - Library and exams: `CRAMLESS_SCENARIO=eve|past|graded|missed|repair|thin|calibrated|ontrack|crowded|empty|bright|mocked|fewItems` (each documented in
+  - Library and exams: `CRAMLESS_SCENARIO=eve|past|graded|missed|repair|thin|calibrated|ontrack|crowded|empty|bright|mocked|fewItems|gap` (each documented in
     `AppModel.applyHarnessScenario`; `calibrated` logs two past grades so the letter shows; `bright`: nothing is fading), `CRAMLESS_SCROLL=<section>`,
     `CRAMLESS_SEARCH=<words>`, `CRAMLESS_GRADE=<n>`. `CRAMLESS_ROUTE=course:<n>` opens the nth course (`course:3` is Spanish II,
     with no exam), `CRAMLESS_COURSE_TAB=topics|sources|questions` on that tab, `CRAMLESS_COURSE_FILTER=attention|suspended|<kind>|topic:<n>` with Questions filtered, `CRAMLESS_SCROLL=tabs` with the tabs at the top; `CRAMLESS_ROUTE=exam:<n>` the nth upcoming exam, and `CRAMLESS_EXAM_SKIP=1` opens it with "What if I skip …?" on.
     The exam page's numbers are pinned with `CRAMLESS_NOW=2026-11-06T14:00:00-05:00` (the Chem quiz on Sunday at 10:00).
+  - An exam's scope: `CRAMLESS_ROUTE=syllabus[:new|edit]` opens the exam editor on "Snap the syllabus" (`edit`, the default: the Bio midterm); `CRAMLESS_SYLLABUS=pick|reading|proposal|offline|applied|error:unreadable|nothing|nodate|notopics` holds a state, from a sample syllabus (`SyllabusSample`, the same page as `fixtures/requests/syllabus.json`): `proposal`, what Cloud AI reads (the mock relay); `offline`, this iPhone's rules; `applied`, the editor once "Looks right" has filled it. The gap: `CRAMLESS_ROUTE=exam:1 CRAMLESS_SCENARIO=gap` the exam page's card (one topic with drafts waiting), `CRAMLESS_GAP=sheet|research` opens "Fill the gap" over it (`research` also runs the web research: with `CRAMLESS_PLAN=pro`; `CRAMLESS_RESEARCH=pro` is the relay refusing a free account), `CRAMLESS_NOTICES=gap` Cap's card on Today. A date heard in class: `CRAMLESS_ROUTE=lectureNotes CRAMLESS_EXAM_HEARD=new|known|moved|added` makes Lecture 6 say one (`added`: "Add the exam" pressed), `CRAMLESS_NOTICES=lecturedate` Cap's card.
   - Ask, Settings and Squad: `CRAMLESS_ASK`, `CRAMLESS_ASK_MODE=open` (Cap's style open in the composer), `CRAMLESS_CHAT`, `CRAMLESS_AGE`, `CRAMLESS_TUTOR`, `CRAMLESS_CARDS`,
     `CRAMLESS_SYNC`, `CRAMLESS_NOTIFY`, `CRAMLESS_SQUAD`, `CRAMLESS_ACCOUNT=apple|email`.
   - Explain my mistake: `CRAMLESS_ROUTE=explain`, `CRAMLESS_EXPLAIN_STEP=1|2|3` (that step, once the answer has reached it), `CRAMLESS_EXPLAIN=card|added|followup` (step 3 with "Make this a card" drafted, or added, or the follow-up composer open). `CRAMLESS_MOCK_LATENCY` slows the reply, to see the pages unlock.
