@@ -313,6 +313,95 @@ final class StudyAppModelTests: XCTestCase {
         XCTAssertGreaterThan(today.plannedMinutes, 0)
     }
 
+    /// Two exams share one daily goal: the sooner exam takes what it needs first and the later one gets what's left; on the
+    /// sooner exam's eve, the eve keeps its 10 minutes and the later exam waits.
+    func testTwoExamsShareTheDailyGoal() throws {
+        let bio = makeCourse("Bio 101"), chem = makeCourse("Chem 110")
+        let overdue = MemoryState(state: .review, stability: 1, difficulty: 6, due: cal.adding(days: -2, to: clock.now),
+                                  lastReview: cal.adding(days: -3, to: clock.now), reps: 3)
+        for _ in 0..<80 { makeItem(in: bio, kind: .mcq, memory: overdue) }
+        for _ in 0..<80 { makeItem(in: chem, kind: .mcq, memory: overdue) }
+        let quiz = Exam(course: chem, title: "Quiz", date: cal.adding(days: 3, to: clock.now), now: clock.now)
+        let midterm = Exam(course: bio, title: "Midterm", date: cal.adding(days: 12, to: clock.now), now: clock.now)
+        app.context.insert(quiz)
+        app.context.insert(midterm)
+        app.save()
+
+        let plans = app.examPlans()
+        XCTAssertEqual(plans.map(\.examID), [quiz.id, midterm.id], "soonest first")
+        let goal = Double(app.settings.dailyMinutes * 60)
+        let first = plans[0], second = plans[1]
+        XCTAssertGreaterThan(first.days[0].seconds, 0)
+        for day in second.days where day.kind != .exam {
+            let other = first.days.first { $0.offset == day.offset }
+            if other?.kind == .examEve {
+                XCTAssertEqual(day.seconds, 0, "the quiz's eve: the midterm waits")
+                XCTAssertLessThanOrEqual(other?.seconds ?? 0, PlanBuilder.examEveSeconds + 1e-9)
+            } else {
+                XCTAssertLessThanOrEqual(day.seconds + (other?.seconds ?? 0), goal + 1e-9, "day \(day.offset)")
+            }
+        }
+        // Alone, the midterm would have claimed more of today.
+        let alone = app.planBuilder().plan(for: ExamSnapshot(midterm), items: app.itemSnapshots(in: bio))
+        XCTAssertGreaterThan(alone.days[0].seconds, second.days[0].seconds)
+        // Every screen reads the shared plan.
+        XCTAssertEqual(app.plan(for: midterm), second)
+        let (readiness, plan) = app.readinessAndPlan(for: midterm)
+        XCTAssertEqual(plan, second)
+        XCTAssertEqual(readiness.projected, second.projectedReadiness)
+        XCTAssertEqual(app.readiness(for: midterm), readiness)
+        // What if: a day off has no work; with every day off, the projection is the ring now; the shared plan stays as it was.
+        let skip = app.plan(for: midterm, skipping: [3])
+        XCTAssertTrue(skip.days[3].isSkipped)
+        XCTAssertEqual(skip.days[3].seconds, 0)
+        XCTAssertEqual(skip.days[3].sessionMinutes, 0)
+        let none = app.plan(for: midterm, skipping: Set(0..<12))
+        XCTAssertEqual(none.reviewsPlanned, 0)
+        XCTAssertEqual(none.projectedReadiness, readiness.value, accuracy: 1e-9)
+        XCTAssertLessThan(none.projectedReadiness, second.projectedReadiness)
+        XCTAssertEqual(app.plan(for: midterm), second)
+    }
+
+    /// The summary's ring follows the exam the session serves (the one Today's card names), not the sooner exam among its courses.
+    func testTheTrackedExamIsTheExamTheSessionServes() throws {
+        let bio = makeCourse("Bio 101"), chem = makeCourse("Chem 110")
+        let due = MemoryState(state: .review, stability: 3, difficulty: 5, due: cal.adding(days: -1, to: clock.now),
+                              lastReview: cal.adding(days: -4, to: clock.now), reps: 3)
+        makeItem(in: bio, memory: due)
+        for _ in 0..<6 { makeItem(in: chem, kind: .mcq, memory: due) }
+        let midterm = Exam(course: bio, title: "Midterm", date: cal.adding(days: 4, to: clock.now), now: clock.now)
+        let quiz = Exam(course: chem, title: "Quiz", date: cal.adding(days: 6, to: clock.now), now: clock.now)
+        app.context.insert(midterm)
+        app.context.insert(quiz)
+        app.save()
+        let built = app.buildSession(SessionRequest(kind: .daily))
+        XCTAssertEqual(built.entries.count, 7)
+        XCTAssertEqual(app.sessionFocus(built).examID, quiz.id)
+        XCTAssertEqual(app.trackedExam(for: built)?.id, quiz.id, "the old rule picked the sooner midterm")
+        XCTAssertEqual(app.startSession(built).examID, quiz.id)
+        // A session for one exam keeps it.
+        let eve = app.buildSession(SessionRequest(kind: .examEve, examID: midterm.id))
+        XCTAssertEqual(app.trackedExam(for: eve)?.id, midterm.id)
+    }
+
+    func testNextExamIsTheSoonestStillToCome() throws {
+        let course = makeCourse()
+        let other = makeCourse("Chem 110")
+        let past = Exam(course: course, title: "Quiz 1", date: clock.now.addingTimeInterval(-3600), now: clock.now)
+        let final = Exam(course: course, title: "Final", date: cal.adding(days: 30, to: clock.now), now: clock.now)
+        let midterm = Exam(course: course, title: "Midterm", date: cal.adding(days: 9, to: clock.now), now: clock.now)
+        let elsewhere = Exam(course: other, title: "Quiz", date: cal.adding(days: 2, to: clock.now), now: clock.now)
+        for exam in [past, final, midterm, elsewhere] { app.context.insert(exam) }
+        app.save()
+        XCTAssertEqual(app.nextExam(of: course.id)?.id, midterm.id)
+        midterm.deletedAt = clock.now
+        app.save()
+        XCTAssertEqual(app.nextExam(of: course.id)?.id, final.id)
+        XCTAssertNil(app.nextExam(of: UUID()))
+        clock.advance(31 * 86_400)
+        XCTAssertNil(app.nextExam(of: course.id), "only past exams")
+    }
+
     func testInsightsOnAnEmptyStore() {
         XCTAssertEqual(app.todaySummary().sessionReady, false)
         XCTAssertEqual(app.streak(), StreakState())

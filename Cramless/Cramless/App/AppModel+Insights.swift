@@ -8,7 +8,14 @@ extension AppModel {
     // MARK: Today
 
     /// Today's card: the daily session as it would be built now, and what's done.
-    func todaySummary() -> TodaySummary {
+    func todaySummary() -> TodaySummary { todayPlan().summary }
+
+    /// Today's daily session as it would be built now: the one Today describes and starts.
+    func todayBuiltSession() -> BuiltSession { todayPlan().session }
+
+    /// Today's card and the daily session it describes, built once (Today, the exam page's "Study" and Cap's cards read the same
+    /// session).
+    func todayPlan() -> (summary: TodaySummary, session: BuiltSession) {
         let record = dayRecordSnapshot(for: now)
         let minutesDone = Int((record?.studySeconds ?? 0) / 60)
         let exams = examSnapshots(upcomingOnly: true)
@@ -23,7 +30,20 @@ extension AppModel {
         summary.dueTotal = built.dueTotal
         summary.catchUpDaysToClear = built.catchUp?.daysToClear ?? 0
         summary.examEveExamID = exams.first { calendar.dayDistance(from: now, to: $0.date) == 1 }?.id
-        return summary
+        return (summary, built)
+    }
+
+    /// Which exam a session serves (`SessionFocus`): the exam holding at least 40% of its minutes, its topics and the exams that wait.
+    func sessionFocus(_ session: BuiltSession) -> SessionFocus {
+        SessionFocus.make(session, exams: examSnapshots(upcomingOnly: true))
+    }
+
+    /// Readiness for `exam` once `session` is done ("about 52% after today"): the ring's own function over the session's questions
+    /// at their expected states (`ReadinessEngine.valueAfter`), with the person's first-try rate for new ones.
+    func readinessAfter(_ session: BuiltSession, for exam: ExamSnapshot) -> Double {
+        let items = exam.courseID.flatMap { course($0) }.map { itemSnapshots(in: $0) } ?? []
+        return ReadinessEngine(fsrs: fsrs, calendar: calendar, now: now)
+            .valueAfter(session.entries, exam: exam, items: items, newItemSuccess: studyHabits().newItemSuccess)
     }
 
     /// The daily session's size: the goal, or what's left of it today (at least 5 minutes once some is done).
@@ -34,21 +54,110 @@ extension AppModel {
 
     // MARK: Exams
 
+    /// A course's next exam: its soonest live exam still to come (`date > now`), nil when it has none. The one definition of "the
+    /// next exam" for the Library, the course page and Progress.
+    func nextExam(of courseID: UUID) -> Exam? {
+        let now = self.now
+        return fetch(FetchDescriptor<Exam>(predicate: #Predicate { $0.deletedAt == nil && $0.date > now },
+                                           sortBy: [SortDescriptor(\.date)]))
+            .first { $0.course?.id == courseID && $0.course?.deletedAt == nil }
+    }
+
     /// Readiness for an exam. The ring's number is the mean recall of its questions; the projected grade also knows how much of the
     /// material those questions reach (`coverage(for:)`).
-    func readiness(for exam: Exam) -> ExamReadiness {
+    func readiness(for exam: Exam) -> ExamReadiness { readinessAndPlan(for: exam).readiness }
+
+    /// Readiness and the plan it projects from, read together (the plan is the shared one, `examPlans()`).
+    func readinessAndPlan(for exam: Exam) -> (readiness: ExamReadiness, plan: StudyPlan) {
         let snapshot = ExamSnapshot(exam)
         let items = itemSnapshots(in: exam.course)
-        let plan = planBuilder().plan(for: snapshot, items: items)
-        return ReadinessEngine(fsrs: fsrs, calendar: calendar, now: now).readiness(
+        let plan = self.plan(for: exam)
+        let readiness = ReadinessEngine(fsrs: fsrs, calendar: calendar, now: now).readiness(
             for: snapshot, items: items, topics: topicSnapshots(in: exam.course),
             logs: reviewSnapshots(courseID: exam.course?.id), plan: plan, grade: gradeModel(for: snapshot),
             coverage: coverage(for: exam)?.share)
+        return (readiness, plan)
     }
 
-    /// The exam's day-by-day plan and its projected readiness curve.
+    /// Readiness per topic for an exam, in topic order, without building a plan; each with its practice round's seconds.
+    func topicReadiness(for exam: Exam) -> [TopicReadiness] {
+        ReadinessEngine(fsrs: fsrs, calendar: calendar, now: now).topicReadiness(
+            for: ExamSnapshot(exam), items: itemSnapshots(in: exam.course), topics: topicSnapshots(in: exam.course))
+    }
+
+    /// The exam's day-by-day plan and its projected readiness curve: its share of the daily goal (`examPlans()`); a past exam's
+    /// plan on its own.
     func plan(for exam: Exam) -> StudyPlan {
-        planBuilder().plan(for: ExamSnapshot(exam), items: itemSnapshots(in: exam.course))
+        if let shared = examPlans().first(where: { $0.examID == exam.id }) { return shared }
+        return planBuilder().plan(for: ExamSnapshot(exam), items: itemSnapshots(in: exam.course))
+    }
+
+    /// The exam's plan with days off (day offsets from today, `PlanDay.offset`): "What if I skip Saturday?". The same share of
+    /// each day as `plan(for:)`, nothing on the skipped days.
+    func plan(for exam: Exam, skipping: Set<Int>) -> StudyPlan {
+        var builder = planBuilder()
+        builder.capacity = sharedPlans().capacity[exam.id]
+        builder.skipping = skipping
+        return builder.plan(for: ExamSnapshot(exam), items: itemSnapshots(in: exam.course))
+    }
+
+    /// Every upcoming exam's plan, soonest exam first, sharing one daily goal: each exam is given what the sooner ones leave of
+    /// each day (the easy-day share on easy days; today, what's left of today's goal). An exam's eve keeps its 10 minutes, and
+    /// the later exams wait that day, as Today does on the eve. Cached per revision, hour and settings.
+    func examPlans() -> [StudyPlan] { sharedPlans().plans }
+
+    /// The shared plans and the seconds each exam was given per day offset.
+    func sharedPlans() -> ExamPlanCache.Plans {
+        let exams = examSnapshots(upcomingOnly: true)
+        let key = ExamPlanCache.Key(revision: revision, hour: Int((now.timeIntervalSinceReferenceDate / 3600).rounded(.down)),
+                                    dailyMinutes: settings.dailyMinutes, easyDays: settings.easyDays,
+                                    retention: settings.targetRetention, examIDs: exams.map(\.id))
+        if let cached = examPlanCache.plans, cached.key == key { return cached.value }
+        let builder = planBuilder()
+        let today = calendar.dayNumber(for: now)
+        let goal = Double(settings.dailyMinutes * 60)
+        let doneToday = dayRecordSnapshot(for: now)?.studySeconds ?? 0
+        /// The day's goal in seconds: the easy-day share on easy days, and today only what's left of it.
+        func dayGoal(_ offset: Int) -> Double {
+            let base = builder.isEasyDay(today + offset) ? goal * StudyScheduler.easyDayCapacity : goal
+            return offset == 0 ? max(0, base - doneToday) : base
+        }
+        var left: [Int: Double] = [:]
+        var eves = Set<Int>()
+        var value = ExamPlanCache.Plans()
+        var itemsByCourse: [UUID: [ItemSnapshot]] = [:]
+        for exam in exams {
+            let examDay = calendar.dayNumber(for: exam.date)
+            let days = max(0, examDay - today)
+            var capacity: [Int: Double] = [:]
+            for offset in 0..<days {
+                if offset == days - 1 {
+                    capacity[offset] = PlanBuilder.examEveSeconds
+                } else {
+                    capacity[offset] = eves.contains(offset) ? 0 : left[offset] ?? dayGoal(offset)
+                }
+            }
+            var b = builder
+            b.capacity = capacity
+            let items: [ItemSnapshot]
+            if let c = exam.courseID {
+                if let cached = itemsByCourse[c] { items = cached } else {
+                    items = course(c).map { itemSnapshots(in: $0) } ?? []
+                    itemsByCourse[c] = items
+                }
+            } else {
+                items = []
+            }
+            let plan = b.plan(for: exam, items: items)
+            for day in plan.days where day.kind != .exam {
+                left[day.offset] = max(0, (left[day.offset] ?? dayGoal(day.offset)) - day.seconds)
+            }
+            if days > 0 { eves.insert(days - 1) }
+            value.plans.append(plan)
+            value.capacity[exam.id] = capacity
+        }
+        examPlanCache.plans = (key, value)
+        return value
     }
 
     /// Readiness at the end of each of the last `days` days, oldest first (today: now).
@@ -170,6 +279,30 @@ extension AppModel {
         }
         return finder.candidates(items: infos, logs: logs, existing: confusionSnapshots(), topicNames: topicNames())
     }
+}
+
+// MARK: - The shared plans
+
+/// Every upcoming exam's plan for one revision, hour and set of settings (`AppModel.sharedPlans()`). They are built together, since
+/// each exam's share of a day depends on the sooner exams, and every screen that shows a readiness reads them.
+final class ExamPlanCache {
+    struct Key: Equatable {
+        var revision: Int
+        var hour: Int
+        var dailyMinutes: Int
+        var easyDays: [Int]
+        var retention: Double
+        var examIDs: [UUID]
+    }
+
+    struct Plans {
+        /// Soonest exam first.
+        var plans: [StudyPlan] = []
+        /// The seconds each exam was given, by day offset from today (`PlanBuilder.capacity`).
+        var capacity: [UUID: [Int: Double]] = [:]
+    }
+
+    var plans: (key: Key, value: Plans)?
 }
 
 // MARK: - Snapshots (fetched once per call)

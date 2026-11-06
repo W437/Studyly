@@ -76,4 +76,49 @@ final class StudyDemoWorldTests: XCTestCase {
         XCTAssertFalse(today.weakChips.isEmpty)
         XCTAssertLessThanOrEqual(today.plannedMinutes, 16)
     }
+
+    /// The demo world on Friday 6 Nov 2026, 14:00 New York (`CRAMLESS_NOW=2026-11-06T14:00:00-05:00`): the Chem quiz is on Sunday
+    /// at 10:00. Prints the numbers the exam page and Today show.
+    func testFridayNumbers() throws {
+        let cal = EngineTest.calendar("America/New_York")
+        let clock = TestClock(EngineTest.iso("2026-11-06T19:00:00Z"))
+        let app = try StudyTestApp.make(clock: clock, calendar: cal)
+        SampleData.seed(into: app)
+        let exams = app.upcomingExams()
+        let chem = try XCTUnwrap(exams.first { $0.title == "Chem 110 Quiz" })
+        var lines: [String] = []
+        for exam in exams {
+            let r = app.readiness(for: exam)
+            lines.append("\(exam.title): ring \(pct(r.value)) · projected \(pct(r.projected)) · \(r.projectedGrade.letter) \(pct(r.projectedGrade.percent)) · \(r.daysLeft) days")
+        }
+        let plan = app.plan(for: chem)
+        lines.append("Chem plan: " + plan.days.map { "\(cal.dayKey(for: $0.date.addingTimeInterval(43_200)).suffix(5)) \($0.kind.rawValue) \($0.minutes)m +\($0.newItems)n \($0.reviews)r" }.joined(separator: " | "))
+        lines.append("Chem curve: " + plan.curve.map { pct($0.value) }.joined(separator: " → "))
+        let today = app.todaySummary()
+        lines.append("Today: \(today.plannedMinutes) min · \(today.reviews) reviews · \(today.newItems) new · weak \(today.weakChips)")
+
+        // Saturday is the quiz's eve.
+        let rChem = app.readiness(for: chem)
+        let saturday = try XCTUnwrap(plan.days.first { $0.offset == 1 })
+        XCTAssertEqual(saturday.kind, .examEve)
+        let skipped = app.plan(for: chem, skipping: [saturday.offset])
+        lines.append("Chem if Saturday is skipped: \(pct(skipped.projectedReadiness)) (costs \(Int(((rChem.projected - skipped.projectedReadiness) * 100).rounded())) points)")
+        // Today's session, the exam it serves, and where that exam is after it.
+        let session = app.todayBuiltSession()
+        let focus = app.sessionFocus(session)
+        let focusExam = try XCTUnwrap(exams.first { $0.id == focus.examID }, "today's session serves an exam")
+        let rFocus = app.readiness(for: focusExam)
+        let after = app.readinessAfter(session, for: ExamSnapshot(focusExam))
+        let names = app.topicNames()
+        lines.append("Focus: \(focusExam.title) · \(Int((focus.focusSeconds / 60).rounded())) of \(session.plannedMinutes) min · topics \(focus.topicIDs.compactMap { names[$0] }) · \(focus.dueCount) due, \(focus.newCount) new, \(focus.weakCount) weak · others \(focus.otherExamIDs.compactMap { id in exams.first { $0.id == id }?.title })")
+        lines.append("\(focusExam.title): \(pct(rFocus.value)) ready now · about \(pct(after)) after today")
+        lines.append("Chem 110 Quiz after today's session: about \(pct(app.readinessAfter(session, for: ExamSnapshot(chem)))) (now \(pct(rChem.value)), \(Int(((focus.secondsByExam[chem.id] ?? 0) / 60).rounded())) min of it)")
+        lines.append("Shared plans: " + app.examPlans().map { p in "\(exams.first { $0.id == p.examID }?.title ?? "?") " + p.days.prefix(4).map { "\($0.offset):\(Int($0.seconds))s/\(Int($0.neededSeconds))s" }.joined(separator: " ") }.joined(separator: " | "))
+        print("\n===== DEMO FRIDAY =====\n" + lines.joined(separator: "\n") + "\n=======================\n")
+
+        XCTAssertLessThan(rChem.projected, 0.8, "hours counted, right and wrong answers both in the forecast")
+        XCTAssertLessThan(skipped.projectedReadiness, rChem.projected, "skipping the eve costs readiness")
+        XCTAssertGreaterThanOrEqual(after, rFocus.value)
+        XCTAssertLessThanOrEqual(after, 1)
+    }
 }
