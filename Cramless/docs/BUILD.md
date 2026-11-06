@@ -1591,7 +1591,8 @@ The engine that fills Today's "Cap noticed" slot, and its first four kinds. Plan
 - **Relay deploy (not done; needs the owner's approval):** `ai` with the look-alike section of `_shared/prompts/confusions.md`, `confusionsContent`, the `lookAlike` field in `_shared/schemas/requests.json` and `contract.ts`, and
   the mock's `confusions-lookalike` fixture. No database change, no new secret. Until it is deployed the app's request reaches a relay that ignores the field (its schema allows extra properties) and usually returns no confusions, so the
   sheet falls back to the rules' lesson.
-- **Device checks:** the notification itself (tap opens that card first); the sheet with a real relay. `LIVE_ONLY=lookalike deno task live` checks the look-alike prompt on the real model (a fraction of a cent; not run yet).
+- **Verified (2026-11-06, on main 408df99 plus this lane):** the whole suite, 1,860 tests, 27 skipped, no failures; `deno task test`, 239 passed, 12 ignored. On the simulator: every kind of card, the sheet's three states, both Settings rows, a ping replacing the day's reminder in the planned list, the mock opening from its card; dark, the SE canvas and the largest text (the cards through `TodayRenderTests`' PNGs). Not checked with a real finger: Later, Undo, "Try 2 questions", "Not a look-alike" (app-level tests only).
+- **Device checks:** the notification itself (tap opens that card first); the sheet with a real relay; the finder's speed on a phone. `LIVE_ONLY=lookalike deno task live` checks the look-alike prompt on the real model (a fraction of a cent; not run yet).
 
 ## App Store Connect (2026-11-01)
 
