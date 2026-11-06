@@ -7,7 +7,7 @@ import Foundation
 ///     capling://ask/chat/<uuid>          (one chat)
 ///     capling://today?notice=<id>        (one of Cap's cards first: `Notice.linkID`)
 ///     capling://session[?kind=<SessionKind>&exam=<uuid>&confusion=<uuid>&course=<uuid>]
-///     capling://scan[?course=<uuid>]     capling://record[?course=<uuid>]
+///     capling://scan[?course=<uuid>]     capling://record[?course=<uuid>]     capling://outloud
 ///     capling://exam/<uuid>              capling://exam/new           capling://squad/<code>
 ///     capling://settings[/<page>]        (page: a `SettingsPage` raw value: "notifications", "subscription", …)
 enum CramlessLink {
@@ -21,6 +21,8 @@ enum CramlessLink {
     static let session = URL(string: "capling://session")!
     static let scan = URL(string: "capling://scan")!
     static let record = URL(string: "capling://record")!
+    /// Study out loud, starting at once ("Study out loud with Capling").
+    static let outLoud = URL(string: "capling://outloud")!
 
     /// Today, with one of Cap's cards first.
     static func today(notice id: String) -> URL {

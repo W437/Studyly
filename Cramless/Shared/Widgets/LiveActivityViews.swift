@@ -1,3 +1,4 @@
+import AppIntents
 import SwiftUI
 import WidgetKit
 
@@ -21,6 +22,14 @@ struct SessionActivityView: View {
     var isStale = false
 
     var body: some View {
+        if attributes.isOutLoud == true, !state.finished {
+            OutLoudActivityView(attributes: attributes, state: state, isStale: isStale)
+        } else {
+            plain
+        }
+    }
+
+    private var plain: some View {
         HStack(alignment: .center, spacing: 12) {
             WidgetCapFace(size: 46)
             VStack(alignment: .leading, spacing: 5) {
@@ -55,6 +64,124 @@ struct SessionActivityView: View {
         .padding(.vertical, 14)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text(SessionActivityCopy.accessibility(attributes: attributes, state: state)))
+    }
+}
+
+/// Study out loud on the Lock Screen, for a phone in a pocket: "Out loud 3 of 12", whose turn it is, the question, Repeat and Skip.
+struct OutLoudActivityView: View {
+    var attributes: StudySessionAttributes
+    var state: StudySessionAttributes.ContentState
+    var isStale = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .center, spacing: 12) {
+                WidgetCapFace(size: 40)
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        Text(OutLoudActivityCopy.position(attributes: attributes, state: state))
+                            .font(.system(.headline))
+                            .lineLimit(1)
+                        Spacer(minLength: 4)
+                        SessionClock(attributes: attributes, state: state, isStale: isStale)
+                            .font(WidgetFont.number(15, .semibold))
+                            .foregroundStyle(ActivityLook.secondaryText)
+                    }
+                    OutLoudVoiceLine(voice: state.voice, isStale: isStale)
+                }
+            }
+            if let prompt = state.prompt {
+                Text(verbatim: prompt)
+                    .font(.system(.subheadline))
+                    .foregroundStyle(.white)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.9)
+            }
+            OutLoudActivityButtons()
+        }
+        .foregroundStyle(.white)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .accessibilityElement(children: .contain)
+    }
+}
+
+/// "Your turn", with a microphone; "Cap is asking".
+struct OutLoudVoiceLine: View {
+    var voice: StudySessionAttributes.ContentState.Voice?
+    var isStale = false
+
+    var body: some View {
+        Label {
+            Text(OutLoudActivityCopy.voice(voice, isStale: isStale))
+        } icon: {
+            Image(systemName: voice == .listening ? "mic.fill" : voice == .paused ? "pause.fill" : "speaker.wave.2.fill")
+        }
+        .font(.system(.subheadline, weight: .semibold))
+        .foregroundStyle(voice == .listening ? CLColor.tangerine : ActivityLook.secondaryText)
+        .lineLimit(1)
+    }
+}
+
+/// Repeat and Skip, which work without opening the app (`OutLoudRepeatIntent`, `OutLoudSkipIntent`).
+struct OutLoudActivityButtons: View {
+    var body: some View {
+        HStack(spacing: 8) {
+            Button(intent: OutLoudRepeatIntent()) {
+                Label(OutLoudActivityCopy.repeatTitle, systemImage: "arrow.counterclockwise")
+                    .frame(maxWidth: .infinity, minHeight: 32)
+            }
+            Button(intent: OutLoudSkipIntent()) {
+                Label(OutLoudActivityCopy.skipTitle, systemImage: "forward.end")
+                    .frame(maxWidth: .infinity, minHeight: 32)
+            }
+        }
+        .font(.system(.footnote, weight: .semibold))
+        .buttonStyle(.bordered)
+        .tint(.white)
+        .lineLimit(1)
+    }
+}
+
+/// The expanded island's bottom in Study out loud: whose turn, the question, Repeat and Skip.
+struct OutLoudExpandedBottom: View {
+    var state: StudySessionAttributes.ContentState
+    var isStale = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            OutLoudVoiceLine(voice: state.voice, isStale: isStale)
+            if let prompt = state.prompt {
+                Text(verbatim: prompt)
+                    .font(.system(.caption))
+                    .foregroundStyle(.white)
+                    .lineLimit(2)
+            }
+            OutLoudActivityButtons()
+        }
+        .padding(.horizontal, 4)
+    }
+}
+
+enum OutLoudActivityCopy {
+    static let repeatTitle: LocalizedStringResource = "Repeat"
+    static let skipTitle: LocalizedStringResource = "Skip"
+
+    /// "Out loud 3 of 12".
+    static func position(attributes: StudySessionAttributes, state: StudySessionAttributes.ContentState) -> LocalizedStringResource {
+        let total = max(1, attributes.total)
+        let current = min(state.answered + 1, total)
+        return "Out loud \(current) of \(total)"
+    }
+
+    static func voice(_ voice: StudySessionAttributes.ContentState.Voice?, isStale: Bool) -> LocalizedStringResource {
+        if isStale { return "Paused" }
+        switch voice {
+        case .listening: return "Your turn"
+        case .checking: return "Cap is checking"
+        case .paused: return "Paused"
+        case .asking, nil: return "Cap is asking"
+        }
     }
 }
 
@@ -160,10 +287,16 @@ struct SessionExpandedCenter: View {
             Text(state.finished ? "Session done" : attributes.title)
                 .font(.system(.subheadline, weight: .semibold))
                 .foregroundStyle(.white)
-            Text(state.finished ? "\(state.answered) answered"
-                 : "Question \(min(state.answered + 1, max(1, attributes.total))) of \(attributes.total)")
-                .font(.system(.caption))
-                .foregroundStyle(ActivityLook.secondaryText)
+            if attributes.isOutLoud == true, !state.finished {
+                Text(OutLoudActivityCopy.position(attributes: attributes, state: state))
+                    .font(.system(.caption))
+                    .foregroundStyle(ActivityLook.secondaryText)
+            } else {
+                Text(state.finished ? "\(state.answered) answered"
+                     : "Question \(min(state.answered + 1, max(1, attributes.total))) of \(attributes.total)")
+                    .font(.system(.caption))
+                    .foregroundStyle(ActivityLook.secondaryText)
+            }
         }
         .lineLimit(1)
     }

@@ -54,8 +54,10 @@ final class SessionRunner: Identifiable {
         var liveActivity = true
         /// Items still in a learning step come back later in the session (off for the two-question check).
         var requeues = true
-        /// How long a self-given rating can be taken back. Nil: recorded at once (tests, onboarding, the quick check).
+        /// How long a self-given rating can be taken back. Nil: recorded at once (tests, onboarding, the quick check, Study out loud).
         var undoWindow: Duration? = nil
+        /// Study out loud: the Live Activity says the question, with Repeat and Skip.
+        var outLoud = false
     }
 
     /// One answer, in order. `isPending`: held for Undo, not recorded yet.
@@ -360,7 +362,7 @@ final class SessionRunner: Identifiable {
         if options.liveActivity {
             let title = request.kind == .daily ? courseName.map(SessionCopy.studyCourse) : nil
             app.liveActivities.startSession(title: title ?? SessionCopy.title(for: request.kind), total: activityTotal,
-                                            plannedMinutes: built.plannedMinutes)
+                                            plannedMinutes: built.plannedMinutes, outLoud: options.outLoud)
         }
         keepCheckpoint()
     }

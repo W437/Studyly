@@ -32,7 +32,9 @@ extension AppModel {
         let daily = request.kind == .daily || request.kind == .catchUp
         return SessionSpec(id: request.id, kind: request.kind, minutes: minutes, courseID: request.courseID,
                            topicID: request.topicID, examID: request.examID, confusionID: request.confusionID,
-                           itemIDs: request.itemIDs, focusItemIDs: daily ? boostedItemsToday() : [], questionCount: request.questionCount)
+                           itemIDs: request.itemIDs, focusItemIDs: daily ? boostedItemsToday() : [], questionCount: request.questionCount,
+                           kinds: request.spokenOnly ? OutLoudPolicy.kinds : nil,
+                           excludedItemIDs: request.spokenOnly ? unspeakableItemIDs() : [])
     }
 
     /// The session for a request, built from the store as it is now. Cheap enough to call for a preview.

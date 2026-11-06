@@ -12,6 +12,7 @@ enum DeepLink: Equatable, Sendable {
     case session(kind: SessionKind, examID: UUID?, confusionID: UUID?, courseID: UUID?)
     case scan(courseID: UUID?)
     case record(courseID: UUID?)
+    case outLoud
     case exam(UUID)
     case newExam
     case squad(code: String)
@@ -88,6 +89,7 @@ enum DeepLinks {
                             courseID: uuid("course"))
         case "scan": return .scan(courseID: uuid("course"))
         case "record": return .record(courseID: uuid("course"))
+        case "outloud": return .outLoud
         case "exam":
             if path.first?.lowercased() == "new" { return .newExam }
             guard let id = (path.first ?? query["id"]).flatMap(UUID.init(uuidString:)) else { return nil }
@@ -183,6 +185,9 @@ enum DeepLinks {
         case .record(let courseID):
             guard router.cover == nil else { return }
             router.present(.record(courseID: courseID))
+        case .outLoud:
+            guard router.cover == nil else { return }
+            router.present(.outLoud(app.outLoudRequest(), startsAtOnce: true))
         case .importFile:
             break
         }

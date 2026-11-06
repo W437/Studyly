@@ -86,6 +86,10 @@
     "Add an exam" : {},
     "Add one and Capling tracks how ready you are, day by day." : {},
     "All caught up" : {},
+    "Cap asks the question again." : {},
+    "Cap is asking" : {},
+    "Cap is checking" : {},
+    "Cap moves on to the next question." : {},
     "Done" : {},
     "Get started" : {},
     "How ready you are for your next exam, and the days left." : {},
@@ -119,6 +123,16 @@
     "Open Capling to set up" : {},
     "Opens Capling on today's session." : {},
     "Opens Capling on today's study session." : {},
+    "Out loud %lld of %lld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Out loud %1$lld of %2$lld"
+          }
+        }
+      }
+    },
     "Paused" : {},
     "Question %lld of %lld" : {
       "localizations" : {
@@ -130,7 +144,11 @@
         }
       }
     },
+    "Repeat" : {},
+    "Repeat the question" : {},
     "Scan pages" : {},
+    "Skip" : {},
+    "Skip the question" : {},
     "Start today's session" : {},
     "Start today's session, %lld minutes" : {
       "localizations" : {
@@ -161,6 +179,7 @@
     "Today's session" : {},
     "Your session for today shows up here." : {},
     "Your streak and today's minutes, beside the clock." : {},
+    "Your turn" : {},
     "day" : {},
     "days" : {},
     "min" : {},

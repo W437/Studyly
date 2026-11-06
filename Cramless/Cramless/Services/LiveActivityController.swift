@@ -45,12 +45,14 @@ final class LiveActivityController {
 
     // MARK: Study session
 
-    /// Starts the session activity. `title`: "Today's session", "Bio 101 practice", "2-minute fix".
-    func startSession(title: String, total: Int, plannedMinutes: Int? = nil) {
+    /// Starts the session activity. `title`: "Today's session", "Bio 101 practice", "2-minute fix". `outLoud`: Study out loud, whose banner says
+    /// the question and offers Repeat and Skip (`updateOutLoud`).
+    func startSession(title: String, total: Int, plannedMinutes: Int? = nil, outLoud: Bool = false) {
         endOtherSessions(keeping: nil)
         session = nil
         guard isEnabled, total > 0 else { return }
-        let attributes = StudySessionAttributes(title: title, total: total, startedAt: Date(), plannedMinutes: plannedMinutes)
+        let attributes = StudySessionAttributes(title: outLoud ? String(localized: "Study out loud") : title, total: total, startedAt: Date(),
+                                                plannedMinutes: plannedMinutes, isOutLoud: outLoud ? true : nil)
         sessionState = .init(answered: 0, correct: 0, topic: nil)
         do {
             session = try Activity.request(attributes: attributes, content: sessionContent(sessionState), pushType: nil)
@@ -62,7 +64,20 @@ final class LiveActivityController {
     /// After each answer.
     func update(answered: Int, correct: Int, topic: String?) {
         guard let activity = session else { return }
-        sessionState = .init(answered: max(0, answered), correct: max(0, min(correct, answered)), topic: topic)
+        sessionState.answered = max(0, answered)
+        sessionState.correct = max(0, min(correct, answered))
+        sessionState.topic = topic
+        let content = sessionContent(sessionState)
+        enqueueSession { await activity.update(content) }
+    }
+
+    /// Study out loud: the question Cap is on and whose turn it is. Only when one of them changed.
+    func updateOutLoud(prompt: String?, voice: StudySessionAttributes.ContentState.Voice?) {
+        guard let activity = session else { return }
+        let clipped = StudySessionAttributes.ContentState.clipped(prompt: prompt)
+        guard clipped != sessionState.prompt || voice != sessionState.voice else { return }
+        sessionState.prompt = clipped
+        sessionState.voice = voice
         let content = sessionContent(sessionState)
         enqueueSession { await activity.update(content) }
     }
@@ -74,6 +89,8 @@ final class LiveActivityController {
         var final = sessionState
         final.finished = true
         final.topic = nil
+        final.prompt = nil
+        final.voice = nil
         let content = ActivityContent(state: final, staleDate: nil, relevanceScore: 100)
         let dismissal = ActivityUIDismissalPolicy.after(Date().addingTimeInterval(Self.finishedLingers))
         enqueueSession { await activity.end(content, dismissalPolicy: dismissal) }

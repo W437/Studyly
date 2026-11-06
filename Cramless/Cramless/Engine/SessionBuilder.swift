@@ -19,6 +19,10 @@ struct SessionSpec: Sendable, Equatable {
     var focusItemIDs: [UUID] = []
     /// A mock's size. Nil: what the exam's format says, else `MockExamBuilder.defaultSize`.
     var questionCount: Int? = nil
+    /// Only questions of these kinds (Study out loud: `OutLoudPolicy.kinds`). Nil: every kind.
+    var kinds: Set<ItemKind>? = nil
+    /// Questions this session leaves out, whatever their kind (ones that can't be said: too many options, more than one blank).
+    var excludedItemIDs: Set<UUID> = []
 }
 
 /// One question in a session.
@@ -216,7 +220,9 @@ struct SessionBuilder: Sendable {
     func build(_ spec: SessionSpec, items: [ItemSnapshot], exams: [ExamSnapshot] = [],
                confusions: [ConfusionSnapshot] = [], topicNames: [UUID: String] = [:]) -> BuiltSession {
         // A question the student reported waits for Cap's check outside every session; readiness still counts it.
-        let items = items.filter { !$0.reported }
+        let items = items.filter { item in
+            !item.reported && !spec.excludedItemIDs.contains(item.id) && spec.kinds.map { $0.contains(item.kind) } != false
+        }
         var session = BuiltSession(id: spec.id, kind: spec.kind, entries: [], budgetSeconds: 0,
                                    courseID: spec.courseID, topicID: spec.topicID, examID: spec.examID,
                                    confusionID: spec.confusionID)

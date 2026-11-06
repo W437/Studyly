@@ -28,7 +28,11 @@ struct SessionLiveActivity: Widget {
                     SessionExpandedCenter(attributes: context.attributes, state: context.state, isStale: context.isStale)
                 }
                 DynamicIslandExpandedRegion(.bottom) {
-                    SessionExpandedBottom(attributes: context.attributes, state: context.state, isStale: context.isStale)
+                    if context.attributes.isOutLoud == true, !context.state.finished {
+                        OutLoudExpandedBottom(state: context.state, isStale: context.isStale)
+                    } else {
+                        SessionExpandedBottom(attributes: context.attributes, state: context.state, isStale: context.isStale)
+                    }
                 }
             } compactLeading: {
                 SessionCompactRing(progress: progress, finished: context.state.finished)

@@ -166,6 +166,12 @@ final class WidgetRenderTests: XCTestCase {
                        "session-lock-paused", scheme)
             try render(activityBanner(SessionActivityView(attributes: attributes, state: .sampleFinished)),
                        "session-lock-done", scheme)
+            let outLoud = StudySessionAttributes.sampleOutLoud(now: started)
+            try render(activityBanner(SessionActivityView(attributes: outLoud, state: .sampleOutLoud)), "session-lock-outloud", scheme)
+            var asking = StudySessionAttributes.ContentState.sampleOutLoud
+            asking.voice = .asking
+            try render(activityBanner(SessionActivityView(attributes: outLoud, state: asking)), "session-lock-outloud-asking", scheme)
+            try render(activityBanner(OutLoudExpandedBottom(state: .sampleOutLoud)), "session-island-outloud", scheme)
             try render(activityBanner(ExamWeekActivityView(attributes: exam, state: .sample)), "exam-week-lock", scheme)
             try render(activityBanner(ExamWeekActivityView(attributes: exam, state: tomorrow)), "exam-week-lock-tomorrow", scheme)
             try render(activityBanner(ExamWeekActivityView(attributes: exam, state: .sample, isStale: true)),

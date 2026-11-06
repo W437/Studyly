@@ -262,6 +262,8 @@ enum TestHarness {
         case "consent": r.present(.consent(arg == "photos" ? .photos : .cloudAI(feature: "Write questions from your pages")))
         case "squadRedeem": r.present(.squadRedeem(code: arg))
         case "record": r.present(.record(courseID: firstCourse?.id))
+        // Study out loud (`OutLoudDebug`: `CRAMLESS_OUTLOUD`, `CRAMLESS_OUTLOUD_SCRIPT`).
+        case "outLoud": r.present(.outLoud(app.outLoudRequest(), startsAtOnce: OutLoudDebug.startsAtOnce))
         case "onboarding":
             app.settings.onboardingCompleted = false
             r.present(.onboarding(page: arg.flatMap(Int.init)))
