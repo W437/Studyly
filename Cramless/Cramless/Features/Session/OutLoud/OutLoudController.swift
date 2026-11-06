@@ -146,8 +146,12 @@ final class OutLoudController: Identifiable {
             publish()
         case .resume:
             guard pauseReason != nil else { return }
-            try? listener?.resume()
-            pauseReason = nil
+            let listener = listener
+            Task { [weak self] in
+                // The microphone first: if it can't come back, the turn says so.
+                try? await listener?.resume()
+                self?.pauseReason = nil
+            }
         case .repeatQuestion where pauseReason != nil:
             // The Live Activity's way back from "Cap is waiting".
             perform(.resume)

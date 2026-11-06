@@ -87,7 +87,7 @@ final class ScriptedSpokenListener: SpokenListening {
 
     func stopListening() { stopped = true }
     func suspend() { stopped = true }
-    func resume() throws {}
+    func resume() async throws {}
     func close() { stopped = true }
 }
 #endif

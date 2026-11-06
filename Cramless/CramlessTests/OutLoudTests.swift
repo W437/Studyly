@@ -61,7 +61,7 @@ final class FakeListener: SpokenListening {
 
     func stopListening() { stopped = true }
     func suspend() { suspended = true; stopped = true }
-    func resume() throws { suspended = false }
+    func resume() async throws { suspended = false }
     func close() { closed = true; stopped = true }
 }
 
@@ -472,7 +472,7 @@ final class OutLoudControllerTests: XCTestCase {
         XCTAssertEqual(controller.phase, .paused(.person))
         XCTAssertTrue(listener.suspended)
         controller.perform(.resume)
-        XCTAssertFalse(listener.suspended)
+        try await until("the microphone back") { !listener.suspended }
         try await finished(controller)
         XCTAssertEqual(speaker.said.filter { $0.contains("One?") }.count, 2)
     }
@@ -602,6 +602,6 @@ class FakeListenerBase: SpokenListening {
     }
     func stopListening() {}
     func suspend() {}
-    func resume() throws {}
+    func resume() async throws {}
     func close() {}
 }
