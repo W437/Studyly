@@ -32,3 +32,17 @@ struct RecordLectureIntent: AppIntent {
         return .result()
     }
 }
+
+/// "Study out loud": opens Capling and starts asking. The microphone needs the app in front to start; after that the screen can go off.
+struct StudyOutLoudIntent: AppIntent {
+    static let title: LocalizedStringResource = "Study out loud"
+    static let description = IntentDescription("Cap asks today's questions out loud and you answer with your voice.")
+    static let supportedModes: IntentModes = .foreground(.immediate)
+
+    @MainActor
+    func perform() async throws -> some IntentResult {
+        DeepLinks.installIntentBridge()
+        CramlessIntentBridge.open(CramlessLink.outLoud)
+        return .result()
+    }
+}

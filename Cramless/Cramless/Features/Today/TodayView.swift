@@ -79,7 +79,8 @@ struct TodayView: View {
                                 content.offset(y: -max(0, proxy.frame(in: .scrollView).minY))
                             }
                         VStack(alignment: .leading, spacing: 16) {
-                            TodayDayCard(content: content, perform: { perform($0, snap) }, onWhy: { present(.todayReasons) })
+                            TodayDayCard(content: content, perform: { perform($0, snap) }, onWhy: { present(.todayReasons) },
+                                         onOutLoud: outLoudAction(content))
                             rest(snap)
                         }
                         .padding(.horizontal, CLSpace.gutter)
@@ -287,6 +288,15 @@ struct TodayView: View {
     private func start(_ request: SessionRequest) {
         CLHaptics.commit()
         app.router.present(.session(request))
+    }
+
+    /// The day's session, out loud, on a day that has one.
+    private func outLoudAction(_ content: TodayHeroContent) -> (() -> Void)? {
+        guard let request = content.actions.first(where: \.prominent)?.request else { return nil }
+        return {
+            CLHaptics.commit()
+            app.router.present(.outLoud(app.outLoudRequest(request)))
+        }
     }
 
     private func open(_ route: Route) {

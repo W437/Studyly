@@ -28,6 +28,8 @@ struct CapNotice: Identifiable, Equatable, Sendable {
             case openHeardDate(sourceID: UUID, noticeID: String)
             /// "Yes, harder": a harder question for this one.
             case raiseQuestion(itemID: UUID)
+            /// "Teach Cap": explain this topic to him.
+            case teach(topicID: UUID)
         }
 
         /// "Fix it · 2 min".

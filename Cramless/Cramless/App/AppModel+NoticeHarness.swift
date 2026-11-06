@@ -10,6 +10,7 @@ import SwiftData
 //   them all (the card counts only what they can't). `back`: 8 days without study after a 23-day run. `mock`: the midterm 5 days out. `mixup` needs nothing: the demo world has an open mix-up.
 // - `CRAMLESS_NOTICES=tooeasy` (or `CRAMLESS_LADDER=offer`): one of the Bio midterm's questions has become too easy, with three real reviews
 //   behind it, and the midterm is 20 days out.
+// - `CRAMLESS_NOTICES=teachback`: a Bio midterm topic is well remembered, with the midterm 20 days out.
 // - `CRAMLESS_NOTICE_STATE=second|later|done|allLater`, once the deck is dealt: `second` the first card acted on, so "2 of N" shows; `later` the
 //   first put off with "Later"; `done` "Fix my week" pressed on a fading card ("Plan updated"); `allLater` all put off.
 // - `CRAMLESS_NOTICE_TAP=<ms>` presses the button on the card that long after launch (`TodayView`).
@@ -24,7 +25,7 @@ extension AppModel {
         let asked = Set(raw.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces).lowercased() })
         let all = asked.contains("all")
         let kinds: [(String, NoticeKind)] = [("mixup", .mixUp), ("lookalike", .lookAlike), ("fading", .fading), ("back", .welcomeBack), ("mock", .mockOffer),
-                                            ("gap", .gap), ("lecturedate", .lectureDate), ("tooeasy", .tooEasy)]
+                                            ("gap", .gap), ("lecturedate", .lectureDate), ("tooeasy", .tooEasy), ("teachback", .teachBack)]
         var off = Set<NoticeKind>()
         for (name, kind) in kinds where !all && !asked.contains(name) { off.insert(kind) }
         settings.notices.off = off
@@ -44,6 +45,10 @@ extension AppModel {
             debugMoveExam(midterm, toDays: 20)
             debugMoveExam(chem, toDays: 40)
             debugMakeTooEasy(course: midterm?.course)
+        } else if asked.contains("teachback") {
+            debugMoveExam(midterm, toDays: 20)
+            debugMoveExam(chem, toDays: 40)
+            debugMakeWellRemembered(course: midterm?.course)
         } else if asked.contains("mock") {
             debugMoveExam(midterm, toDays: 5)
             debugMoveExam(chem, toDays: 40)
@@ -147,6 +152,25 @@ extension AppModel {
                 context.insert(ReviewLog(itemID: item.id, courseID: course.id, sessionID: nil, reviewedAt: calendar.adding(days: -days, to: now),
                                          rating: .good, gradedBy: "rules", durationMs: 4000, before: memory, after: memory, elapsedDays: 8, scheduledDays: 8))
             }
+        }
+    }
+
+    /// A topic with enough questions, all studied yesterday and solid.
+    private func debugMakeWellRemembered(course: Course?) {
+        guard let course else { return }
+        let items = course.items.filter { $0.deletedAt == nil && $0.status == .active }
+        let byTopic = Dictionary(grouping: items.filter { $0.topicID != nil }, by: { $0.topicID })
+        guard let chosen = byTopic.filter({ $0.value.count >= TeachPlanner.offerMinStudied })
+            .min(by: { ($0.key?.uuidString ?? "") < ($1.key?.uuidString ?? "") })?.value else { return }
+        for item in chosen {
+            var memory = item.memory
+            memory.state = .review
+            memory.stability = 60
+            memory.difficulty = max(memory.difficulty, 4)
+            memory.lastReview = calendar.adding(days: -1, to: now)
+            memory.due = calendar.adding(days: 40, to: now)
+            memory.reps = max(memory.reps, 3)
+            item.memory = memory
         }
     }
 

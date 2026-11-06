@@ -13,6 +13,25 @@ struct StudySessionAttributes: ActivityAttributes {
         /// The current question's topic ("Phases of mitosis").
         var topic: String?
         var finished = false
+        /// Study out loud: the question Cap is on, shortened to fit the banner.
+        var prompt: String? = nil
+        /// Study out loud: whose turn it is.
+        var voice: Voice? = nil
+
+        /// What Study out loud is doing right now.
+        enum Voice: String, Codable, Hashable, Sendable {
+            case asking, listening, checking, paused
+        }
+
+        /// A question on the Lock Screen is at most this long: ActivityKit caps the whole payload at 4 KB.
+        static let promptLimit = 160
+
+        static func clipped(prompt: String?) -> String? {
+            guard let prompt else { return nil }
+            let clean = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard clean.count > promptLimit else { return clean.isEmpty ? nil : clean }
+            return String(clean.prefix(promptLimit - 1)).trimmingCharacters(in: .whitespaces) + "…"
+        }
     }
 
     /// "Today's session", "Bio 101 practice", "2-minute fix".
@@ -21,6 +40,8 @@ struct StudySessionAttributes: ActivityAttributes {
     var startedAt: Date
     /// The planned length when known; shows "6 min left".
     var plannedMinutes: Int?
+    /// Study out loud: the banner says the question, with Repeat and Skip.
+    var isOutLoud: Bool? = nil
 }
 
 extension StudySessionAttributes.ContentState {
@@ -87,12 +108,19 @@ extension StudySessionAttributes {
         StudySessionAttributes(title: "Today's session", total: 18, startedAt: now.addingTimeInterval(-252),
                                plannedMinutes: 15)
     }
+
+    static func sampleOutLoud(now: Date = .now) -> StudySessionAttributes {
+        StudySessionAttributes(title: "Study out loud", total: 12, startedAt: now.addingTimeInterval(-96), plannedMinutes: 9, isOutLoud: true)
+    }
 }
 
 extension StudySessionAttributes.ContentState {
     static let sample = StudySessionAttributes.ContentState(answered: 9, correct: 7, topic: "Phases of mitosis")
     static let sampleFinished = StudySessionAttributes.ContentState(answered: 18, correct: 15, topic: nil,
                                                                       finished: true)
+    static let sampleOutLoud = StudySessionAttributes.ContentState(answered: 2, correct: 2, topic: "Phases of mitosis",
+                                                                   prompt: "During which phase do the sister chromatids get pulled apart?",
+                                                                   voice: .listening)
 }
 
 extension ExamWeekAttributes {

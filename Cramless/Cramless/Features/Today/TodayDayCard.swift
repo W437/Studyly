@@ -2,7 +2,7 @@ import SwiftUI
 
 /// The day's one card under the band (`TodayHeroContent` says what it holds): who today is for ("For Chem 110 Quiz", "Sun · in 2
 /// days"), the topics, why, readiness now and about where today takes it (the dashed ring is a projection), the day's one button and
-/// "Why these?".
+/// "Why these?", with "Study out loud" beside it on a day with something to study: a quiet way into the same session, not a second job.
 ///
 /// - Large text or a small phone: the rings sit above their words, the chip and when it is take two lines when one won't hold them,
 ///   and a long practice button shortens to "Practice · 5 min" (the reason names the topic).
@@ -13,6 +13,8 @@ struct TodayDayCard: View {
     let content: TodayHeroContent
     var perform: (TodayHeroContent.Action) -> Void
     var onWhy: () -> Void
+    /// Study out loud, on a day that has a session to say. Nil: no link.
+    var onOutLoud: (() -> Void)? = nil
 
     @Environment(\.dynamicTypeSize) private var typeSize
     /// The title's mark grows with the text it sits beside.
@@ -162,20 +164,39 @@ struct TodayDayCard: View {
                 .padding(.bottom, 4)
             }
             if content.showsWhy {
-                Button(action: onWhy) {
-                    Text("Why these?")
-                        .clFont(.subheadlineEmphasis)
-                        .foregroundStyle(CLColor.skyInk)
-                        .frame(maxWidth: .infinity, minHeight: CLMetrics.minHitTarget)
-                        .contentShape(Rectangle())
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 8) { quietLinks }
+                    VStack(spacing: 0) { quietLinks }
                 }
-                .buttonStyle(.plain)
-                .accessibilityHint("Says why today's questions were picked")
                 .padding(.top, -4)
                 .padding(.bottom, -8)
             }
         }
         .padding(.top, 2)
+    }
+
+    @ViewBuilder private var quietLinks: some View {
+        Button(action: onWhy) {
+            Text("Why these?")
+                .clFont(.subheadlineEmphasis)
+                .foregroundStyle(CLColor.skyInk)
+                .lineLimit(1)
+                .frame(maxWidth: .infinity, minHeight: CLMetrics.minHitTarget)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityHint("Says why today's questions were picked")
+        if let onOutLoud {
+            Button(action: onOutLoud) {
+                Label { Text(OutLoudCopy.title).lineLimit(1) } icon: { Image(systemName: "waveform") }
+                    .clFont(.subheadlineEmphasis)
+                    .foregroundStyle(CLColor.skyInk)
+                    .frame(maxWidth: .infinity, minHeight: CLMetrics.minHitTarget)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint("Cap asks today's questions out loud and you answer with your voice")
+        }
     }
 
     private func tone(_ tone: TodayHeroContent.Chip.Tone) -> CLPill.Tone {

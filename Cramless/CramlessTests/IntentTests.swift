@@ -63,8 +63,19 @@ final class IntentTests: XCTestCase {
         XCTAssertFalse(answer.isEmpty)
     }
 
-    func testFourShortcuts() {
+    func testFiveShortcuts() {
         let shortcuts = CramlessShortcuts.appShortcuts
-        XCTAssertEqual(shortcuts.count, 4)
+        XCTAssertEqual(shortcuts.count, 5)
+    }
+
+    func testStudyOutLoudOpensItAndStartsIt() async throws {
+        let app = try StudyTestApp.make(clock: TestClock(WidgetTestSupport.now), calendar: WidgetTestSupport.calendar)
+        AppModel.live = app
+        app.settings.onboardingCompleted = true
+        _ = try await StudyOutLoudIntent().perform()
+        guard case .outLoud(let request, let startsAtOnce) = app.router.cover else { return XCTFail("\(String(describing: app.router.cover))") }
+        XCTAssertTrue(startsAtOnce, "the person already said to")
+        XCTAssertTrue(request.spokenOnly)
+        XCTAssertEqual(StudyOutLoudIntent.supportedModes, .foreground(.immediate), "the microphone starts with the app in front")
     }
 }

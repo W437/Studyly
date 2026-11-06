@@ -185,6 +185,9 @@ plan, mic, relax; nice, almost, notYet; listen, ask; sleepy, proud; stargaze, tu
 | Today, nothing due | relax, breathing |
 | Today, the day's work done | proud, breathing |
 | Today, exam eve with nothing more to do | sleep, dozing |
+| Study out loud: Cap is asking | ask, breathing |
+| Study out loud and Teach Cap: your turn | listen, breathing (Teach Cap: a nod for each idea he hears) |
+| Teach Cap: what you covered, all of it / some / none | nice / almost / ask |
 
 ## Memory sky
 
@@ -458,6 +461,14 @@ Appearance ▸ App icon. The system shows its own alert when the icon changes.
 **The rating prompt** (`ReviewPromptPolicy`): only after a good moment (a session of 8 or more answered right first time, 2 saves,
 or a milestone), never in the first 4 days or 5 sessions, never on exam eve, 120 days apart at least, once a version, and never in
 the harness or in tests. It asks 1.5 seconds after the summary's celebration.
+
+## Studying out loud, and teaching Cap
+
+Two ways of studying with the voice (`docs/BUILD.md` ▸ Stage 4 has how they work).
+
+- **Study out loud** is for a walk: nobody has to look. Cap asks, the person answers, Cap says how it went, in the session's own words. The screen shows who is talking, the question, the words as they're heard and how it went, with Repeat, Skip and Pause for when a hand is free; the Live Activity carries the same line, with Repeat and Skip, on a locked phone. It enters from a quiet link beside "Why these?", not a second button: the day still has one job.
+- **Teach Cap** is for a topic that's going well: "Explain \(topic) to me like I missed the class." His notes fill in as he hears each idea and never show what hasn't been said, which would be the answer. Then "What you covered" as a count of ideas, never a percentage, one follow-up, and the missing idea as a question.
+- **Sounds:** none while the microphone is on (`AudioFocus`): the voice is the feedback, and the phone must not hear itself.
 
 ## Haptics
 
