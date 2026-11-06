@@ -72,6 +72,8 @@ final class CaptureRun {
     private(set) var checkLine: String?
     /// "Part 2 of 2" while a long reading goes to Cloud AI in parts, else nil.
     private(set) var partLine: String?
+    /// What this reading takes of the free scans, when it is more than one or more than are left (the pages are known by now).
+    private(set) var allowanceLine: LocalizedStringResource?
     /// With no questions to show: what would write some (Cloud AI, when consent is what is missing). The problem screen
     /// offers it.
     private(set) var noQuestionsSuggestion: AISuggestion?
@@ -229,6 +231,7 @@ final class CaptureRun {
             } else {
                 input = app.generationInput(for: source)
             }
+            allowanceLine = app.ai.readingAllowance(pageWords: input.pages.map { GenerationPlan.wordCount(of: $0) })
             for await update in app.ai.generateSet(input) {
                 if abandoned || Task.isCancelled { break }
                 switch update {

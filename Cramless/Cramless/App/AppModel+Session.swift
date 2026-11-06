@@ -34,6 +34,11 @@ extension AppModel {
             .contains { $0.endedAt != nil && $0.itemCount > 0 && (examID == nil || $0.examID == examID) }
     }
 
+    /// Tonight's session is done, for any of the exams sharing the evening (it is one session, whichever page started it).
+    func eveSessionDone(_ summary: TodaySummary) -> Bool {
+        summary.examEveExamIDs.contains { finishedSessionToday(kind: .examEve, examID: $0) }
+    }
+
     /// Answers recorded today.
     func answersToday() -> Int {
         dayRecordSnapshot(for: now)?.itemsReviewed ?? 0

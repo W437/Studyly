@@ -7,7 +7,7 @@ import Foundation
 ///     SIMCTL_CHILD_CRAMLESS_UITEST=1 SIMCTL_CHILD_CRAMLESS_ROUTE=exam xcrun simctl launch <udid> com.loopware.Capling
 ///
 /// - `CRAMLESS_UITEST=1` in-memory store, the seeded demo world (`CRAMLESS_SEED=0` for an empty one), mock AI
-///   (`CRAMLESS_MOCK_AI=0` for local), onboarding skipped.
+///   (`CRAMLESS_MOCK_AI=0` turns mock off: local AI with a blank `Secrets.xcconfig`, the live relay with a filled one), onboarding skipped.
 /// - `CRAMLESS_ROUTE=<name>[:<arg>]` opens one screen (the list is `apply(route:)`). Consumed once.
 /// - `CRAMLESS_ONBOARDING=1` (or `CRAMLESS_ROUTE=onboarding:<page>`) shows onboarding without wiping data.
 /// - `CRAMLESS_NOW=<ISO 8601>` freezes the clock. `CRAMLESS_THEME=light|dark`, `CRAMLESS_DYSLEXIC=1`,

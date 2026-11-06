@@ -296,8 +296,60 @@ final class ExamPresentationTests: XCTestCase {
         let evePlan = examPlan([pday(0, .examEve, seconds: 420), pday(1, .exam)], projected: 0.78)
         XCTAssertEqual(ExamPresentation.stops(plan: evePlan, phase: .eve, examTitle: "Quiz", examDate: day(1, hour: 10), today: chemToday,
                                               skipped: nil, now: now, calendar: cal).map(\.title).first, "Tonight · about 7 min")
+        // The session built for tonight says the number, the same as the button; with nothing to review it says so.
+        XCTAssertEqual(ExamPresentation.stops(plan: evePlan, phase: .eve, examTitle: "Quiz", examDate: day(1, hour: 10), today: chemToday,
+                                              skipped: nil, tonightMinutes: 4, now: now, calendar: cal).map(\.title).first, "Tonight · about 4 min")
+        XCTAssertEqual(ExamPresentation.stops(plan: evePlan, phase: .eve, examTitle: "Quiz", examDate: day(1, hour: 10), today: chemToday,
+                                              skipped: nil, tonightMinutes: 0, now: now, calendar: cal).map(\.title).first, "Tonight · nothing to review")
         XCTAssertTrue(ExamPresentation.stops(plan: plan, phase: .today, examTitle: "Quiz", examDate: day(0, hour: 20), today: chemToday,
                                              skipped: nil, now: now, calendar: cal).isEmpty)
+    }
+
+    func testThenAboutReadsTheDaysThatHaveWork() {
+        // Every day has work: "a day", their average.
+        let every = (0..<10).map { pday($0, $0 == 9 ? .examEve : .study, seconds: $0 == 9 ? 120 : 780) } + [pday(10, .exam)]
+        let stops = ExamPresentation.stops(plan: examPlan(every, projected: 0.86), phase: .ahead(days: 10), examTitle: "Bio", examDate: day(10, hour: 9),
+                                           today: chemToday, skipped: nil, now: now, calendar: cal)
+        XCTAssertEqual(stops[1].title, "Then about 13 min a day until \(LibraryFormat.shortDate(day(8), calendar: cal))")
+        // Days off in between don't pull the number down.
+        let some = (0..<10).map { offset -> PlanDay in
+            if offset == 9 { return pday(offset, .examEve, seconds: 120) }
+            return pday(offset, offset % 3 == 0 ? .rest : .study, seconds: offset % 3 == 0 ? 0 : 780)
+        } + [pday(10, .exam)]
+        let spaced = ExamPresentation.stops(plan: examPlan(some, projected: 0.86), phase: .ahead(days: 10), examTitle: "Bio", examDate: day(10, hour: 9),
+                                            today: chemToday, skipped: nil, now: now, calendar: cal)
+        XCTAssertEqual(spaced[1].title, "Then about 13 min on study days until \(LibraryFormat.shortDate(day(8), calendar: cal))")
+    }
+
+    /// With one exam the whole session is for it: "11 of the 12 minutes" only showed two ways of rounding.
+    func testAlmostAllOfASessionIsTheWholeSession() throws {
+        func work(_ exam: Double, total: Double, minutes: Int) -> ExamPresentation.TodayWork {
+            ExamPresentation.TodayWork(sessionMinutes: minutes, examSeconds: exam, topics: [], studiedToday: false, missedYesterday: false, sessionSeconds: total)
+        }
+        func subline(_ w: ExamPresentation.TodayWork) -> String? {
+            ExamPresentation.studyAction(phase: .ahead(days: 5), today: w, weakest: nil, courseName: "Chem")?.subline
+        }
+        XCTAssertEqual(subline(work(660, total: 660, minutes: 12)), "The whole session is for this exam.")
+        XCTAssertEqual(subline(work(620, total: 680, minutes: 12)), "The whole session is for this exam.", "91%")
+        XCTAssertEqual(subline(work(600, total: 720, minutes: 12)), "About 10 of the 12 minutes are for this exam.", "83%")
+        XCTAssertEqual(work(620, total: 680, minutes: 12).examMinutes, 12, "the plan's stop says the same")
+        // Built from a session: the seconds decide, not two rounded minutes.
+        let exam = ExamSnapshot(courseID: UUID(), date: day(5))
+        let entry = SessionEntry(itemID: UUID(), reason: .due, kind: .mcq, topicID: nil, courseID: exam.courseID, estimatedSeconds: 650, examID: exam.id)
+        let built = ExamPresentation.todayWork(entries: [entry], sessionMinutes: 11, exam: exam, topicNames: [:], studiedToday: false, missedYesterday: false)
+        XCTAssertTrue(built.isWholeSession)
+    }
+
+    /// Once tonight's session is done the page says so: no button, and not what tonight "will" add.
+    func testTheEveAfterItsSession() throws {
+        let plan = examPlan([pday(0, .examEve, seconds: 300), pday(1, .exam)], projected: 0.83)
+        let done = try XCTUnwrap(ExamPresentation.projection(phase: .eve, plan: plan, questionCount: 20, weakestTopic: nil, grade: nil,
+                                                             examDate: day(1, hour: 10), now: now, calendar: cal, eveDone: true))
+        XCTAssertEqual(done.sentence, "That's enough for tonight. You're about 42% ready for tomorrow morning.")
+        XCTAssertNil(ExamPresentation.studyAction(phase: .eve, today: chemToday, weakest: nil, courseName: "Chem", eveDone: true))
+        let stops = ExamPresentation.stops(plan: plan, phase: .eve, examTitle: "Quiz", examDate: day(1, hour: 10), today: chemToday, skipped: nil,
+                                           tonightMinutes: 4, eveDone: true, now: now, calendar: cal)
+        XCTAssertEqual(stops.first?.title, "Tonight · done")
     }
 
     func testStopsForAFarExam() {
@@ -309,8 +361,8 @@ final class ExamPresentationTests: XCTestCase {
         let stops = ExamPresentation.stops(plan: examPlan(days, projected: 0.86), phase: .ahead(days: 23), examTitle: "Bio 101 Midterm",
                                            examDate: day(23, hour: 9), today: chemToday, skipped: nil, now: now, calendar: cal)
         XCTAssertEqual(stops.map(\.kind), [.today, .span, .eve, .exam])
-        // Days 1 to 21: ten study days of 11 minutes over 21 days is about 5 minutes a day.
-        XCTAssertEqual(stops[1].title, "Then about 5 min a day until \(LibraryFormat.shortDate(day(21), calendar: cal))")
+        // Days 1 to 21: ten study days of 11 minutes, with days off between them: the days that have work, and it says so.
+        XCTAssertEqual(stops[1].title, "Then about 11 min on study days until \(LibraryFormat.shortDate(day(21), calendar: cal))")
         XCTAssertEqual(stops[2].title, "\(LibraryFormat.shortDate(day(22), calendar: cal)) evening · about 5 min")
         XCTAssertEqual(stops[3].detail, "Bio 101 Midterm")
     }
@@ -374,6 +426,13 @@ final class ExamPresentationTests: XCTestCase {
         XCTAssertEqual(practice?.title, "Practice Moles · 3 min")
         XCTAssertEqual(ExamPresentation.studyAction(phase: .eve, today: chemToday, weakest: weakest, courseName: "Chem 110")?.title,
                        "Tonight · 10 min")
+        let tonight = ExamPresentation.studyAction(phase: .eve, today: chemToday, weakest: weakest, courseName: "Chem 110", eveMinutes: 4)
+        XCTAssertEqual(tonight?.title, "Tonight · 4 min")
+        XCTAssertEqual(tonight?.subline, "About 4 minutes on what you're shakiest on. Then stop: sleep does the rest.")
+        XCTAssertEqual(ExamPresentation.studyAction(phase: .eve, today: chemToday, weakest: weakest, courseName: "Chem 110", eveMinutes: 1)?.subline,
+                       "About 1 minute on what you're shakiest on. Then stop: sleep does the rest.")
+        XCTAssertNil(ExamPresentation.studyAction(phase: .eve, today: chemToday, weakest: weakest, courseName: "Chem 110", eveMinutes: 0),
+                     "nothing to review tonight: no button")
         XCTAssertNil(ExamPresentation.studyAction(phase: .today, today: chemToday, weakest: weakest, courseName: "Chem 110"))
     }
 

@@ -334,15 +334,15 @@ struct ReflowStack<Content: View>: View {
     }
 }
 
-/// `CLPill`, except that at accessibility text sizes it wraps onto more lines instead of truncating.
+/// `CLPill`, except that when it doesn't fit on one line (a long name, large text) it wraps instead of truncating.
 struct ReflowPill: View {
     let text: LocalizedStringResource
     var tone: CLPill.Tone = .neutral
     var systemImage: String?
-    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
-        if typeSize.isAccessibilitySize {
+        ViewThatFits(in: .horizontal) {
+            CLPill(text: text, tone: tone, systemImage: systemImage)
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 if let systemImage { Image(systemName: systemImage).font(.system(.caption, weight: .bold)) }
                 Text(text).font(.system(.caption, design: .rounded, weight: .bold))
@@ -352,8 +352,6 @@ struct ReflowPill: View {
             .padding(.vertical, 6)
             .foregroundStyle(ink)
             .background(fill, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-        } else {
-            CLPill(text: text, tone: tone, systemImage: systemImage)
         }
     }
 
@@ -380,19 +378,37 @@ struct ReflowPill: View {
     }
 }
 
-/// A button label: the title with its glyph, or at accessibility text sizes the words alone (the button style wraps
-/// them there), so the words keep the room. `titles` lists the full title first; shorter ones are kept for callers
-/// that need a compact form.
+/// A button label: the first of `titles` that fits on one line with its glyph (the full title first, then shorter ones); when none does,
+/// the shortest words alone, which the button style wraps.
 struct FittingLabel: View {
     let titles: [String]
     let systemImage: String
-    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
-        if typeSize.isAccessibilitySize {
-            Text(titles.first ?? "")
-        } else {
-            Label(titles.first ?? "", systemImage: systemImage)
+        ViewThatFits(in: .horizontal) {
+            ForEach(titles, id: \.self) { title in
+                Label(title, systemImage: systemImage).lineLimit(1)
+            }
+            // None fits on one line: the shortest words, wrapped as the button allows.
+            Text(titles.last ?? "")
+        }
+    }
+}
+
+/// Short parts joined by a dot on one line when they fit ("2 days to go · Multiple choice"), otherwise one part to a line: a line never
+/// ends on a hanging dot. Styled by whoever uses it (`.clFont`, `.foregroundStyle`).
+struct DotLine: View {
+    let parts: [String]
+    var spacing: CGFloat = 2
+
+    var body: some View {
+        ViewThatFits(in: .horizontal) {
+            Text(verbatim: parts.joined(separator: " · ")).lineLimit(1)
+            VStack(alignment: .leading, spacing: spacing) {
+                ForEach(Array(parts.enumerated()), id: \.offset) { _, part in
+                    Text(verbatim: part).fixedSize(horizontal: false, vertical: true)
+                }
+            }
         }
     }
 }

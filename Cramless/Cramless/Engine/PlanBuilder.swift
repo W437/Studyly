@@ -37,6 +37,9 @@ struct PlanDay: Sendable, Equatable, Identifiable {
     /// A day off in a what-if (`PlanBuilder.skipping`): nothing planned.
     var isSkipped: Bool = false
 
+    /// This exam's minutes that day as the plan's stops and Today's strip show them: at least 1.
+    var shownMinutes: Int { max(1, Int((seconds / 60).rounded())) }
+
     var id: Int { dayNumber }
 }
 
@@ -130,16 +133,16 @@ enum PlanMath {
 ///   A question is followed as weighted branches, one per run of right and wrong answers (at most `maxBranches`, the closest
 ///   merged), so exam-day recall is the expectation over the outcomes, never the recall of an average state; the mean stability
 ///   schedules the next review;
-/// - a first look at new material succeeds with the person's own first-try rate (`newItemSuccess`, 75% until
-///   there is history), the rest are relearned;
+/// - a first look at new material succeeds with the person's own first-try rate (`newItemSuccess`, `StudyHabits`: 75% until
+///   there is history, then a blend), the rest are relearned;
 /// - recall is forecast in hours, not whole days (`FSRS.forecastRecall`): a review the evening before a morning exam is
 ///   not certain recall;
 /// - with a `capacity` (an exam sharing the daily goal with sooner ones, `AppModel.examPlans()`), each day holds only what fits:
 ///   reviews claim it first (new material keeps up to 40% of it, as in the daily session), reviews that don't fit move on to the
 ///   next day and new material to the next day that isn't the eve; `suggestedMinutes` still reads what the exam alone needs;
 /// - `skipping` days (a what-if) get no work at all: their reviews move on and no new material is spread there;
-/// - the projection counts only the share of the plan the person tends to do (`adherence`, from the last two
-///   weeks' study days; 80% until there is history): projected = now + adherence × (plan − now).
+/// - the projection counts only the share of the plan the person tends to do (`adherence`, `StudyHabits`: from the last two
+///   weeks' study days, blended with a high prior): projected = now + adherence × (plan − now).
 /// The plan is recomputed from the current memory every time, which is what makes it bend. All of this keeps the
 /// projection a projection: optimistic numbers would make the readiness score worthless.
 struct PlanBuilder: Sendable {
@@ -149,9 +152,9 @@ struct PlanBuilder: Sendable {
     var dailyMinutes: Int
     var easyDays: Set<Int>
     /// The chance a first look at a new item is recalled right away (else it's relearned).
-    var newItemSuccess: Double = 0.75
+    var newItemSuccess: Double = StudyHabits.firstLookPrior
     /// The share of planned study the person actually does, 0…1.
-    var adherence: Double = 0.8
+    var adherence: Double = StudyHabits.followThroughPrior
     /// Seconds of study this exam may use on each day, by day offset from today (0 is today). Nil: no limit; a day missing from it
     /// has no limit either.
     var capacity: [Int: Double]? = nil

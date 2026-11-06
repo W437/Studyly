@@ -84,13 +84,16 @@ struct BuiltSession: Sendable, Equatable, Identifiable {
     var weakSpots: [WeakSpot] = []
     /// Set when the daily session runs in catch-up mode.
     var catchUp: CatchUpInfo?
-    /// Everything due right now, including what didn't fit in this session.
+    /// Everything due right now, including what didn't fit in this session. Not questions whose exams are over, while another is to come.
     var dueTotal: Int = 0
     /// Exam eve: after the last entry the session ends with "stop and sleep", no "keep going".
     var stopsAfter = false
 
     var plannedSeconds: Double { entries.reduce(0) { $0 + $1.estimatedSeconds } }
     var plannedMinutes: Int { entries.isEmpty ? 0 : max(1, Int((plannedSeconds / 60).rounded(.up))) }
+    /// An eve session's minutes as its button and the plan's "Tonight" say them: rounded up, at most its budget (the eve's limit, for each
+    /// exam sharing the evening); 0 with nothing to review.
+    var tonightMinutes: Int { min(plannedMinutes, max(SessionBuilder.examEveMinutes, Int(budgetSeconds / 60))) }
     /// Due and exam-priority reviews ("18 reviews").
     var reviewCount: Int { entries.filter { $0.reason == .due || $0.reason == .examPriority }.count }
     var newCount: Int { entries.filter { $0.reason == .new }.count }
@@ -105,6 +108,9 @@ struct BuiltSession: Sendable, Equatable, Identifiable {
 /// part of building a session over thousands of items).
 struct ExamIndex: Sendable {
     private var byCourse: [UUID: [ExamSnapshot]] = [:]
+    /// Exams already over, by course.
+    private var overByCourse: [UUID: [ExamSnapshot]] = [:]
+    /// The exams still to come, soonest first.
     let all: [ExamSnapshot]
     /// Calendar days from now to each exam.
     private(set) var daysLeft: [UUID: Int] = [:]
@@ -121,6 +127,16 @@ struct ExamIndex: Sendable {
             guard let c = exam.courseID else { continue }
             byCourse[c, default: []].append(exam)
         }
+        for exam in exams where exam.date <= now {
+            guard let c = exam.courseID else { continue }
+            overByCourse[c, default: []].append(exam)
+        }
+    }
+
+    /// The item's exams are all over: it was on one, and on none still to come. (A course that never had an exam isn't this.)
+    func isDone(with item: ItemSnapshot) -> Bool {
+        guard soonest(covering: item) == nil, let c = item.courseID else { return false }
+        return overByCourse[c]?.contains { $0.covers(item) } ?? false
     }
 
     func soonest(covering item: ItemSnapshot) -> ExamSnapshot? {
@@ -139,6 +155,7 @@ struct ExamIndex: Sendable {
 /// Builds study sessions from item snapshots. Pure: `now`, the calendar and the settings are inputs.
 ///
 /// The daily session, in order of claim on the budget:
+/// (Questions whose exams are all over wait behind every one of these while another exam is still to come: `ExamIndex.isDone(with:)`.)
 /// 1. learning steps due now (within 20 minutes);
 /// 2. due reviews, items for an exam in the next 7 days first, then lowest recall;
 /// 3. exam priority: not-due items whose recall on an exam 1–3 days away would be under the exam's target;
@@ -193,6 +210,7 @@ struct SessionBuilder: Sendable {
         var cost: Double
     }
 
+    /// `exams`: every exam, the past ones too (they say which questions are done with; only the ones to come plan anything).
     func build(_ spec: SessionSpec, items: [ItemSnapshot], exams: [ExamSnapshot] = [],
                confusions: [ConfusionSnapshot] = [], topicNames: [UUID: String] = [:]) -> BuiltSession {
         // A question the student reported waits for Cap's check outside every session; readiness still counts it.
@@ -267,21 +285,34 @@ struct SessionBuilder: Sendable {
         var due: [Candidate] = []
         var fresh: [Candidate] = []
         var notDue: [Candidate] = []
+        // While an exam is still to come, questions whose exams are over wait behind all of its work. They aren't a backlog either.
+        var doneLearning: [Candidate] = []
+        var doneDue: [Candidate] = []
+        var doneFresh: [Candidate] = []
+        var doneWith = Set<UUID>()
         var byTopic: [UUID: [Candidate]] = [:]
         var byID: [UUID: Candidate] = [:]
         for item in items where item.isActive {
             if let course = spec.courseID, item.courseID != course { continue }
             let c = candidate(item, index: index)
             byID[item.id] = c
+            let done = !index.all.isEmpty && index.isDone(with: item)
+            if done { doneWith.insert(item.id) }
             switch item.memory.state {
             case .new:
-                fresh.append(c)
+                if done { doneFresh.append(c) } else { fresh.append(c) }
             case .learning, .relearning:
-                if (item.memory.due ?? now) <= learnUntil { learning.append(c) }
+                if (item.memory.due ?? now) <= learnUntil {
+                    if done { doneLearning.append(c) } else { learning.append(c) }
+                }
             case .review:
-                if (item.memory.due ?? now) < tomorrow { due.append(c) } else { notDue.append(c) }
+                if (item.memory.due ?? now) < tomorrow {
+                    if done { doneDue.append(c) } else { due.append(c) }
+                } else {
+                    notDue.append(c)
+                }
             }
-            if let t = item.topicID, item.isStudied { byTopic[t, default: []].append(c) }
+            if let t = item.topicID, item.isStudied, !done { byTopic[t, default: []].append(c) }
         }
 
         let dueSeconds = (learning + due).reduce(0) { $0 + $1.cost }
@@ -354,8 +385,9 @@ struct SessionBuilder: Sendable {
         }
 
         // Weak spots.
-        let spots = catchUp ? [] : weakSpotCandidates(byID: byID, byTopic: byTopic, confusions: confusions,
-                                                      topicNames: topicNames, index: index)
+        let spots = catchUp ? [] : weakSpotCandidates(byID: byID, byTopic: byTopic, confusions: confusions.filter { confusion in
+            !(confusion.itemIDs + confusion.fixItemIDs).allSatisfy(doneWith.contains)
+        }, topicNames: topicNames, index: index)
 
         // Fill the budget.
         var picked: [SessionEntry] = []
@@ -414,6 +446,16 @@ struct SessionBuilder: Sendable {
                 }
             }
         }
+        // Only now, questions whose exams are over: what's left of the day, the lowest recall first, and new ones within the day's quota.
+        doneLearning.sort { ($0.item.memory.due ?? now) < ($1.item.memory.due ?? now) }
+        doneDue.sort { $0.recall < $1.recall }
+        fill(doneLearning, .due, limit: budget)
+        fill(doneDue, .due, limit: budget)
+        doneFresh.sort { a, b in
+            if a.item.createdAt != b.item.createdAt { return a.item.createdAt < b.item.createdAt }
+            return a.item.difficultyHint < b.item.difficultyHint
+        }
+        fill(Array(doneFresh.prefix(max(0, defaultNew - newPicks.count))), .new, limit: budget)
         session.weakSpots = chosenSpots
         session.entries = arrange(picked, byID: byID)
     }
@@ -477,33 +519,43 @@ struct SessionBuilder: Sendable {
                               confusions: [ConfusionSnapshot], into session: inout BuiltSession) {
         session.stopsAfter = true
         let budget = Double(min(spec.minutes ?? Self.examEveMinutes, Self.examEveMinutes)) * 60
-        session.budgetSeconds = budget
         let exam = index.all.first { $0.id == spec.examID } ?? index.all.first
-        guard let exam else { return }
+        guard let exam else {
+            session.budgetSeconds = budget
+            return
+        }
+        // Exams on the same day share the evening: one session, with each exam's own up-to-10 minutes of weak spots. It is tracked under
+        // the exam it was started for.
+        let tonight = [exam] + index.all.filter { $0.id != exam.id && calendar.dayNumber(for: $0.date) == calendar.dayNumber(for: exam.date) }
+        session.budgetSeconds = budget * Double(tonight.count)
         session.examID = exam.id
-        session.courseID = exam.courseID
+        session.courseID = Set(tonight.map(\.courseID)).count == 1 ? exam.courseID : nil
         // Weak spots in scope: studied items under the exam's target on exam day, confusion items first.
         let confused = Set(confusions.filter { $0.status == .open }.flatMap(\.itemIDs))
-        var weak: [Candidate] = []
         var byID: [UUID: Candidate] = [:]
-        for item in items where item.isActive && item.isStudied && exam.covers(item) {
-            var c = candidate(item, index: index)
-            c.exam = exam
-            c.examRecall = examRecall(item.memory, on: exam.date)
-            byID[item.id] = c
-            if confused.contains(item.id) || (c.examRecall ?? 0) < exam.target { weak.append(c) }
-        }
-        weak.sort { a, b in
-            let ca = confused.contains(a.item.id), cb = confused.contains(b.item.id)
-            return ca != cb ? ca : (a.examRecall ?? 0) < (b.examRecall ?? 0)
-        }
-        var used = 0.0
         var picked: [SessionEntry] = []
-        for c in weak where used + c.cost <= budget {
-            used += c.cost
-            picked.append(entry(c, .weak))
+        var weakTotal = 0
+        for exam in tonight {
+            var weak: [Candidate] = []
+            for item in items where item.isActive && item.isStudied && byID[item.id] == nil && exam.covers(item) {
+                var c = candidate(item, index: index)
+                c.exam = exam
+                c.examRecall = examRecall(item.memory, on: exam.date)
+                byID[item.id] = c
+                if confused.contains(item.id) || (c.examRecall ?? 0) < exam.target { weak.append(c) }
+            }
+            weak.sort { a, b in
+                let ca = confused.contains(a.item.id), cb = confused.contains(b.item.id)
+                return ca != cb ? ca : (a.examRecall ?? 0) < (b.examRecall ?? 0)
+            }
+            var used = 0.0
+            for c in weak where used + c.cost <= budget {
+                used += c.cost
+                picked.append(entry(c, .weak))
+            }
+            weakTotal += weak.count
         }
-        session.dueTotal = weak.count
+        session.dueTotal = weakTotal
         session.entries = arrange(picked, byID: byID, openerKey: { $0.examRecall ?? $0.recall })
     }
 

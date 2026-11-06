@@ -84,10 +84,12 @@ final class TodayCopyTests: XCTestCase {
     }
 
     func testTheEveAndTheDoneCard() {
-        XCTAssertEqual(TodayCopy.eveReason(topics: ["Limiting reagents", "Stoichiometry"]),
+        XCTAssertEqual(TodayCopy.eveReason(minutes: 10, topics: ["Limiting reagents", "Stoichiometry"]),
                        "10 minutes on Limiting reagents and Stoichiometry, then sleep. That's the whole plan tonight.")
-        XCTAssertEqual(TodayCopy.eveReason(topics: []), "10 minutes on your weak spots, then sleep. That's the whole plan tonight.")
+        XCTAssertEqual(TodayCopy.eveReason(minutes: 10, topics: []), "10 minutes on your weak spots, then sleep. That's the whole plan tonight.")
         XCTAssertEqual(TodayCopy.eveRest(title: "Chem 110 Quiz", time: nil), "Chem 110 Quiz is tomorrow. Sleep is part of studying.")
+        XCTAssertEqual(TodayCopy.eveRest(title: "Chem 110 Quiz and Bio 101 Midterm", several: true, time: nil),
+                       "Chem 110 Quiz and Bio 101 Midterm are tomorrow. Sleep is part of studying.")
         XCTAssertEqual(TodayCopy.doneLine(minutes: 15, answers: 24), "15 min · 24 answers")
         XCTAssertEqual(TodayCopy.doneLine(minutes: 3, answers: 1), "3 min · 1 answer")
         XCTAssertEqual(TodayCopy.doneRing(title: "Chem 110 Quiz", value: 0.52), "Chem 110 Quiz: 52% ready")

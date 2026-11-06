@@ -123,16 +123,24 @@ enum TodayCopy {
     /// Readiness this thin is a guess: under this many questions in scope the card says what it is based on.
     static let fewQuestions = 15
 
-    /// The eve: "10 minutes on Limiting reagents and Stoichiometry, then sleep. That's the whole plan tonight."
-    static func eveReason(topics: [String]) -> String {
+    /// The eve: "4 minutes on Limiting reagents and Stoichiometry, then sleep. That's the whole plan tonight."
+    static func eveReason(minutes: Int, topics: [String]) -> String {
         guard !topics.isEmpty else {
-            return String(localized: "10 minutes on your weak spots, then sleep. That's the whole plan tonight.")
+            return String(localized: "\(minutes) minutes on your weak spots, then sleep. That's the whole plan tonight.")
         }
-        return String(localized: "10 minutes on \(Self.topics(topics)), then sleep. That's the whole plan tonight.")
+        return String(localized: "\(minutes) minutes on \(Self.topics(topics)), then sleep. That's the whole plan tonight.")
     }
 
-    /// "Chem 110 Quiz is tomorrow. Sleep is part of studying." (with its time once tonight's session is done).
-    static func eveRest(title: String, time: String?) -> String {
+    /// The all-lit card's reason, naming the topic its practice is on (the button may be too narrow to).
+    static func allLit(topic: String?) -> String {
+        guard let topic else { return String(localized: "Nothing due right now. A short practice keeps it fresh.") }
+        return String(localized: "Nothing due right now. A short practice on \(topic) keeps it fresh.")
+    }
+
+    /// "Chem 110 Quiz is tomorrow. Sleep is part of studying." (with its time once tonight's session is done). `several`: `title` names
+    /// the exams sharing the evening.
+    static func eveRest(title: String, several: Bool = false, time: String?) -> String {
+        if several { return String(localized: "\(title) are tomorrow. Sleep is part of studying.") }
         guard let time else { return String(localized: "\(title) is tomorrow. Sleep is part of studying.") }
         return String(localized: "\(title) is tomorrow at \(time). Sleep is part of studying.")
     }
@@ -153,17 +161,18 @@ enum TodayCopy {
 
     // MARK: Your plan
 
-    /// What a day of the strip says under its mark: "15m", "10m", "Exam", "Done".
+    /// What a day of the strip says under its mark: "15m", "1m", "Exam", "Done".
     static func stripCaption(_ day: TodayPlanDay) -> String {
         switch day.mark {
         case .studied, .frozen, .missed: return ""
         case .done: return String(localized: "Done")
+        case .minutes(0), .eve(0): return ""
         case .minutes(let m), .eve(let m): return String(localized: "\(m)m")
         case .exam: return String(localized: "Exam")
         }
     }
 
-    /// One day of the strip in words, for VoiceOver and the large text sizes: "Saturday: the night before Chem 110 Quiz, 10 minutes".
+    /// One day of the strip in words, for VoiceOver and the large text sizes: "Saturday: the night before Chem 110 Quiz, 1 minute".
     static func stripDay(_ day: TodayPlanDay, calendar: Calendar) -> String {
         let name = day.isToday ? String(localized: "Today")
             : day.date.formatted(Date.FormatStyle(locale: calendar.locale ?? .current, calendar: calendar,
@@ -174,7 +183,10 @@ enum TodayCopy {
         case .frozen: what = String(localized: "covered by a freeze")
         case .missed: what = String(localized: "not studied")
         case .done: what = String(localized: "done")
+        case .minutes(0): what = String(localized: "nothing planned")
         case .minutes(let m): what = String(localized: "\(m) minutes planned")
+        case .eve(0):
+            what = String(localized: "the night before \(day.examTitles.formatted(.list(type: .and)))")
         case .eve(let m):
             what = String(localized: "the night before \(day.examTitles.formatted(.list(type: .and))), \(m) minutes")
         case .exam: what = day.examTitles.formatted(.list(type: .and))
@@ -197,7 +209,8 @@ enum TodayCopy {
     /// "1 of 2" over Cap's card.
     static func noticeCount(_ index: Int, of total: Int) -> String { String(localized: "\(index) of \(total)") }
 
-    /// The eve's quiet line in Cap's place: the other exams wait. `others` are the other courses, soonest first.
+    /// The eve's quiet line in Cap's place: the other exams wait. `examTitle` names tonight's exams, all of them; `others` are the other
+    /// courses, soonest first.
     static func quietLine(examTitle: String, others: [String]) -> String {
         let quiet = String(localized: "Cap is quiet tonight.")
         switch others.count {

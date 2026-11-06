@@ -260,6 +260,17 @@ extension AIRouter {
         return .success(outcome)
     }
 
+    /// What a reading of these pages will take of the free scans, cut the way `cloudGeneration` will cut it (`AllowanceCopy.reading`). Nil on
+    /// a paid plan, without Cloud AI, or when it fits one scan. Reading it changes nothing.
+    func readingAllowance(pageWords: [Int]) -> LocalizedStringResource? {
+        guard freeCloudUsesLeft(for: .generate) != nil, let left = runnableScans() else { return nil }
+        let cap = AIFreeLimits.pagesPerScan(plan)
+        let parts = GenerationPlan.parts(pageWords: pageWords, pageCap: cap, questions: AIFreeLimits.maximumQuestionsPerRequest, plan: plan,
+                                         runnable: left)
+        let readable = parts.filter(\.affordable).reduce(0) { $0 + $1.pages.count }
+        return AllowanceCopy.reading(pages: pageWords.count, needed: (pageWords.count + cap - 1) / max(1, cap), readable: readable, left: left)
+    }
+
     /// One part: generate, the anchor check, the relay's check (asked again leniently when it rejects nearly everything,
     /// and replaced by this iPhone's when it still does).
     private func runPart(_ part: GenerationPlan.Part, of input: GenerationInput, language: String,

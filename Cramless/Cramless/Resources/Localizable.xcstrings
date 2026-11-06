@@ -30,6 +30,7 @@
     },
     "%@ (new)" : {},
     "%@ Midterm" : {},
+    "%@ are tomorrow. Sleep is part of studying." : {},
     "%@ at %@" : {
       "localizations" : {
         "en" : {
@@ -155,6 +156,8 @@
     },
     "%@ made from it" : {},
     "%@ questions" : {},
+    "%@ questions are in too" : {},
+    "%@ questions are in too, because they're due." : {},
     "%@ ready" : {},
     "%@ ready now" : {},
     "%@ saved.%@" : {
@@ -616,6 +619,60 @@
                 "stringUnit" : {
                   "state" : "translated",
                   "value" : "%lld minutes left"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld minutes on %@, then sleep. That's the whole plan tonight." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%#@minutes@ on %2$@, then sleep. That's the whole plan tonight."
+          },
+          "substitutions" : {
+            "minutes" : {
+              "argNum" : 1,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg minute"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg minutes"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld minutes on your weak spots, then sleep. That's the whole plan tonight." : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld minute on your weak spots, then sleep. That's the whole plan tonight."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld minutes on your weak spots, then sleep. That's the whole plan tonight."
                 }
               }
             }
@@ -1565,8 +1622,6 @@
     "1 freeze saved" : {},
     "1,000 answers." : {},
     "1-day streak" : {},
-    "10 minutes on %@, then sleep. That's the whole plan tonight." : {},
-    "10 minutes on your weak spots, then sleep. That's the whole plan tonight." : {},
     "100 days in a row." : {},
     "2 of 3 · Almost" : {},
     "22 minutes tonight and you're done. Your streak is safe." : {},
@@ -1582,6 +1637,7 @@
     "A code works once, for one friend. Share it as a link, or read it out." : {},
     "A cozy end to a good day." : {},
     "A few %@ questions are in too" : {},
+    "A few %@ questions are in too, because they're due." : {},
     "A few at a time, so it's all in before the exam." : {},
     "A few at a time, so they stick." : {},
     "A file" : {},
@@ -2728,6 +2784,7 @@
     "Its deck was deleted or changed." : {},
     "Its exam is %@ away." : {},
     "Its exam is further off, so it gets a smaller share of today." : {},
+    "Its exam is further off." : {},
     "Its pages are removed from this iPhone. Kept questions lose their link to the page." : {},
     "Its plan goes. The questions and progress in %@ stay." : {},
     "Its plan goes. Your questions and progress stay in %@." : {},
@@ -3064,6 +3121,7 @@
     "Nothing arrives between these times. A reminder due then moves just outside them." : {},
     "Nothing came back for that." : {},
     "Nothing due right now. A short practice keeps it fresh." : {},
+    "Nothing due right now. A short practice on %@ keeps it fresh." : {},
     "Nothing due. Bliss." : {},
     "Nothing escapes my lens." : {},
     "Nothing has been added to a course yet." : {},
@@ -3812,6 +3870,8 @@
     "That's all the drafts for today. They start again at midnight." : {},
     "That's all the web research for today. It resets at midnight." : {},
     "That's enough for tonight" : {},
+    "That's enough for tonight. You're about %@ ready for tomorrow morning." : {},
+    "That's enough for tonight. You're about %@ ready for tomorrow." : {},
     "That's enough." : {},
     "That's how it's done." : {},
     "That's it, with a hint." : {},
@@ -3918,6 +3978,7 @@
     "Their code" : {},
     "Their exams are %@ away." : {},
     "Their exams are further off, so they get a smaller share of today." : {},
+    "Their exams are further off." : {},
     "Theme" : {},
     "Then about %lld min a day until %@" : {
       "localizations" : {
@@ -3925,6 +3986,16 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Then about %1$lld min a day until %2$@"
+          }
+        }
+      }
+    },
+    "Then about %lld min on study days until %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Then about %1$lld min on study days until %2$@"
           }
         }
       }
@@ -3950,6 +4021,16 @@
     "This exam is gone." : {},
     "This exam was deleted." : {},
     "This iPhone's own AI" : {},
+    "This is %lld pages, so it takes %lld of your free AI scans." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "This is %1$lld pages, so it takes %2$lld of your free AI scans."
+          }
+        }
+      }
+    },
     "This mix-up is gone" : {},
     "This one is back: you missed it earlier in the session" : {},
     "This one is too easy now" : {},
@@ -4007,11 +4088,33 @@
     "Tomorrow's brain says thanks." : {},
     "Tomorrow-us will be ready." : {},
     "Tonight · %lld min" : {},
-    "Tonight · 10 min" : {},
     "Tonight · about %lld min" : {},
+    "Tonight · done" : {},
+    "Tonight · nothing to review" : {},
     "Tonight's weak spots take you to about %@ by tomorrow morning." : {},
     "Tonight's weak spots take you to about %@ by tomorrow." : {},
-    "Tonight, 10 minutes" : {},
+    "Tonight, %lld minutes" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Tonight, %lld minute"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Tonight, %lld minutes"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "Tonight: weak spots only" : {},
     "Too cozy to move." : {},
     "Topic" : {},
@@ -4174,6 +4277,38 @@
       }
     },
     "You got %@." : {},
+    "You have %lld free AI scans left, so Cap reads the first %lld of %lld pages." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You have %#@scans@ left, so Cap reads the first %2$lld of %3$lld pages."
+          },
+          "substitutions" : {
+            "scans" : {
+              "argNum" : 1,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg free AI scan"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg free AI scans"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "You left every question blank. Your plan hasn't changed." : {},
     "You left the Squad. You're on the free plan." : {},
     "You repaired a day you missed." : {},
@@ -4418,6 +4553,7 @@
     "min" : {},
     "ng" : {},
     "not studied" : {},
+    "nothing planned" : {},
     "opened %lld days ago" : {},
     "opened today" : {},
     "opened yesterday" : {},
@@ -4426,6 +4562,7 @@
     "rest" : {},
     "steady this week" : {},
     "studied" : {},
+    "the night before %@" : {},
     "the night before %@, %lld minutes" : {
       "localizations" : {
         "en" : {

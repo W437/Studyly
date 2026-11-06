@@ -8,7 +8,7 @@ COMMON_ENV = {
     "CRAMLESS_CAP_CLIPS": "1",       # Cap as the animated clips the app ships, not the still drawing the screenshots use
     "CRAMLESS_SOUNDS": "1",          # the app logs its cues either way; film.sh renders them over the film
     "CRAMLESS_SHOW_TOUCHES": "1",    # a ring under every finger (TouchDots.swift)
-    "CRAMLESS_MOCK_AI": "0",         # the offline AI: a real grade of what is typed, not a canned one
+    "CRAMLESS_MOCK_AI": "0",         # the offline AI, a real grade of what is typed, on a blank Secrets.xcconfig (a filled one calls the live relay)
     "CRAMLESS_NOW": "2026-10-26T13:00:00Z",
 }
 JOURNEYS: dict[str, dict] = {}
