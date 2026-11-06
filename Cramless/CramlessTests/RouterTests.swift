@@ -19,6 +19,18 @@ final class RouterTests: XCTestCase {
 
     // MARK: Navigation: toast actions and Help
 
+    func testASheetOverACoverIsTheCoversToPresentSoTheCoverSurvivesIt() {
+        let router = Router()
+        router.present(.help)
+        XCTAssertEqual(router.rootSheet, .help, "no cover: the root presents it")
+        router.cover = .record(courseID: nil)
+        router.sheet = .help
+        XCTAssertNil(router.rootSheet, "a sheet from the root would take the cover's place, and the cover would start over")
+        XCTAssertEqual(router.sheet, .help, "the cover presents it")
+        router.dismissCover()
+        XCTAssertEqual(router.rootSheet, .help)
+    }
+
     func testAToastsButtonOpensWhatItOffered() {
         let router = Router()
         let id = UUID()

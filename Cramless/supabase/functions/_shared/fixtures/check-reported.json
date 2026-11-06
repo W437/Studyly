@@ -1,0 +1,7 @@
+{
+  "model": "mock",
+  "verdicts": [
+    { "id": "reported", "verdict": "fixed", "reason": "The page says the chromatids are pulled apart in anaphase, not metaphase.",
+      "fixedAnswer": "Anaphase" }
+  ]
+}

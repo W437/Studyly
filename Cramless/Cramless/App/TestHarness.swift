@@ -146,12 +146,38 @@ enum TestHarness {
             if courses.indices.contains(index) { r.push(.course(courses[index].id), on: .library) }
         case "source": if let s = firstSource { r.push(.source(s.id), on: .library) }
         case "sourcePage":
-            if let s = firstSource {
-                let anchors = firstCourse?.activeItems
-                    .filter { $0.sourceRef?.sourceID == s.id && $0.sourceRef?.pageIndex == 0 && $0.sourceRef?.anchorIDs.isEmpty == false }
-                    .min { $0.prompt < $1.prompt }?.sourceRef?.anchorIDs ?? []
-                r.push(.sourcePage(sourceID: s.id, pageIndex: 0, highlight: anchors), on: .library)
+            // `sourcePage:<n>`: page n of the first source; `sourcePage:text`: a typed page a question comes from.
+            if arg == "text" {
+                let textItem = app.courses.flatMap(\.activeItems).filter { item in
+                    guard let ref = item.sourceRef, let page = ref.pageIndex, !ref.anchorIDs.isEmpty,
+                          let source = app.source(ref.sourceID) else { return false }
+                    return source.sortedPages.first { $0.pageIndex == page }?.imageFileName == nil
+                }.min { $0.prompt < $1.prompt }
+                if let ref = textItem?.sourceRef {
+                    r.push(.sourcePage(sourceID: ref.sourceID, pageIndex: ref.pageIndex ?? 0, highlight: ref.anchorIDs), on: .library)
+                }
+            } else if let s = firstSource {
+                let index = Int(arg ?? "") ?? 0
+                let lines = s.sortedPages.first { $0.pageIndex == index }?.lines ?? []
+                let candidates = (firstCourse?.activeItems ?? [])
+                    .filter { $0.sourceRef?.sourceID == s.id && $0.sourceRef?.pageIndex == index && $0.sourceRef?.anchorIDs.isEmpty == false }
+                    .sorted { $0.prompt < $1.prompt }
+                // One that zooms, for choice; `CRAMLESS_PAGE_ANCHORS=p0.l3,p0.l9` names the lines instead (lines across columns don't zoom).
+                let zooms = candidates.first { item in
+                    let wanted = Set(item.sourceRef?.anchorIDs ?? [])
+                    let boxes = lines.filter { wanted.contains($0.id) }.compactMap(\.box)
+                    return (PageFocus.make(boxes: boxes, frame: CGSize(width: 300, height: 400))?.scale ?? 1) > 1
+                }
+                let named = value("CRAMLESS_PAGE_ANCHORS")?.split(separator: ",").map(String.init)
+                let anchors = named ?? (zooms ?? candidates.first)?.sourceRef?.anchorIDs ?? []
+                r.push(.sourcePage(sourceID: s.id, pageIndex: index, highlight: anchors), on: .library)
             }
+        // `ladder`: "Yes, harder" for a question with lines to write from (`LadderSheet`, `CRAMLESS_LADDER`).
+        case "ladder":
+            let parent = firstCourse?.activeItems.filter { Ladder.next(after: $0.kind) != nil && app.reportSource(of: $0) != nil }
+                .min { $0.prompt < $1.prompt }
+            r.tab = .today
+            if let parent { r.present(.ladder(parentID: parent.id)) }
         case "lectureNotes":
             if let lecture = firstCourse?.liveSources.first(where: { $0.kind == .lecture }) {
                 r.push(.lectureNotes(lecture.id), on: .library)

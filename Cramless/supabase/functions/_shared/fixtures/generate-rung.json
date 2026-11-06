@@ -1,0 +1,22 @@
+{
+  "title": "Phases of mitosis",
+  "model": "mock",
+  "topics": [
+    { "name": "Phases of mitosis", "summary": "Prophase, metaphase, anaphase and telophase, and what happens to the chromosomes in each." }
+  ],
+  "items": [
+    {
+      "id": "i1", "kind": "apply", "topic": "Phases of mitosis",
+      "prompt": "A drug lets the chromosomes line up at the equator but stops the spindle fibres from shortening. Where does the cell get stuck, and what never happens?",
+      "answer": "It stops at metaphase: the chromatids are never pulled to opposite poles, so anaphase never starts.",
+      "explanation": "The fibres pulling the chromatids apart is what anaphase is.",
+      "keyIdeas": [
+        { "id": "k1", "label": "Stuck at metaphase", "terms": ["metaphase", "equator", "stuck in the middle", "lined up"] },
+        { "id": "k2", "label": "Chromatids are never pulled apart", "terms": ["never pulled", "not pulled", "don't separate", "no anaphase", "anaphase never", "stay together"] }
+      ],
+      "choices": [],
+      "anchors": ["p0.l18", "p0.l21"],
+      "difficulty": 0.75
+    }
+  ]
+}

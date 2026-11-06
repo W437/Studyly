@@ -154,6 +154,7 @@ struct ChoiceQuestionView: View {
                 }
                 .buttonStyle(.cl(.soft, size: .medium))
             }
+            if runner.offersLooksWrong { LooksWrongButton(item: item, given: pickedText) }
         } else {
             Button("I don't know") { pick(-1) }
                 .buttonStyle(.cl(.ghost, size: .medium))

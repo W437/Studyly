@@ -431,6 +431,16 @@ final class SessionRunner: Identifiable {
         }
     }
 
+    /// Moves past the current question with nothing recorded: it has gone to Cap to check, so it counts for nothing.
+    func skipWithoutRecording() {
+        guard phase == .question, let entry = queue.current else { return }
+        app.clearAnswerDraft(for: entry.itemID)
+        advance()
+    }
+
+    /// "Looks wrong?" belongs to a real session, not to onboarding's two-question check.
+    var offersLooksWrong: Bool { request.kind != .quickCheck }
+
     // MARK: Undo
 
     /// Holds a rating for the Undo window. The answer joins the session at once (segments, tally, Live Activity); nothing is written

@@ -93,6 +93,7 @@ import {
   checkSystem,
   confusionsContent,
   generateContent,
+  generateSystem,
   gradeContent,
   lectureContent,
   researchInput,
@@ -319,7 +320,62 @@ export function generateTokens(maxItems: number): number {
  * platform ends a function at about 150 s, so this leaves room to answer after the model gives up. */
 export const GENERATE_TIMEOUT_MS = 115_000;
 
+/** A harder question's limits: one idea, from the lines around it. */
+export const RUNG_MAX_ITEMS = 2;
+export const RUNG_MAX_LINES = 60;
+
+/** One harder question for an idea the student has outgrown. It's a draft for the student to add, not a scan of new pages, so
+ * it takes one of the day's `drafts`, and its size is held to one idea's. */
+async function generateRung(c: Ctx, body: GenerateRequest): Promise<Response> {
+  const page = body.pages[0];
+  if (
+    body.formats.length !== 1 || body.maxItems > RUNG_MAX_ITEMS || body.pages.length !== 1 || page.image ||
+    page.lines.length === 0 || page.lines.length > RUNG_MAX_LINES
+  ) {
+    throw badRequest(
+      `A harder question takes one format, up to ${RUNG_MAX_ITEMS} questions and one page of up to ${RUNG_MAX_LINES} lines.`,
+    );
+  }
+  return await jsonRoute<GenerateResponse>(c, { meter: "drafts" }, () => "generate-rung", async () => {
+    c.meta.model = TERRA;
+    const res = call(
+      c,
+      await c.deps.provider.json<Omit<GenerateResponse, "model">>({
+        model: TERRA,
+        effort: "medium",
+        maxTokens: generateTokens(body.maxItems),
+        timeoutMs: GENERATE_TIMEOUT_MS,
+        system: generateSystem(true),
+        content: generateContent(body),
+        schema: providerSchema("GenerateResponse"),
+        signal: c.req.signal,
+      }),
+    );
+    const items = sanitizeItems(res.value.items, {
+      validAnchors: lineIdsOf(body.pages),
+      requireAnchors: true,
+      unknownAnchor: "drop",
+      formats: new Set<ItemKind>(body.formats),
+      maxItems: body.maxItems,
+    });
+    if (items.length === 0) {
+      throw new ApiError("upstream", "Cap couldn't write a harder one from these lines.", {}, 502);
+    }
+    return {
+      body: {
+        title: res.value.title.trim() || body.sourceTitle,
+        model: res.model,
+        topics: sanitizeTopics(res.value.topics, items),
+        items,
+      },
+      model: res.model,
+      usage: c.meta.usage ?? res.usage,
+    };
+  });
+}
+
 async function generate(c: Ctx, body: GenerateRequest): Promise<Response> {
+  if (body.rung) return await generateRung(c, body);
   const max = isPaid(c.user.plan) ? PAGES_PER_SCAN.paid : PAGES_PER_SCAN.free;
   if (body.pages.length > max) {
     if (!isPaid(c.user.plan)) {
@@ -375,7 +431,8 @@ async function generate(c: Ctx, body: GenerateRequest): Promise<Response> {
 }
 
 async function check(c: Ctx, body: CheckRequest): Promise<Response> {
-  return await jsonRoute<CheckResponse>(c, { meter: "extras" }, () => "check", async () => {
+  const fixture = (body.reports?.length ?? 0) > 0 ? "check-reported" : "check";
+  return await jsonRoute<CheckResponse>(c, { meter: "extras" }, () => fixture, async () => {
     const lineIds = lineIdsOf(body.pages);
     const seen = new Set<string>();
     const items = body.items.filter((i) => !seen.has(i.id) && seen.add(i.id));
@@ -383,6 +440,8 @@ async function check(c: Ctx, body: CheckRequest): Promise<Response> {
       items.filter((i) => !i.anchors?.length || i.anchors.some((a) => !lineIds.has(a))).map((i) => i.id),
     );
     const grounded = items.filter((i) => !ungrounded.has(i.id));
+    const groundedIDs = new Set(grounded.map((i) => i.id));
+    const reported = (body.reports ?? []).some((r) => groundedIDs.has(r.id));
     if (grounded.length === 0) {
       return {
         body: { model: "relay", verdicts: sanitizeVerdicts(items, [], ungrounded) },
@@ -397,11 +456,12 @@ async function check(c: Ctx, body: CheckRequest): Promise<Response> {
         model: TERRA,
         effort: "medium",
         maxTokens: 12_000,
-        system: checkSystem(body.lenient === true),
+        system: checkSystem(body.lenient === true, reported),
         content: checkContent(body.pages, grounded, {
           sourceTitle: body.sourceTitle,
           headings: body.headings,
           lenient: body.lenient === true,
+          reports: body.reports,
         }),
         schema: providerSchema("CheckResponse"),
         signal: c.req.signal,

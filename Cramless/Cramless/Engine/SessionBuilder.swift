@@ -215,6 +215,8 @@ struct SessionBuilder: Sendable {
     /// `exams`: every exam, the past ones too (they say which questions are done with; only the ones to come plan anything).
     func build(_ spec: SessionSpec, items: [ItemSnapshot], exams: [ExamSnapshot] = [],
                confusions: [ConfusionSnapshot] = [], topicNames: [UUID: String] = [:]) -> BuiltSession {
+        // A question the student reported waits for Cap's check outside every session; readiness still counts it.
+        let items = items.filter { !$0.reported }
         var session = BuiltSession(id: spec.id, kind: spec.kind, entries: [], budgetSeconds: 0,
                                    courseID: spec.courseID, topicID: spec.topicID, examID: spec.examID,
                                    confusionID: spec.confusionID)

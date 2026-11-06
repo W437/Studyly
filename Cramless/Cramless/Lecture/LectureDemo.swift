@@ -23,6 +23,50 @@ extension LecturePorts {
     }
 }
 
+/// Lecture playback with no audio, for the seeded lecture: the clock runs at the chosen speed and nothing is heard.
+@MainActor
+final class DemoLecturePlayback: LecturePlayback {
+    var onEvent: ((LecturePlaybackEvent) -> Void)?
+    private let duration: Double
+    private var anchor: Double = 0
+    private var rate: Double = 1
+    private var startedAt: ContinuousClock.Instant?
+
+    init(duration: Double) { self.duration = duration }
+
+    private var now: Double {
+        anchor + (startedAt?.duration(to: .now).timeInterval ?? 0) * rate
+    }
+
+    func position() async -> Double { min(now, duration) }
+
+    func play(from seconds: Double, rate: Double) {
+        anchor = seconds
+        self.rate = rate
+        startedAt = .now
+    }
+
+    func seek(to seconds: Double) {
+        anchor = seconds
+        if startedAt != nil { startedAt = .now }
+    }
+
+    func pause() {
+        anchor = now
+        startedAt = nil
+    }
+
+    func setRate(_ rate: Double) {
+        anchor = now
+        if startedAt != nil { startedAt = .now }
+        self.rate = rate
+    }
+
+    func close(releasingSession: Bool) { pause() }
+
+    func publish(_ info: LecturePlayer.NowPlaying) {}
+}
+
 /// A microphone that records nothing: it moves the level meter like speech and counts the time.
 @MainActor
 final class DemoLectureAudio: LectureAudioCapturing {

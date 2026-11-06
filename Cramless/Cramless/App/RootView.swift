@@ -29,13 +29,7 @@ struct RootView: View {
         .environment(\.skyTheme, app.skyTheme)
         .preferredColorScheme(colorScheme)
         .tint(CLColor.tangerine)
-        .sheet(item: $router.sheet) { sheet in
-            SheetDestination(sheet: sheet)
-                // A sheet doesn't inherit what's set on the view that presents it.
-                .environment(\.clDyslexicFont, app.settings.dyslexicFont)
-                .environment(\.skyTheme, app.skyTheme)
-                .tint(CLColor.tangerine)
-        }
+        .modifier(RootSheetHost(router: router))
         .fullScreenCover(item: $router.cover) { cover in
             CoverDestination(cover: cover)
                 .environment(\.clDyslexicFont, app.settings.dyslexicFont)
@@ -77,6 +71,7 @@ struct RootView: View {
             guard phase == .active else { return }
             app.applyDailyRollover()
             if app.sideEffectsEnabled { app.widgets.refresh() }
+            Task { await app.runPendingRechecks() }
             app.answerLaterOnActive()
         }
     }
@@ -186,6 +181,29 @@ private struct TabRoot<Content: View>: View {
     }
 }
 
+/// The router's one sheet, presented from the root only while no cover is up (`Router.rootSheet`). With a cover up the sheet is the cover's
+/// to present: from the root it takes the cover's place, and when it closes the cover is made anew, which starts a session over and
+/// loses the answer on screen. Its own view, so a sheet coming and going doesn't redraw the tabs.
+private struct RootSheetHost: ViewModifier {
+    let router: Router
+
+    @Environment(AppModel.self) private var app
+
+    func body(content: Content) -> some View {
+        let shown = router.rootSheet
+        content.sheet(item: Binding(get: { shown }, set: { new in
+            // Only the root's own sheet closing: with a cover up, this must not clear the sheet the cover shows.
+            if router.cover == nil { router.sheet = new }
+        })) { sheet in
+            SheetDestination(sheet: sheet)
+                // A sheet doesn't inherit what's set on the view that presents it.
+                .environment(\.clDyslexicFont, app.settings.dyslexicFont)
+                .environment(\.skyTheme, app.skyTheme)
+                .tint(CLColor.tangerine)
+        }
+    }
+}
+
 /// Every pushed screen, by route.
 struct RouteDestination: View {
     let route: Route
@@ -246,6 +264,8 @@ struct SheetDestination: View {
         case .lookAlike(let a, let b, _): LookAlikeView(a: a, b: b)
         case .streakMonth: StreakMonthSheet()
         case .skyMemory: SkyMemorySheet()
+        case .looksWrong(let id, let given): LooksWrongSheet(itemID: id, given: given)
+        case .ladder(let id): LadderSheet(parentID: id)
         }
     }
 }

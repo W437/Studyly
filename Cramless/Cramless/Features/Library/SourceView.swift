@@ -27,7 +27,7 @@ struct SourceView: View {
         let imagePages = pages.filter { $0.imageFileName != nil }
         let textPages = pages.filter { $0.imageFileName == nil && !$0.text.clTrimmed.isEmpty }
         let all = app.questions(from: source)
-        let drafts = all.filter { $0.status == .draft }
+        let drafts = all.filter { $0.status == .draft && $0.rungOf == nil }
         let questions = all.filter { $0.status == .active || $0.status == .suspended }
         let topicNames = Dictionary(uniqueKeysWithValues: (course?.liveTopics ?? []).map { ($0.id, $0.name) })
 

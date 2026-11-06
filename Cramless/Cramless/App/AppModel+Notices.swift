@@ -144,6 +144,10 @@ extension AppModel {
             markNoticeActed(NoticeEngine.mockOfferID(examID))
             router.present(.mockExam(examID: examID))
             return nil
+        case .raiseQuestion(let itemID):
+            markNoticeActed(NoticeEngine.tooEasyID(itemID))
+            router.present(.ladder(parentID: itemID))
+            return nil
         }
         if let request { router.present(.session(request)) }
         return request
@@ -383,6 +387,9 @@ extension AppModel {
         inputs.topicNames = topicNames()
         inputs.cloudLessons = ai.route(.confusions).usesCloud
         inputs.mockOffers = noticeMockOffers()
+        inputs.tooEasy = ladderOffers(items: items, exams: exams).map {
+            NoticeTooEasy(itemID: $0.itemID, next: $0.next, topicName: $0.topicName)
+        }
         return inputs
     }
 

@@ -133,6 +133,10 @@ enum AppSheet: Identifiable, Hashable, Sendable {
     case streakMonth
     /// The reviews coming due and the brightest topics, over the sky.
     case skyMemory
+    /// "Looks wrong?": what's off with a question. `given`: what the student answered, if they did.
+    case looksWrong(itemID: UUID, given: String)
+    /// "Yes, harder": a harder question for this one.
+    case ladder(parentID: UUID)
 
     var id: String { String(describing: self) }
 }
@@ -190,6 +194,9 @@ final class Router {
         sheet = nil
         self.cover = cover
     }
+
+    /// The sheet the root presents: none while a cover is up, whose own host presents it instead.
+    var rootSheet: AppSheet? { cover == nil ? sheet : nil }
 
     func dismissSheet() { sheet = nil }
     func dismissCover() { cover = nil }

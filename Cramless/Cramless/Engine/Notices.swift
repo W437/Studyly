@@ -39,6 +39,7 @@ enum NoticeKind: String, Codable, CaseIterable, Sendable {
 
     /// The kinds that deal cards in this build, in the order Settings lists their switches.
     static let live: [NoticeKind] = [.mixUp, .lookAlike, .fading, .welcomeBack, .mockOffer]
+        + [.tooEasy]
 }
 
 /// The person's switches: which kinds Cap may bring up, and whether he may send a notification about them.
@@ -210,6 +211,15 @@ struct NoticeInputs: Sendable {
     var cloudLessons = false
     /// The exams a mock is due for.
     var mockOffers: [NoticeMockOffer] = []
+    /// Questions that have become too easy, the strongest first (`Ladder`).
+    var tooEasy: [NoticeTooEasy] = []
+}
+
+/// A question that has become too easy, and the harder way to ask its idea.
+struct NoticeTooEasy: Equatable, Sendable {
+    var itemID: UUID
+    var next: ItemKind
+    var topicName: String?
 }
 
 /// A mock that is due for an exam: which exam, and how long the mock would be.
@@ -232,6 +242,7 @@ struct Notice: Identifiable, Equatable, Sendable {
         /// `best`: the person's best streak, in days; 0 in Quiet mode, where the card doesn't name it.
         case welcomeBack(best: Int)
         case mockOffer(NoticeMockOffer)
+        case tooEasy(NoticeTooEasy)
     }
 
     /// What pressing its button costs, as the card says it.
@@ -243,7 +254,8 @@ struct Notice: Identifiable, Equatable, Sendable {
         case free
     }
 
-    /// Stable for what it is about: `mix-<confusion>`, `pair-<hash of the two questions>`, `fade-<exam>-<day>`, `back-<last day studied>`, `mock-<exam>`.
+    /// Stable for what it is about: `mix-<confusion>`, `pair-<hash of the two questions>`, `fade-<exam>-<day>`, `back-<last day studied>`, `mock-<exam>`,
+    /// `easy-<question>`.
     var id: String
     var kind: NoticeKind
     var rank: Double
@@ -307,6 +319,8 @@ struct NoticeEngine: Sendable {
         /// Below the lowest a look-alike reaches, three weeks out.
         static func finishedMixUp(misses: Int) -> Double { 100 + Double(min(misses, 10)) }
         static func mockOffer(daysLeft: Int) -> Double { 450 - 10 * Double(daysLeft) }
+        /// Nothing is at risk, so it waits behind what needs help: above only a mix-up on a finished exam.
+        static let tooEasy = 150.0
         static func lookAlike(similarity: Double, linked: Bool, daysLeft: Int) -> Double {
             300 + 100 * similarity + (linked ? 50 : 0) - 10 * Double(daysLeft)
         }
@@ -324,6 +338,7 @@ struct NoticeEngine: Sendable {
         let calendar = inputs.calendar, now = inputs.now
         guard !inputs.exams.contains(where: { $0.date > now && calendar.dayDistance(from: now, to: $0.date) == 1 }) else { return [] }
         let cards = mixUpCards() + lookAlikeCards() + fadingCards() + welcomeBackCards() + mockOfferCards()
+            + tooEasyCards()
         return cards.filter { inputs.settings.allows($0.kind) }
             .sorted { $0.rank != $1.rank ? $0.rank > $1.rank : $0.id < $1.id }
     }
@@ -490,4 +505,13 @@ struct NoticeEngine: Sendable {
     }
 
     static func mockOfferID(_ examID: UUID) -> String { "mock-\(examID.uuidString)" }
+
+    /// One idea at a time, the strongest. Never a notification: there's no hurry in it. It writes a draft, which the card says it spends.
+    private func tooEasyCards() -> [Notice] {
+        inputs.tooEasy.prefix(1).map { offer in
+            Notice(id: Self.tooEasyID(offer.itemID), kind: .tooEasy, rank: Rank.tooEasy, evidence: .tooEasy(offer), cost: .drafts(1))
+        }
+    }
+
+    static func tooEasyID(_ itemID: UUID) -> String { "easy-\(itemID.uuidString)" }
 }

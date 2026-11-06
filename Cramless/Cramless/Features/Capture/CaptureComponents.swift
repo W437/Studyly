@@ -254,9 +254,16 @@ func draftClozeText(_ text: String) -> AttributedString {
 /// DEBUG: `CRAMLESS_CANVAS=375x667` draws the capture and lecture screens at that size (an iPhone SE) inside a larger
 /// Simulator, to check narrow layouts on one Simulator. A no-op otherwise, and in release builds.
 struct CaptureDebugCanvas: ViewModifier {
+    /// A sheet that hugs its content keeps its own height: only the width is the small phone's.
+    var widthOnly = false
+
     func body(content: Content) -> some View {
         #if DEBUG
-        if let size = Self.size {
+        if let size = Self.size, widthOnly {
+            content
+                .frame(width: size.width)
+                .frame(maxWidth: .infinity)
+        } else if let size = Self.size {
             content
                 .frame(width: size.width, height: size.height)
                 .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
@@ -280,7 +287,7 @@ struct CaptureDebugCanvas: ViewModifier {
 }
 
 extension View {
-    func captureDebugCanvas() -> some View { modifier(CaptureDebugCanvas()) }
+    func captureDebugCanvas(widthOnly: Bool = false) -> some View { modifier(CaptureDebugCanvas(widthOnly: widthOnly)) }
 }
 
 /// Chips in a wrapping row, or in a column at the accessibility text sizes, where a chip can be wider than the screen

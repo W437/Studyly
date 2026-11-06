@@ -510,3 +510,13 @@ Deno.test("lecture, confusions, cards and transcription replies are cleaned too"
     "image/png",
   );
 });
+
+Deno.test("a check's reports are checked like the rest of the request", () => {
+  const schema = requestSchema("CheckRequest");
+  const pages = [{ page: 0, label: "1", lines: [{ id: "p0.l1", text: "x" }] }];
+  const items = [item()];
+  assertEquals(validate(schema, { pages, items, reports: [{ id: "i1", reason: "answerWrong" }] }), []);
+  assertEquals(validate(schema, { pages, items }), [], "reports are optional");
+  assert(validate(schema, { pages, items, reports: [{ id: "i1", reason: "becauseISaidSo" }] }).length > 0);
+  assert(validate(schema, { pages, items, reports: [{ id: "i1", reason: "other", note: "x".repeat(281) }] }).length > 0);
+});

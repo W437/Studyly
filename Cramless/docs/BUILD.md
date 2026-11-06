@@ -1625,6 +1625,35 @@ The engine that fills Today's "Cap noticed" slot, and its first four kinds. Plan
 - **Verified (2026-11-06, on main 408df99 plus this lane):** the whole suite, 1,860 tests, 27 skipped, no failures; `deno task test`, 239 passed, 12 ignored. On the simulator: every kind of card, the sheet's three states, both Settings rows, a ping replacing the day's reminder in the planned list, the mock opening from its card; dark, the SE canvas and the largest text (the cards through `TodayRenderTests`' PNGs). Not checked with a real finger: Later, Undo, "Try 2 questions", "Not a look-alike" (app-level tests only).
 - **Device checks:** the notification itself (tap opens that card first); the sheet with a real relay; the finder's speed on a phone. `LIVE_ONLY=lookalike deno task live` checks the look-alike prompt on the real model (a fraction of a cent; not run yet).
 
+## Stage 3: lecture playback, page chips, "Looks wrong?", harder questions (2026-11-06)
+
+- **Lecture playback** (`Services/LecturePlayer.swift`, `Features/Lecture/LecturePlayerBar.swift`). The kept recording plays under the notes at 1×, 1.5× or 2×, with back 15 s,
+  Now Playing and remote commands, screen off too. A time chip (flags, sections, questions, the transcript's times) plays from 5 s before its moment. A moment opened from Ask or a
+  session only cues ("Play from 12:36"): the person may be somewhere quiet. The marked transcript part follows the audio, and the page follows until a finger scrolls it. Refused while a
+  lecture records. `AudioFocus` has a `.playback` owner: effects stay silent, and speech or the microphone stop it. Yielding to them doesn't deactivate the session, or a recorder could
+  go on recording nothing. No audio on this iPhone (a lecture from another device): no bar, and a chip only scrolls. The harness's seeded lecture has no audio: `DemoLecturePlayback` runs the clock.
+- **Page chips** (`Features/Library/PageFocus.swift`). A page opened on a question's lines zooms to them (at most 3×, never past the page's edge) and a pen circles each block. Lines across
+  columns don't zoom, and each block gets a circle. A typed or PDF-text page scrolls to the first line and circles each run. A photo whose lines have no boxes (read in the cloud) opens with its text showing.
+  Reduce Motion lands there with the circle drawn. Only when opened with highlights; a question tapped below the page marks its lines and doesn't move it.
+- **"Looks wrong?"** (`Engine/Reports.swift`, `App/AppModel+Report.swift`, `Features/Session/LooksWrongSheet.swift`, relay `check` `reports`). From the answer panel's second row, a flipped
+  flashcard and the course list's menu. The question's own lines show at once, read on the phone. A report takes it out of sessions and leaves it in readiness (`ItemSnapshot.reported`, filtered in
+  `SessionBuilder.build`). Cap re-reads only the anchored lines (a lecture's segments, as one page), never a photo. Fixed: the answer or options are replaced and, in a session, it counts as right, whatever was answered (the
+  question was at fault). A fill-in or a diagram can't be fixed by a new answer: it rests until edited. Supported: the grade stands. Unsupported: it rests. Offline or without consent the report waits (`runPendingRechecks`, on becoming active and after consent),
+  counts for nothing, and the question leaves this session; "Put it back in my sessions" drops it. "My answer should count" is limited to 3 a day, and on own words it goes back to the grader when a model can grade. A report is a claim to
+  verify: its words reach the model as data, with the rule in `check-reports.md`. The ledger stays on the phone; `reported` syncs, and another device checks it with no words.
+- **Harder questions** (`Engine/Ladder.swift`, `AI/AIRouter+Rung.swift`, `App/AppModel+Ladder.swift`, `Features/Session/LadderSheet.swift`, the `tooEasy` card, relay `generate` `rung`). Too easy means in review, stability at least
+  21 days, and the last 3 answers Good or Easy, each 4 or more days apart. Formats climb mcq → cloze → recall → apply, flashcard → recall. Only with Cloud AI, more than 3 days before its exam, one idea at a time, and only if the swap keeps every exam's readiness within 2 points
+  (a small course may never be offered one). The question is written from its lines ±2, checked, and arrives as a draft, kept away from the source's new questions. "Add it" seeds its memory (review, stability parent × 0.5 clamped to 3…14, difficulty +1.5, due tomorrow) and rests the easy one; Undo goes back to the draft;
+  "Not this one" drops it and waits 30 days; deleting an added one wakes the easy one. `StudyItem.rungOf` syncs as `rung_of`: **migration `20261107000000_cramless_rung_of.sql` must reach the project before a build that syncs, or its pushes fail on the unknown column.**
+- **A sheet over a session lost the session: fixed.** `router.sheet` drove both the root's `.sheet` and the cover's. A sheet raised over a cover took the cover's place, and closing it built the cover anew: a new question, the clock at zero, the answer on screen lost.
+  Seen with real taps on the iOS 27.0 Simulator (Xcode 27.2), on a build from before this work too, with "Explain my mistake"; when it began wasn't traced. `Router.rootSheet` is nil while a cover is up. Every sheet over a session, mock, scanner or recorder now goes through this; only the session was checked by hand.
+- Relay group (c), not deployed: `check` `reports`, `generate` `rung`, the two prompts, two fixtures, and the migration. `deno task live` with `LIVE_ONLY=reports,rung` checks that a note can't order a verdict, that a reported wrong answer isn't kept, that "my answer" with another fact leaves the item, and that a rung is one question, in its format, on real lines.
+- Privacy, for Launch: re-check reports leave the phone: the question, its answer, its anchored lines, the source's title and headings, the reason, the answer given and the note. A harder question sends the question and the lines around it.
+- Verified: the unit suite on this work merged with main (343634c): 1994 tests, 1965 passed, 27 skipped, 2 failed: the pinned list of a question's columns, which didn't have `rung_of` yet, and the ring, whose
+  corners fell outside on a block of three lines. Both fixed; `LibraryPageFocusTests`, `SyncRecordsTests`, `LooksWrongTests` and `LocalizationTests` rerun (37 passed); the whole suite not rerun after those two. Relay: `deno task test`
+  256 passed, 12 ignored. Real taps on the iOS 27.0 Simulator: a wrong answer through "Looks wrong?" to "You were right" and the next question, "Explain my mistake" and back with the question, panel and timer kept, Today's card to the proposal.
+  Screens read in light, dark and the largest text, and at an iPhone SE's width (`CRAMLESS_CANVAS`). Not checked: real audio, the lock screen, headphones and interruptions (the seeded lecture has no audio); `deno task live`.
+
 ## App Store Connect (2026-11-01)
 
 The Capling record on the Loopware team (app 6828649543) is filled in by `scripts/asc/`. Every command is re-runnable and has

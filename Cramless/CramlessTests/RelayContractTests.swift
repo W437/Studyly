@@ -105,6 +105,23 @@ final class RelayContractTests: XCTestCase {
         XCTAssertEqual(try JSONDecoder.cramless.decode(CheckRequest.self, from: JSONEncoder.cramless.encode(plain)), plain)
     }
 
+    func testReportsAndARungAreOptionalAndLeftOutWhenAbsent() throws {
+        let plainCheck = CheckRequest(pages: [], items: [])
+        XCTAssertNil(try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder.cramless.encode(plainCheck)) as? [String: Any])["reports"])
+        let reported = CheckRequest(pages: [], items: [], reports: [CheckReport(id: "a", reason: .myAnswerCounts, given: "Anaphase", note: "It is.")])
+        let wire = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder.cramless.encode(reported)) as? [String: Any])
+        let report = try XCTUnwrap((wire["reports"] as? [[String: Any]])?.first)
+        XCTAssertEqual(report["reason"] as? String, "myAnswerCounts")
+        XCTAssertEqual(report["given"] as? String, "Anaphase")
+        XCTAssertEqual(try JSONDecoder.cramless.decode(CheckRequest.self, from: JSONEncoder.cramless.encode(reported)), reported)
+
+        let plain = GenerateRequest(course: "Bio", sourceTitle: "T", level: nil, language: "en", formats: [.apply], maxItems: 1, pages: [])
+        XCTAssertNil(try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder.cramless.encode(plain)) as? [String: Any])["rung"])
+        var harder = plain
+        harder.rung = RungRequest(kind: .mcq, prompt: "Which?", answer: "This")
+        XCTAssertEqual(try JSONDecoder.cramless.decode(GenerateRequest.self, from: JSONEncoder.cramless.encode(harder)), harder)
+    }
+
     func testTheCheckContextIsCutToTheRelaysLimits() {
         let long = String(repeating: "x", count: 300)
         let context = CheckRequest.context(title: "  \(long)  ", headings: ["Chapter 1", "chapter 1", "", "  ", long] + (0..<100).map { "Heading \($0)" })
@@ -200,6 +217,11 @@ final class RelayContractTests: XCTestCase {
         XCTAssertEqual(RelayLimits.heading, 120)
         XCTAssertEqual(RelayLimits.lineText, 4000)
         XCTAssertEqual(RelayLimits.flagText, 2000)
+        // CheckReport.given 2000, note 280; RungRequest.prompt and answer 2000; a rung's page 60 lines.
+        XCTAssertEqual(RelayLimits.reportGiven, 2000)
+        XCTAssertEqual(RelayLimits.reportNote, 280)
+        XCTAssertEqual(RelayLimits.rungText, 2000)
+        XCTAssertEqual(RelayLimits.rungLines, 60)
         // GradeRequest.level 40, response and sourceExcerpt 12000; ConfusionsRequest.mistakes 40 (topic 300); CardsFromChatRequest.messages
         // 60 of 1 to 8000; ResearchRequest.topic 200, focus 300; PageInput.lines 800.
         XCTAssertEqual(RelayLimits.level, 40)

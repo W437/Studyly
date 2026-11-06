@@ -89,6 +89,49 @@ Deno.test("free plan: 20 grades and 10 tutor messages a day, 1 lecture a week", 
   await r.settle();
 });
 
+const rungBody = () => {
+  const base = fixtureJson("requests/generate");
+  return {
+    ...base,
+    formats: ["apply"],
+    maxItems: 1,
+    pages: [{ ...base.pages[0], lines: base.pages[0].lines.slice(0, 40) }],
+    rung: { kind: "cloze", prompt: "During {{anaphase}}…", answer: "anaphase" },
+  };
+};
+
+Deno.test("a harder question takes one of the day's drafts and no scan, and its fourth on a free day is refused", async () => {
+  const r = rig({ env: MOCK });
+  r.store.addUser("user-1");
+  for (let i = 1; i <= 3; i++) {
+    assertEquals((await r.ai("generate", { body: rungBody() })).status, 200);
+    assertEquals(r.store.used("user-1", "drafts", "2026-10-22"), i);
+  }
+  assertEquals(r.store.used("user-1", "scans", "2026-10-19"), 0, "no scan spent");
+  const refused = await r.ai("generate", { body: rungBody() });
+  assertEquals(refused.status, 429);
+  assertEquals((await refused.json()).error.code, "quota_exceeded");
+  // A scan still works: that's another meter.
+  assertEquals((await r.ai("generate", { body: generateBody(1) })).status, 200);
+  await r.settle();
+});
+
+Deno.test("a harder question is held to one idea's size", async () => {
+  const r = rig({ env: MOCK });
+  r.store.addUser("user-1");
+  const base = rungBody();
+  const tooBig = [
+    { ...base, formats: ["apply", "recall"] },
+    { ...base, maxItems: 3 },
+    { ...base, pages: [base.pages[0], base.pages[0]] },
+    { ...base, pages: [{ ...base.pages[0], lines: Array.from({ length: 61 }, (_, i) => ({ id: `p0.l${i}`, text: "x" })) }] },
+    { ...base, pages: [{ ...base.pages[0], image: "aGk=" }] },
+  ];
+  for (const body of tooBig) assertEquals((await r.ai("generate", { body })).status, 400);
+  assertEquals(r.store.used("user-1", "drafts", "2026-10-22"), 0, "a refused request costs nothing");
+  await r.settle();
+});
+
 Deno.test("free plan: 3 scans a week, each a capture session of up to 10 pages", async () => {
   const r = rig({ env: MOCK });
   r.store.addUser("user-1");

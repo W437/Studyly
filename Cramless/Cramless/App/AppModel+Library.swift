@@ -231,6 +231,7 @@ extension AppModel {
         var changed = false
         for id in ids {
             guard let item = item(id), item.deletedAt == nil else { continue }
+            resumeParent(ofDeletedRung: item)
             item.deletedAt = now
             touch(item)
             changed = true
@@ -520,7 +521,7 @@ extension AppModel {
         var candidates: [LibraryRecent.Candidate] = []
         for course in courses {
             var drafts: [UUID: Int] = [:]
-            for item in course.liveItems where item.status == .draft {
+            for item in course.liveItems where item.status == .draft && item.rungOf == nil {
                 if let id = item.sourceRef?.sourceID { drafts[id, default: 0] += 1 }
             }
             for source in course.liveSources {

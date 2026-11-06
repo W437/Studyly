@@ -51,6 +51,8 @@ export const FIXTURE_TYPES: Record<string, string> = {
   "tutor-error": "TutorScript",
   "tutor-explain": "TutorScript",
   "tutor-hints": "TutorScript",
+  "check-reported": "CheckResponse",
+  "generate-rung": "GenerateResponse",
   "tutor-mistake": "TutorScript",
   "tutor-photo": "TutorScript",
   "tutor-photo-uncited": "TutorScript",

@@ -354,6 +354,22 @@ extension AppModel {
     }
 
     /// A lecture whose transcript is pending: there is audio but no transcript yet.
+    /// What the player plays for this lecture. Nil when its audio isn't on this iPhone (a lecture from another device: audio isn't synced).
+    /// The harness plays its seeded lectures, which have no audio, through a silent demo.
+    func lectureTrack(for source: Source) -> LecturePlayer.Track? {
+        guard source.kind == .lecture else { return nil }
+        let segments = source.segments.sorted { $0.start < $1.start }
+        let duration = max(source.duration, segments.last?.end ?? 0)
+        guard duration > 0 else { return nil }
+        #if DEBUG
+        if config.isHarness {
+            return LecturePlayer.Track(sourceID: source.id, title: source.title, fileName: nil, duration: duration, segments: segments)
+        }
+        #endif
+        guard let name = source.fileName, FileManager.default.fileExists(atPath: FileStore.url(for: name).path) else { return nil }
+        return LecturePlayer.Track(sourceID: source.id, title: source.title, fileName: name, duration: duration, segments: segments)
+    }
+
     func isTranscriptPending(_ source: Source) -> Bool {
         source.kind == .lecture && source.segments.isEmpty && source.fileName != nil
             && !LectureJobs.recording.contains(source.id)
