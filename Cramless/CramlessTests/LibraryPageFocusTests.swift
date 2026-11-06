@@ -66,8 +66,23 @@ final class LibraryPageFocusTests: XCTestCase {
     func testThePenCircleGoesAroundItsBox() {
         let rect = CGRect(x: 10, y: 20, width: 200, height: 40)
         let bounds = PenCircleShape().path(in: rect).boundingRect
-        XCTAssertEqual(bounds.midX, rect.midX, accuracy: 12)
-        XCTAssertEqual(bounds.midY, rect.midY, accuracy: 6)
+        XCTAssertEqual(bounds.midX, rect.midX, accuracy: 4)
+        XCTAssertEqual(bounds.midY, rect.midY, accuracy: 3)
         XCTAssertGreaterThanOrEqual(bounds.width, rect.width * 0.95)
+        XCTAssertLessThanOrEqual(bounds.width, rect.width * 1.08, "it stays near its box, off the lines above and below")
+        XCTAssertLessThanOrEqual(bounds.height, rect.height * 1.08)
+    }
+
+    func testThePenCircleLeavesTheCornersOfItsLinesInside() {
+        // Blocks of one, two and three lines, in the frame the page draws them: 26 wider and 20 taller.
+        for block in [CGSize(width: 160, height: 18), CGSize(width: 240, height: 44), CGSize(width: 280, height: 70)] {
+            let frame = CGRect(x: 0, y: 0, width: block.width + 26, height: block.height + 20)
+            let ring = PenCircleShape().path(in: frame)
+            let lines = CGRect(x: 13, y: 10, width: block.width, height: block.height)
+            for corner in [CGPoint(x: lines.minX, y: lines.minY), CGPoint(x: lines.maxX, y: lines.minY),
+                           CGPoint(x: lines.minX, y: lines.maxY), CGPoint(x: lines.maxX, y: lines.maxY)] {
+                XCTAssertTrue(ring.contains(corner), "\(block): \(corner) is outside the ring")
+            }
+        }
     }
 }

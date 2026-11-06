@@ -72,31 +72,29 @@ struct PageFocus: Equatable {
     }
 }
 
-/// A circle drawn by hand around something: a little off round, its end running past its start, as a pen's does. Its shoulders are fuller than an
-/// ellipse's, because a true ellipse around a block of lines runs through the words at the block's corners. Draw it with `.trim`.
+/// A ring drawn by hand around a block of lines: a superellipse rather than an ellipse, because a true ellipse runs through the words at the
+/// block's corners. It wanders a little and its end runs just past its start, as a pen's does. The same every time. Draw it with `.trim`.
 struct PenCircleShape: Shape {
+    /// How square its shoulders are: 2 is an ellipse.
+    private static let squareness = 3.6
+    private static let steps = 120
+    /// How far past its start the pen goes, in degrees.
+    private static let overshoot = 26.0
+
     func path(in rect: CGRect) -> Path {
-        let cx = rect.midX, cy = rect.midY, rx = rect.width / 2, ry = rect.height / 2
-        func point(_ degrees: Double, _ stretch: CGFloat = 1) -> CGPoint {
-            let a = degrees * .pi / 180
-            return CGPoint(x: cx + CGFloat(cos(a)) * rx * stretch, y: cy + CGFloat(sin(a)) * ry * stretch)
-        }
-        // Starts at the upper left, goes clockwise, wanders a little and overshoots the start.
-        let turns: [(end: Double, stretch: CGFloat)] = [(-130, 1), (-40, 1.03), (50, 0.98), (140, 1.03), (230, 0.97), (262, 1.05)]
         var path = Path()
-        path.move(to: point(-160, 1))
-        var from = -160.0
-        for turn in turns {
-            let span = turn.end - from
-            // 4/3 tan(span/4) would be a true arc; more pulls the curve out towards the box's corners.
-            let handle = CGFloat(4.0 / 3.0 * tan(span * .pi / 720)) * 1.5
-            let a0 = from * .pi / 180, a1 = turn.end * .pi / 180
-            let start = point(from, 1)
-            let end = point(turn.end, turn.stretch)
-            path.addCurve(to: end,
-                          control1: CGPoint(x: start.x - CGFloat(sin(a0)) * rx * handle, y: start.y + CGFloat(cos(a0)) * ry * handle),
-                          control2: CGPoint(x: end.x + CGFloat(sin(a1)) * rx * handle, y: end.y - CGFloat(cos(a1)) * ry * handle))
-            from = turn.end
+        let start = -160.0
+        for step in 0...Self.steps {
+            let progress = Double(step) / Double(Self.steps)
+            let degrees = start + progress * (360 + Self.overshoot)
+            let angle = degrees * .pi / 180
+            // A slow wander, and the end drifting outward so it passes outside its start instead of landing on it.
+            let reach = 1 + 0.012 * sin(3 * angle + 0.7) + 0.035 * max(0, progress - 0.88) / 0.12
+            let exponent = 2 / Self.squareness
+            let x = copysign(pow(abs(cos(angle)), exponent), cos(angle)) * reach
+            let y = copysign(pow(abs(sin(angle)), exponent), sin(angle)) * reach
+            let point = CGPoint(x: rect.midX + CGFloat(x) * rect.width / 2, y: rect.midY + CGFloat(y) * rect.height / 2)
+            if step == 0 { path.move(to: point) } else { path.addLine(to: point) }
         }
         return path
     }
