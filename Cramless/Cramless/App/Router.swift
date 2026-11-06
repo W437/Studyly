@@ -193,6 +193,9 @@ final class Router {
         self.cover = cover
     }
 
+    /// The sheet the root presents: none while a cover is up, whose own host presents it instead.
+    var rootSheet: AppSheet? { cover == nil ? sheet : nil }
+
     func dismissSheet() { sheet = nil }
     func dismissCover() { cover = nil }
 
