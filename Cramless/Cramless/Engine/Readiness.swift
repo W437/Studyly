@@ -91,12 +91,12 @@ struct GradeModel: Sendable, Equatable {
     }
 }
 
-/// Readiness and mastery, from item memories (now) and the review log (the past).
+/// Readiness, from item memories (now) and the review log (the past).
 /// - Exam readiness: mean predicted recall on exam day over the exam's active items; never-studied items count 0. Recall is
 ///   forecast in hours (`FSRS.forecastRecall`), so a question reviewed the evening before is not certain on the morning.
 /// - After today (`valueAfter`): the same mean with today's session done, each of its questions at its expected state.
 /// - Topic readiness: the same per topic; nil when a topic has no items (a coverage gap).
-/// - Mastery: mean current recall of studied items.
+/// - Topic recall (`topicMastery`): mean current recall per topic of a course, for Ask Cap and Teach Cap only, never shown.
 /// - The past (a week ago, a chart's history): each item's state rebuilt from the last review-log entry before
 ///   that moment (`stabilityAfter` at `reviewedAt`); items with no log at all but a memory (an Anki import) use
 ///   their memory once their last review is in the past of that moment.
@@ -219,15 +219,9 @@ struct ReadinessEngine: Sendable {
         }
     }
 
-    /// Mean current recall of the studied, active items (0 when nothing is studied).
-    func mastery(of items: [ItemSnapshot]) -> Double {
-        let studied = items.filter { $0.isActive && $0.isStudied }
-        guard !studied.isEmpty else { return 0 }
-        return studied.reduce(0) { $0 + fsrs.retrievability(of: $1.memory, at: now) } / Double(studied.count)
-    }
-
     /// Current recall per topic of a course, in topic order: nil for a topic with no items (a coverage gap), 0
-    /// for one with items none of which are studied yet.
+    /// for one with items none of which are studied yet. Internal: Ask Cap and Teach Cap read it; no screen shows it as a number
+    /// (readiness for an exam is the only learning percentage).
     func topicMastery(courseID: UUID, items: [ItemSnapshot], topics: [TopicSnapshot]) -> [TopicReadiness] {
         var stats: [UUID: (sum: Double, studied: Int, count: Int)] = [:]
         for item in items where item.isActive && item.courseID == courseID {

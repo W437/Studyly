@@ -42,7 +42,8 @@ enum SkyCopy {
             + ([bright] + counts).joined(separator: ", ") + "."
     }
 
-    /// One constellation: its name and course, how many of its stars are bright, and how well it is remembered.
+    /// One constellation: its name and course and how many of its stars are bright, dim and not yet lit (no percentage: an exam's
+    /// readiness is the only one).
     static func label(_ index: Int, in scene: SkyScene) -> String {
         let c = scene.layout.constellations[index]
         let total = c.stars.count
@@ -56,9 +57,6 @@ enum SkyCopy {
         if dim > 0 { detail += ", " + String(localized: SkyCopy.dim(dim)) }
         if hollow > 0 { detail += ", " + String(localized: notYetLit(hollow)) }
         parts.append(detail)
-        if let recall = scene.light.meanRecall(c) {
-            parts.append(String(localized: "Recall about \(CLFormat.percent(recall))"))
-        }
         return parts.joined(separator: ". ") + "."
     }
 

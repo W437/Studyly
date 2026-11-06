@@ -28,6 +28,36 @@
     "one": "%lld page of text",
     "other": "%lld pages of text"
   },
+  "%lld questions": {
+    "one": "%lld question",
+    "other": "%lld questions"
+  },
+  "%lld questions fading": {
+    "one": "%lld question fading",
+    "other": "%lld questions fading"
+  },
+  "%lld points": {
+    "one": "%lld point",
+    "other": "%lld points"
+  },
+  "Based on %lld questions so far.": {
+    "one": "Based on %lld question so far.",
+    "other": "Based on %lld questions so far."
+  },
+  "About %lld minutes on what you're shakiest on. Then stop: sleep does the rest.": {
+    "one": "About %lld minute on what you're shakiest on. Then stop: sleep does the rest.",
+    "other": "About %lld minutes on what you're shakiest on. Then stop: sleep does the rest."
+  },
+  "About %lld of the %lld minutes are for this exam.": {
+    "value": "About %1$lld of %#@minutes@.",
+    "substitutions": {
+      "minutes": {
+        "argNum": 2,
+        "one": "the %arg minute is for this exam",
+        "other": "the %arg minutes are for this exam"
+      }
+    }
+  },
   "%lld topics have no material yet. Add some and they join your sessions.": {
     "one": "%lld topic has no material yet. Add some and it joins your sessions.",
     "other": "%lld topics have no material yet. Add some and they join your sessions."

@@ -51,6 +51,16 @@
       }
     },
     "%lld percent" : {},
+    "%lld percent, goal %lld percent" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld percent, goal %2$lld percent"
+          }
+        }
+      }
+    },
     "%lld%%" : {},
     "%lld-day streak" : {},
     "%lld-day streak%@" : {
