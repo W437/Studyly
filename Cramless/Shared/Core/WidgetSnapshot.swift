@@ -109,6 +109,9 @@ struct WidgetSnapshot: Codable, Equatable, Sendable {
     /// Upcoming exams, soonest first, at most three. The first one is the next exam.
     var exams: [Exam]
     var courses: [Course] = []
+    /// Quiet mode is on: the Today widget says nothing about the streak (a Streak widget someone placed stays as it is). Optional, so a
+    /// snapshot written before it existed still reads.
+    var quiet: Bool? = nil
 
     static let currentVersion = 1
     static let maxExams = 3
@@ -116,6 +119,14 @@ struct WidgetSnapshot: Codable, Equatable, Sendable {
     static let examLength: TimeInterval = 3 * 3600
 
     var nextExam: Exam? { exams.first }
+
+    /// What the Today widget reads: with Quiet mode on, no streak to show.
+    var forTodayWidget: WidgetSnapshot {
+        guard quiet == true else { return self }
+        var snapshot = self
+        snapshot.streak.current = 0
+        return snapshot
+    }
 
     func color(ofCourseNamed name: String) -> CourseColor? {
         courses.first { $0.name == name }?.color

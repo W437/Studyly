@@ -120,6 +120,11 @@ struct AppSettings: Codable, Equatable, Sendable {
     var reviewPromptedAt: Date?
     var reviewPromptedVersion: String?
 
+    // Quiet mode
+    /// The game layer turned down: no flame, quests, badges or run counter, calm celebrations, no streak notifications and no sounds.
+    /// The plan, the stars and readiness stay, and quests and badges go on settling unseen.
+    var quietMode = false
+
     init() {}
 
     init(from decoder: Decoder) throws {
@@ -160,6 +165,7 @@ struct AppSettings: Codable, Equatable, Sendable {
         badges = try c.decodeIfPresent([String: Date].self, forKey: .badges)
         reviewPromptedAt = try c.decodeIfPresent(Date.self, forKey: .reviewPromptedAt)
         reviewPromptedVersion = try c.decodeIfPresent(String.self, forKey: .reviewPromptedVersion)
+        quietMode = try c.decodeIfPresent(Bool.self, forKey: .quietMode) ?? d.quietMode
     }
 
     /// Under-18 accounts keep the tutor on hints first and inside the teen-safe scope.

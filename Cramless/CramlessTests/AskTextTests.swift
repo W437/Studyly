@@ -43,6 +43,40 @@ final class AskTextTests: XCTestCase {
                       "a starter the notes don't cover is never offered")
     }
 
+    func testAStarterAsAChip() {
+        XCTAssertEqual(AskStarters.chipLabel("What's the difference between anaphase and telophase?"), "Anaphase vs telophase?")
+        XCTAssertEqual(AskStarters.chipLabel("What's the difference between DNA and RNA?"), "DNA vs RNA?")
+        XCTAssertEqual(AskStarters.chipLabel("What is the Krebs cycle?"), "What is the Krebs cycle?")
+    }
+
+    private let starts: [AssistantQuickStart.Start] = [
+        .init(title: "Make flashcards", icon: "rectangle.stack", prefix: "Make flashcards on ", kind: .cards),
+        .init(title: "Quiz me", icon: "checklist", prefix: "Quiz me on ", kind: .quiz),
+        .init(title: "Write a note", icon: "doc.text", prefix: "Write me a note on ", kind: .note),
+        .init(title: "Add an exam", icon: "calendar", prefix: "Add my exam on ", kind: .exam),
+    ]
+
+    func testTheDockChipsPutTheStartersBetweenWhatCapCanMake() {
+        let chips = AskDockChips.make(quickStarts: starts, starters: ["What's the difference between mitosis and meiosis?", "What is DNA?", "What is RNA?"])
+        XCTAssertEqual(chips.map(\.title), ["Quiz me", "Make flashcards", "Mitosis vs meiosis?", "What is DNA?", "Write a note", "Add an exam"])
+        XCTAssertEqual(chips[0].action, .compose("Quiz me on "))
+        XCTAssertEqual(chips[2].action, .ask("What's the difference between mitosis and meiosis?"), "the chip is short; the question stays whole")
+        XCTAssertTrue(chips[2].isQuestion)
+        XCTAssertFalse(chips[0].isQuestion)
+    }
+
+    func testTheDockChipsOfferResearchOnlyWhenItIsThere() {
+        XCTAssertFalse(AskDockChips.make(quickStarts: starts, starters: []).contains { $0.title == "Research online" })
+        let web = starts + [.init(title: "Research online", icon: "globe", prefix: "Research online: ", kind: .research)]
+        XCTAssertEqual(AskDockChips.make(quickStarts: web, starters: []).last?.title, "Research online")
+    }
+
+    func testWithoutTheAssistantTheDockIsAQuizAndTheQuestions() {
+        let chips = AskDockChips.make(quickStarts: [], starters: ["What is DNA?", "What is RNA?"])
+        XCTAssertEqual(chips.map(\.title), ["Quiz me", "What is DNA?", "What is RNA?"])
+        XCTAssertEqual(chips[0].action, .quiz)
+    }
+
     func testDifferenceQuestions() {
         XCTAssertEqual(AskStarters.differenceQuestion("Anaphase I vs. anaphase II"), "What's the difference between anaphase I and anaphase II?")
         XCTAssertEqual(AskStarters.differenceQuestion("DNA versus RNA"), "What's the difference between DNA and RNA?")

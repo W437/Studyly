@@ -239,7 +239,7 @@ struct SessionSummaryView: View {
                     CLCountingText(value: summary.newLearned, step: countStep, steps: steps)
                 }
             }
-            streakTile
+            if !app.settings.quietMode { streakTile }
         }
         .accessibilityElement(children: .contain)
     }
@@ -519,7 +519,10 @@ struct SessionSummaryView: View {
 
     private var noteRows: [NoteRow] {
         var rows: [NoteRow] = []
-        if info?.freezeEarned == true {
+        let quiet = app.settings.quietMode
+        if quiet {
+            // Quiet mode: nothing about the streak.
+        } else if info?.freezeEarned == true {
             let n = summary.streak.freezesAvailable
             rows.append(NoteRow(id: "freeze", icon: "snowflake", tint: .sky, title: "You earned a streak freeze",
                                 subtitle: "You have \(n). A freeze covers a day you miss."))
@@ -527,7 +530,7 @@ struct SessionSummaryView: View {
             rows.append(NoteRow(id: "freeze-used", icon: "snowflake", tint: .sky, title: "A freeze covered yesterday",
                                 subtitle: "So your streak kept going. Nice to have you back."))
         }
-        if let day = summary.repairedDay {
+        if !quiet, let day = summary.repairedDay {
             rows.append(NoteRow(id: "repair", icon: "bandage", tint: .mint,
                                 title: "You repaired \(day.formatted(.dateTime.weekday(.wide)))",
                                 subtitle: "A double session joined your streak back up."))
@@ -638,7 +641,9 @@ struct SessionSummaryView: View {
         }
         // The quests this session finished, a sky they lit, the badges it earned (after a fix is resolved: that is a quest too).
         game = app.settleGame()
-        quests = isEve ? [] : app.questsToday().rows
+        // Quiet mode: settled all the same, and nothing is said about it.
+        if app.settings.quietMode { game = GameOutcome() }
+        quests = isEve || app.settings.quietMode ? [] : app.questsToday().rows
         let made = makeInfo()
         decision = decide(made)
         info = made
@@ -719,9 +724,11 @@ struct SessionSummaryView: View {
                 try await nap(1200)
             }
         }
-        try await nap(150)
-        withAnimation(CLMotion.pop) { streakShown = summary.streak.current }
-        try await nap(200)
+        if !app.settings.quietMode {
+            try await nap(150)
+            withAnimation(CLMotion.pop) { streakShown = summary.streak.current }
+            try await nap(200)
+        }
         // The sky says what the session did to it, the quests tick off, then the celebration.
         withAnimation(CLMotion.settle) { skyShown = true }
         try await nap(150)

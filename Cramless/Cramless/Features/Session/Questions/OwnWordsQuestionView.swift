@@ -23,6 +23,10 @@ import UIKit
 /// into the empty editor the next time the question comes up ("Kept from before"), and cleared once the answer is recorded, so a
 /// call, another app or iOS closing Capling loses nothing.
 ///
+/// A rating the person gave (the marks of a self-check, "Counts as") can be undone for a moment (`SessionRunner.PendingGrade`): this view
+/// then comes back with its panel as it stood, no new grade and no sounds, and its draft is still there, since a draft goes only once
+/// the answer is really recorded.
+///
 /// DEBUG: `CRAMLESS_SESSION_ANSWER=<text>` submits that answer as soon as the question shows (the session's
 /// `CRAMLESS_SESSION_STATE=graded` supplies one of its own). `CRAMLESS_SESSION_DRAFT=<text>` (with `ownwords`) keeps those words
 /// as the question's draft first.
@@ -66,6 +70,8 @@ struct OwnWordsQuestionView: View {
     @State private var marked = false
     /// The rules found at least one key idea in the person's own words: their ticks stand as the mark if the person agrees.
     @State private var rulesFound = false
+    /// Back from an Undo: the panel as it stood, nothing plays again.
+    @State private var restored = false
 
     private var ideas: [KeyIdea] { item.keyIdeas }
     /// Steps of the reveal after the sweep: each idea row, then the feedback, then the rating line.
@@ -140,7 +146,14 @@ struct OwnWordsQuestionView: View {
         .onChange(of: scenePhase) { _, phase in
             if phase != .active { keepDraftNow() }
         }
+        // The rating held for Undo moved the session's due load when it was recorded: a label can be a day off until then.
+        .onChange(of: runner.pending == nil) { _, recorded in
+            if recorded, submitted != nil, runner.current?.id == entry.id {
+                intervals = app.intervalPreview(itemID: item.id, sessionID: runner.sessionID)
+            }
+        }
         .onAppear {
+            pickUpRestore()
             // Words kept from before go back into the empty editor, before the first frame (once: a sheet coming and going
             // re-runs this).
             guard !lookedForDraft else { return }
@@ -151,6 +164,8 @@ struct OwnWordsQuestionView: View {
             }
         }
         .task {
+            pickUpRestore()
+            guard !restored else { return }
             app.readAloud(question: item)
             if let autoAnswer {
                 do { try await nap(450) } catch { return }
@@ -458,7 +473,7 @@ struct OwnWordsQuestionView: View {
     private func settleVerdict(_ outcome: GradeOutcome) {
         let verdict = SessionRunner.Outcome(outcome.verdict)
         saved = verdict == .right && runner.wouldSave(item)
-        run = verdict == .right ? runner.combo(adding: .right, kind: item.kind) : 0
+        run = verdict == .right ? runner.shownRun(adding: .right, kind: item.kind) : 0
     }
 
     // MARK: Rating and panel
@@ -739,9 +754,11 @@ struct OwnWordsQuestionView: View {
             return
         }
         let rating = override ?? autoRating(grade)
+        // "Counts as" is the person's own call, so it can be taken back; a grade as it stands already waited for Continue.
         runner.record(rating: rating, score: grade.score, answer: submitted,
                       gradedBy: override == nil ? grade.gradedBy.rawValue : "person", durationMs: durationMs,
-                      outcome: override.map(SessionRunner.Outcome.init(rating:)) ?? SessionRunner.Outcome(grade.verdict))
+                      outcome: override.map(SessionRunner.Outcome.init(rating:)) ?? SessionRunner.Outcome(grade.verdict),
+                      undo: override == nil ? nil : restoreState(grade))
         CLHaptics.select()
         app.stopReadingAloud()
         withAnimation(CLMotion.settle) { runner.advance() }
@@ -756,11 +773,44 @@ struct OwnWordsQuestionView: View {
         let rating = override ?? AppModel.rating(forScore: ticks, kind: item.kind, durationMs: durationMs)
         let score = Grading.score(standingFor: rating, near: ticks)
         CLFeel.play(.rated)
+        guard let grade else { return }
         let review = runner.record(rating: rating, score: score, answer: submitted, gradedBy: "self", durationMs: durationMs,
-                                   outcome: SessionRunner.Outcome(rating: rating))
+                                   outcome: SessionRunner.Outcome(rating: rating), undo: restoreState(grade))
         if review?.isSave == true { runner.flareSave(of: item) }
         app.stopReadingAloud()
         withAnimation(CLMotion.settle) { runner.advance() }
+    }
+
+    /// Everything the panel showed, for an Undo to bring back.
+    private func restoreState(_ grade: GradeOutcome) -> SessionRunner.AnswerRestore {
+        .ownWords(.init(submitted: submitted ?? "", grade: grade, durationMs: durationMs, intervals: intervals, ticked: ticked,
+                        marked: marked, rulesFound: rulesFound, override: override, secondLook: secondLook, run: run, saved: saved))
+    }
+
+    /// The rating was undone: the panel is back as it stood, with no new grade and no sounds.
+    private func pickUpRestore() {
+        guard !restored, case .ownWords(let state)? = runner.takeRestore(for: entry.id) else { return }
+        restored = true
+        lookedForDraft = true
+        submitted = state.submitted
+        text = state.submitted
+        grade = state.grade
+        durationMs = state.durationMs
+        intervals = state.intervals
+        ticked = state.ticked
+        marked = state.marked
+        rulesFound = state.rulesFound
+        override = state.override
+        secondLook = state.secondLook
+        run = state.run
+        saved = state.saved
+        swept = true
+        revealed = revealSteps
+        if state.grade.mode == .selfCheck {
+            runner.hasUnsavedAnswer = true
+        } else {
+            runner.setProvisional(SessionRunner.Outcome(state.grade.verdict))
+        }
     }
 
     private func announce(_ outcome: GradeOutcome, refined: Bool) {

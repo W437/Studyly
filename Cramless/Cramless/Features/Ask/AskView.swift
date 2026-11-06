@@ -1,13 +1,14 @@
 import SwiftUI
 
-/// The Ask tab: a new chat with Cap until the first question, then that chat. Chat history and a new chat sit in
-/// the toolbar; the course chip and Cap's style sit at the top of the chat.
+/// The Ask tab: a new chat with Cap until the first question, then that chat. The title holds the course menu, chat history and a new chat
+/// sit beside it, and Cap's style is in the composer.
 ///
 /// Harness (DEBUG), read once: `CRAMLESS_ASK=demo` opens a worked conversation (bold, a table, citations, a quick
 /// check and its answer); `stream` asks a question and holds Cap's answer mid-way; `asked` asks it and lets it
 /// finish (with `CRAMLESS_CONSENT=0`: the offline answer and the Cloud AI offer); `latest` opens the most recent
 /// chat. `CRAMLESS_AGE=teen` shows an under-18 account (hints first, locked), `CRAMLESS_TUTOR=explain` starts on
-/// Just explain, and `CRAMLESS_SCROLL=top` starts a long chat at its top (`AskDemo.applyLaunchState`).
+/// Just explain, `CRAMLESS_ASK_MODE=open` opens Cap's style in the composer, and `CRAMLESS_SCROLL=top` starts a long chat at its top
+/// (`AskDemo.applyLaunchState`).
 struct AskView: View {
     @Environment(AppModel.self) private var app
     @State private var threadID: UUID?
@@ -20,7 +21,7 @@ struct AskView: View {
         let thread = app.thread(threadID).flatMap { $0.modelContext != nil ? $0 : nil }
         ChatPane(threadID: $threadID, pendingCourseID: $courseID)
             .navigationTitle("Ask Cap")
-            .navigationBarTitleDisplayMode(.large)
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItemGroup(placement: .topBarTrailing) {
                     ChatHistoryMenu(current: threadID, onOpen: { id in withAnimation(CLMotion.settle) { threadID = id } },
@@ -99,7 +100,8 @@ struct ChatView: View {
         let thread = app.thread(current).flatMap { $0.modelContext != nil ? $0 : nil }
         Group {
             if thread != nil {
-                ChatPane(threadID: $current, pendingCourseID: .constant(nil), showsEmptyState: false)
+                ChatPane(threadID: $current, pendingCourseID: .constant(nil), showsEmptyState: false,
+                         title: thread?.title ?? String(localized: "Chat"))
             } else {
                 VStack(spacing: 12) {
                     CapView(pose: .sleep, size: 140)

@@ -307,5 +307,15 @@
         "other": "%arg minutes"
       }
     }
+  },
+  "Ask about %@. I answer from your %lld sources and show you where.": {
+    "value": "Ask about %1$@. I answer from your %#@sources@ and show you where.",
+    "substitutions": {
+      "sources": {
+        "argNum": 2,
+        "one": "%arg source",
+        "other": "%arg sources"
+      }
+    }
   }
 }

@@ -189,7 +189,7 @@ enum SettingsSummary {
             var on: [String] = []
             if s.dyslexicFont { on.append("dyslexia-friendly font") }
             if s.readAloud { on.append("read aloud") }
-            if !s.sounds { on.append("sounds off") }
+            if !s.sounds || s.quietMode { on.append("sounds off") }
             if !s.capMoves { on.append("Cap still") }
             if !s.capTalks { on.append("Cap quiet") }
             if !s.haptics { on.append("haptics off") }

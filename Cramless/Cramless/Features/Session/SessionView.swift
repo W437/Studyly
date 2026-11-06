@@ -10,6 +10,9 @@ import SwiftUI
 /// `CRAMLESS_SESSION_PICK`, `CRAMLESS_SESSION_DRAFT=<text>` (with `ownwords`: the first question has those words kept from
 /// before), `CRAMLESS_SESSION_RESUME=1` (a session of this kind was cut off earlier today after three answers, with words typed
 /// on an own-words question: it picks up).
+///
+/// A rating the person gives themselves (a flashcard, own-words marks, "Counts as") is held for `undoWindow` before it is recorded;
+/// after the last question that window is "That was the last one." (`SessionRunner.Phase.wrapping`).
 struct SessionView: View {
     let request: SessionRequest
 
@@ -37,6 +40,8 @@ struct SessionView: View {
         }
         // Leaving the screen (a call, another app) may be the last moment before iOS closes the app.
         .onChange(of: scenePhase) { _, phase in
+            // A rating still held for Undo is written before iOS may close the app.
+            if phase == .background { runner?.commitPending() }
             if phase != .active { runner?.keepCheckpoint() }
         }
         .confirmationDialog("Leave this question?", isPresented: $confirmLeave, titleVisibility: .visible) {
@@ -64,6 +69,13 @@ struct SessionView: View {
             VStack(spacing: 0) {
                 SessionTopBar(runner: runner, onClose: close)
                 SessionQuestionHost(runner: runner, auto: autoAnswers, autoplay: autoplay)
+            }
+            .overlay { SkyFlareView(flare: runner.saveFlare) }
+            .transition(.opacity)
+        case .wrapping:
+            VStack(spacing: 0) {
+                SessionTopBar(runner: runner, onClose: close)
+                SessionWrappingView(runner: runner)
             }
             .overlay { SkyFlareView(flare: runner.saveFlare) }
             .transition(.opacity)
@@ -103,7 +115,8 @@ struct SessionView: View {
         if runner == nil, TestHarness.once("CRAMLESS_SESSION_RESUME") == "1" { app.debugCutOffSession(request) }
         #endif
         let checkpoint = runner == nil ? app.resumableCheckpoint(for: request) : nil
-        let next = SessionRunner(app: app, request: request, resuming: checkpoint)
+        let options = SessionRunner.Options(undoWindow: request.kind == .quickCheck ? nil : Self.undoWindow)
+        let next = SessionRunner(app: app, request: request, options: options, resuming: checkpoint)
         #if DEBUG
         debug.prepare(next, app: app)
         #endif
@@ -118,19 +131,23 @@ struct SessionView: View {
         withAnimation(runner == nil ? nil : CLMotion.fade) { runner = next }
     }
 
+    /// How long a self-given rating can be taken back: long enough to reach it with VoiceOver too.
+    private static var undoWindow: Duration { UIAccessibility.isVoiceOverRunning ? .seconds(15) : .seconds(5) }
+
     private func close() {
-        guard let runner, runner.phase == .question else { app.router.dismissCover(); return }
+        guard let runner, runner.phase == .question || runner.phase == .wrapping else { app.router.dismissCover(); return }
         if runner.hasUnsavedAnswer { confirmLeave = true } else { leave() }
     }
 
     private func leave() {
         guard let runner else { return }
         let answered = runner.distinctAnswered
+        let wasLast = runner.phase == .wrapping
         runner.close()
         app.stopReadingAloud()
         app.router.dismissCover()
         if answered > 0, runner.kind != .quickCheck {
-            let rest = runner.kind == .daily || runner.kind == .catchUp ? " The rest wait for tomorrow." : ""
+            let rest = !wasLast && (runner.kind == .daily || runner.kind == .catchUp) ? " The rest wait for tomorrow." : ""
             app.router.toast("\(SessionCopy.questions(answered).capitalizedFirst) saved.\(rest)",
                              systemImage: "checkmark.circle.fill", tone: .neutral)
         }
@@ -332,6 +349,10 @@ struct SessionQuestionHost: View {
         var flip = false
         /// A flipped flashcard's rating.
         var rate: Rating?
+        /// A flipped flashcard's swipe.
+        var swipe: Rating?
+        /// A flipped flashcard held this far across.
+        var hold: Double?
         /// Milliseconds between the panel showing and Continue.
         var next: Int?
     }
@@ -340,6 +361,8 @@ struct SessionQuestionHost: View {
     struct Autoplay: Equatable {
         var pattern: [Character]
         var beat: Int
+        /// The pattern is `CRAMLESS_SESSION_SWIPE`'s: `r` swipe right, `l` swipe left, `h` the Hard tile, `e` the Easy tile, `f` flip only.
+        var swipes = false
     }
 
     @Environment(\.clReduceMotion) private var reduceMotion
@@ -350,10 +373,9 @@ struct SessionQuestionHost: View {
             if let entry = runner.current {
                 if let item = runner.item(for: entry), item.modelContext != nil {
                     question(entry: entry, item: item)
+                        .environment(\.sessionUndoSlot, runner.options.undoWindow == nil ? nil : SessionUndoSlot(runner: runner, entryID: entry.id))
                         .id(entry.id)
-                        .transition(reduceMotion ? .opacity : .asymmetric(
-                            insertion: .move(edge: .trailing).combined(with: .opacity),
-                            removal: .move(edge: .leading).combined(with: .opacity)))
+                        .transition(transition)
                 } else {
                     // The item was deleted elsewhere: move past it.
                     Color.clear.onAppear { runner.advance() }
@@ -363,6 +385,22 @@ struct SessionQuestionHost: View {
         // Not clipped: the answer panel's fill runs on past this frame, under the home indicator, to the screen's
         // bottom edge.
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    /// The way a question comes and goes: on from the trailing edge, back from the leading edge after an Undo, rising in place when the
+    /// flashcard before it flew off by a swipe; a fade under Reduce Motion.
+    private var transition: AnyTransition {
+        if reduceMotion { return .opacity }
+        switch runner.arrival {
+        case .forward:
+            return .asymmetric(insertion: .move(edge: .trailing).combined(with: .opacity),
+                               removal: .move(edge: .leading).combined(with: .opacity))
+        case .back:
+            return .asymmetric(insertion: .move(edge: .leading).combined(with: .opacity),
+                               removal: .move(edge: .trailing).combined(with: .opacity))
+        case .rise:
+            return .asymmetric(insertion: .scale(scale: 0.94).combined(with: .opacity), removal: .opacity)
+        }
     }
 
     @ViewBuilder
@@ -384,13 +422,26 @@ struct SessionQuestionHost: View {
             }
         case .flashcard:
             FlashcardQuestionView(runner: runner, entry: entry, item: item, autoFlip: mine?.flip ?? false,
-                                  autoRate: mine?.rate, autoContinue: mine?.next)
+                                  autoRate: mine?.rate, autoContinue: mine?.next, autoSwipe: mine?.swipe, autoHold: mine?.hold)
         }
     }
 
     /// The autoplay answer for this question: the pattern's next letter, by how many answers came before.
     private func autoplayed(_ entry: SessionEntry, _ item: StudyItem) -> Auto? {
         guard let autoplay, !autoplay.pattern.isEmpty else { return nil }
+        if autoplay.swipes {
+            guard item.kind == .flashcard else { return nil }
+            let step = autoplay.pattern[runner.answers.count % autoplay.pattern.count]
+            var auto = Auto(entryID: entry.id, flip: true, next: autoplay.beat)
+            switch step {
+            case "l": auto.swipe = .again
+            case "h": auto.rate = .hard
+            case "e": auto.rate = .easy
+            case "f": break
+            default: auto.swipe = .good
+            }
+            return auto
+        }
         let step = autoplay.pattern[runner.answers.count % autoplay.pattern.count]
         var auto = Auto(entryID: entry.id, next: autoplay.beat)
         switch item.kind {
@@ -421,6 +472,39 @@ struct SessionQuestionHost: View {
         let missing = Set(LocalGrader.grade(subject, answer: .text(item.answer)).missing.map(\.id))
         let extra = item.keyIdeas.filter { missing.contains($0.id) }.map { $0.terms.joined(separator: ", ") }
         return ([item.answer] + extra).joined(separator: " ")
+    }
+}
+
+// MARK: - After the last question
+
+/// The last question's rating is held for Undo: Cap, "That was the last one.", and the way on. The summary opens when the rating is
+/// recorded (this button, or the window ending by itself).
+struct SessionWrappingView: View {
+    let runner: SessionRunner
+
+    var body: some View {
+        VStack(spacing: 14) {
+            Spacer(minLength: 0)
+            CapView(pose: .proud, size: 150)
+            Text("That was the last one.")
+                .clFont(.title2)
+                .foregroundStyle(CLColor.ink)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityAddTraits(.isHeader)
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, CLSpace.gutter)
+        .sessionFooter {
+            Button("See how it went") {
+                CLHaptics.tap()
+                withAnimation(CLMotion.settle) { runner.commitPending() }
+            }
+            .buttonStyle(.cl(.primary))
+            .keyboardShortcut(.defaultAction)
+        }
+        .environment(\.sessionUndoSlot, SessionUndoSlot(runner: runner, entryID: nil))
     }
 }
 
@@ -463,6 +547,11 @@ struct SessionEmptyView: View {
 ///   `graded` submits an own-words answer ("why do cells divide by mitosis?", 2 of 3 key ideas);
 ///   `mcq-answered`, `cloze-answered`, `diagram-answered` answer right (`CRAMLESS_SESSION_PICK=wrong`: wrong);
 ///   `diagram-filled` places every label without checking; `flipped` turns the flashcard;
+///   `flashcard-rated` flips the flashcard and rates it (Good, or `CRAMLESS_SESSION_RATE=again|hard|good|easy`): the next question with
+///   the Undo pill; `last-rated` does it on a session of that one question: "That was the last one." (`CRAMLESS_UNDO_HOLD=1` keeps the
+///   pill as long as it takes to look at it; `CRAMLESS_SESSION_UNDO=<ms>` presses Undo that long after it shows);
+///   `flashcard-drag` flips the flashcard and holds it 60% of the way right; `flashcard-swiped` swipes it right: the next one is up, the
+///   tally says 1 and 0, and the Undo pill stays;
 ///   `flashcard-saved` makes the first flashcard a fading memory, flips it and rates it Good: a save, with the
 ///   sky's flare; `mcq-saved` does the same with a multiple-choice question answered right ("Saved it.", Cap's sparkles
 ///   and the flare together);
@@ -472,6 +561,8 @@ struct SessionEmptyView: View {
 ///   (`milestone-summary` with `CRAMLESS_SCENARIO=streak:29`; `quest-summary` with `CRAMLESS_QUESTS=partial|weekFull`;
 ///   `badge-summary` first forgets the 7-day badge, so the session earns it).
 /// - `CRAMLESS_SESSION_ANSWER=<text>`: the own-words answer to submit (with `graded` or `ownwords`).
+/// - `CRAMLESS_SESSION_SWIPE=rrlhe`: a session of flashcards only, played by that pattern (`CRAMLESS_AUTOPLAY_BEAT` ms on each flipped card);
+///   `f` only flips the card, for a real finger to take it from there.
 @MainActor
 struct SessionDebug {
     var state: String?
@@ -492,6 +583,10 @@ struct SessionDebug {
             debug.autoplay = .init(pattern: Array(pattern.lowercased()),
                                    beat: TestHarness.value("CRAMLESS_AUTOPLAY_BEAT").flatMap(Int.init) ?? 1400)
         }
+        if let pattern = TestHarness.once("CRAMLESS_SESSION_SWIPE") {
+            debug.autoplay = .init(pattern: Array(pattern.lowercased()),
+                                   beat: TestHarness.value("CRAMLESS_AUTOPLAY_BEAT").flatMap(Int.init) ?? 1100, swipes: true)
+        }
         return debug
     }
 
@@ -503,6 +598,7 @@ struct SessionDebug {
 
     /// Puts the right format first and sets up its automatic answer.
     mutating func prepare(_ runner: SessionRunner, app: AppModel) {
+        if autoplay?.swipes == true { runner.debugOnly(kinds: [.flashcard]) }
         guard !used, let state else {
             if let answer, !used {
                 used = true
@@ -531,8 +627,9 @@ struct SessionDebug {
             runner.debugFront(kinds: [.diagram])
         case "badge-summary":
             app.debugForgetBadge(.streak7)
-        case "flashcard", "flipped", "flashcard-saved":
+        case "flashcard", "flipped", "flashcard-saved", "flashcard-rated", "last-rated", "flashcard-drag", "flashcard-swiped":
             runner.debugFront(kinds: [.flashcard], preferring: "Cytokinesis")
+            if state == "last-rated" { runner.debugKeepFirstOnly() }
             if state == "flashcard-saved", let first = runner.queue.current, let item = runner.item(for: first) {
                 item.memory = Self.fading(app)
             }
@@ -558,6 +655,16 @@ struct SessionDebug {
             auto = .init(entryID: first.id, flip: true)
         case "flashcard-saved":
             auto = .init(entryID: first.id, flip: true, rate: .good)
+        case "flashcard-drag":
+            auto = .init(entryID: first.id, flip: true, hold: 0.6)
+        case "flashcard-swiped":
+            runner.debugFront(kinds: [.flashcard])
+            runner.debugOnly(kinds: [.flashcard])
+            runner.debugHoldsUndo = true
+            if let front = runner.queue.current { auto = .init(entryID: front.id, flip: true, swipe: .good, next: 500) }
+        case "flashcard-rated", "last-rated":
+            let rate = TestHarness.once("CRAMLESS_SESSION_RATE").flatMap { name in Rating.allCases.first { $0.title.lowercased() == name } }
+            auto = .init(entryID: first.id, flip: true, rate: rate ?? .good, next: 500)
         default:
             break
         }
