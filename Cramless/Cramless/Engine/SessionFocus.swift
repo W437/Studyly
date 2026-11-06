@@ -17,6 +17,8 @@ struct SessionFocus: Sendable, Equatable {
     var newCount: Int
     /// Weak-spot questions for the focus exam (the whole session's without one).
     var weakCount: Int
+    /// Every question the session holds for the focus exam (the whole session without one).
+    var questionCount: Int = 0
     /// The other upcoming exams, each getting under 10% of the session's seconds (none at all included), soonest first.
     var otherExamIDs: [UUID]
     /// Planned seconds per exam.
@@ -37,8 +39,11 @@ struct SessionFocus: Sendable, Equatable {
 
     /// `topicIDs` weakest first, by readiness for the focus exam (`AppModel.topicReadiness`), so the card's title and "Why these?" agree.
     /// Ties keep their order; a topic with no number yet comes after the ones that have one.
-    func topicsWeakestFirst(readiness: [UUID: Double]) -> [UUID] {
-        topicIDs.enumerated().sorted { a, b in
+    func topicsWeakestFirst(readiness: [UUID: Double]) -> [UUID] { Self.weakestFirst(topicIDs, readiness: readiness) }
+
+    /// These topics weakest first by that readiness; ties keep their order, a topic with no number comes last.
+    static func weakestFirst(_ topics: [UUID], readiness: [UUID: Double]) -> [UUID] {
+        topics.enumerated().sorted { a, b in
             switch (readiness[a.element], readiness[b.element]) {
             case let (x?, y?): return abs(x - y) > 1e-9 ? x < y : a.offset < b.offset
             case (_?, nil): return true
@@ -121,7 +126,7 @@ struct SessionFocus: Sendable, Equatable {
         return SessionFocus(examID: focus, topicIDs: topics,
                             dueCount: mine.filter { $0.reason == .due || $0.reason == .examPriority }.count,
                             newCount: mine.filter { $0.reason == .new }.count,
-                            weakCount: mine.filter { $0.reason == .weak }.count,
+                            weakCount: mine.filter { $0.reason == .weak }.count, questionCount: mine.count,
                             otherExamIDs: others, secondsByExam: seconds, totalSeconds: total)
     }
 }

@@ -25,6 +25,34 @@ final class TodayReasonsTests: XCTestCase {
         XCTAssertEqual(rows[4].title, "Chem 110 Quiz has 7 questions so far")
     }
 
+    /// The sheet names the total the card names, and says the exam's counts are the exam's.
+    func testTheWholeSessionComesFirstAndTheCountsAreTheExams() {
+        var i = TodayReasons.Input(examTitle: "Chem 110 Quiz", when: "Sun · in 2 days", daysLeft: 2, courseName: "Chem 110", due: 6, new: 1)
+        i.sessionTotal = 39
+        i.examQuestions = 7
+        let rows = TodayReasons.make(i)
+        XCTAssertEqual(rows.map(\.id), ["exam", "total", "due", "new"])
+        XCTAssertEqual(rows[1].title, "About 39 questions today")
+        XCTAssertEqual(rows[1].detail, "7 are for Chem 110 Quiz.")
+        XCTAssertEqual(rows[2].title, "6 for this exam are due")
+        XCTAssertEqual(rows[3].title, "1 new question for this exam")
+        i.examQuestions = 1
+        XCTAssertEqual(TodayReasons.make(i)[1].detail, "1 is for Chem 110 Quiz.")
+
+        // All of it for the exam: nothing to tell apart.
+        i.examQuestions = 39
+        let all = TodayReasons.make(i)
+        XCTAssertNil(all[1].detail)
+        XCTAssertEqual(all[2].title, "6 questions are due")
+        // No exam: only the whole.
+        var none = TodayReasons.Input(due: 6, new: 1)
+        none.sessionTotal = 12
+        let plain = TodayReasons.make(none)
+        XCTAssertEqual(plain.map(\.id), ["total", "due", "new"])
+        XCTAssertNil(plain[0].detail)
+        XCTAssertEqual(plain[1].title, "6 questions are due")
+    }
+
     func testAWholeCourseExamAndSingularCounts() {
         var i = input()
         i.scopeTopics = []

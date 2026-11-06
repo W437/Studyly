@@ -9,7 +9,7 @@ import Foundation
 ///   generic line when there's little to say. Seven days ahead at most, so someone who stops opening the app stops
 ///   hearing from it after a week.
 /// - **Exam countdowns** for exams in the next 14 days: a week before at the reminder time (18:00 when reminders are
-///   off), and the evening before at 20:00 ("Bio 101 tomorrow. 10 minutes of weak spots, then sleep."). Either one
+///   off), and the evening before at 20:00 ("Bio 101 tomorrow. 4 minutes of weak spots, then sleep.": the session as built, `ExamInfo.eveMinutes`). Either one
 ///   replaces that day's reminder. Exams on the same day share one evening note. They're sent even with the daily
 ///   reminder off: they're about a date the person set, not about a habit.
 /// - **Streak nudge** at 20:30 when the streak is 3 or more and the day isn't done yet: today if not studied (and
@@ -30,11 +30,21 @@ import Foundation
 /// - **A question kept for later** answered while the app is away (`answered(_:)`) is not planned here: it goes out at once, quietly, and a
 ///   reschedule leaves it alone. The student asked for it, so the rules above don't count it.
 enum NotificationPlanner {
+    /// The evening's note: "Chem 110 tomorrow. 4 minutes of weak spots, then sleep."
+    static func eveBody(who: String, minutes: Int?) -> String {
+        guard let minutes else { return String(localized: "\(who) tomorrow. A few minutes on your weak spots, then sleep.") }
+        guard minutes > 0 else { return String(localized: "\(who) tomorrow. Nothing left to review. Sleep is part of studying.") }
+        return String(localized: "\(who) tomorrow. \(minutes) minutes of weak spots, then sleep.")
+    }
+
     struct ExamInfo: Equatable, Sendable {
         var id: UUID
         var title: String
         var courseName: String?
         var date: Date
+        /// The eve session's minutes as its button says them (`BuiltSession.tonightMinutes`, 0: nothing to review). Nil while that evening is
+        /// too far off to know: the note then says no number.
+        var eveMinutes: Int? = nil
 
         /// "Bio 101", or the exam's title when it has no course.
         var shortName: String {
@@ -148,7 +158,7 @@ enum NotificationPlanner {
             let url = list.count == 1 ? CramlessLink.session(kind: SessionKind.examEve.rawValue, exam: list[0].id)
                 : CramlessLink.session(kind: SessionKind.examEve.rawValue)
             out.append(Planned(id: "\(prefix)eve.\(dayKey(date, calendar))", kind: .examEve, date: date,
-                               body: "\(who) tomorrow. 10 minutes of weak spots, then sleep.", url: url,
+                               body: eveBody(who: who, minutes: list.compactMap(\.eveMinutes).max()), url: url,
                                category: studyCategory, thread: examCategory))
         }
 

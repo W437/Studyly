@@ -74,6 +74,23 @@ final class TodayCopyTests: XCTestCase {
         XCTAssertEqual(TodayCopy.partWay(done: 1, goal: 1), "1 of 1 minute done.")
     }
 
+    /// The session from the card holds more than this exam's questions: the line says this exam's share and the whole, so it's true of what the button starts.
+    func testTheReasonSaysTheExamsShareAndTheWholeSession() {
+        XCTAssertEqual(TodayCopy.reason(weak: false, due: 6, new: 1, forExam: true, sessionTotal: 39),
+                       "6 questions you're about to forget and 1 new one for this exam. About 39 questions in all today.")
+        XCTAssertEqual(TodayCopy.reason(weak: false, due: 1, new: 3, forExam: true, sessionTotal: 39),
+                       "1 question you're about to forget and 3 new ones for this exam. About 39 questions in all today.")
+        XCTAssertEqual(TodayCopy.reason(weak: false, due: 6, new: 0, forExam: true, sessionTotal: 39),
+                       "6 questions you're about to forget for this exam. About 39 questions in all today.")
+        XCTAssertEqual(TodayCopy.reason(weak: false, due: 0, new: 1, forExam: true, sessionTotal: 2),
+                       "1 new question for this exam. About 2 questions in all today.")
+        XCTAssertEqual(TodayCopy.reason(weak: true, due: 12, new: 0, forExam: true, sessionTotal: 30),
+                       "The weakest topics for this exam, plus 12 questions you're about to forget. About 30 questions in all today.")
+        XCTAssertEqual(TodayCopy.reason(weak: false, due: 0, new: 0, forExam: true, sessionTotal: 12), "About 12 questions in all today.")
+        XCTAssertEqual(TodayCopy.reason(weak: false, due: 6, new: 1, forExam: true), "6 questions you're about to forget, and 1 new one.",
+                       "the session is all for this exam: the counts are the whole")
+    }
+
     func testTheRingsAreReadinessNowAndAProjectionThatSaysSo() {
         XCTAssertEqual(TodayCopy.readyNow(0.42), "42% ready now")
         XCTAssertEqual(TodayCopy.afterToday(0.523), "about 52% after today")

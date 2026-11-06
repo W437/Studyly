@@ -70,8 +70,19 @@ enum TodayCopy {
         return shown.formatted(.list(type: .and))
     }
 
-    /// Why today holds what it holds, in one sentence. `forExam`: the session mostly serves one exam.
-    static func reason(weak: Bool, due: Int, new: Int, forExam: Bool) -> String {
+    /// Why today holds what it holds, in one sentence. `forExam`: the session mostly serves one exam. `sessionTotal`: the session also
+    /// holds questions for other exams, and this many in all: the counts then say they are this exam's, and a second sentence gives the whole.
+    static func reason(weak: Bool, due: Int, new: Int, forExam: Bool, sessionTotal: Int? = nil) -> String {
+        if forExam, let sessionTotal {
+            let whole = String(localized: "About \(sessionTotal) questions in all today.")
+            switch (weak, due > 0, new > 0) {
+            case (false, true, true): return "\(String(localized: "\(due) questions you're about to forget and \(new) new ones for this exam.")) \(whole)"
+            case (false, true, false): return "\(String(localized: "\(due) questions you're about to forget for this exam.")) \(whole)"
+            case (false, false, true): return "\(String(localized: "\(new) new questions for this exam.")) \(whole)"
+            case (false, false, false): return whole
+            default: return "\(reason(weak: weak, due: due, new: new, forExam: true)) \(whole)"
+            }
+        }
         switch (weak, due > 0, new > 0) {
         case (true, true, _):
             return forExam ? String(localized: "The weakest topics for this exam, plus \(due) questions you're about to forget.")
