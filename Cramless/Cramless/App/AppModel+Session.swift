@@ -232,7 +232,7 @@ extension AppModel {
     /// has no question of a kind.
     func quickCheckItemIDs(courseID: UUID?) -> [UUID] {
         guard let course = onboardingCourse(courseID) else { return [] }
-        let usable = course.items.filter { $0.deletedAt == nil && ($0.status == .active || $0.status == .draft) }
+        let usable = course.items.filter { $0.deletedAt == nil && ($0.status == .active || $0.status == .draft) && $0.rungOf == nil }
         let newest = usable.compactMap { $0.sourceRef?.sourceID }.compactMap { source($0) }
             .max { $0.createdAt < $1.createdAt }
         let pool = newest.map { s in usable.filter { $0.sourceRef?.sourceID == s.id } } ?? usable

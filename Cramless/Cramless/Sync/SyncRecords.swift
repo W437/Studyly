@@ -126,7 +126,7 @@ enum SyncRecords {
          "answer": .string(i.answer), "explanation": .string(i.explanation), "key_ideas": .blob(i.keyIdeasData),
          "choices": .blob(i.choicesData), "cloze": .blob(i.clozeData), "diagram": .blob(i.diagramData),
          "source_ref": .blob(i.sourceRefData), "checked_at": .date(i.checkedAt),
-         "difficulty_hint": .number(i.difficultyHint), "reported": .bool(i.reported), "state": .integer(i.stateRaw),
+         "difficulty_hint": .number(i.difficultyHint), "reported": .bool(i.reported), "rung_of": .uuid(i.rungOf), "state": .integer(i.stateRaw),
          "stability": .number(i.stability), "difficulty": .number(i.difficulty), "due": .date(i.due),
          "last_review": .date(i.lastReview), "reps": .integer(i.reps), "lapses": .integer(i.lapses),
          "step": .integer(i.step), "created_at": .date(i.createdAt), "updated_at": .date(i.updatedAt),
@@ -159,6 +159,7 @@ enum SyncRecords {
         i.checkedAt = row.date("checked_at")
         if let v = row.double("difficulty_hint") { i.difficultyHint = v }
         if let v = row.bool("reported") { i.reported = v }
+        i.rungOf = row.uuid("rung_of")
         if let v = row.int("state") { i.stateRaw = v }
         if let v = row.double("stability") { i.stability = v }
         if let v = row.double("difficulty") { i.difficulty = v }

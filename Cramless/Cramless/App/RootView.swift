@@ -74,6 +74,7 @@ struct RootView: View {
             guard phase == .active, started else { return }
             app.applyDailyRollover()
             if app.sideEffectsEnabled { app.widgets.refresh() }
+            Task { await app.runPendingRechecks() }
         }
     }
 
@@ -241,6 +242,8 @@ struct SheetDestination: View {
         case .help: HelpSheet()
         case .streakMonth: StreakMonthSheet()
         case .skyMemory: SkyMemorySheet()
+        case .looksWrong(let id, let given): LooksWrongSheet(itemID: id, given: given)
+        case .ladder(let id): LadderSheet(parentID: id)
         }
     }
 }

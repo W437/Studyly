@@ -149,6 +149,12 @@ enum TestHarness {
                 let anchors = named ?? (zooms ?? candidates.first)?.sourceRef?.anchorIDs ?? []
                 r.push(.sourcePage(sourceID: s.id, pageIndex: index, highlight: anchors), on: .library)
             }
+        // `ladder`: "Yes, harder" for a question with lines to write from (`LadderSheet`, `CRAMLESS_LADDER`).
+        case "ladder":
+            let parent = firstCourse?.activeItems.filter { Ladder.next(after: $0.kind) != nil && app.reportSource(of: $0) != nil }
+                .min { $0.prompt < $1.prompt }
+            r.tab = .today
+            if let parent { r.present(.ladder(parentID: parent.id)) }
         case "lectureNotes":
             if let lecture = firstCourse?.liveSources.first(where: { $0.kind == .lecture }) {
                 r.push(.lectureNotes(lecture.id), on: .library)

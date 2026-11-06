@@ -196,8 +196,10 @@ final class StudyItem {
     var checkedAt: Date?
     /// The generator's own difficulty guess, 0 (easy) … 1 (hard).
     var difficultyHint: Double
-    /// The person reported a problem with this item.
+    /// The person reported a problem with this item, and it isn't settled yet ("Looks wrong?"): out of sessions, still in readiness.
     var reported: Bool = false
+    /// The easier question this one replaces (`Ladder`). Nil for almost every question.
+    var rungOf: UUID?
     var createdAt: Date
     var updatedAt: Date
     var syncedAt: Date?
