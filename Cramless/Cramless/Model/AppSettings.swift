@@ -74,6 +74,8 @@ struct AppSettings: Codable, Equatable, Sendable {
     var targetRetention = 0.9
     /// Weekdays (1 = Sunday … 7 = Saturday) that get a lighter load.
     var easyDays: [Int] = []
+    /// Cap's cards: which kinds he may bring up, and whether he may send a notification about them.
+    var notices = NoticeSettings()
 
     // AI and privacy
     /// The consent version the person accepted for cloud AI; 0 means not accepted.
@@ -137,6 +139,7 @@ struct AppSettings: Codable, Equatable, Sendable {
         quietHoursEnd = try c.decodeIfPresent(Int.self, forKey: .quietHoursEnd) ?? d.quietHoursEnd
         targetRetention = try c.decodeIfPresent(Double.self, forKey: .targetRetention) ?? d.targetRetention
         easyDays = try c.decodeIfPresent([Int].self, forKey: .easyDays) ?? d.easyDays
+        notices = (try? c.decodeIfPresent(NoticeSettings.self, forKey: .notices)) ?? d.notices
         cloudConsentVersion = try c.decodeIfPresent(Int.self, forKey: .cloudConsentVersion) ?? d.cloudConsentVersion
         sendPhotos = try c.decodeIfPresent(Bool.self, forKey: .sendPhotos) ?? d.sendPhotos
         tutorMode = try c.decodeIfPresent(TutorMode.self, forKey: .tutorMode) ?? d.tutorMode

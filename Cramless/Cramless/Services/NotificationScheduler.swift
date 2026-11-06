@@ -25,8 +25,10 @@ final class NotificationScheduler {
     /// background of the main actor, one apply at a time. Inert in unit tests.
     func reschedule() {
         guard let app, app.sideEffectsEnabled else { return }
-        let plan = NotificationPlanner.plan(planInput(for: app), calendar: app.calendar)
+        let input = planInput(for: app)
+        let plan = NotificationPlanner.plan(input, calendar: app.calendar)
         lastPlan = plan
+        app.noteNoticePings(input.notices, planned: plan)
         let calendar = app.calendar
         let previous = queue
         queue = Task { @MainActor in
@@ -54,7 +56,8 @@ final class NotificationScheduler {
         NotificationPlanner.Input(now: app.now, reminderMinutes: app.settings.reminderMinutes,
                                   quietStart: app.settings.quietHoursStart, quietEnd: app.settings.quietHoursEnd,
                                   goalMinutes: app.settings.dailyMinutes, today: app.todaySummary(),
-                                  streak: app.streak(), exams: app.notificationExams())
+                                  streak: app.streak(), exams: app.notificationExams(),
+                                  notices: app.noticePings())
     }
 
     // MARK: Applying
@@ -100,6 +103,7 @@ final class NotificationScheduler {
         let ours: Set<UNNotificationCategory> = [
             UNNotificationCategory(identifier: NotificationPlanner.studyCategory, actions: [start], intentIdentifiers: []),
             UNNotificationCategory(identifier: NotificationPlanner.examCategory, actions: [plan], intentIdentifiers: []),
+            UNNotificationCategory(identifier: NotificationPlanner.noticeCategory, actions: [], intentIdentifiers: []),
         ]
         let center = UNUserNotificationCenter.current()
         let existing = await center.notificationCategories()

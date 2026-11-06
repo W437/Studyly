@@ -1,20 +1,11 @@
 import Foundation
 
-/// One of Cap's cards on Today ("Cap noticed"): what he noticed, in a title and a line, and the one thing to do about it. Today shows
-/// one at a time with "1 of N" and "Later" (`TodayNoticeCard`); `AppModel.todayNotices()` deals them, `snoozeNotice(_:)` puts one off
-/// until tomorrow and `perform(_:)` runs its action. A plain value, so the notice engine (pure) can make them and every card is tested
-/// without a view.
+/// One of Cap's cards on Today ("Cap noticed") in words: what he noticed, in a title and a line, and the one thing to do about it.
+/// Today shows one at a time with "1 of N" and "Later" (`TodayNoticeCard`). `NoticeEngine` decides which cards there are (`Notice`),
+/// `NoticeContent` says them, `AppModel.todayNotices()` deals them, `snoozeNotice(_:)` puts one off until tomorrow and `perform(_:)`
+/// runs its action. A plain value, so every card is tested without a view.
 struct CapNotice: Identifiable, Equatable, Sendable {
-    enum Kind: String, Equatable, Sendable, CaseIterable {
-        /// Two ideas the person keeps confusing (an open `Confusion`).
-        case mixUp
-        /// Two questions that look alike and keep being swapped.
-        case lookAlike
-        /// Questions fading before an exam.
-        case fading
-        /// Back after days away.
-        case welcomeBack
-    }
+    typealias Kind = NoticeKind
 
     /// What the card's button does.
     struct Action: Equatable, Sendable {
@@ -23,6 +14,12 @@ struct CapNotice: Identifiable, Equatable, Sendable {
             case fixMixUp(confusionID: UUID)
             /// A session: a practice round on a topic, a short review.
             case session(kind: SessionKind, minutes: Int?, courseID: UUID?, topicID: UUID?, examID: UUID?)
+            /// "Show me": the sheet with two look-alikes side by side.
+            case showLookAlike(LookAlikePair)
+            /// "Fix my week": adds the minutes to the plan.
+            case fixMyWeek(FadeRescue)
+            /// Takes "Fix my week" back.
+            case undoFixMyWeek(noticeID: String)
         }
 
         /// "Fix it · 2 min".
@@ -37,7 +34,7 @@ struct CapNotice: Identifiable, Equatable, Sendable {
         case exam(UUID)
     }
 
-    /// Stable for the day: "<kind>:<subject>" ("mixUp:<confusion id>"), so a snooze or an action finds the same card again.
+    /// The card's id in the deck (`Notice.id`), so a snooze or an action finds the same card again.
     var id: String
     var kind: Kind
     /// "You keep mixing up anaphase and telophase."
@@ -46,4 +43,8 @@ struct CapNotice: Identifiable, Equatable, Sendable {
     var detail: String
     var action: Action?
     var link: Link? = nil
+    /// What the button costs: "No AI", "Under 1¢".
+    var cost: String? = nil
+    /// "Plan updated": a card already acted on, saying what changed, with Undo and no "Later".
+    var isConfirmation = false
 }

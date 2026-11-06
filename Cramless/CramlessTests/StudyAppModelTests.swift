@@ -12,10 +12,11 @@ final class TestClock {
 
 @MainActor
 enum StudyTestApp {
-    /// An in-memory AppModel with its own defaults, a fixed calendar and a settable clock.
-    static func make(clock: TestClock, calendar: Calendar) throws -> AppModel {
-        let defaults = UserDefaults(suiteName: "capling.tests.\(UUID().uuidString)")!
-        let app = AppModel(container: try Persistence.makeContainer(inMemory: true), defaults: defaults)
+    /// An in-memory AppModel with its own defaults, a fixed calendar and a settable clock. `defaults` and `container`: another launch
+    /// over the same ones.
+    static func make(clock: TestClock, calendar: Calendar, defaults: UserDefaults? = nil, container: ModelContainer? = nil) throws -> AppModel {
+        let defaults = defaults ?? UserDefaults(suiteName: "capling.tests.\(UUID().uuidString)")!
+        let app = AppModel(container: try container ?? Persistence.makeContainer(inMemory: true), defaults: defaults)
         app.calendar = calendar
         app.clock = { clock.now }
         return app
@@ -410,5 +411,98 @@ final class StudyAppModelTests: XCTestCase {
         XCTAssertEqual(app.dueForecast().count, 7)
         XCTAssertNil(app.retentionRate())
         XCTAssertTrue(app.confusionCandidates().isEmpty)
+    }
+
+    // MARK: Look-alikes
+
+    /// Metaphase and Telophase on a midterm 9 days out, one studied, the other's wrong option naming it.
+    private func lookAlikeWorld() throws -> (course: Course, draft: LookAlikeDraft, a: StudyItem, b: StudyItem, pair: LookAlikePair) {
+        let course = makeCourse()
+        let memory = MemoryState(state: .review, stability: 1, difficulty: 5, due: cal.adding(days: 3, to: clock.now), lastReview: cal.adding(days: -2, to: clock.now), reps: 2)
+        func add(_ prompt: String, _ answer: String, wrong: String) -> StudyItem {
+            let item = StudyItem(course: course, kind: .mcq, status: .active, origin: .person, prompt: prompt, answer: answer,
+                                 choices: [Choice(text: answer, correct: true), Choice(text: wrong, correct: false)], now: clock.now)
+            item.memory = memory
+            app.context.insert(item)
+            course.items.append(item)
+            return item
+        }
+        let a = add("In which phase do chromosomes line up?", "Metaphase", wrong: "Telophase")
+        let b = add("Which phase comes before cytokinesis?", "Telophase", wrong: "Metaphase")
+        let exam = Exam(course: course, title: "Bio 101 Midterm", date: cal.adding(days: 9, to: clock.now), now: clock.now)
+        app.context.insert(exam)
+        course.exams.append(exam)
+        app.save()
+        let card = try XCTUnwrap(app.noticeDeck().first { $0.kind == .lookAlike })
+        guard case .lookAlike(let pair) = card.evidence else { throw XCTSkip("not a pair") }
+        return (course, try XCTUnwrap(app.lookAlikeDraft(a: pair.a, b: pair.b)), a, b, pair)
+    }
+
+    func testShowMeAddsNothing() throws {
+        let (course, draft, _, _, pair) = try lookAlikeWorld()
+        let card = NoticeContent.card(try XCTUnwrap(app.noticeDeck().first), firstName: "", now: clock.now, calendar: cal)
+        XCTAssertEqual(card.title, "Metaphase and telophase look alike")
+        XCTAssertNil(app.perform(try XCTUnwrap(card.action)), "it opens the sheet, not a session")
+        XCTAssertEqual(app.router.sheet, .lookAlike(a: pair.a, b: pair.b, examID: pair.examID))
+        XCTAssertTrue(course.confusions.isEmpty, "nothing saved")
+        XCTAssertEqual(course.items.count, 2)
+        XCTAssertEqual(draft.rules.questions.count, 2)
+        // Having seen to it, the card stays away.
+        XCTAssertFalse(app.noticeDeck().contains { $0.id == pair.id })
+    }
+
+    func testTryingALookAlikeAdoptsItWithNoMisses() throws {
+        let (course, draft, a, b, _) = try lookAlikeWorld()
+        let request = try XCTUnwrap(app.tryLookAlike(draft, lesson: draft.rules, origin: .rules))
+        XCTAssertEqual(request.kind, .fix)
+        XCTAssertEqual(app.router.cover, .session(request))
+        let confusion = try XCTUnwrap(course.confusions.first)
+        XCTAssertEqual(confusion.status, .open)
+        XCTAssertEqual(confusion.missCount, 0)
+        XCTAssertEqual(Set(confusion.itemIDs), [a.id, b.id])
+        XCTAssertEqual(confusion.name, "Metaphase vs telophase")
+        XCTAssertEqual(confusion.fix?.itemIDs.count, 2, "its two questions are the fix")
+        XCTAssertEqual(course.items.count, 4)
+        // The Today card now reads as what it is.
+        let note = try XCTUnwrap(app.todayConfusionNote())
+        XCTAssertEqual(NoticeContent.card(for: note).title, "Metaphase and telophase look alike")
+    }
+
+    func testNotALookAlikeIsRememberedAndSkippedByBothFinders() throws {
+        let (course, draft, a, b, pair) = try lookAlikeWorld()
+        app.rejectLookAlike(draft)
+        let confusion = try XCTUnwrap(course.confusions.first)
+        XCTAssertEqual(confusion.status, .dismissed, "dismissed, and it syncs like any mix-up")
+        XCTAssertNil(confusion.syncedAt)
+        XCTAssertFalse(app.noticeDeck().contains { $0.id == pair.id })
+        clock.advance(86_400)
+        XCTAssertFalse(app.noticeDeck().contains { $0.kind == .lookAlike }, "tomorrow too")
+        // Swapping them for real doesn't bring it back: the mix-up finder skips what was dismissed.
+        let (session, _) = app.startSession(SessionRequest(kind: .daily))
+        for _ in 0..<2 {
+            app.recordReview(itemID: a.id, rating: .again, score: 0, answer: "Telophase", gradedBy: "rules", sessionID: session.id)
+            app.recordReview(itemID: b.id, rating: .again, score: 0, answer: "Metaphase", gradedBy: "rules", sessionID: session.id)
+        }
+        XCTAssertTrue(app.confusionCandidates().isEmpty)
+    }
+
+    func testAFixedLookAlikeIsNoMixUpFixedForTheBadges() throws {
+        let (course, draft, _, _, _) = try lookAlikeWorld()
+        app.tryLookAlike(draft, lesson: draft.rules, origin: .rules)
+        let confusion = try XCTUnwrap(course.confusions.first)
+        confusion.status = .fixed
+        app.save()
+        XCTAssertEqual(app.achievementFacts().mixUpsFixed, 0)
+        confusion.missCount = 2
+        app.save()
+        XCTAssertEqual(app.achievementFacts().mixUpsFixed, 1)
+    }
+
+    func testTheLookAlikeLessonAsksTheCloudOnlyIfAllowedAndFallsBackQuietly() async throws {
+        let (_, draft, _, _, _) = try lookAlikeWorld()
+        // No relay in tests' default mode, or no consent: the rules.
+        let plain = await app.lookAlikeLesson(draft)
+        XCTAssertEqual(plain.origin, .rules)
+        XCTAssertEqual(plain.lesson, draft.rules)
     }
 }

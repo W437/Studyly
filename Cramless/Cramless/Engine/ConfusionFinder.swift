@@ -7,6 +7,8 @@ struct ConfusionCandidate: Sendable, Equatable, Identifiable {
         case swappedAnswers
         /// Items missed again and again.
         case repeatedMisses
+        /// Two questions that look alike, spotted before any mistake (`LookAlikeFinder`; the person chose to learn the difference).
+        case lookAlike
     }
 
     /// One item's mistakes, ready for the relay's `MistakeInput`.

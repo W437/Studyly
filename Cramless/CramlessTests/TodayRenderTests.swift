@@ -121,9 +121,43 @@ final class TodayRenderTests: XCTestCase {
         }
     }
 
+    /// Every kind of Cap's card, in its real words: to be looked at, at the SE's width and the largest text size too.
+    func testEveryKindOfCapsCard() throws {
+        let cal = EngineTest.calendar()
+        let now = EngineTest.date(2026, 10, 22, 16, in: cal)
+        let examDate = cal.adding(days: 6, to: now)
+        let days = [0, 1].map { FadeRescue.Day(dayKey: cal.dayKey(for: cal.adding(days: $0, to: now)), offset: $0, date: cal.adding(days: $0, to: now), itemIDs: []) }
+        let rescue = FadeRescue(noticeID: "fade", examID: examID, examTitle: "Bio 101 Midterm", examDate: examDate, daysLeft: 6, dimCount: 18, dimShare: 0.4,
+                                days: days, minutesPerDay: 6, kept: 18, origin: .source("Lecture 3"))
+        let pair = LookAlikePair(id: "pair", a: UUID(), b: UUID(), termA: "Metaphase", termB: "Telophase", courseID: nil, topicID: nil, examID: examID,
+                                 examTitle: "Bio 101 Midterm", examDate: examDate, daysLeft: 6, similarity: 0.67, linked: true)
+        let spotted = ConfusionNote(id: UUID(), name: "Metaphase vs telophase", missCount: 0, recentMisses: 0, recentAnswers: 0)
+        let missed = ConfusionNote(id: UUID(), name: "Anaphase vs telophase", missCount: 3, recentMisses: 3, recentAnswers: 4)
+        let notices: [(String, Notice)] = [
+            ("mixup", Notice(id: "m", kind: .mixUp, rank: 0, evidence: .mixUp(missed))),
+            ("spotted", Notice(id: "s", kind: .mixUp, rank: 0, evidence: .mixUp(spotted))),
+            ("lookalike", Notice(id: "p", kind: .lookAlike, rank: 0, evidence: .lookAlike(pair), cost: .cloud)),
+            ("fading", Notice(id: "f", kind: .fading, rank: 0, evidence: .fading(rescue))),
+            ("back", Notice(id: "b", kind: .welcomeBack, rank: 0, evidence: .welcomeBack(best: 23))),
+        ]
+        var cards = notices.map { ($0.0, NoticeContent.card($0.1, firstName: "Maya", now: now, calendar: cal)) }
+        let boosts = days.map { PlanBoost(noticeID: "fade", examID: examID, examTitle: "Bio 101 Midterm", origin: "Lecture 3", dayKey: $0.dayKey, minutes: 6, itemIDs: []) }
+        cards.append(("updated", try XCTUnwrap(NoticeContent.confirmation(boosts: boosts, now: now, calendar: cal))))
+        for (name, notice) in cards {
+            let view = TodayNoticeCard(notice: notice, index: 2, total: 3, onAction: { _ in }, onLater: {}, onOpen: { _ in })
+            for width in [375.0, 402.0] {
+                try render(view, width: width, name: "notice-\(name)", scheme: .light)
+                try render(view, width: width, name: "notice-\(name)", scheme: .dark)
+                try render(view, width: width, name: "notice-\(name)", scheme: .light, size: .accessibility3)
+            }
+        }
+    }
+
     func testCapsCardTheQuietLineAndTheExams() throws {
         let note = ConfusionNote(id: UUID(), name: "Anaphase vs telophase", missCount: 3, recentMisses: 3, recentAnswers: 4)
-        let card = TodayNoticeCard(notice: AppModel.notice(for: note), index: 1, total: 2, onAction: { _ in }, onLater: {}, onOpen: { _ in })
+        var noticed = NoticeContent.card(for: note)
+        noticed.cost = "No AI"
+        let card = TodayNoticeCard(notice: noticed, index: 1, total: 2, onAction: { _ in }, onLater: {}, onOpen: { _ in })
         let quiet = TodayQuietLine(text: TodayCopy.quietLine(examTitle: "Chem 110 Quiz", others: ["Bio 101", "AP Psychology"]))
         let exams = snapshot(.session).exams
         for width in [375.0, 402.0] {

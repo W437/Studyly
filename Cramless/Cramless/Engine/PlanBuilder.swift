@@ -138,6 +138,7 @@ enum PlanMath {
 ///   reviews claim it first (new material keeps up to 40% of it, as in the daily session), reviews that don't fit move on to the
 ///   next day and new material to the next day that isn't the eve; `suggestedMinutes` still reads what the exam alone needs;
 /// - `skipping` days (a what-if) get no work at all: their reviews move on and no new material is spread there;
+/// - `boosts` add minutes to a day's whole session, and `pinned` questions take their review on the day they were given, first;
 /// - the projection counts only the share of the plan the person tends to do (`adherence`, from the last two
 ///   weeks' study days; 80% until there is history): projected = now + adherence × (plan − now).
 /// The plan is recomputed from the current memory every time, which is what makes it bend. All of this keeps the
@@ -157,6 +158,11 @@ struct PlanBuilder: Sendable {
     var capacity: [Int: Double]? = nil
     /// Days off, by day offset from today: no work those days.
     var skipping: Set<Int> = []
+    /// Minutes "Fix my week" added to the whole session, by day offset from today.
+    var boosts: [Int: Int] = [:]
+    /// Questions "Fix my week" gave a day, by day offset from today: they are reviewed that day, first, instead of being spread with the
+    /// other overdue ones.
+    var pinned: [UUID: Int] = [:]
 
     /// Simulated reviews happen at this local hour.
     static let reviewHour = 18.0
@@ -276,7 +282,14 @@ struct PlanBuilder: Sendable {
         let spread = overdueSeconds > Double(dailyMinutes * 60)
             ? min(Self.overdueSpreadDays, max(1, examDay - today - 1)) : 1
         for (k, i) in overdue.enumerated() { dueDays[i] = today + k * spread / max(1, overdue.count) }
-        for i in sims.indices where dueDays[i] < examDay {
+        var order = Array(sims.indices)
+        if !pinned.isEmpty {
+            for i in sims.indices {
+                if let offset = pinned[sims[i].item.id], today + offset < examDay { dueDays[i] = today + offset }
+            }
+            order = order.filter { pinned[sims[$0].item.id] != nil } + order.filter { pinned[sims[$0].item.id] == nil }
+        }
+        for i in order where dueDays[i] < examDay {
             let day = max(today, dueDays[i])
             buckets[day, default: []].append(i)
             load[day, default: 0] += 1
@@ -424,7 +437,8 @@ struct PlanBuilder: Sendable {
             let easy = isEasyDay(day)
             let skipped = isSkipped(day)
             let kind: PlanDay.Kind = isEve ? .examEve : (minutes == 0 ? .rest : (easy ? .light : .study))
-            let goal = easy ? Int((Double(dailyMinutes) * StudyScheduler.easyDayCapacity).rounded()) : dailyMinutes
+            let goal = (easy ? Int((Double(dailyMinutes) * StudyScheduler.easyDayCapacity).rounded()) : dailyMinutes)
+                + (boosts[day - today] ?? 0)
             days.append(PlanDay(date: grid.start(ofDay: day), dayNumber: day, kind: kind, minutes: minutes,
                                 sessionMinutes: skipped ? 0 : (isEve ? minutes : max(minutes, goal)), newItems: news,
                                 reviews: reviews, isToday: day == today, isEasyDay: easy, offset: day - today,

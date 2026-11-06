@@ -1,0 +1,132 @@
+#if DEBUG
+import Foundation
+import SwiftData
+
+// Launch hooks for Cap's cards (DEBUG only). They shape the demo world so the real engines find each kind:
+//
+// - `CRAMLESS_NOTICES=mixup,lookalike,fading,back|all|none`: those kinds and no others. `lookalike`: the Bio midterm 9 days out, with the
+//   sample page's look-alikes. `fading`: the midterm 6 days out, and its questions 20 days overdue, more of them than today's session
+//   holds. `back`: 8 days without study after a 23-day run. `mixup` needs nothing: the demo world has an open mix-up.
+// - `CRAMLESS_NOTICE_STATE=second|later|done|allLater`, once the deck is dealt: `second` the first card acted on, so "2 of N" shows; `later` the
+//   first put off with "Later"; `done` "Fix my week" pressed on a fading card ("Plan updated"); `allLater` all put off.
+// - `CRAMLESS_NOTICE_TAP=<ms>` presses the button on the card that long after launch (`TodayView`).
+// - `CRAMLESS_ROUTE=lookAlike` opens the sheet on the best pair; `CRAMLESS_LOOKALIKE=rules|cloud|writing` (`LookAlikeView`).
+//
+// `CRAMLESS_ROUTE=settings:notifications CRAMLESS_NOTICES=fading` shows the ping in the page's planned list.
+extension AppModel {
+    /// Called once at launch, after the demo world is seeded.
+    func applyNoticeHarness() {
+        guard config.isHarness, let raw = TestHarness.value("CRAMLESS_NOTICES") else { return }
+        let asked = Set(raw.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces).lowercased() })
+        let all = asked.contains("all")
+        let kinds: [(String, NoticeKind)] = [("mixup", .mixUp), ("lookalike", .lookAlike), ("fading", .fading), ("back", .welcomeBack)]
+        var off = Set<NoticeKind>()
+        for (name, kind) in kinds where !all && !asked.contains(name) { off.insert(kind) }
+        settings.notices.off = off
+        guard !asked.contains("none") else { return }
+        let midterm = upcomingExams().first { $0.title == "Bio 101 Midterm" }
+        let chem = upcomingExams().first { $0.title == "Chem 110 Quiz" }
+        if asked.contains("fading") || all {
+            debugMoveExam(midterm, toDays: 6)
+            // An exam two days out would make the session its own and take days from the plan: this is the midterm's week.
+            debugMoveExam(chem, toDays: 40)
+            debugMakeOverdue(course: midterm?.course)
+        } else if asked.contains("lookalike") {
+            debugMoveExam(midterm, toDays: 9)
+            debugMoveExam(chem, toDays: 40)
+            debugSoften(course: midterm?.course)
+        }
+        if asked.contains("back") || all { debugWentAway() }
+        save()
+        applyNoticeState()
+    }
+
+    private func applyNoticeState() {
+        guard let state = TestHarness.value("CRAMLESS_NOTICE_STATE") else { return }
+        let deck = noticeDeck()
+        switch state {
+        case "second":
+            if let first = deck.first { markNoticeActed(first.id) }
+        case "later":
+            if let first = deck.first { snoozeNotice(first.id) }
+        case "allLater":
+            for card in deck { snoozeNotice(card.id) }
+        case "done":
+            for card in deck {
+                if case .fading(let rescue) = card.evidence { applyFadeRescue(rescue) }
+            }
+        default:
+            break
+        }
+    }
+
+    /// The best pair, for `CRAMLESS_ROUTE=lookAlike`: every exam counted as 9 days off, and nothing already solid.
+    func debugLookAlikePair() -> LookAlikePair? {
+        let exams = examSnapshots(upcomingOnly: true).map { exam -> ExamSnapshot in
+            var near = exam
+            near.date = calendar.adding(days: 9, to: now)
+            return near
+        }
+        let names = lookAlikeItems(courseIDs: Set(exams.compactMap(\.courseID))).map { item -> LookAlikeItem in
+            var looser = item
+            looser.studied = true
+            looser.recall = min(item.recall, 0.8)
+            return looser
+        }
+        return LookAlikeFinder(calendar: calendar, now: now).pairs(items: names, exams: exams, confusions: confusionSnapshots()).first
+    }
+
+    private func debugMoveExam(_ exam: Exam?, toDays days: Int) {
+        guard let exam else { return }
+        let hour = calendar.component(.hour, from: exam.date)
+        exam.date = calendar.date(bySettingHour: hour, minute: 0, second: 0, of: calendar.adding(days: days, to: now)) ?? exam.date
+        touch(exam)
+    }
+
+    /// Every question of the course studied 25 days ago with a memory that has long since gone: 20 days overdue, more than a session holds.
+    private func debugMakeOverdue(course: Course?) {
+        guard let course else { return }
+        let lastReview = calendar.adding(days: -25, to: now)
+        let due = calendar.adding(days: -20, to: now)
+        for item in course.items where item.deletedAt == nil && item.status == .active {
+            var memory = item.memory
+            memory.state = .review
+            memory.stability = 2.2
+            memory.difficulty = 5.5
+            memory.lastReview = lastReview
+            memory.due = due
+            memory.reps = max(memory.reps, 2)
+            item.memory = memory
+            touch(item)
+        }
+    }
+
+    /// Nothing in the course is solid yet: its look-alikes count.
+    private func debugSoften(course: Course?) {
+        guard let course else { return }
+        for item in course.items where item.deletedAt == nil && item.status == .active && item.stateRaw != CardState.new.rawValue {
+            var memory = item.memory
+            memory.stability = min(memory.stability, 3)
+            memory.lastReview = calendar.adding(days: -4, to: now)
+            memory.due = calendar.adding(days: 1, to: now)
+            item.memory = memory
+            touch(item)
+        }
+    }
+
+    /// 8 days without study after a run of 23: nothing since, and the day before the run missed.
+    private func debugWentAway() {
+        for offset in 1...40 {
+            let date = calendar.adding(days: -offset, to: now)
+            let record = dayRecord(key: calendar.dayKey(for: date), date: date)
+            let studied = offset >= 9 && offset < 9 + 23
+            record.sessions = studied ? 1 : 0
+            record.studySeconds = studied ? 15 * 60 : 0
+            record.itemsReviewed = studied ? 18 : 0
+            record.frozen = false
+            record.repaired = false
+            record.syncedAt = nil
+        }
+    }
+}
+#endif

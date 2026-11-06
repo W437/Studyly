@@ -81,6 +81,15 @@ struct StudyPage: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
             .clCard()
+
+            SettingsGroup(title: "Cap noticed",
+                          footer: "One note at a time on Today, three a day at most. Spotting them runs on this iPhone and uses no AI.") {
+                ForEach(NoticeKind.live, id: \.self) { kind in
+                    SettingsToggleRow(title: NoticeContent.switchTitle(kind),
+                                      isOn: Binding(get: { app.settings.notices.allows(kind) },
+                                                    set: { app.setNoticeKind(kind, on: $0) }))
+                }
+            }
         }
         .onAppear { retention = app.settings.targetRetention }
     }

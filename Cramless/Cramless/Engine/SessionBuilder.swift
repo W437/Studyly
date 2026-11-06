@@ -15,6 +15,8 @@ struct SessionSpec: Sendable, Equatable {
     var confusionID: UUID?
     /// Explicit items (quick check, a fix drill, a hand-picked practice set), in order.
     var itemIDs: [UUID] = []
+    /// Questions a daily session takes first, after learning steps ("Fix my week"), if they are still due.
+    var focusItemIDs: [UUID] = []
 }
 
 /// One question in a session.
@@ -137,7 +139,7 @@ struct ExamIndex: Sendable {
 /// Builds study sessions from item snapshots. Pure: `now`, the calendar and the settings are inputs.
 ///
 /// The daily session, in order of claim on the budget:
-/// 1. learning steps due now (within 20 minutes);
+/// 1. learning steps due now (within 20 minutes), then the questions "Fix my week" put first (`SessionSpec.focusItemIDs`);
 /// 2. due reviews, items for an exam in the next 7 days first, then lowest recall;
 /// 3. exam priority: not-due items whose recall on an exam 1–3 days away would be under the exam's target;
 /// 4. new items: the exam plans' share for today (all new material in by ~3 days before each exam), at least
@@ -379,6 +381,7 @@ struct SessionBuilder: Sendable {
         let reviewLimit = max(budget - newReserve - weakReserve, budget * 0.5)
 
         fill(learning, .due, limit: budget)
+        fill(spec.focusItemIDs.compactMap { byID[$0] }.filter { ($0.item.memory.due ?? .distantFuture) < tomorrow }, .due, limit: budget)
         fill(due, .due, limit: reviewLimit)
         fill(priority, .examPriority, limit: reviewLimit)
         fill(newPicks, .new, limit: budget - weakReserve)

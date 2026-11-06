@@ -20,9 +20,9 @@ extension AppModel {
         let minutesDone = Int((record?.studySeconds ?? 0) / 60)
         let exams = examSnapshots(upcomingOnly: true)
         let built = SessionBuilder(settings: settings, calendar: calendar, now: now).build(
-            SessionSpec(kind: .daily, minutes: dailyBudgetMinutes(done: minutesDone)),
+            SessionSpec(kind: .daily, minutes: dailyBudgetMinutes(done: minutesDone), focusItemIDs: boostedItemsToday()),
             items: itemSnapshots(), exams: exams, confusions: confusionSnapshots(), topicNames: topicNames())
-        var summary = TodaySummary(minutesGoal: settings.dailyMinutes, minutesDone: minutesDone,
+        var summary = TodaySummary(minutesGoal: settings.dailyMinutes + boostMinutesToday(), minutesDone: minutesDone,
                                    plannedMinutes: built.plannedMinutes, reviews: built.reviewCount,
                                    newItems: built.newCount, weakSpots: built.weakSpots.count,
                                    weakChips: built.weakChips, studiedToday: (record?.sessions ?? 0) > 0,
@@ -46,10 +46,12 @@ extension AppModel {
             .valueAfter(session.entries, exam: exam, items: items, newItemSuccess: studyHabits().newItemSuccess)
     }
 
-    /// The daily session's size: the goal, or what's left of it today (at least 5 minutes once some is done).
+    /// The daily session's size: the goal (with what "Fix my week" added to today), or what's left of it today (at least 5 minutes once
+    /// some is done).
     func dailyBudgetMinutes(done: Int? = nil) -> Int {
         let done = done ?? Int((dayRecordSnapshot(for: now)?.studySeconds ?? 0) / 60)
-        return done > 0 ? max(5, settings.dailyMinutes - done) : settings.dailyMinutes
+        let goal = settings.dailyMinutes + boostMinutesToday()
+        return done > 0 ? max(5, goal - done) : goal
     }
 
     // MARK: Exams
@@ -117,9 +119,10 @@ extension AppModel {
         let today = calendar.dayNumber(for: now)
         let goal = Double(settings.dailyMinutes * 60)
         let doneToday = dayRecordSnapshot(for: now)?.studySeconds ?? 0
-        /// The day's goal in seconds: the easy-day share on easy days, and today only what's left of it.
+        /// The day's goal in seconds: the easy-day share on easy days, with what "Fix my week" added, and today only what's left of it.
         func dayGoal(_ offset: Int) -> Double {
-            let base = builder.isEasyDay(today + offset) ? goal * StudyScheduler.easyDayCapacity : goal
+            let base = (builder.isEasyDay(today + offset) ? goal * StudyScheduler.easyDayCapacity : goal)
+                + Double((builder.boosts[offset] ?? 0) * 60)
             return offset == 0 ? max(0, base - doneToday) : base
         }
         var left: [Int: Double] = [:]
@@ -193,6 +196,7 @@ extension AppModel {
         let habits = studyHabits()
         builder.newItemSuccess = habits.newItemSuccess
         builder.adherence = habits.adherence
+        (builder.boosts, builder.pinned) = planBoosts()
         return builder
     }
 

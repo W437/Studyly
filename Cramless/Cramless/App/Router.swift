@@ -125,6 +125,8 @@ enum AppSheet: Identifiable, Hashable, Sendable {
     case quests
     /// Help: write to a real person, what is always free, restore.
     case help
+    /// Two look-alike questions side by side (Cap's card "Show me").
+    case lookAlike(a: UUID, b: UUID, examID: UUID?)
 
     var id: String { String(describing: self) }
 }

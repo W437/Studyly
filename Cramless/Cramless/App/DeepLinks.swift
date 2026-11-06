@@ -4,6 +4,8 @@ import OSLog
 /// Where a link goes. Pure values: `DeepLinks.parse` builds them, `DeepLinks.perform` applies them to the router.
 enum DeepLink: Equatable, Sendable {
     case tab(AppTab)
+    /// Today, with this one of Cap's cards first (a "Cap noticed" notification).
+    case notice(String)
     case streak
     case session(kind: SessionKind, examID: UUID?, confusionID: UUID?, courseID: UUID?)
     case scan(courseID: UUID?)
@@ -63,7 +65,12 @@ enum DeepLinks {
         func uuid(_ key: String) -> UUID? { query[key].flatMap(UUID.init(uuidString:)) }
 
         switch host {
-        case "today": return .tab(.today)
+        case "today":
+            if let id = query["notice"], (1...120).contains(id.count),
+               id.unicodeScalars.allSatisfy(CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-")).contains) {
+                return .notice(id)
+            }
+            return .tab(.today)
         case "ask": return .tab(.ask)
         case "progress": return .tab(.progress)
         case "library": return .tab(.library)
@@ -127,6 +134,11 @@ enum DeepLinks {
             router.dismissSheet()
             router.popToRoot(tab)
             router.tab = tab
+        case .notice(let id):
+            router.dismissSheet()
+            router.popToRoot(.today)
+            router.tab = .today
+            app.bringNoticeToFront(id)
         case .streak:
             router.dismissSheet()
             router.popToRoot(.progress)

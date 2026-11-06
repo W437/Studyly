@@ -37,6 +37,74 @@ final class NotificationPlannerTests: XCTestCase {
         return String(format: "%02d-%02d %02d:%02d", c.month!, c.day!, c.hour!, c.minute!)
     }
 
+    // MARK: Cap noticed
+
+    /// The Bio midterm moved to `days` days out, and one of Cap's cards for it.
+    private func noticed(examIn days: Int = 5, dayOffset: Int = 0, change: (inout NotificationPlanner.Input) -> Void = { _ in }) -> [NotificationPlanner.Planned] {
+        plan { i in
+            let date = cal.date(bySettingHour: 9, minute: 0, second: 0, of: cal.date(byAdding: .day, value: days, to: now)!)!
+            i.exams = [.init(id: bioID, title: "Bio 101 Midterm", courseName: "Bio 101", date: date)]
+            i.notices = [NoticePing(linkID: "pair-1", kind: .lookAlike, examDate: date, dayOffset: dayOffset, body: "Cap noticed something")]
+            change(&i)
+        }
+    }
+
+    func testCapNoticedReplacesThatDaysReminderAndNudge() {
+        let today = noticed().filter { cal.isDate($0.date, inSameDayAs: now) }
+        XCTAssertEqual(today.map(\.kind), [.notice], "exactly one notification that evening")
+        XCTAssertEqual(hm(today[0].date), "10-22 19:00", "at the reminder time")
+        XCTAssertEqual(today[0].body, "Cap noticed something")
+        XCTAssertEqual(today[0].id, "capling.notice.2026-10-22")
+        XCTAssertEqual(today[0].category, NotificationPlanner.noticeCategory)
+        XCTAssertEqual(today[0].kind.relevance, 0.65)
+        XCTAssertEqual(DeepLinks.parse(today[0].url), .notice("pair-1"))
+        let tomorrow = noticed().filter { cal.isDate($0.date, inSameDayAs: cal.date(byAdding: .day, value: 1, to: now)!) }
+        XCTAssertEqual(tomorrow.map(\.kind), [.daily], "the other days keep their reminder")
+    }
+
+    func testCapNoticedOnlyTwoToSixDaysBeforeTheExam() {
+        for (days, sent) in [(1, false), (2, true), (6, true), (7, false), (8, false)] {
+            XCTAssertEqual(noticed(examIn: days).contains { $0.kind == .notice }, sent, "\(days) days out")
+        }
+        XCTAssertTrue(noticed(examIn: 7, dayOffset: 1).contains { $0.kind == .notice }, "tomorrow is 6 days before")
+    }
+
+    func testCapNoticedIsNeverSentOnADayWithAnExamNote() {
+        // Another exam tomorrow: tonight is its eve.
+        let eve = noticed { i in i.exams.append(.init(id: chemID, title: "Chem 110 Quiz", courseName: "Chem 110", date: cal.date(byAdding: .day, value: 1, to: now)!)) }
+        XCTAssertFalse(eve.contains { $0.kind == .notice })
+        XCTAssertTrue(eve.contains { $0.kind == .examEve && cal.isDate($0.date, inSameDayAs: now) })
+        // Another exam a week from today: tonight is its week note.
+        let week = noticed { i in i.exams.append(.init(id: chemID, title: "Chem 110 Quiz", courseName: "Chem 110", date: cal.date(byAdding: .day, value: 7, to: now)!)) }
+        XCTAssertFalse(week.contains { $0.kind == .notice })
+        XCTAssertTrue(week.contains { $0.kind == .examWeek })
+    }
+
+    func testCapNoticedAtMostOneADay() {
+        let p = noticed { i in
+            i.notices.append(NoticePing(linkID: "mix-2", kind: .mixUp, examDate: i.notices[0].examDate, dayOffset: 0, body: "Another"))
+        }
+        XCTAssertEqual(p.filter { $0.kind == .notice }.map(\.body), ["Cap noticed something"])
+    }
+
+    func testCapNoticedKeepsToQuietHoursAndTo18WithRemindersOff() {
+        let off = noticed { $0.reminderMinutes = nil }
+        XCTAssertEqual(off.filter { $0.kind == .notice }.map { hm($0.date) }, ["10-22 18:00"], "sent even with the daily reminder off")
+        let quiet = noticed { i in
+            i.quietStart = 18 * 60
+            i.quietEnd = 21 * 60
+        }
+        XCTAssertEqual(quiet.filter { $0.kind == .notice }.map { hm($0.date) }, ["10-22 17:30"], "moved out of quiet hours")
+    }
+
+    func testCapNoticedGoesWithItsCardAndLeavesTrialAlone() {
+        let planned = noticed()
+        let without = plan()
+        XCTAssertFalse(without.contains { $0.kind == .notice }, "no pings, no change to the week")
+        let stale = NotificationPlanner.staleIdentifiers(pending: ["capling.notice.2026-10-21", "trial.ending"], planned: planned)
+        XCTAssertEqual(stale, ["capling.notice.2026-10-21"])
+    }
+
     // MARK: The week
 
     func testTheDemoWeek() {
