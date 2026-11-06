@@ -61,6 +61,8 @@ struct SessionRequest: Hashable, Sendable, Identifiable {
     var minutes: Int?
     /// A practice session for one topic (with `kind: .practice`).
     var topicID: UUID? = nil
+    /// A mock's size (with `kind: .mock`). Nil: what the exam's format says.
+    var questionCount: Int? = nil
 }
 
 struct CaptureRequest: Hashable, Sendable, Identifiable {
@@ -125,6 +127,8 @@ enum AppSheet: Identifiable, Hashable, Sendable {
 
 enum AppCover: Identifiable, Hashable, Sendable {
     case session(SessionRequest)
+    /// A timed practice exam for one exam.
+    case mockExam(examID: UUID)
     case scanner(courseID: UUID?, isOnboarding: Bool)
     case captureFlow(CaptureRequest)
     case record(courseID: UUID?)

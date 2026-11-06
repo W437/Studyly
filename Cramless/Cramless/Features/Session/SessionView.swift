@@ -205,7 +205,7 @@ struct SessionTopBar: View {
     private var contextLine: String? {
         if runner.resumed, runner.answers.isEmpty { return String(localized: "Picked up where you left off.") }
         switch runner.kind {
-        case .daily, .quickCheck: return nil
+        case .daily, .quickCheck, .mock: return nil
         case .fix:
             let name = runner.built.weakSpots.first?.name
             return [SessionCopy.title(for: .fix), name].compactMap { $0 }.joined(separator: " · ")

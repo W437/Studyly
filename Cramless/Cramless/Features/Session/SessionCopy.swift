@@ -15,6 +15,7 @@ enum SessionCopy {
         case .fix: "2-minute fix"
         case .practice: "Bonus round"
         case .quickCheck: "Quick check"
+        case .mock: "Mock exam"
         }
     }
 

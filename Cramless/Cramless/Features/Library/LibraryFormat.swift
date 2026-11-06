@@ -163,8 +163,12 @@ enum LibraryFormat {
 
     /// "Multiple choice + short answer" with notes after a dot when there are some.
     static func formatLine(_ format: ExamFormat) -> String {
+        var parts = [format.summary]
+        if let count = format.questionCount { parts.append(String(localized: "\(count) questions")) }
+        if let minutes = format.minutes { parts.append(String(localized: "\(minutes) min")) }
         let notes = format.notes.clTrimmed
-        return notes.isEmpty ? format.summary : "\(format.summary) · \(notes)"
+        if !notes.isEmpty { parts.append(notes) }
+        return parts.joined(separator: " · ")
     }
 
     /// "91%".

@@ -31,7 +31,7 @@ extension AppModel {
         if minutes == nil, request.kind == .daily || request.kind == .catchUp { minutes = dailyBudgetMinutes() }
         return SessionSpec(id: request.id, kind: request.kind, minutes: minutes, courseID: request.courseID,
                            topicID: request.topicID, examID: request.examID, confusionID: request.confusionID,
-                           itemIDs: request.itemIDs)
+                           itemIDs: request.itemIDs, questionCount: request.questionCount)
     }
 
     /// The session for a request, built from the store as it is now. Cheap enough to call for a preview.
@@ -40,6 +40,8 @@ extension AppModel {
         let items: [ItemSnapshot]
         if request.kind == .quickCheck || (request.kind == .practice && !request.itemIDs.isEmpty) {
             items = itemSnapshots(ids: request.itemIDs)
+        } else if request.kind == .mock {
+            items = request.examID.flatMap { exam($0) }.map(mockEligibleItems(for:)) ?? []
         } else {
             items = itemSnapshots()
         }

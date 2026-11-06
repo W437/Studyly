@@ -154,6 +154,13 @@ enum TestHarness {
             r.present(.session(SessionRequest(kind: kind, courseID: nil, examID: kind == .examEve ? firstExam?.id : nil,
                                               confusionID: confusion,
                                               minutes: value("CRAMLESS_SESSION_MINUTES").flatMap(Int.init))))
+        // `mock:<n>`: a mock of the nth upcoming exam; without a number, the first with enough questions. `CRAMLESS_MOCK` sets its state
+        // (see `MockExamView`).
+        case "mock":
+            let exams = app.upcomingExams()
+            let exam = arg.flatMap(Int.init).flatMap { exams.indices.contains($0) ? exams[$0] : nil }
+                ?? exams.first { if case .ready = app.mockOffer(for: $0) { true } else { false } } ?? exams.first
+            if let exam { r.present(.mockExam(examID: exam.id)) }
         case "scanner": r.present(.scanner(courseID: firstCourse?.id, isOnboarding: false))
         case "capture": r.present(.capture(courseID: firstCourse?.id))
         case "captureFlow", "review":

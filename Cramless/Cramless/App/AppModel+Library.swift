@@ -336,7 +336,9 @@ extension AppModel {
     ///   84%: projections are calibrated, so the letter grade shows;
     /// - `ontrack`: the exam's goal is 60%, so the plan reaches it;
     /// - `crowded`: a Bio 101 quiz on two topics in three days, so the days ahead are shared by more exams;
-    /// - `empty`: the exam covers only a topic with no material, so there is nothing to study for it yet.
+    /// - `empty`: the exam covers only a topic with no material, so there is nothing to study for it yet;
+    /// - `mocked`: a mock of the exam was taken three days ago, ten questions, three in four right;
+    /// - `fewItems`: all but five of the exam's mock questions are suspended, so a mock asks for more.
     func applyHarnessScenario(_ scenario: String, examID: UUID?) {
         let exam = exam(examID)
         func clear(daysAgo: Int) {
@@ -407,6 +409,28 @@ extension AppModel {
             guard let gap else { return }
             exam.scope = [gap.id]
             touch(exam)
+        case "mocked":
+            guard let exam else { return }
+            let when = calendar.adding(days: -3, to: now)
+            let session = StudySession(kind: .mock, startedAt: when, plannedSeconds: 1200, courseID: exam.course?.id, examID: exam.id)
+            session.endedAt = when.addingTimeInterval(1100)
+            context.insert(session)
+            for (index, snapshot) in mockEligibleItems(for: exam).prefix(10).enumerated() {
+                let right = index % 4 != 3
+                context.insert(ReviewLog(itemID: snapshot.id, courseID: exam.course?.id, sessionID: session.id,
+                                         reviewedAt: when.addingTimeInterval(Double(index) * 60), rating: right ? .good : .again,
+                                         score: right ? 1 : 0, answer: nil, gradedBy: "rules", durationMs: 60_000, before: snapshot.memory,
+                                         after: snapshot.memory, elapsedDays: 0, scheduledDays: 0))
+                session.itemCount += 1
+            }
+        case "fewItems":
+            guard let exam else { return }
+            for snapshot in mockEligibleItems(for: exam).dropFirst(5) {
+                if let item = item(snapshot.id) {
+                    item.status = .suspended
+                    touch(item)
+                }
+            }
         default:
             return
         }

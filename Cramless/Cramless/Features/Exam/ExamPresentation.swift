@@ -137,6 +137,37 @@ enum ExamPresentation {
         return ExamPassOffer.isEligible(plan: plan, examDates: [examDate], now: now, calendar: calendar)
     }
 
+    // MARK: The mock exam
+
+    /// The exam page's mock card: an offer with the mock's size and mix, or how far short the questions are. Nil on the eve, the day and after.
+    struct MockCard: Equatable, Sendable {
+        enum Kind: Equatable, Sendable {
+            /// "20 questions like the real one · 25 min", "Matches your exam: …".
+            case offer(line: String, mix: String)
+            /// "A mock needs 8 questions …"; `canWrite`: a reading has something left to write questions from.
+            case tooFew(line: String, canWrite: Bool)
+        }
+
+        var kind: Kind
+        /// "Last mock: 72% on Nov 3".
+        var last: String?
+    }
+
+    static func mockCard(offer: MockOffer, lastScore: Double?, lastDate: Date?, canWrite: Bool, calendar: Calendar) -> MockCard? {
+        let last = lastScore.flatMap { score in lastDate.map { MockCopy.lastLine(score: score, date: $0, calendar: calendar) } }
+        switch offer {
+        case .hidden:
+            return nil
+        case .tooFew(let have):
+            return MockCard(kind: .tooFew(line: MockCopy.tooFew(have: have), canWrite: canWrite), last: last)
+        case .ready(let plan):
+            return MockCard(kind: .offer(line: MockCopy.cardLine(questions: plan.entries.count, minutes: plan.minutes),
+                                         mix: MockCopy.mixLine(multiple: plan.multipleChoiceCount, short: plan.shortCount,
+                                                               essay: plan.essayCount)),
+                            last: last)
+        }
+    }
+
     // MARK: What the questions cover
 
     /// Below this share the coverage note turns amber.

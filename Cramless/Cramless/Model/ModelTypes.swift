@@ -277,6 +277,11 @@ struct ExamFormat: Codable, Hashable, Sendable {
     var shortAnswer = true
     var essay = false
     var notes: String = ""
+    /// How many questions the real exam has, when known: a mock takes its size and pace from it. Optional, so blobs written before it
+    /// decode.
+    var questionCount: Int? = nil
+    /// How long the real exam is, in minutes, when known.
+    var minutes: Int? = nil
 
     var summary: String {
         var parts: [String] = []
@@ -302,6 +307,8 @@ enum SessionKind: String, Codable, Sendable {
     case quickCheck
     /// The person chose a course or topic to practise.
     case practice
+    /// A timed practice exam built from the exam's own questions (`MockExamBuilder`); its answers are recorded when it is handed in.
+    case mock
 }
 
 // MARK: - Chat

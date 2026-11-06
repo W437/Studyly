@@ -58,6 +58,8 @@ struct ExamDraft: Equatable, Sendable {
     var cleanFormat: ExamFormat {
         var f = format
         f.notes = f.notes.clTrimmed
+        f.questionCount = f.questionCount.flatMap { (1...500).contains($0) ? $0 : nil }
+        f.minutes = f.minutes.flatMap { (1...600).contains($0) ? $0 : nil }
         return f
     }
 
