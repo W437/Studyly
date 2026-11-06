@@ -10,6 +10,8 @@ struct Toast: Identifiable, Equatable, Sendable {
     var systemImage: String = "checkmark.circle.fill"
     var tone: Tone = .neutral
     var actionTitle: LocalizedStringResource?
+    /// What the button does (with `actionTitle`): RootView's host runs it through the router (`Router.runToastAction()`).
+    var action: ToastAction?
     /// Seconds on screen. VoiceOver users get it announced instead of racing the timer.
     var duration: Double = 3
 
@@ -35,6 +37,9 @@ struct ToastView: View {
                     .clFont(.subheadlineEmphasis)
                     .foregroundStyle(CLColor.skyInk)
                     .buttonStyle(.plain)
+                    .frame(minWidth: CLMetrics.minHitTarget, minHeight: CLMetrics.minHitTarget)
+                    .contentShape(Rectangle())
+                    .padding(.vertical, -10)
             }
         }
         .padding(.horizontal, 16)
@@ -43,6 +48,11 @@ struct ToastView: View {
         .padding(.horizontal, 20)
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(.isStaticText)
+        .accessibilityActions {
+            if let title = toast.actionTitle, let onAction {
+                Button(title, action: onAction)
+            }
+        }
     }
 
     private var iconColor: Color {

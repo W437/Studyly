@@ -158,16 +158,17 @@ extension AppModel {
 
     /// Ends a session (idempotent): stamps the end, tops today's minutes up to the session's wall time (capped
     /// at twice the plan, so a session left open doesn't count), records readiness after, repairs a missed day
-    /// when today was a double session, and returns the summary.
+    /// when today was a double session, and returns the summary. `wallStart`: where the wall time counts from when it isn't the
+    /// session's start (a session picked up after iOS closed the app counts only the time it was on screen).
     @discardableResult
-    func finishSession(_ session: StudySession) -> SessionSummary {
+    func finishSession(_ session: StudySession, wallStart: Date? = nil) -> SessionSummary {
         let now = self.now
         let sid: UUID? = session.id
         let logs = fetch(FetchDescriptor<ReviewLog>(predicate: #Predicate { $0.sessionID == sid },
                                                     sortBy: [SortDescriptor(\.reviewedAt)]))
         if session.endedAt == nil {
             session.endedAt = now
-            let wall = max(0, now.timeIntervalSince(session.startedAt))
+            let wall = max(0, now.timeIntervalSince(wallStart ?? session.startedAt))
             let cap = max(session.plannedSeconds * 2, session.activeSeconds, 60)
             let extra = max(0, min(wall, cap) - session.activeSeconds)
             if extra > 0, !logs.isEmpty {

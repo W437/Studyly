@@ -435,6 +435,9 @@ struct QuickCheckCard: View {
 /// The consent or paywall offer an answer carries ("Cap answered from your notes. Cloud AI can explain more").
 struct AISuggestionCard: View {
     let suggestion: AISuggestion
+    /// False where nothing is sold (a sheet opened from a session, Explain my mistake): a free limit is a line with no button and no
+    /// link out. The consent offers keep their buttons.
+    var allowsUpgrade = true
     let action: () -> Void
 
     var body: some View {
@@ -445,8 +448,14 @@ struct AISuggestionCard: View {
                     .clFont(.subheadline)
                     .foregroundStyle(CLColor.ink)
                     .fixedSize(horizontal: false, vertical: true)
-                Button(buttonTitle, action: action)
-                    .buttonStyle(.cl(.soft, size: .small, fullWidth: false))
+                if let title = Self.buttonTitle(for: suggestion, allowsUpgrade: allowsUpgrade) {
+                    Button(title, action: action)
+                        .buttonStyle(.cl(.soft, size: .small, fullWidth: false))
+                }
+                if case .upgrade = suggestion, allowsUpgrade {
+                    HelpLink()
+                        .padding(.top, -6)
+                }
             }
         }
         .clCard(padding: 14, radius: 22, flat: true)
@@ -478,16 +487,35 @@ struct AISuggestionCard: View {
         }
     }
 
-    private var buttonTitle: String {
+    /// The card's button; none for a free limit where nothing is sold.
+    static func buttonTitle(for suggestion: AISuggestion, allowsUpgrade: Bool) -> LocalizedStringResource? {
         switch suggestion {
         case .allowCloud: "Turn on Cloud AI"
         case .allowPhotos: "Send page photos"
-        case .upgrade: "See Pro"
+        case .upgrade: allowsUpgrade ? "See Pro" : nil
         }
     }
 }
 
 // MARK: - Composer
+
+/// The ground under the composer: the screen's own colour with a hairline on top, down to the bottom edge, so the conversation
+/// scrolls away under it instead of showing through the glass. (The pattern of Explain my mistake's bottom bar.)
+struct AskDock<Content: View>: View {
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        content
+            .padding(.horizontal, 12)
+            .padding(.top, 8)
+            .padding(.bottom, 8)
+            .background(alignment: .top) {
+                CLColor.background
+                    .overlay(alignment: .top) { Rectangle().fill(CLColor.hairline).frame(height: 0.5) }
+                    .ignoresSafeArea(edges: .bottom)
+            }
+    }
+}
 
 /// The glass composer pinned above the keyboard. While Cap answers, send becomes stop.
 struct ChatComposer: View {

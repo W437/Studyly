@@ -73,10 +73,14 @@ enum TrialReminder {
     }
 }
 
-/// Exam Pass is the downsell: offered only to free users who decline the paywall within three weeks of an exam.
+/// Exam Pass is the downsell, offered only to free users and only while the soonest upcoming exam is 8 to 21 days away: early
+/// enough for 30 days of Pro to be worth it, never in exam week, on the eve or on the day (`StoreCatalog.examPassQuietDays`).
+/// Another exam closer than that keeps it quiet too, whichever exam the person is looking at. Settings ▸ Subscription lists it
+/// at any time, as a catalogue the person opened.
 enum ExamPassOffer {
-    static func isEligible(plan: Plan, examDate: Date?, now: Date, calendar: Calendar) -> Bool {
-        guard plan == .free, let examDate, examDate > now else { return false }
-        return calendar.dayDistance(from: now, to: examDate) <= StoreCatalog.examPassWindowDays
+    static func isEligible(plan: Plan, examDates: [Date], now: Date, calendar: Calendar) -> Bool {
+        guard plan == .free, let soonest = examDates.filter({ $0 > now }).min() else { return false }
+        let days = calendar.dayDistance(from: now, to: soonest)
+        return days > StoreCatalog.examPassQuietDays && days <= StoreCatalog.examPassWindowDays
     }
 }

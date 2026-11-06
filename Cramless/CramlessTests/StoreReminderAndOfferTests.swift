@@ -65,18 +65,31 @@ final class StoreReminderAndOfferTests: XCTestCase {
 
     // MARK: Exam Pass offer
 
-    func testExamPassIsOfferedToFreePeopleWithinThreeWeeks() {
+    private func offered(_ exams: [Date], plan: Plan = .free, now: Date) -> Bool {
+        ExamPassOffer.isEligible(plan: plan, examDates: exams, now: now, calendar: calendar)
+    }
+
+    func testExamPassIsOfferedOnlyEightToTwentyOneDaysBeforeTheNextExam() {
         let now = date(2026, 10, 22, 9)
-        XCTAssertTrue(ExamPassOffer.isEligible(plan: .free, examDate: date(2026, 11, 12, 9), now: now, calendar: calendar))
-        XCTAssertTrue(ExamPassOffer.isEligible(plan: .free, examDate: date(2026, 10, 22, 15), now: now, calendar: calendar),
-                      "later today still counts")
-        XCTAssertFalse(ExamPassOffer.isEligible(plan: .free, examDate: date(2026, 11, 13, 9), now: now, calendar: calendar),
-                       "22 days out is too early")
-        XCTAssertFalse(ExamPassOffer.isEligible(plan: .free, examDate: date(2026, 10, 21, 9), now: now, calendar: calendar),
-                       "a past exam")
-        XCTAssertFalse(ExamPassOffer.isEligible(plan: .free, examDate: nil, now: now, calendar: calendar))
+        XCTAssertTrue(offered([date(2026, 11, 12, 9)], now: now), "21 days out")
+        XCTAssertTrue(offered([date(2026, 10, 30, 9)], now: now), "8 days out")
+        XCTAssertFalse(offered([date(2026, 11, 13, 9)], now: now), "22 days out is too early")
+        XCTAssertFalse(offered([date(2026, 10, 29, 9)], now: now), "7 days out is exam week")
+        XCTAssertFalse(offered([date(2026, 10, 25, 9)], now: now), "3 days out")
+        XCTAssertFalse(offered([date(2026, 10, 23, 9)], now: now), "the eve")
+        XCTAssertFalse(offered([date(2026, 10, 22, 15)], now: now), "the day")
+        XCTAssertFalse(offered([date(2026, 10, 21, 9)], now: now), "a past exam")
+        XCTAssertFalse(offered([], now: now))
         for paid in [Plan.pro, .squad, .pass] {
-            XCTAssertFalse(ExamPassOffer.isEligible(plan: paid, examDate: date(2026, 10, 30, 9), now: now, calendar: calendar))
+            XCTAssertFalse(offered([date(2026, 11, 5, 9)], plan: paid, now: now))
         }
+    }
+
+    func testAnotherExamInExamWeekKeepsTheOfferQuiet() {
+        let now = date(2026, 10, 22, 9)
+        XCTAssertFalse(offered([date(2026, 11, 6, 9), date(2026, 10, 25, 9)], now: now),
+                       "an exam in 15 days with another in 3: the soonest decides")
+        XCTAssertTrue(offered([date(2026, 11, 6, 9), date(2026, 10, 20, 9)], now: now), "a past exam doesn't count")
+        XCTAssertTrue(offered([date(2026, 11, 6, 9), date(2026, 12, 20, 9)], now: now), "a far exam doesn't either")
     }
 }

@@ -1379,6 +1379,43 @@ trust rules and the screens are in `docs/assistant.md`, the wire format in `docs
   so the app never tells a site what the student is researching); the privacy policy and App Store privacy answers have to name the web
   step and the new data; OpenAI's rules for 13 to 17 year olds are unchecked.
 
+### Stage 1: money and trust (2026-11-06, lane `s1-trust`)
+
+- **Paywall** (`PaywallCopy`, `PaywallView`): "With Pro" names only the AI work ("AI scans, PDFs and lecture notes, no weekly limit",
+  "Every answer graded by Cloud AI", "Cap's answers and drafts, no daily limit", "Web research from trusted sites", the last hidden under
+  18). An "Always free" card (`AlwaysFreeCard`, `PaywallCopy.alwaysFree`; scroll id `free`) sits between them and the plans; Settings ▸
+  Subscription and Help show it too. Mock exams join its list when they ship (one row after the plan row). The old free-plan footer line
+  is gone; "Fair use applies." stays in the terms. `PaidFeature` lost `practiceTests`, `multipleExamPlans` and `projectedGrade` (nothing
+  gated them).
+- **Exam Pass** (`ExamPassOffer.isEligible(plan:examDates:now:calendar:)`): offered only while the soonest upcoming exam is 8 to 21 days
+  away (`StoreCatalog.examPassQuietDays = 7`): the paywall's "Continue free", onboarding after its paywall, and the exam page
+  (`ExamPresentation.offersExamPass(plan:examDate:examDates:now:calendar:)`, which also needs that exam itself in the window). Settings ▸
+  Subscription lists it at any time.
+- **What's free, said first** (`AllowanceCopy`, from `ai.freeCloudUsesLeft(for:)`, nil on a paid plan, without consent or for a child):
+  lines under the + sheet's Scan, PDF and Record rows and its footer, under "Scan pages" in the scanner's fallback (VisionKit's own camera
+  has no room for it), and in the recorder's "Making notes" line (read when stop is pressed). In sessions a free limit is a line with no
+  button (`SuggestionBanner(inSession:)`), and Explain my mistake shows no "See Pro" (`CapMessageView(allowsUpgrade: false)`); the
+  consent offers keep their buttons.
+- **Nothing lost mid-answer** (`Features/Session/SessionKeep.swift`, `App/AppModel+SessionKeep.swift`): own-words drafts in
+  `capling.session.drafts.v1` (30 at most, 7 days, saved after a 400 ms pause and when the app leaves the screen, restored into an empty
+  editor as "Kept from before", cleared when the answer is recorded); `SessionCheckpoint` in `capling.session.checkpoint.v1` (written at
+  start, at each question and on leaving the screen, cleared on finish or leave), so a daily, catch-up or eve session iOS closed picks up
+  the same day in the same `StudySession`, with the minutes it had left and the drafted question first; `finishSession(_:wallStart:)`
+  counts only the time it was on screen. A rebuilt queue, not the exact one: questions answered before the close are scheduled and only
+  come back if due again. Launch's lecture recovery returns what it kept and says so: "Cap kept your lecture up to 41:20." with Open (a
+  `ToastAction`; toasts can act now), or "Cap kept 2 lectures that were cut off." (recordings under 10 s are not mentioned).
+- **Help** (Settings ▸ More ▸ Help, `AppSheet.help`): "Write to a real person" opens `StoreCatalog.supportURL`
+  (https://loopware.app/support), with the Always free card, Restore purchases and the version. No reply time is promised. "Questions?
+  Ask a real person" (`HelpLink`, its own sheet over whatever shows) sits in the paywall's footer, under Subscription's card, and beside
+  the free-limit lines (Ask's suggestion card, the draft review's limit card, the capture problem screen, the tutor's and assistant's
+  cost-cap notes), never inside a session.
+- **Ask's composer** sits on a solid dock (`AskDock`: the screen colour and a hairline), so the chat no longer shows through behind it.
+- **Age check** (`AgeRange.checkIfNeeded`, `AgeCheck`): asked once in onboarding, right after the four questions (before consent and the
+  tutor depend on it), and once a moment after launch for someone who finished onboarding before. Never again after an answer, a "Don't
+  share" or a system with no answer (`capling.ageRange.v1`); a passing failure (no network) is tried at later launches, three times in all.
+  Declined or unanswered, the band stays unknown and the level fallback applies as before (no level: adult rules). Skipped in the harness,
+  in tests and on the simulator, which has no answer: **a device check**.
+
 ## App Store Connect (2026-11-01)
 
 The Capling record on the Loopware team (app 6828649543) is filled in by `scripts/asc/`. Every command is re-runnable and has
@@ -1431,6 +1468,7 @@ The Capling record on the Loopware team (app 6828649543) is filled in by `script
   - `AgeRange.refresh` has no caller and `settings.level` is only set in demo data, so `ageBand` stays unknown and nothing that
     depends on it engages: the under-13 and teen limits (hints first, no web research, "Let Cap do it" locked) never apply. The privacy
     policy and the App Review notes make no such claim, and the age-rating answer `ageAssurance` is false until it is wired in.
+    (Wired in Stage 1, see "Stage 1: money and trust"; still to be checked on a phone.)
   - XcodeGen gives an app target the device family "1,2" unless the target sets its own, whatever the project-wide value says, and an
     iPhone-only, portrait-only app then fails upload with 90474. `project.yml` now sets "1" on both targets.
   - Loopware's privacy page had no Capling section. It is drafted on the branch `capling-privacy` of the loopware-landing repo

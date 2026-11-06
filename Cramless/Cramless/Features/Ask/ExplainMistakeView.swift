@@ -23,6 +23,9 @@ struct ExplainMistakeView: View {
 
     private var streams: AskStreams { AskStreams.shared }
 
+    /// Only sessions open this sheet, and nothing is sold in the middle of studying: a free limit here is a line, never "See Pro".
+    static let allowsUpgrade = false
+
     var body: some View {
         NavigationStack(path: $path) {
             content
@@ -111,6 +114,7 @@ struct ExplainMistakeView: View {
                 let reply = entries.indices.contains(index + 1) && entries[index + 1].role == .user ? entries[index + 1].text : nil
                 CapMessageView(entry: entry, note: streams.notes[entry.id], chatContext: entries.first?.text ?? "",
                                isLatest: index == lastAssistant && live == nil, reply: reply,
+                               allowsUpgrade: Self.allowsUpgrade,
                                onCitation: { path.append($0) },
                                onAnswer: { answer, check in
                                    ask(answer, sendAs: "Quick check: \(check.question) My answer: \(answer)")
@@ -126,16 +130,16 @@ struct ExplainMistakeView: View {
     @ViewBuilder
     private func bottomBar(entries: [ChatEntry], live: AskStreams.Live?) -> some View {
         if followingUp {
-            ChatComposer(text: $draft, focused: $composerFocused, isAnswering: live != nil,
-                         placeholder: "Ask a follow-up…",
-                         onSend: {
-                             let text = draft.trimmingCharacters(in: .whitespacesAndNewlines)
-                             draft = ""
-                             ask(text, sendAs: nil)
-                         },
-                         onStop: { if let id = threadID { streams.stop(id, app: app) } })
-                .padding(.horizontal, 12)
-                .padding(.bottom, 8)
+            AskDock {
+                ChatComposer(text: $draft, focused: $composerFocused, isAnswering: live != nil,
+                             placeholder: "Ask a follow-up…",
+                             onSend: {
+                                 let text = draft.trimmingCharacters(in: .whitespacesAndNewlines)
+                                 draft = ""
+                                 ask(text, sendAs: nil)
+                             },
+                             onStop: { if let id = threadID { streams.stop(id, app: app) } })
+            }
         } else if !typeSize.isAccessibilitySize {
             actions(entries: entries, live: live)
                 .padding(.horizontal, CLSpace.gutter)

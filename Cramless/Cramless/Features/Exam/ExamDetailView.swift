@@ -111,7 +111,9 @@ struct ExamDetailModel {
         let today = app.todaySummary()
         sessionMinutes = today.plannedMinutes
         sessionReady = today.sessionReady
-        offersExamPass = ExamPresentation.offersExamPass(plan: app.purchases.plan, phase: phase)
+        offersExamPass = ExamPresentation.offersExamPass(plan: app.purchases.plan, examDate: exam.date,
+                                                         examDates: app.upcomingExams().map(\.date), now: app.now,
+                                                         calendar: app.calendar)
         dailyMinutes = app.settings.dailyMinutes
     }
 }

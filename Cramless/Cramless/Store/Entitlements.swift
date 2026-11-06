@@ -105,7 +105,8 @@ extension Plan {
 }
 
 /// Yes/no gates for paid features. The free plan's limits (3 scans a week, 20 graded answers a day, 10 tutor
-/// messages a day, AI notes for 1 lecture a week) are quota meters the relay counts; these are the switches.
+/// messages a day, AI notes for 1 lecture a week) are quota meters the relay counts; these are the switches. Pro is the AI
+/// work: plans, readiness, reviews and imports are free for everyone, so nothing here gates them.
 enum PaidFeature: String, CaseIterable, Sendable {
     /// Scans, PDFs and lectures past the free meters.
     case unlimitedCapture
@@ -115,12 +116,6 @@ enum PaidFeature: String, CaseIterable, Sendable {
     case unlimitedTutor
     /// AI notes for every lecture.
     case lectureNotes
-    /// More than one exam plan at a time.
-    case multipleExamPlans
-    /// Practice tests in the teacher's format.
-    case practiceTests
-    /// The projected grade on an exam.
-    case projectedGrade
     /// Inviting three friends: Squad owners only.
     case squadSeats
 
@@ -131,9 +126,6 @@ enum PaidFeature: String, CaseIterable, Sendable {
         case .unlimitedGrading: "Unlimited graded answers are part of Pro."
         case .unlimitedTutor: "Unlimited questions for Cap are part of Pro."
         case .lectureNotes: "AI notes for every lecture are part of Pro."
-        case .multipleExamPlans: "A plan for every exam is part of Pro."
-        case .practiceTests: "Practice tests in your teacher's format are part of Pro."
-        case .projectedGrade: "Your projected grade is part of Pro."
         case .squadSeats: "Studying with three friends is part of Squad."
         }
     }

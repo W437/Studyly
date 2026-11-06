@@ -255,6 +255,7 @@ struct DraftReviewView: View {
                 }
                 .buttonStyle(.cl(.dark, size: .small, fullWidth: false))
                 .padding(.top, 8)
+                if case .upgrade = suggestion { HelpLink() }
             }
         }
         .clCard(padding: 16)

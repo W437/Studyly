@@ -157,5 +157,17 @@
         "other": "%arg answers"
       }
     }
+  },
+  "%lld free AI scans left this week": {
+    "one": "%lld free AI scan left this week",
+    "other": "%lld free AI scans left this week"
+  },
+  "AI notes for %lld lecture left this week": {
+    "one": "AI notes for %lld lecture left this week",
+    "other": "AI notes for %lld lectures left this week"
+  },
+  "Cap kept %lld lectures that were cut off.": {
+    "one": "Cap kept %lld lecture that was cut off.",
+    "other": "Cap kept %lld lectures that were cut off."
   }
 }
