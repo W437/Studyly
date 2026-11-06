@@ -568,15 +568,33 @@ struct SquadRedeemResponse: Codable, Hashable, Sendable {
     var ownerName: String
 }
 
+struct SquadShareRequest: Codable, Hashable, Sendable {
+    var on: Bool
+}
+
+struct SquadStudiedRequest: Codable, Hashable, Sendable {
+    /// yyyy-MM-dd: the person's own day.
+    var dayKey: String
+}
+
+struct SquadStudiedResponse: Codable, Hashable, Sendable {
+    /// False when nothing was kept: they don't share, or they aren't in a Squad.
+    var recorded: Bool
+}
+
 struct SquadMember: Codable, Hashable, Sendable, Identifiable {
     var id: String
     var name: String
     var joinedAt: Date
     var isOwner: Bool
+    /// They finished a session today, by their own time zone. Nil for someone who doesn't share it.
+    var studiedToday: Bool?
 }
 
 struct SquadMembers: Codable, Hashable, Sendable {
     var seats: Int
+    /// The person asking shares that they studied.
+    var sharing: Bool?
     var members: [SquadMember]
 }
 

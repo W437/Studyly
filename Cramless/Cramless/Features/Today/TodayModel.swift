@@ -129,6 +129,8 @@ struct TodaySnapshot: Equatable, Sendable {
 
     /// There is material to study.
     var hasMaterial: Bool { hero != .empty && hero != .noMaterial }
+    /// "Your plan" may say who in the Squad has studied: never on an eve, which is calm, or in Quiet mode.
+    var showsSquad: Bool { !isEve && !quiet }
     /// The day is an exam's eve (before or after its session).
     var isEve: Bool {
         switch hero {

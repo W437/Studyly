@@ -2,15 +2,18 @@ import SwiftUI
 
 /// "Your plan" on Today: the week as seven small marks (`TodayPlanStrip`: two days back, today, four ahead, each exam's eve and day),
 /// "Calendar" to the streak page's month, and once a first session is done, today's quests folded into one line that opens them in
-/// a sheet. Nothing here is ever red: a missed day is a hollow circle.
+/// a sheet. With a Squad, one line says who in it has studied today and opens it. Nothing here is ever red: a missed day is a hollow circle.
 ///
 /// - Large text: the five days ahead as rows, in words.
-/// - VoiceOver: the week is one element read day by day; the quests line is a button.
+/// - VoiceOver: the week is one element read day by day; the quests line and the Squad line are buttons.
 struct TodayPlanCard: View {
     let days: [TodayPlanDay]
     let quests: QuestsToday
+    /// Not on an eve, not in Quiet mode (`TodaySnapshot.showsSquad`).
+    var showsSquad = false
     var onCalendar: () -> Void
     var onQuests: () -> Void
+    var onSquad: () -> Void = {}
 
     @Environment(AppModel.self) private var app
     @Environment(\.dynamicTypeSize) private var typeSize
@@ -40,6 +43,10 @@ struct TodayPlanCard: View {
             if !quests.isEmpty {
                 Rectangle().fill(CLColor.hairline).frame(height: 1)
                 questsLine
+            }
+            if showsSquad, let squad = app.squadTodayLine {
+                Rectangle().fill(CLColor.hairline).frame(height: 1)
+                squadLine(squad)
             }
         }
         .clCard()
@@ -84,6 +91,36 @@ struct TodayPlanCard: View {
                 }
             }
         }
+    }
+
+    // MARK: The Squad
+
+    /// "Priya studied today", with each friend's face: opens the Squad.
+    private func squadLine(_ squad: SquadToday) -> some View {
+        Button(action: onSquad) {
+            HStack(spacing: 10) {
+                HStack(spacing: -4) {
+                    // The first on top: each face's mark sits over the next one's edge.
+                    ForEach(Array(squad.friends.prefix(3).enumerated()), id: \.element.id) { index, friend in
+                        SquadFace(name: friend.name, studied: friend.studied == true, size: 26, ring: true)
+                            .zIndex(Double(-index))
+                    }
+                }
+                .padding(.trailing, 4)
+                .accessibilityHidden(true)
+                Text(verbatim: squad.line)
+                    .clFont(.subheadline)
+                    .foregroundStyle(CLColor.ink2)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                CLChevron()
+            }
+            .frame(minHeight: CLMetrics.minHitTarget)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.pressable)
+        .accessibilityLabel(Text("Your Squad"))
+        .accessibilityValue(Text(verbatim: squad.line))
     }
 
     // MARK: Quests

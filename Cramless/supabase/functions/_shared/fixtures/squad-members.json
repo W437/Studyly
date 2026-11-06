@@ -1,5 +1,6 @@
 {
   "seats": 4,
+  "sharing": false,
   "members": [
     {
       "id": "u-owner",
@@ -11,7 +12,8 @@
       "id": "u-priya",
       "name": "Priya",
       "joinedAt": "2026-10-03T20:12:00Z",
-      "isOwner": false
+      "isOwner": false,
+      "studiedToday": true
     }
   ]
 }

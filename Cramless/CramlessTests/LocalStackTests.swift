@@ -626,7 +626,7 @@ final class LocalStackTests: XCTestCase {
 
         // A member can leave; their plan is free again, and the owner's Squad has a seat back.
         let left = try await friend.removeSquadMember(friendID)
-        XCTAssertEqual(left, SquadMembers(seats: 4, members: []))
+        XCTAssertEqual(left, SquadMembers(seats: 4, sharing: false, members: []))
         XCTAssertEqual(friend.account.entitlement?.plan, .free)
         XCTAssertEqual(friend.purchases.plan, .free)
         let after = try await owner.squadMembers()

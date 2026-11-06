@@ -202,6 +202,7 @@
       }
     },
     "%@ so far" : {},
+    "%@ studied today" : {},
     "%@ this week" : {},
     "%@ to review" : {},
     "%@ today" : {},
@@ -3541,6 +3542,7 @@
     "No marks until the end, like the real thing." : {},
     "No material yet" : {},
     "No notes yet" : {},
+    "No one in your Squad has studied yet today" : {},
     "No pressure. Just vibes." : {},
     "No question is ticked." : {},
     "No questions from this lecture yet." : {},
@@ -4095,6 +4097,7 @@
         }
       }
     },
+    "Show when I've studied" : {},
     "Show-off. I like it." : {},
     "Shown" : {},
     "Shows that moment in the transcript" : {},
@@ -4106,6 +4109,7 @@
     "Shows the text read from this page" : {},
     "Shows this topic's questions" : {},
     "Shows what skipping that day costs. Nothing changes in your plan." : {},
+    "Shows your Squad a mark on days you finish a session." : {},
     "Sign in" : {},
     "Sign in and your courses, questions and streak come back to this iPhone." : {},
     "Sign in first" : {},
@@ -4263,6 +4267,7 @@
     "Stops editing this card" : {},
     "Stops sending anything to Cloud AI. Capling keeps working on this iPhone." : {},
     "Stops sending page photos. Their text still goes while Cloud AI is on." : {},
+    "Stops showing it, and deletes what was shared." : {},
     "Straight to the answer" : {},
     "Streak" : {},
     "Streaks and quests" : {},
@@ -4779,6 +4784,7 @@
     "Where you are in the lecture" : {},
     "Which class is this for?" : {},
     "Which one is this? %@" : {},
+    "Who's in your Squad" : {},
     "Whoa, easy there!" : {},
     "Why" : {},
     "Why do cells divide by mitosis?" : {},
@@ -4953,6 +4959,7 @@
     },
     "Your AI" : {},
     "Your Squad" : {},
+    "Your Squad sees a mark on days you finish a session. Never your courses, notes, answers or exams." : {},
     "Your Squad, loading" : {},
     "Your Squad: %lld of %lld seats taken. %@." : {
       "localizations" : {

@@ -71,6 +71,10 @@ final class AppModel {
     /// Cap's cards: the ledger and what's worked out once per change (`AppModel+Notices.swift`).
     @ObservationIgnored let noticeCache = NoticeCache()
     @ObservationIgnored let lectureCache = LectureCache()
+    /// Who in the Squad has studied today (`AppModel+Squad.swift`). The one line that reads it follows it on its own.
+    var squadToday: SquadToday?
+    /// "Studied" is on its way to the server.
+    @ObservationIgnored var squadSending = false
     /// The last look's quiet job is under way (`AppModel+LastLook.swift`).
     @ObservationIgnored var lastLookPreparing = false
     /// When the calendar says the person is taken: the system's on a real launch, nothing in tests and the harness (`CRAMLESS_NOTICES=busy` gives it a demo one).
@@ -108,6 +112,7 @@ final class AppModel {
         if config.isHarness { FeelLog.reset() }
         #endif
         applyFeel()
+        loadSquadToday()
         AppModel.live = self
         AppConfig.log.notice("\(config.startupLine, privacy: .public)")
     }

@@ -462,11 +462,18 @@ after 14 days.
 |---|---|---|---|
 | `POST account/squad/invite` | `{}` | `SquadInvite` `{code, url, expiresAt}` | 403 `entitlement_required` (no active Squad subscription), 409 `bad_request` (full) |
 | `POST account/squad/redeem` | `{code}` (any case) | `SquadRedeemResponse` `{plan: "squad", ownerName}` | 404 unknown, 409 used / own Squad / already in another Squad / full, 410 expired, 403 `entitlement_required` (the owner's subscription ended), 429 after 10 attempts a day |
-| `GET account/squad/members` | | `SquadMembers` `{seats: 4, members: [{id, name, joinedAt, isOwner}]}`, owner first | 404 not in a Squad |
+| `GET account/squad/members` | | `SquadMembers` `{seats: 4, sharing?, members: [{id, name, joinedAt, isOwner, studiedToday?}]}`, owner first | 404 not in a Squad |
 | `POST account/squad/remove` | `{memberId}` | `SquadMembers` (empty `members` after leaving) | 403 `bad_request` (only the owner removes someone else), 404 |
+| `POST account/squad/share` | `{on}` | `SquadMembers` | 404 not in a Squad |
+| `POST account/squad/studied` | `{dayKey}` (yyyy-MM-dd) | `SquadStudiedResponse` `{recorded}` | 400 `bad_request` (not a day, or more than a day from today in the caller's time zone) |
 
 Redeeming a code of the Squad you're already in succeeds and leaves the code unused. When the owner's Squad
 subscription ends, members are back on free; when the owner deletes their account, the Squad goes with it.
+
+**Studied today.** Off for everyone until they switch it on (`profiles.share_squad_activity`, `POST account/squad/share`). `sharing` says whether the person asking shares. `studiedToday` is on a member only if that
+member shares (without it, the field isn't there at all), and is true when their last studied day is today by their own profile's time zone. The app sends `POST account/squad/studied` after the day's first finished session; it
+needs only a session, not sync, and for someone who doesn't share or has no Squad it keeps nothing and answers `{recorded: false}`. All that's stored is a person and a day (`squad_activity`, kept for two weeks): never a course, a topic, an answer or a number.
+Switching off deletes it at once; leaving a Squad or deleting an account also ends the sharing, and an owner's deletion ends it for everyone on that Squad.
 
 ### Deletion
 

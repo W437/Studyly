@@ -128,6 +128,8 @@ struct AppSettings: Codable, Equatable, Sendable {
     /// The game layer turned down: no flame, quests, badges or run counter, calm celebrations, no streak notifications and no sounds.
     /// The plan, the stars and readiness stay, and quests and badges go on settling unseen.
     var quietMode = false
+    /// Share with the Squad that I studied today. Off until switched on; the server's word wins (`AppModel.noteSquadMembers`).
+    var shareSquadDay = false
 
     init() {}
 
@@ -172,6 +174,7 @@ struct AppSettings: Codable, Equatable, Sendable {
         reviewPromptedAt = try c.decodeIfPresent(Date.self, forKey: .reviewPromptedAt)
         reviewPromptedVersion = try c.decodeIfPresent(String.self, forKey: .reviewPromptedVersion)
         quietMode = try c.decodeIfPresent(Bool.self, forKey: .quietMode) ?? d.quietMode
+        shareSquadDay = try c.decodeIfPresent(Bool.self, forKey: .shareSquadDay) ?? d.shareSquadDay
     }
 
     /// Under-18 accounts keep the tutor on hints first and inside the teen-safe scope.

@@ -53,6 +53,10 @@ struct RootView: View {
             if app.sideEffectsEnabled {
                 Task(priority: .utility) { await app.prepareLastLooks() }
                 Task(priority: .utility) { await app.refreshBusyBlocks() }
+                Task(priority: .utility) {
+                    await app.sendSquadStudiedIfDue()
+                    await app.refreshSquadToday()
+                }
             }
             #if DEBUG
             try? await Task.sleep(for: .milliseconds(350))
@@ -79,6 +83,10 @@ struct RootView: View {
             if app.sideEffectsEnabled {
                 Task(priority: .utility) { await app.prepareLastLooks() }
                 Task(priority: .utility) { await app.refreshBusyBlocks() }
+                Task(priority: .utility) {
+                    await app.sendSquadStudiedIfDue()
+                    await app.refreshSquadToday()
+                }
             }
             app.answerLaterOnActive()
         }

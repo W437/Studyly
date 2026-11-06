@@ -15,6 +15,7 @@ import type {
   NotificationUpdate,
   RedeemResult,
   RemoveResult,
+  ShareResult,
   ScanKind,
   ScanResult,
   Store,
@@ -202,6 +203,9 @@ export class PostgresStore implements Store {
         name: String(m.name ?? ""),
         joinedAt: isoDate(m.joined_at) ?? isoDate(new Date())!,
         isOwner: m.is_owner === true,
+        timeZone: typeof m.time_zone === "string" ? m.time_zone : "UTC",
+        shares: m.shares === true,
+        lastStudiedDay: typeof m.last_day === "string" ? m.last_day : null,
       })),
     };
   }
@@ -209,6 +213,16 @@ export class PostgresStore implements Store {
   async squadRemove(actorId: string, memberId: string): Promise<RemoveResult> {
     const r = await this.#rpc("cramless_squad_remove", { p_actor: actorId, p_member: memberId });
     return r?.ok ? { ok: true } : { ok: false, reason: r?.reason ?? "not_found" };
+  }
+
+  async squadShare(userId: string, on: boolean): Promise<ShareResult> {
+    const r = await this.#rpc("cramless_squad_share", { p_user: userId, p_on: on });
+    return r?.ok ? { ok: true } : { ok: false, reason: "no_squad" };
+  }
+
+  async squadStudied(userId: string, day: string): Promise<boolean> {
+    const r = await this.#rpc("cramless_squad_studied", { p_user: userId, p_day: day });
+    return r?.recorded === true;
   }
 
   async deleteAiData(userId: string): Promise<void> {

@@ -81,6 +81,22 @@ final class BackendClient: Sendable {
         }
     }
 
+    /// Shares, or stops sharing, that the person studied today. Off deletes what was shared.
+    func setSquadSharing(on: Bool) async throws -> SquadMembers {
+        try await call("account/squad/share", method: "POST", body: SquadShareRequest(on: on)) {
+            var members = try RelayFixtures.load(SquadMembers.self, "squad-members")
+            members.sharing = on
+            return members
+        }
+    }
+
+    /// The day's first finished session, for someone who shares. It works without sync: only the day goes.
+    func markSquadStudied(dayKey: String) async throws -> SquadStudiedResponse {
+        try await call("account/squad/studied", method: "POST", body: SquadStudiedRequest(dayKey: dayKey)) {
+            try RelayFixtures.load(SquadStudiedResponse.self, "squad-studied")
+        }
+    }
+
     /// Deletes what the relay keeps about the person's AI use (the request log; it never stores content).
     /// Uses the session this device has; `.unauthorized` when it can't be refreshed.
     func deleteAIData() async throws -> AccountDeleteResponse {

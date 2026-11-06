@@ -255,11 +255,33 @@ function suite(label: string, make: () => Subject, ignore = false) {
     ]);
     assertEquals(await store.squadMembers(friends[3]), { ok: false, reason: "no_squad" });
 
+    // The studied-today dot: off by default, kept only for someone who opted in, gone when they switch it off or leave.
+    assertEquals(members.members.map((m) => [m.shares, m.lastStudiedDay]), [[false, null], [false, null], [false, null], [false, null]]);
+    assertEquals(await store.squadStudied(friends[0], "2026-11-06"), false);
+    assertEquals(await store.squadShare(friends[3], true), { ok: false, reason: "no_squad" });
+    assertEquals(await store.squadStudied(friends[3], "2026-11-06"), false);
+    assertEquals(await store.squadShare(friends[0], true), { ok: true });
+    assertEquals(await store.squadStudied(friends[0], "2026-11-05"), true);
+    assertEquals(await store.squadStudied(friends[0], "2026-11-06"), true);
+    assertEquals(await store.squadStudied(friends[0], "2026-11-06"), true, "twice in a day is once");
+    const sharing = await store.squadMembers(owner);
+    assert(sharing.ok);
+    assertEquals(sharing.members[1].shares, true);
+    assertEquals(sharing.members[1].lastStudiedDay, "2026-11-06");
+    assertEquals(await store.squadShare(friends[0], false), { ok: true });
+    const stopped = await store.squadMembers(owner);
+    assert(stopped.ok);
+    assertEquals([stopped.members[1].shares, stopped.members[1].lastStudiedDay], [false, null]);
+    await store.squadShare(friends[0], true);
+    assertEquals(await store.squadStudied(friends[0], "2026-11-06"), true);
+
     assertEquals(await store.squadRemove(friends[1], friends[0]), { ok: false, reason: "not_allowed" });
     assertEquals(await store.squadRemove(owner, friends[0]), { ok: true });
     assertEquals(await store.squadRemove(friends[1], friends[1]), { ok: true }, "leaving");
     assertEquals(await store.squadRemove(owner, friends[3]), { ok: false, reason: "not_found" });
     assertEquals((await store.context(friends[0], NOW)).plan, "free");
+    assertEquals(await store.squadStudied(friends[0], "2026-11-06"), false, "leaving ended it");
+    assertEquals(await store.squadShare(friends[0], true), { ok: false, reason: "no_squad" });
   });
 
   t("Squad: members of a lapsed Squad fall back to free, and nobody new gets in", async ({ store, user }) => {

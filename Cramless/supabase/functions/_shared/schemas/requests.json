@@ -286,6 +286,20 @@
       },
       "required": ["memberId"]
     },
+    "SquadShareRequest": {
+      "type": "object",
+      "properties": {
+        "on": { "type": "boolean" }
+      },
+      "required": ["on"]
+    },
+    "SquadStudiedRequest": {
+      "type": "object",
+      "properties": {
+        "dayKey": { "type": "string", "format": "date" }
+      },
+      "required": ["dayKey"]
+    },
     "TutorSourceInput": {
       "type": "object",
       "properties": {

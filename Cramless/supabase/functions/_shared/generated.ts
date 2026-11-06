@@ -54,8 +54,9 @@ export const FIXTURES: Record<string, string> = {
   "research-error": "{\n  \"events\": [\n    {\n      \"event\": \"start\",\n      \"delayMs\": 400,\n      \"data\": {\n        \"model\": \"mock\"\n      }\n    },\n    {\n      \"event\": \"error\",\n      \"delayMs\": 300,\n      \"data\": {\n        \"code\": \"upstream\",\n        \"message\": \"Cap couldn't find anything on those sites for that. Try different words.\"\n      }\n    }\n  ]\n}\n",
   "research-mitosis": "{\n  \"events\": [\n    {\n      \"event\": \"start\",\n      \"delayMs\": 500,\n      \"data\": {\n        \"model\": \"mock\"\n      }\n    },\n    {\n      \"event\": \"search\",\n      \"delayMs\": 300,\n      \"data\": {\n        \"id\": \"ws_mock_1\",\n        \"phase\": \"started\"\n      }\n    },\n    {\n      \"event\": \"search\",\n      \"delayMs\": 700,\n      \"data\": {\n        \"id\": \"ws_mock_1\",\n        \"phase\": \"searching\"\n      }\n    },\n    {\n      \"event\": \"search\",\n      \"delayMs\": 1600,\n      \"data\": {\n        \"id\": \"ws_mock_1\",\n        \"phase\": \"done\",\n        \"queries\": [\n          \"mitosis meiosis differences two divisions chromosomes\"\n        ],\n        \"sources\": [\n          {\n            \"url\": \"https://openstax.org/books/biology/pages/11-1-the-process-of-meiosis\",\n            \"domain\": \"openstax.org\"\n          },\n          {\n            \"url\": \"https://openstax.org/books/biology-2e/pages/11-chapter-summary\",\n            \"domain\": \"openstax.org\"\n          },\n          {\n            \"url\": \"https://www.britannica.com/science/meiosis\",\n            \"domain\": \"britannica.com\"\n          },\n          {\n            \"url\": \"https://www.khanacademy.org/science/ap-biology/heredity/meiosis-and-genetic-diversity/a/phases-of-meiosis\",\n            \"domain\": \"khanacademy.org\"\n          },\n          {\n            \"url\": \"https://en.wikipedia.org/wiki/Meiosis\",\n            \"domain\": \"wikipedia.org\"\n          }\n        ]\n      }\n    },\n    {\n      \"event\": \"delta\",\n      \"delayMs\": 70,\n      \"data\": {\n        \"text\": \"**Mitosis** and **meiosis** both copy a cell's DNA and divide its nucleus. \"\n      }\n    },\n    {\n      \"event\": \"delta\",\n      \"delayMs\": 70,\n      \"data\": {\n        \"text\": \"Mitosis involves one division and usually produces two genetically identical cells \"\n      }\n    },\n    {\n      \"event\": \"delta\",\n      \"delayMs\": 70,\n      \"data\": {\n        \"text\": \"with the same number of chromosomes as the original. It helps organisms grow and repair tissues.\\n\\n\"\n      }\n    },\n    {\n      \"event\": \"delta\",\n      \"delayMs\": 70,\n      \"data\": {\n        \"text\": \"**Meiosis** involves two divisions and usually produces four genetically different cells, \"\n      }\n    },\n    {\n      \"event\": \"delta\",\n      \"delayMs\": 70,\n      \"data\": {\n        \"text\": \"each with half the original number of chromosomes. In animals it makes sex cells such as sperm and eggs. \"\n      }\n    },\n    {\n      \"event\": \"delta\",\n      \"delayMs\": 70,\n      \"data\": {\n        \"text\": \"During meiosis, matching chromosomes can swap pieces of DNA, which creates genetic variation.\\n\\n\"\n      }\n    },\n    {\n      \"event\": \"delta\",\n      \"delayMs\": 70,\n      \"data\": {\n        \"text\": \"The short version: mitosis makes copies, meiosis makes variety.\"\n      }\n    },\n    {\n      \"event\": \"citation\",\n      \"delayMs\": 40,\n      \"data\": {\n        \"url\": \"https://openstax.org/books/biology/pages/11-1-the-process-of-meiosis\",\n        \"title\": \"11.1 The Process of Meiosis - Biology | OpenStax\",\n        \"domain\": \"openstax.org\"\n      }\n    },\n    {\n      \"event\": \"citation\",\n      \"delayMs\": 40,\n      \"data\": {\n        \"url\": \"https://www.britannica.com/science/meiosis\",\n        \"title\": \"Meiosis | Definition, Stages & Function | Britannica\",\n        \"domain\": \"britannica.com\"\n      }\n    },\n    {\n      \"event\": \"citation\",\n      \"delayMs\": 40,\n      \"data\": {\n        \"url\": \"https://www.khanacademy.org/science/ap-biology/heredity/meiosis-and-genetic-diversity/a/phases-of-meiosis\",\n        \"title\": \"Phases of meiosis | Khan Academy\",\n        \"domain\": \"khanacademy.org\"\n      }\n    },\n    {\n      \"event\": \"done\",\n      \"delayMs\": 40,\n      \"data\": {\n        \"model\": \"mock\",\n        \"searches\": 1\n      }\n    }\n  ]\n}\n",
   "squad-invite": "{\n  \"code\": \"CAP-7Q4K\",\n  \"url\": \"https://capling.app/squad/CAP-7Q4K\",\n  \"expiresAt\": \"2026-11-05T00:00:00Z\"\n}\n",
-  "squad-members": "{\n  \"seats\": 4,\n  \"members\": [\n    {\n      \"id\": \"u-owner\",\n      \"name\": \"Maya\",\n      \"joinedAt\": \"2026-10-01T18:00:00Z\",\n      \"isOwner\": true\n    },\n    {\n      \"id\": \"u-priya\",\n      \"name\": \"Priya\",\n      \"joinedAt\": \"2026-10-03T20:12:00Z\",\n      \"isOwner\": false\n    }\n  ]\n}\n",
+  "squad-members": "{\n  \"seats\": 4,\n  \"sharing\": false,\n  \"members\": [\n    {\n      \"id\": \"u-owner\",\n      \"name\": \"Maya\",\n      \"joinedAt\": \"2026-10-01T18:00:00Z\",\n      \"isOwner\": true\n    },\n    {\n      \"id\": \"u-priya\",\n      \"name\": \"Priya\",\n      \"joinedAt\": \"2026-10-03T20:12:00Z\",\n      \"isOwner\": false,\n      \"studiedToday\": true\n    }\n  ]\n}\n",
   "squad-redeem": "{\n  \"plan\": \"squad\",\n  \"ownerName\": \"Maya\"\n}\n",
+  "squad-studied": "{\n  \"recorded\": true\n}\n",
   "syllabus": "{\n  \"model\": \"mock\",\n  \"exams\": [\n    {\n      \"title\": \"Midterm\",\n      \"date\": \"2026-11-20\",\n      \"time\": \"10:00\",\n      \"dateQuote\": \"Friday, November 20, 10:00 AM\",\n      \"topics\": [\n        { \"name\": \"Phases of mitosis\", \"topicId\": \"t1\", \"lineIds\": [\"p0.l6\"] },\n        { \"name\": \"Cytokinesis\", \"topicId\": \"t2\", \"lineIds\": [\"p0.l7\"] },\n        { \"name\": \"Meiosis\", \"lineIds\": [\"p0.l8\"] },\n        { \"name\": \"Genetics basics\", \"lineIds\": [\"p0.l9\"] }\n      ],\n      \"format\": {\n        \"multipleChoice\": true,\n        \"shortAnswer\": true,\n        \"essay\": false,\n        \"questionCount\": 40,\n        \"minutes\": 90,\n        \"notes\": \"One page of notes allowed\"\n      },\n      \"formatQuote\": \"40 questions: 30 multiple choice and 10 short answers, 90 minutes.\"\n    },\n    {\n      \"title\": \"Final exam\",\n      \"date\": \"2026-12-14\",\n      \"dateQuote\": \"December 14\",\n      \"topics\": [\n        { \"name\": \"Everything from the term\", \"lineIds\": [\"p0.l13\"] }\n      ],\n      \"format\": {}\n    }\n  ]\n}\n",
   "transcribe-image": "{\n  \"model\": \"mock\",\n  \"lines\": [\n    {\n      \"id\": \"p0.c0\",\n      \"text\": \"Mitosis notes\"\n    },\n    {\n      \"id\": \"p0.c1\",\n      \"text\": \"PMAT: prophase, metaphase, anaphase, telophase\"\n    },\n    {\n      \"id\": \"p0.c2\",\n      \"text\": \"2n → 2n (chromosome number stays the same)\"\n    }\n  ]\n}\n",
   "tutor-error": "{\n  \"events\": [\n    {\n      \"event\": \"start\",\n      \"delayMs\": 400,\n      \"data\": {\n        \"model\": \"mock\"\n      }\n    },\n    {\n      \"event\": \"error\",\n      \"delayMs\": 300,\n      \"data\": {\n        \"code\": \"upstream\",\n        \"message\": \"Cap couldn't reach the tutor. Try again in a moment.\"\n      }\n    }\n  ]\n}\n",
@@ -925,6 +926,9 @@ export const CONTRACT_SCHEMA: Record<string, any> = {
         },
         "isOwner": {
           "type": "boolean"
+        },
+        "studiedToday": {
+          "type": "boolean"
         }
       },
       "required": [
@@ -941,6 +945,9 @@ export const CONTRACT_SCHEMA: Record<string, any> = {
         "seats": {
           "type": "integer"
         },
+        "sharing": {
+          "type": "boolean"
+        },
         "members": {
           "type": "array",
           "items": {
@@ -951,6 +958,18 @@ export const CONTRACT_SCHEMA: Record<string, any> = {
       "required": [
         "seats",
         "members"
+      ],
+      "additionalProperties": false
+    },
+    "SquadStudiedResponse": {
+      "type": "object",
+      "properties": {
+        "recorded": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "recorded"
       ],
       "additionalProperties": false
     },
@@ -1947,6 +1966,29 @@ export const REQUEST_SCHEMA: Record<string, any> = {
       },
       "required": [
         "memberId"
+      ]
+    },
+    "SquadShareRequest": {
+      "type": "object",
+      "properties": {
+        "on": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "on"
+      ]
+    },
+    "SquadStudiedRequest": {
+      "type": "object",
+      "properties": {
+        "dayKey": {
+          "type": "string",
+          "format": "date"
+        }
+      },
+      "required": [
+        "dayKey"
       ]
     },
     "TutorSourceInput": {

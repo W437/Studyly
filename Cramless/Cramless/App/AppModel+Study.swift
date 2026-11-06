@@ -241,6 +241,7 @@ extension AppModel {
         }
         save()
         StudyRuntime.end(session.id)
+        if !logs.isEmpty, session.kind != .quickCheck { noteSessionFinishedForSquad() }
 
         let startOfToday = calendar.startOfDay(for: now)
         let earlierToday = fetch(FetchDescriptor<ReviewLog>(predicate: #Predicate { $0.reviewedAt >= startOfToday }))
