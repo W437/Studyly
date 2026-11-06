@@ -35,6 +35,12 @@ struct TopicReadiness: Equatable, Sendable, Identifiable {
     /// 0…1; nil when the topic has no material yet (a coverage gap).
     var value: Double?
     var itemCount: Int
+    /// For an exam's topic: the seconds a practice round on it takes (its questions under the exam's goal on exam day, its unseen
+    /// ones twice). 0 for a course's topic (`topicMastery`).
+    var practiceSeconds: Double = 0
+
+    /// "Practice · N min": the practice round's minutes, from 2 to 10.
+    var practiceMinutes: Int { min(10, max(2, Int((practiceSeconds / 60).rounded(.up)))) }
 }
 
 struct ProjectedGrade: Equatable, Sendable {
@@ -68,6 +74,8 @@ struct ExamReadiness: Equatable, Sendable {
     /// The share (0…1) of the exam's material its questions reach, when it can be told. `value` doesn't take it into account (it is
     /// the mean recall of the questions the app made); `projectedGrade` does.
     var coverage: Double? = nil
+    /// Change in `value` since the start of today ("+10% today").
+    var deltaToday: Double = 0
 }
 
 struct StreakState: Equatable, Sendable {

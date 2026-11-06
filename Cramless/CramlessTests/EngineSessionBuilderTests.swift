@@ -201,6 +201,29 @@ final class EngineSessionBuilderTests: XCTestCase {
         XCTAssertEqual(PlanMath.newItemsPerDay(unseen: 20, today: 0, examDay: 5, isEasyDay: { _ in false }), [0: 7, 1: 7, 2: 6])
     }
 
+    /// Each question carries the soonest upcoming exam that covers it (what `SessionFocus` reads); an eve session's carry its exam.
+    func testEntriesCarryTheSoonestCoveringExam() {
+        let items = world()
+        let quiz = ExamSnapshot(courseID: course, title: "Quiz", date: cal.adding(days: 3, to: now), scope: [topics[2]])
+        let midterm = ExamSnapshot(courseID: course, title: "Midterm", date: cal.adding(days: 20, to: now))
+        let past = ExamSnapshot(courseID: course, title: "Past", date: cal.adding(days: -1, to: now))
+        let built = builder().build(SessionSpec(kind: .daily), items: items, exams: [midterm, quiz, past], topicNames: names)
+        XCTAssertFalse(built.entries.isEmpty)
+        XCTAssertTrue(built.entries.contains { $0.topicID == topics[2] })
+        for e in built.entries {
+            XCTAssertEqual(e.examID, e.topicID == topics[2] ? quiz.id : midterm.id)
+        }
+        let elsewhere = EngineTest.studied(course: UUID(), recall: 0.5, daysAgo: 4, now: now, cal: cal)
+        XCTAssertEqual(builder().build(SessionSpec(kind: .daily), items: [elsewhere], exams: [quiz, midterm]).entries.map(\.examID),
+                       [nil], "no exam covers it")
+        let eve = builder().build(SessionSpec(kind: .examEve, examID: midterm.id), items: items, exams: [quiz, midterm])
+        XCTAssertFalse(eve.entries.isEmpty)
+        XCTAssertTrue(eve.entries.allSatisfy { $0.examID == midterm.id })
+        let practice = builder().build(SessionSpec(kind: .practice, courseID: course, topicID: topics[2]), items: items,
+                                       exams: [quiz, midterm])
+        XCTAssertTrue(practice.entries.allSatisfy { $0.examID == quiz.id })
+    }
+
     func testEmptyWorldBuildsAnEmptySession() {
         let built = builder().build(SessionSpec(kind: .daily), items: [])
         XCTAssertTrue(built.isEmpty)
