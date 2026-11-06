@@ -241,7 +241,7 @@ struct OwnWordsQuestionView: View {
                 AccessibilityOnly { FeedbackDetails(feedback: panel) }
             }
             if let suggestion = grade.suggestion {
-                SuggestionBanner(suggestion: suggestion, selfMarked: selfCheck)
+                SuggestionBanner(suggestion: suggestion, selfMarked: selfCheck, inSession: true)
                     .opacity(revealed > ideas.count ? 1 : 0)
                     .transition(.opacity)
             }

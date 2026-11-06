@@ -164,4 +164,24 @@ final class AskTextTests: XCTestCase {
         XCTAssertNil(OriginNote.line(origin: .rules, note: nil, quotesNotes: false), "a refusal isn't labelled as from your notes")
         XCTAssertNil(OriginNote.line(origin: .cloud, note: nil, quotesNotes: true))
     }
+
+    // MARK: Nothing sold mid-session
+
+    func testExplainMyMistakeShowsNoUpgradeButton() {
+        XCTAssertFalse(ExplainMistakeView.allowsUpgrade, "only sessions open it")
+        let limit = AISuggestion.upgrade(.tutor, message: AIFreeLimits.message(for: .tutor))
+        XCTAssertNil(AISuggestionCard.buttonTitle(for: limit, allowsUpgrade: ExplainMistakeView.allowsUpgrade))
+        XCTAssertEqual(AISuggestionCard.buttonTitle(for: limit, allowsUpgrade: true).map { String(localized: $0) }, "See Pro",
+                       "in Ask itself the offer stays")
+        XCTAssertNotNil(AISuggestionCard.buttonTitle(for: .allowCloud(feature: "Explain"), allowsUpgrade: false),
+                        "consent isn't a sale")
+    }
+
+    func testTheCostCapNotesAreKnownSoAHelpLinkCanSitBesideThem() {
+        XCTAssertTrue(AIFreeLimits.isCostCapNote(AIFreeLimits.costCapTutorNote))
+        XCTAssertTrue(AIFreeLimits.isCostCapNote(AIFreeLimits.costCapAssistantNote))
+        XCTAssertFalse(AIFreeLimits.isCostCapNote("Cloud AI couldn't be reached, so Cap answered from your notes on this iPhone."))
+        XCTAssertFalse(AIFreeLimits.isCostCapNote(nil))
+    }
 }
+

@@ -80,6 +80,11 @@ struct ScannerFlowView: View {
                     .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.top, 6)
+                if let allowance = AllowanceCopy.scans(left: app.ai.freeCloudUsesLeft(for: .generate)), !isOnboarding {
+                    AllowanceLine(text: allowance)
+                        .multilineTextAlignment(.center)
+                        .padding(.top, 10)
+                }
                 if let failure {
                     Label(failure, systemImage: "exclamationmark.triangle.fill")
                         .clFont(.footnote)
