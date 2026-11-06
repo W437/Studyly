@@ -637,5 +637,26 @@ final class SessionTests: XCTestCase {
         practice.start()
         XCTAssertNil(app.sessionCheckpoint(), "a practice round keeps none")
     }
+
+    func testASessionPickedUpWithNothingLeftEndsTheOneThatWasCutOff() throws {
+        let course = makeCourse()
+        let only = makeItem(in: course, kind: .recall, prompt: "Why?")
+        app.save()
+        let first = SessionRunner(app: app, request: SessionRequest(kind: .daily), options: .init(liveActivity: false))
+        first.start()
+        let sessionID = try XCTUnwrap(first.sessionID)
+        app.keepAnswerDraft("half", for: only.id)
+        let checkpoint = try XCTUnwrap(app.resumableCheckpoint(for: SessionRequest(kind: .daily)))
+        // The question went away meanwhile (deleted on another device): nothing is left to pick up.
+        app.setSuspended([only.id], true)
+        let second = SessionRunner(app: app, request: SessionRequest(kind: .daily), options: .init(liveActivity: false),
+                                   resuming: checkpoint)
+        XCTAssertEqual(second.phase, .empty)
+        XCTAssertFalse(second.resumed)
+        second.close()
+        XCTAssertNil(app.sessionCheckpoint())
+        XCTAssertNotNil(app.studySession(sessionID)?.endedAt, "the cut-off session is finished, not offered again")
+        XCTAssertNil(app.resumableCheckpoint(for: SessionRequest(kind: .daily)))
+    }
 }
 

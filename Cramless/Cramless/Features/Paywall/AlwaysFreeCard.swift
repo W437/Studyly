@@ -3,6 +3,9 @@ import SwiftUI
 /// "Always free": what every account keeps without paying (`PaywallCopy.alwaysFree`), so a price is never read as the price of
 /// studying. On the paywall it sits between Pro's rows and the plans; Settings ▸ Subscription and Help show the same card.
 struct AlwaysFreeCard: View {
+    /// The ticks grow with the words beside them.
+    @ScaledMetric(relativeTo: .subheadline) private var tick: CGFloat = 13
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             CLEyebrow(text: "Always free", color: CLColor.mintInk)
@@ -10,9 +13,9 @@ struct AlwaysFreeCard: View {
             ForEach(PaywallCopy.alwaysFree) { row in
                 HStack(alignment: .firstTextBaseline, spacing: 10) {
                     Image(systemName: "checkmark")
-                        .font(.system(size: 13, weight: .bold))
+                        .font(.system(size: tick, weight: .bold))
                         .foregroundStyle(CLColor.mintInk)
-                        .frame(width: 18)
+                        .frame(width: tick * 1.4)
                         .accessibilityHidden(true)
                     Text(row.text)
                         .clFont(.subheadline)

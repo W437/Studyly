@@ -424,9 +424,9 @@ extension AppModel {
     func announceRecoveredLectures(_ lectures: [RecoveredLecture]) {
         guard settings.onboardingCompleted, let toast = RecoveredLecture.toast(for: lectures) else { return }
         if let action = toast.action {
-            router.toast(toast.message, systemImage: "mic.badge.checkmark", tone: .success, actionTitle: "Open", action: action)
+            router.toast(toast.message, systemImage: "checkmark.circle.fill", tone: .success, actionTitle: "Open", action: action)
         } else {
-            router.show(Toast(message: toast.message, systemImage: "mic.badge.checkmark", tone: .success, duration: 5))
+            router.show(Toast(message: toast.message, systemImage: "checkmark.circle.fill", tone: .success, duration: 5))
         }
     }
 

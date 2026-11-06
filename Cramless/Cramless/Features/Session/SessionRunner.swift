@@ -306,6 +306,10 @@ final class SessionRunner: Identifiable {
             // A session picked up after a close counts the time it was on screen, never the gap.
             let wallStart = resumedSession == nil ? nil : app.now.addingTimeInterval(-wallSeconds)
             summary = app.finishSession(session, wallStart: wallStart)
+        } else if let resumedSession, resumedSession.modelContext != nil, resumedSession.endedAt == nil {
+            // Picked up with nothing left to study: the session that was cut off ends here, so it isn't offered again.
+            app.clearSessionCheckpoint(sessionID: resumedSession.id)
+            app.finishSession(resumedSession, wallStart: app.now.addingTimeInterval(-priorWallSeconds))
         }
         if options.liveActivity, !wasEmpty { app.liveActivities.end() }
     }

@@ -49,7 +49,7 @@ struct HelpPage: View {
                 RestorePurchasesRow()
                 SettingsValueRow(title: "Version", value: AboutInfo.version)
             }
-            .padding(.top, 8)
+            .padding(.top, 16)
         }
         .toolbar {
             if inSheet {

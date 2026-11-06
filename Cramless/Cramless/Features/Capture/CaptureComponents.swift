@@ -304,11 +304,14 @@ struct CaptureChips<Content: View>: View {
 struct AllowanceLine: View {
     let text: LocalizedStringResource
 
+    /// The sparkle grows with the words.
+    @ScaledMetric(relativeTo: .caption) private var icon: CGFloat = 11
+
     var body: some View {
         Label {
             Text(text).fixedSize(horizontal: false, vertical: true)
         } icon: {
-            Image(systemName: "sparkles").font(.system(size: 11, weight: .semibold))
+            Image(systemName: "sparkles").font(.system(size: icon, weight: .semibold))
         }
         .clFont(.caption)
         .foregroundStyle(CLColor.ink3)
