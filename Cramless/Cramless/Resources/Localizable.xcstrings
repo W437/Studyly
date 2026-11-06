@@ -1779,8 +1779,6 @@
     "1 freeze saved" : {},
     "1,000 answers." : {},
     "1-day streak" : {},
-    "10 minutes on %@, then sleep. That's the whole plan tonight." : {},
-    "10 minutes on your weak spots, then sleep. That's the whole plan tonight." : {},
     "100 days in a row." : {},
     "2 of 3 · Almost" : {},
     "22 minutes tonight and you're done. Your streak is safe." : {},
@@ -4280,7 +4278,6 @@
     "Tomorrow's brain says thanks." : {},
     "Tomorrow-us will be ready." : {},
     "Tonight · %lld min" : {},
-    "Tonight · 10 min" : {},
     "Tonight · about %lld min" : {},
     "Tonight · done" : {},
     "Tonight · nothing to review" : {},
@@ -4308,7 +4305,6 @@
         }
       }
     },
-    "Tonight, 10 minutes" : {},
     "Tonight: weak spots only" : {},
     "Too cozy to move." : {},
     "Topic" : {},
