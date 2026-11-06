@@ -114,8 +114,10 @@ struct TodaySnapshot: Equatable, Sendable {
     var firstDay = false
     /// The person's memory sky, laid out for the band.
     var sky: SkyScene = SkyScene.empty
-    /// Today's quests. Empty until a first session is done, on exam eve, and with nothing to study.
+    /// Today's quests. Empty until a first session is done, on exam eve, with nothing to study, and in Quiet mode.
     var quests = QuestsToday()
+    /// Quiet mode: no flame on the band, no word about the streak.
+    var quiet = false
 
     /// The shape (height over width) the band's sky is laid out for when the screen isn't known: a phone's. The real one comes from
     /// the band's geometry (`HeroWorldGeometry.skyAspect`), so the constellations fill the sky exactly.
@@ -165,7 +167,8 @@ struct TodaySnapshot: Equatable, Sendable {
             greeting: TodayCopy.greeting(hour: calendar.component(.hour, from: now), name: app.settings.firstName,
                                          firstDay: firstDay || courses.isEmpty),
             firstDay: firstDay,
-            sky: hasItems ? app.skyScene(aspect: skyAspect) : .empty)
+            sky: hasItems ? app.skyScene(aspect: skyAspect) : .empty,
+            quiet: app.settings.quietMode)
         guard hasItems else {
             #if DEBUG
             debugOverride(&snapshot, app: app)
@@ -204,7 +207,7 @@ struct TodaySnapshot: Equatable, Sendable {
         snapshot.notices = app.todayNotices(session: session)
         let place = app.todayNoticePlace(session: session)
         (snapshot.noticePosition, snapshot.noticeTotal) = (place.position, snapshot.notices.first?.isConfirmation == true ? 1 : place.count)
-        if app.hasFinishedAnySession() { snapshot.quests = app.questsToday() }
+        if app.hasFinishedAnySession(), !app.settings.quietMode { snapshot.quests = app.questsToday() }
         #if DEBUG
         debugOverride(&snapshot, app: app)
         #endif

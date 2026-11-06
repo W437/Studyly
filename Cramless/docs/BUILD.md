@@ -1449,6 +1449,40 @@ trust rules and the screens are in `docs/assistant.md`, the wire format in `docs
   `x…y…` taps; `CRAMLESS_CANVAS=375x667` applies to Today. Scripts: `films_hero.sh` (no constellation taps; a Reduce Motion film),
   `j_game.py` (opens the quests sheet), `j_study.py` (the exams row's tile), `j_sky.py` (the band's pill).
 
+### Stage 2: sessions and a calm chat (2026-11-06, lane `s2-sessions`)
+
+- **Undo: hold, then commit** (`SessionRunner`): a review log is append-only once sync has pushed it (about 2.6 s after a save), so nothing is recorded and reverted.
+  `Options.undoWindow` is nil by default (tests, onboarding, the quick check); `SessionView` sets 5 s, 15 s with VoiceOver. `record(…, undo:)` holds a self-given
+  rating as a `PendingGrade` (reviewID, rating, time, day key, `queueBefore`, how the question comes back) and moves on from `AppModel.previewReview`, which shares its
+  scheduling with `recordReview` (the same due load, deterministic fuzz), so the preview is what recording does. `commitPending()` goes through the idempotent
+  `recordReview(…, at:, dayKey:, reviewID:)`: on the timer, the next answer recorded, a question left without an answer, finish or close, the app going to the
+  background (not merely inactive), and disappear. `undoPending()` restores the queue (a re-queued copy goes with it). `Phase.wrapping` is "That was the last one."
+  (`SessionWrappingView`); the summary starts on commit. Undoable: flashcard ratings and swipes, own-words marks, "Counts as". A question view picks up its state
+  with `takeRestore(for:)`: no regrade, no sounds, no read-aloud. A draft goes on commit, not on submit; `hasRecorded` is true for a held rating, so a view leaving
+  doesn't write its draft back. The checkpoint follows the question on screen through an Undo. A crash inside the window loses that one rating (its question and
+  its draft are still there when the session picks up). `advance(arriving:)` gained a default parameter and `record` a defaulted one; the rest of the API is as it was.
+- **`UndoPill`** (`SessionParts.swift`): glass, ⌘Z, an overlay on the question's content (`sessionUndoSlot`), above the footer. Not on the bar: past the safe-area bar's own
+  bounds it shows and takes no tap. It waits for the next question to land, and hides once that one is checked. Interval labels refresh when the held rating is
+  recorded (it moves the session's due load).
+- **The swipe** (`Questions/FlashcardSwipe.swift`): pure `SwipeRule` (35% of the width or 700 pt/s, a flick back is a change of mind, direction lock after 12 pt at
+  1.5 times sideways); `FlashcardSwipeState` holds the offset, read only by `FlashcardSwipeLayer`, so a finger's move doesn't re-run the question's body. The gesture is
+  simultaneous with the scroll view, and a `GestureState` springs the card back if the system takes the touch away. Fly-out inside the view with an animation
+  completion; the next question rises (`Arrival.rise`). Footer: the chips, the tiles; `usesGrid` for accessibility sizes, VoiceOver and Switch Control. ← → and 1 to 4 keys.
+  `SessionRunner.flashcardTally` counts ratings, a held one included; the view reads it once as the card comes up.
+- **Quiet mode** (`AppSettings.quietMode`, Settings ▸ Study): `applyFeel`, `CelebrationFacts.quietMode`, `NotificationPlanner.Input.quiet`, `WidgetSnapshot.quiet` (optional, so an
+  older snapshot reads; `forTodayWidget`), `TodaySnapshot.quiet`, `SessionRunner.liveCombo`/`shownRun`, the summary (clears `GameOutcome` after `settleGame()`, so the
+  bits are written and nothing shows), Progress, the Streak page (only the calendar), the rollover's toast, the export. Other lanes' Cap cards need no change unless
+  they mention the streak; Welcome back should check it.
+- **Ask's calm chat:** `AskTitleMenu` (the title is the course menu), `AskDock` with `FreeAnswersNote`, `AskDockChipRow` over pure `AskDockChips.make` and `AskStarters.chipLabel` (hidden once
+  words are typed, height kept until the starters are ready), `TutorModePill` in `ChatComposer` (a popover; locked under 18) and `onCamera`, the slot for Stage 3's camera (nothing passes it yet).
+  `AskEmptyState` is Cap, one line, one chat to pick up. Follow-ups "Explain it simpler" and "Make 3 flashcards" (the assistant when ready, else `AppSheet.makeCards(threadID:, maxItems: 3)`).
+  `TutorModeControl` and `CourseMaterialChip` are gone.
+  At the accessibility text sizes the style takes a line of its own in the composer, and the chips stay one scrolling row (the appendix's two-line flow left no room for the chat).
+- **Scripts:** `journeys/moves.py` (the chips and tiles), `journeys/j_ask.py` (Cap's style in the composer, the short chip).
+- **Verified (2026-11-06, on main cd6ad9c plus this lane):** the whole suite, 1,657 tests, 27 skipped, no failures. Real drags and taps on the simulator: a slow drag past the line, a short one
+  springing back, a flick, a vertical drag and a swipe on an unflipped card doing nothing, Undo by a tap on the pill (flashcard and own-words marks), the app going to the background
+  committing the last question. Not checked: haptics, ⌘Z and the arrow keys with a hardware keyboard, a live VoiceOver session.
+
 ## Stage 2a: Cap's cards (2026-11-06)
 
 The engine that fills Today's "Cap noticed" slot, and its first four kinds. Plan: `~/.claude/plans/capling-build-plan.md` ▸ 2a, appendix 5.
@@ -1466,7 +1500,7 @@ The engine that fills Today's "Cap noticed" slot, and its first four kinds. Plan
   and on `ConfusionView`. **The session summary no longer asks Cloud AI before a tap**: it shows the rules' version at once, and `explainConfusion` runs only after "Fix it now"
   (a spinner on the button; at most `AppModel.lessonWait`, 10 s, then the rules). "Not now" adopts the rules' version with no AI at all.
 - **Welcome back:** a week or more away, 3 or more study days ever, on at most 2 days per absence, gone after a session today, never a notification. Promises only what is
-  true (`StreakState.best` is kept, 5 minutes lights the flame). No restored streak.
+  true (`StreakState.best` is kept, 5 minutes lights the flame). No restored streak. In Quiet mode the card stays but names neither the streak nor the flame (`noticeInputs` passes a best of 0).
 - **Fading** (`Engine/Fading.swift`): `FadeFinder`: overdue studied questions in the exam's scope, under `ReviewOutcome.fadingRecall` (0.7, the sky's dim line) on the exam's
   date, not in today's session or a boost; at least 5; 3 to 14 days before. `FadeRescue`: today (unless the goal is met), then days that aren't lighter days, an exam or an
   exam's eve; at most 3 days, 10 minutes each, the same minutes on each, dimmest first; `kept` from `ExpectedReview` (shown only with 5 or more); "From <source>" at 60%, else
@@ -1475,8 +1509,8 @@ The engine that fills Today's "Cap noticed" slot, and its first four kinds. Plan
   and give the questions their day (`sharedPlans()` widens the day's capacity), which the plan strip and exam page read. Undo removes them. A later day's boost goes once its questions
   have all been reviewed early; a day gone by ends its boost, and what it didn't reach can bring a card back the next day under a new id. It rarely fires for someone who keeps up, by design.
 - **Look-alikes** (`Engine/LookAlikes.swift`): `LookAlikeFinder`, on the phone, for exams in the next 21 days; signals, guards and the buckets that keep it cheap are in its header.
-  `CramlessTests/Fixtures/lookalike-corpus.json` (labelled decks with traps, some held out from tuning) gates it at 90% precision in `NoticeEngineTests`. Pairs are worked out once a day and when
-  the questions or mix-ups change in number or state. `LookAlikeView` is the sheet (`AppSheet.lookAlike`). Cloud AI runs only there, after "Show me", on the relay's `extras` meter (`ConfusionsRequest.lookAlike`, sent only
+  `CramlessTests/Fixtures/lookalike-corpus.json` (labelled decks with traps, some held out from tuning) gates it at 90% precision in `NoticeEngineTests`: 13 decks, 438 questions, 232 labelled pairs, 96.9% precision and 40.9% recall (it prefers saying nothing); the 5 held-out decks 92.9%. The corpus is our own writing, so it is a guard rail, not proof on real decks. Pairs are worked out once a day and when
+  the questions or mix-ups change in number or state, away from the main thread (`lookAlikePairs`), inline in tests and the harness. With 5,000 questions on a busy Mac: the finder 18 ms at `-O`, about 570 ms in a Debug build; the deck, kinds and pings about 4 ms in Debug. The test gates the deck, which is what runs on the main thread, under 50 ms, and the finder under 1.5 s in Debug. `LookAlikeView` is the sheet (`AppSheet.lookAlike`). Cloud AI runs only there, after "Show me", on the relay's `extras` meter (`ConfusionsRequest.lookAlike`, sent only
   when true; `AIRouter.lookAlikeLesson`; the prompt's look-alike section; fixture `confusions-lookalike.json`); the rules' version is `LocalConfusions.sideBySide`. "Try 2 questions" adopts it (`ConfusionCandidate.Reason.lookAlike`, no misses)
   and starts the fix; "Not a look-alike" saves a dismissed `Confusion`, which syncs, and both finders skip it. A fixed look-alike with no misses doesn't count for the "mix-ups fixed" badges (the day's quest counts it: the drill was done).
 - **Notifications** (`NoticeEngine.pings`, `NotificationPlanner`): `Kind.notice` after the exam notes and before the reminder, `capling.notice.<dayKey>`, `capling://today?notice=<id>` (`DeepLink.notice`: that card first; a

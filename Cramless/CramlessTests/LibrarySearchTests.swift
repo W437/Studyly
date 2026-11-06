@@ -87,8 +87,8 @@ final class LibrarySearchTests: XCTestCase {
         XCTAssertEqual(LibraryFormat.shortWhen(at(0), now: now, calendar: cal), "today")
         XCTAssertEqual(LibraryFormat.shortWhen(at(1), now: now, calendar: cal), "tomorrow")
         XCTAssertEqual(LibraryFormat.examLine(title: "Bio 101 Midterm", courseName: "Bio 101", date: nil, now: now, calendar: cal),
-                       "No exam set")
-        XCTAssertEqual(LibraryFormat.examLine(title: nil, courseName: "Bio 101", date: at(3), now: now, calendar: cal), "No exam set")
+                       "No exam yet")
+        XCTAssertEqual(LibraryFormat.examLine(title: nil, courseName: "Bio 101", date: at(3), now: now, calendar: cal), "No exam yet")
         XCTAssertTrue(LibraryFormat.examLine(title: "Bio 101 Midterm", courseName: "Bio 101", date: at(23), now: now, calendar: cal)
             .hasPrefix("Midterm "))
         XCTAssertEqual(LibraryFormat.countdown(days: 23), "23 days to go")

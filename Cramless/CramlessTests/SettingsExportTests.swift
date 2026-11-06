@@ -101,6 +101,20 @@ final class SettingsExportTests: AskTestCase {
         XCTAssertTrue(text.contains("\"exportedAt\" : \""), "ISO 8601 dates")
     }
 
+    func testQuietModeSurvivesTheSettingsAndTheExport() throws {
+        let app = makeApp()
+        XCTAssertFalse(app.settings.quietMode, "off until someone turns it on")
+        app.settings.quietMode = true
+        XCTAssertEqual(DataExport.archive(app: app).profile.quietMode, true)
+        let data = try JSONEncoder().encode(app.settings)
+        XCTAssertTrue(try JSONDecoder().decode(AppSettings.self, from: data).quietMode)
+        // Settings saved before it existed read as off.
+        var object = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        object["quietMode"] = nil
+        let older = try JSONSerialization.data(withJSONObject: object)
+        XCTAssertFalse(try JSONDecoder().decode(AppSettings.self, from: older).quietMode)
+    }
+
     func testExportFileNamesAreDated() {
         let date = Calendar.current.date(from: DateComponents(year: 2026, month: 10, day: 22, hour: 12))!
         XCTAssertEqual(DataExport.fileName("Capling cards", ext: "csv", date: date), "Capling cards 2026-10-22.csv")

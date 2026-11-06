@@ -40,6 +40,14 @@ struct StudyPage: View {
                 TimeRow(title: "Until", minutes: app.settings.quietHoursEnd) { app.settings.quietHoursEnd = $0 }
             }
 
+            SettingsGroup(title: "Streaks and quests") {
+                SettingsToggleRow(title: "Quiet mode",
+                                  subtitle: "Hides the flame, quests and badges, and turns sounds off. Your plan, stars and readiness stay.",
+                                  isOn: $app.settings.quietMode,
+                                  hintOn: "Hides the flame, quests and badges, and turns sounds off.",
+                                  hintOff: "Shows the flame, quests and badges again.")
+            }
+
             CLSectionHeader(title: "How sure you'll be")
             VStack(alignment: .leading, spacing: 12) {
                 HStack(alignment: .firstTextBaseline) {

@@ -359,7 +359,7 @@ struct DiagramQuestionView: View {
         let outcome = app.ai.instantGrade(app.gradeSubject(for: item), answer: .labels(givenLabels))
         let verdict = SessionRunner.Outcome(outcome.verdict)
         saved = verdict == .right && runner.wouldSave(item)
-        run = verdict == .right ? runner.combo(adding: .right, kind: item.kind) : 0
+        run = verdict == .right ? runner.shownRun(adding: .right, kind: item.kind) : 0
         CLFeel.play(runner.cues(for: verdict, item: item, answered: true))
         if saved { runner.flareSave(of: item) }
         withAnimation(CLMotion.snap) {

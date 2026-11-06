@@ -119,7 +119,7 @@ struct TodaySkyHero: View {
 
     private var pills: some View {
         HStack(spacing: 8) {
-            if snapshot.streak.current > 0 { TodayStreakPill(streak: snapshot.streak, onOpen: onStreak) }
+            if snapshot.streak.current > 0, !snapshot.quiet { TodayStreakPill(streak: snapshot.streak, onOpen: onStreak) }
             TodayAvatar(initials: snapshot.initials, onOpen: onProfile)
         }
         .environment(\.colorScheme, .dark)

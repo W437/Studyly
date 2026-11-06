@@ -88,6 +88,16 @@ enum AskStarters {
         return "What's the difference between \(lowerFirst(parts[0])) and \(lowerFirst(parts[1]))?"
     }
 
+    /// A starter as a chip says it: "What's the difference between anaphase and telophase?" → "Anaphase vs telophase?". Any other question
+    /// is short enough as it is.
+    static func chipLabel(_ question: String) -> String {
+        let lead = "What's the difference between "
+        guard question.hasPrefix(lead), question.hasSuffix("?") else { return question }
+        let parts = question.dropFirst(lead.count).dropLast().components(separatedBy: " and ")
+        guard parts.count == 2 else { return question }
+        return Lexicon.capitalizedFirst(parts[0]) + " vs " + parts[1] + "?"
+    }
+
     /// "A vs B", "A vs. B", "A versus B" → its two sides.
     static func sides(of name: String) -> [String] {
         for separator in [" vs. ", " vs ", " versus ", " VS "] {
@@ -104,6 +114,43 @@ enum AskStarters {
         let second = t.dropFirst().first
         if let second, second.isUppercase { return t }
         return first.lowercased() + t.dropFirst()
+    }
+}
+
+// MARK: - The dock's chips
+
+/// The one row of chips over the composer in an empty chat: what Cap can make, as first words for the composer, around up to two
+/// questions drawn from the notes. Without the assistant: a quiz and the questions.
+enum AskDockChips {
+    enum Action: Equatable, Sendable {
+        /// Put these words in the composer to be finished.
+        case compose(String)
+        /// Ask this question.
+        case ask(String)
+        /// A practice session.
+        case quiz
+    }
+
+    struct Chip: Equatable, Identifiable, Sendable {
+        var title: String
+        var icon: String
+        var action: Action
+        var id: String { title }
+        var isQuestion: Bool { if case .ask = action { true } else { false } }
+    }
+
+    static func make(quickStarts: [AssistantQuickStart.Start], starters: [String]) -> [Chip] {
+        func start(_ kind: AssistantQuickStart.Kind) -> Chip? {
+            quickStarts.first { $0.kind == kind }.map { Chip(title: $0.title, icon: $0.icon, action: .compose($0.prefix)) }
+        }
+        func questions(_ limit: Int) -> [Chip] {
+            starters.prefix(limit).map { Chip(title: AskStarters.chipLabel($0), icon: "text.bubble", action: .ask($0)) }
+        }
+        guard !quickStarts.isEmpty else {
+            return [Chip(title: String(localized: "Quiz me"), icon: "checklist", action: .quiz)] + questions(3)
+        }
+        return [start(.quiz), start(.cards)].compactMap { $0 } + questions(2)
+            + [start(.note), start(.exam), start(.research)].compactMap { $0 }
     }
 }
 

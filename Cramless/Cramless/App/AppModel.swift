@@ -162,7 +162,8 @@ final class AppModel {
         guard sideEffectsEnabled else { return }
         if settings.reminderMinutes != old.reminderMinutes || settings.quietHoursStart != old.quietHoursStart
             || settings.quietHoursEnd != old.quietHoursEnd || settings.dailyMinutes != old.dailyMinutes
-            || settings.notices != old.notices {
+            || settings.notices != old.notices
+            || settings.quietMode != old.quietMode {
             notifications.reschedule()
         }
         widgets.refresh()
@@ -172,7 +173,7 @@ final class AppModel {
     /// scored afterwards from the cue log (`FeelLog`, `scripts/film.sh`).
     private func applyFeel() {
         CLHaptics.isEnabled = settings.haptics
-        var sounds = settings.sounds
+        var sounds = settings.sounds && !settings.quietMode
         #if DEBUG
         if config.isHarness, config.environment["CRAMLESS_SOUNDS"] != "1" { sounds = false }
         #endif

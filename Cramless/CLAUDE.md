@@ -160,7 +160,7 @@ sleep 4; xcrun simctl io <udid> screenshot shot.png
   skipped. `CRAMLESS_SEED=0` empty world; `CRAMLESS_MOCK_AI=0` local AI instead of mock.
 - `CRAMLESS_ROUTE=<name>[:<arg>]`: one screen; the list is `TestHarness.apply(route:)`.
 - `CRAMLESS_ONBOARDING=1`, `CRAMLESS_ROUTE=onboarding:<page>`, `CRAMLESS_NOW=<ISO 8601>`, `CRAMLESS_THEME=dark`,
-  `CRAMLESS_DYSLEXIC=1`, `CRAMLESS_PLAN=pro`, `CRAMLESS_CONSENT=0`.
+  `CRAMLESS_DYSLEXIC=1`, `CRAMLESS_PLAN=pro`, `CRAMLESS_CONSENT=0`, `CRAMLESS_QUIET=1` (Quiet mode on).
 - Lectures: the harness (or `CRAMLESS_FAKE_LECTURE=1`) records with a demo transcriber that replays Lecture 6;
   `CRAMLESS_LECTURE_PREFILL=<n>` shows its first n lines at once, `CRAMLESS_LECTURE_ELAPSED=<seconds>` starts the
   clock there (`Lecture/LectureDemo.swift`).
@@ -183,7 +183,7 @@ sleep 4; xcrun simctl io <udid> screenshot shot.png
     puts the deck part way through the day (`done`: "Plan updated"). `CRAMLESS_ROUTE=lookAlike` opens the sheet on the best pair, `CRAMLESS_LOOKALIKE=rules|cloud|writing` holds its lesson in that state.
     `CRAMLESS_ROUTE=settings:notifications CRAMLESS_NOTICES=fading` shows the ping in the page's planned list.
   - Sessions:
-    - `CRAMLESS_SESSION_STATE=ownwords|graded|mcq(-answered)|cloze(-answered)|diagram(-filled|-answered)|flashcard|flipped|summary|exameve-summary|fix-summary`
+    - `CRAMLESS_SESSION_STATE=ownwords|graded|mcq(-answered)|cloze(-answered)|diagram(-filled|-answered)|flashcard|flipped|flashcard-rated|last-rated|flashcard-drag|flashcard-swiped|summary|exameve-summary|fix-summary`
     - `CRAMLESS_SESSION_PICK=wrong`, `CRAMLESS_SESSION_ANSWER=<text>`
     - `CRAMLESS_SESSION_AUTOPLAY=rrrrrpwk` answers every question by that pattern (`r` right, `p` partly, `w` wrong,
       `k` "I don't know") and presses Continue `CRAMLESS_AUTOPLAY_BEAT` ms after each panel, through to the summary.
@@ -192,6 +192,13 @@ sleep 4; xcrun simctl io <udid> screenshot shot.png
     - `CRAMLESS_SESSION_DRAFT=<text>` (with `ownwords`): the first question's editor opens with those words "Kept from before"
       (`AnswerDrafts`). `CRAMLESS_SESSION_RESUME=1` (with `session` or `session:catchUp|examEve`): a session of that kind was cut off
       earlier today after three answers, with words typed on an own-words question; it picks up ("Picked up where you left off.").
+    - Undo (`SessionRunner.PendingGrade`): `flashcard-rated` flips and rates the first flashcard (`CRAMLESS_SESSION_RATE=again|hard|good|easy`, Good by default), so the
+      next question shows the pill; `last-rated` does it on a session of that one question ("That was the last one."). `CRAMLESS_UNDO_HOLD=1` keeps the
+      pill until it is pressed; `CRAMLESS_SESSION_UNDO=<ms>` presses Undo that long after it shows.
+    - The flashcard swipe: `flashcard-drag` holds the flipped card 60% of the way right; `flashcard-swiped` swipes it (the next one up, the tally at 1 and 0,
+      the pill stays); `CRAMLESS_SESSION_SWIPE=rrlhe` plays a session of flashcards only by that pattern (`r` swipe right, `l` swipe left, `h` the Hard
+      tile, `e` the Easy tile, `f` only flips, for a real finger), `CRAMLESS_AUTOPLAY_BEAT` ms on each flipped card. Check the swipe itself with a real drag too
+      (`mobilecli io swipe x1,y1,x2,y2 --duration 700`: a fast one is a flick, which counts from anywhere).
     - `CRAMLESS_SESSION_STATE=flashcard-saved|mcq-saved` makes the first flashcard (or multiple-choice question) a
       fading memory and answers it right: a save, with the sky's flare.
     - `CRAMLESS_SUMMARY_SKY=<ms>` opens the memory sky that long after a summary's choreography, as a tap on its
@@ -208,7 +215,7 @@ sleep 4; xcrun simctl io <udid> screenshot shot.png
     `CRAMLESS_SEARCH=<words>`, `CRAMLESS_GRADE=<n>`. `CRAMLESS_ROUTE=course:<n>` opens the nth course (`course:3` is Spanish II,
     with no exam); `CRAMLESS_ROUTE=exam:<n>` the nth upcoming exam, and `CRAMLESS_EXAM_SKIP=1` opens it with "What if I skip …?" on.
     The exam page's numbers are pinned with `CRAMLESS_NOW=2026-11-06T14:00:00-05:00` (the Chem quiz on Sunday at 10:00).
-  - Ask, Settings and Squad: `CRAMLESS_ASK`, `CRAMLESS_CHAT`, `CRAMLESS_AGE`, `CRAMLESS_TUTOR`, `CRAMLESS_CARDS`,
+  - Ask, Settings and Squad: `CRAMLESS_ASK`, `CRAMLESS_ASK_MODE=open` (Cap's style open in the composer), `CRAMLESS_CHAT`, `CRAMLESS_AGE`, `CRAMLESS_TUTOR`, `CRAMLESS_CARDS`,
     `CRAMLESS_EXPLAIN`, `CRAMLESS_SYNC`, `CRAMLESS_NOTIFY`, `CRAMLESS_SQUAD`, `CRAMLESS_ACCOUNT=apple|email`.
   - Ask Cap's assistant (`docs/assistant.md`): `CRAMLESS_ROUTE=ask CRAMLESS_ASSISTANT=cards|quiz|note|exam|practice|research|multi|answer|limit|error`
     asks Cap in a Bio 101 chat and plays the mock relay's script at its live pace (`AskDemo.assistant`). `CRAMLESS_ASSISTANT_FREEZE=<n>` holds the
@@ -367,7 +374,7 @@ sleep 4; xcrun simctl io <udid> screenshot shot.png
   - An exam's region records the constellations it covers (`SkyLayout.Region.covers`); use that, never "is it inside the
     circle", to decide what belongs to an exam.
 - Celebrations: `CelebrationPolicy` (`Engine/Celebration.swift`) picks one per screen, for learning only (never a
-  purchase); `CLConfetti` draws it. Exam eve and quiet hours stay calm.
+  purchase); `CLConfetti` draws it. Exam eve, quiet hours and Quiet mode stay calm.
 - The game loop (`docs/design.md` ▸ The game loop): nothing to lose, no currency.
   - The flame is `StreakFlame(stage:size:lit:bounce:)` over `StreakStage(days:)` (`Shared/`, drawn in code, so widgets use it too);
     use it wherever a streak is shown in colour, not `flame.fill`. Milestones are `StreakStage.milestones` (3, 7, 30, 100, 365).
@@ -381,6 +388,9 @@ sleep 4; xcrun simctl io <udid> screenshot shot.png
     `theme.palette.top`/`.farHills`/…, never the night colours. Icons are `AppIconChoice` (unlocked by the best streak); change one
     with `app.setAppIcon(_:)`, which asks the system's switcher (a fake in tests).
   - `ReviewPromptPolicy` decides when to ask for a rating; the summary asks. It never asks in the harness or in tests.
+  - Quiet mode (`settings.quietMode`, Settings ▸ Study): every game surface checks it. No flame, quests, badges or run counter, calm celebrations, no streak
+    notifications (`NotificationPlanner.Input.quiet`), no sounds, no flame on the Today widget (`WidgetSnapshot.quiet`; a placed Streak widget stays). Quests
+    and badges still settle unseen. A new game surface checks it too.
   - Look at anything with layers in a real screenshot: a `.shadow` + `inset(by:)` + blur + blended sheen on one view drew a second
     medal beside the first on screen and not in an `ImageRenderer` (`BadgeMedal`).
 - Feel: a moment with a sound plays `CLFeel.play(.right(combo:))`, `.saved`, `.done`, …
@@ -389,6 +399,8 @@ sleep 4; xcrun simctl io <udid> screenshot shot.png
   - Both are for the person's own actions; demo scenes and loops fire none.
   - Sounds are synthesized (`CLSynth`, no audio files), mix with other audio and obey the Silent switch.
   - Anything that takes the audio session claims `AudioFocus` first.
+- A self-given rating (a flashcard, own-words marks, "Counts as") is held for Undo (`SessionRunner.Options.undoWindow`, `PendingGrade`) before it is written. Graded
+  answers aren't: Continue was their moment. A review log is append-only once sync has pushed it, so nothing is ever recorded and then reverted.
 - "Saved it" is `ReviewOutcome.isSave`: a right answer (Good or Easy, not "Almost.") on a studied item whose recall
   was below 0.7 at that moment. It's the one definition for the headline, the sky's flare and "saved" count, quests
   and badges. The flare is published where the views play the verdict's cues (`SessionRunner.flareSave(of:)`), not

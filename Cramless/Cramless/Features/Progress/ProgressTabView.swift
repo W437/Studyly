@@ -17,8 +17,10 @@ struct ProgressTabView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
                 ExamsSection(exams: model.exams, calendar: model.calendar).padding(.top, 8)
-                StreakSection(model: model).id("streak")
-                BadgesSection(badges: model.badges).id("badges")
+                if !app.settings.quietMode {
+                    StreakSection(model: model).id("streak")
+                    BadgesSection(badges: model.badges).id("badges")
+                }
                 WeekSection(model: model).id("week")
                 MemorySection(due: model.due, calendar: model.calendar)
                     .id("memory")

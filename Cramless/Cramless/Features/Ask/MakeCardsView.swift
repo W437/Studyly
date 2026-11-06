@@ -8,6 +8,8 @@ import SwiftUI
 /// `edit` opens the first draft for editing.
 struct MakeCardsView: View {
     let threadID: UUID
+    /// How many cards to draft at most.
+    var maxItems = 6
 
     struct Draft: Identifiable, Equatable {
         var card: GeneratedItem
@@ -186,7 +188,7 @@ struct MakeCardsView: View {
         let hook = TestHarness.once("CRAMLESS_CARDS")
         if hook == "making" { return }
         #endif
-        let outcome = await app.ai.cardsFromChat(course: app.liveCourse(thread.courseID)?.name, messages: messages)
+        let outcome = await app.ai.cardsFromChat(course: app.liveCourse(thread.courseID)?.name, messages: messages, maxItems: maxItems)
         origin = outcome.origin
         suggestion = outcome.suggestion
         withAnimation(CLMotion.settle) {

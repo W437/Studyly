@@ -23,6 +23,7 @@ import Foundation
 ///   makes it 30 days."
 /// - Every time is moved out of quiet hours: to 30 minutes before they start or to when they end, whichever keeps it
 ///   on the same day (and is closer).
+/// - **Quiet mode** (`Input.quiet`) drops the streak nudge and the milestone line. The reminder and the exam notes stay.
 /// - At most 2 a day and at least an hour apart, by priority: exam eve, exam week, Cap noticed, reminder, streak.
 /// - Nothing in the past. Identifiers start with "capling."; requests starting "trial." belong to PurchaseStore
 ///   and are never removed (`staleIdentifiers`).
@@ -51,6 +52,8 @@ enum NotificationPlanner {
         var streak: StreakState
         /// Upcoming exams, any order.
         var exams: [ExamInfo]
+        /// Quiet mode: nothing about the streak.
+        var quiet = false
         /// Cap's cards that may be sent, today's and tomorrow's.
         var notices: [NoticePing] = []
     }
@@ -115,7 +118,7 @@ enum NotificationPlanner {
         func dayOffset(of date: Date) -> Int { days(from: input.now, to: date, calendar: calendar) }
 
         // The day one session reaches a milestone: today when it isn't done yet, tomorrow when it is.
-        let milestone = milestoneNext(input.streak, studiedToday: studiedToday)
+        let milestone = input.quiet ? nil : milestoneNext(input.streak, studiedToday: studiedToday)
 
         func time(_ minutes: Int, onDay offset: Int) -> Date? {
             let start = calendar.startOfDay(for: input.now)
@@ -186,7 +189,7 @@ enum NotificationPlanner {
         }
 
         // The streak nudge: tonight if today isn't done (and there's something to do), else tomorrow night.
-        if input.reminderMinutes != nil, input.streak.current >= streakThreshold, studiedToday || !nothingToday,
+        if !input.quiet, input.reminderMinutes != nil, input.streak.current >= streakThreshold, studiedToday || !nothingToday,
            let date = time(streakMinutes, onDay: studiedToday ? 1 : 0) {
             let nudge = milestone.map { "\(goal) minutes tonight makes it \($0.days) days." }
                 ?? "\(goal) minutes tonight and your \(input.streak.current)-day streak is safe."
