@@ -14,9 +14,9 @@ struct SettingsView: View {
                 group("Studying", [.study, .notifications])
                 group("Privacy and access", [.aiPrivacy, .assistant, .accessibility, .appearance])
                 #if DEBUG
-                group("More", [.data, .about, .debug])
+                group("More", [.help, .data, .about, .debug])
                 #else
-                group("More", [.data, .about])
+                group("More", [.help, .data, .about])
                 #endif
             }
             .padding(.horizontal, CLSpace.gutter)
@@ -119,6 +119,7 @@ extension SettingsPage {
         case .assistant: "What Cap can do"
         case .accessibility: "Accessibility"
         case .appearance: "Appearance"
+        case .help: "Help"
         case .data: "Your data"
         case .about: "About"
         case .debug: "Debug"
@@ -136,6 +137,7 @@ extension SettingsPage {
         case .assistant: "wand.and.stars"
         case .accessibility: "accessibility"
         case .appearance: "circle.lefthalf.filled"
+        case .help: "questionmark.bubble"
         case .data: "square.and.arrow.up.on.square"
         case .about: "info.circle"
         case .debug: "ladybug"
@@ -151,6 +153,7 @@ extension SettingsPage {
         case .study: .mint
         case .notifications: .rose
         case .accessibility, .appearance: .sun
+        case .help: .sky
         case .data, .about, .debug, .feelLab: .capy
         }
     }
@@ -197,6 +200,8 @@ enum SettingsSummary {
             case .light: return "Light"
             case .dark: return "Dark"
             }
+        case .help:
+            return "Write to a real person"
         case .data:
             return "Export or delete"
         case .about:
@@ -242,6 +247,7 @@ struct SettingsPageView: View {
         case .assistant: AssistantPage()
         case .accessibility: AccessibilityPage()
         case .appearance: AppearancePage()
+        case .help: HelpPage()
         case .data: DataPage()
         case .about: AboutPage()
         case .debug:

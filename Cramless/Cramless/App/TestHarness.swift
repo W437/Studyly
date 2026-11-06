@@ -12,6 +12,7 @@ import Foundation
 /// - `CRAMLESS_ONBOARDING=1` (or `CRAMLESS_ROUTE=onboarding:<page>`) shows onboarding without wiping data.
 /// - `CRAMLESS_NOW=<ISO 8601>` freezes the clock. `CRAMLESS_THEME=light|dark`, `CRAMLESS_DYSLEXIC=1`,
 ///   `CRAMLESS_PLAN=free|pro|squad|pass` (the purchase store reads it) set the matching state.
+/// - `CRAMLESS_QUOTA=scans:2,lectures:1,grades:20`: the free AI uses left (`quota(_:)`).
 ///
 /// A screen that needs a deeper state (a graded answer, a half-played scene) reads its own variable in its own
 /// view, and documents it beside the view.
@@ -54,6 +55,23 @@ enum TestHarness {
             app.settings.cloudConsentVersion = max(app.settings.cloudConsentVersion, AIConsent.currentVersion)
         }
         if value("CRAMLESS_ONBOARDING") == "1" { app.settings.onboardingCompleted = false }
+        if let raw = value("CRAMLESS_QUOTA") { app.ai.setServerQuota(quota(raw)) }
+    }
+
+    /// `CRAMLESS_QUOTA=scans:2,lectures:1,grades:20`: the free AI uses left this period on each named meter, as if the server had
+    /// said so (the others are untouched: none used). `scans:0` is the limit reached. For the allowance lines (`AllowanceCopy`).
+    static func quota(_ raw: String) -> QuotaStatus {
+        var left: [QuotaMeter.Key: Int] = [:]
+        for part in raw.split(separator: ",") {
+            let pair = part.split(separator: ":").map { $0.trimmingCharacters(in: .whitespaces) }
+            guard pair.count == 2, let key = QuotaMeter.Key(rawValue: pair[0]), let n = Int(pair[1]) else { continue }
+            left[key] = max(0, n)
+        }
+        let meters = AIFreeLimits.keys.map { key -> QuotaMeter in
+            let limit = max(AIFreeLimits.limit(key), left[key] ?? 0)
+            return QuotaMeter(key: key, used: limit - (left[key] ?? limit), limit: limit, period: AIFreeLimits.period(key))
+        }
+        return QuotaStatus(plan: .free, meters: meters)
     }
 
     /// Opens the screen named by CRAMLESS_ROUTE (`CRAMLESS_FEELLAB=<section>` alone opens the Feel lab). Called
@@ -67,6 +85,19 @@ enum TestHarness {
         // its foot has it.
         AskDemo.seedAdditions(app)
         apply(route: parts[0], arg: parts.count > 1 ? parts[1] : nil, app: app)
+    }
+
+    /// Toasts that launch raises, on demand. `CRAMLESS_LECTURE_RECOVERED=2480`: a lecture cut off by a crash and kept up to 41:20 (the
+    /// demo world's lecture stands in for it); `=2480,3100` two of them.
+    static func applyLaunchToasts(to app: AppModel) {
+        guard let raw = once("CRAMLESS_LECTURE_RECOVERED") else { return }
+        let lectures = app.courses.flatMap(\.liveSources).filter { $0.kind == .lecture }
+        let recovered = raw.split(separator: ",").compactMap { Double($0.trimmingCharacters(in: .whitespaces)) }
+            .enumerated().map { index, seconds in
+                RecoveredLecture(id: lectures.indices.contains(index) ? lectures[index].id : (lectures.first?.id ?? UUID()),
+                                 duration: seconds)
+            }
+        app.announceRecoveredLectures(recovered)
     }
 
     static func apply(route: String, arg: String?, app: AppModel) {

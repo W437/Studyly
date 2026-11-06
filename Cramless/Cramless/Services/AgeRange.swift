@@ -4,27 +4,49 @@ import SwiftUI
 import UIKit
 
 /// The person's age band from Apple's Declared Age Range (iOS 26), written to `settings.ageBand`, which keeps
-/// under-18 accounts on the teen-safe tutor (`settings.isMinor`).
+/// under-18 accounts on the teen-safe tutor (`settings.isMinor`): hints first, no web research, every "Let Cap do it" switch on
+/// ask-first; under 13, no Cloud AI at all.
 ///
-/// Asks with age gates 13 and 18; the system shows its own sheet the first time, so call it at a moment that
-/// makes sense (onboarding's profile step). When the range isn't shared or the service isn't available (the
-/// simulator, a build without the `com.apple.developer.declared-age-range` entitlement, an account it doesn't
-/// apply to), it falls back to the level the person gave (high school → teen), never overwriting a band the person
-/// already shared. It never throws and never blocks anything.
+/// Asks with age gates 13 and 18; the system shows its own sheet the first time, so it is asked at a moment that makes sense:
+/// once in onboarding, after the four questions about the person (`OnboardingFlow`), and once for someone who finished onboarding
+/// before this existed (`RootView`, a moment after launch). `checkIfNeeded` asks only while the band is unknown and never twice
+/// (`AgeCheck`): an answer, a "Don't share", or a system with no answer for this account is final; only a passing failure (no
+/// network) is tried again at a later launch, three times at most. When the range isn't shared or the service has no answer (the
+/// simulator, a build without the `com.apple.developer.declared-age-range` entitlement, an account it doesn't apply to), it falls
+/// back to the level the person gave (high school → teen), never overwriting a band the person already shared. It never throws
+/// and never blocks anything. Not asked in the harness or in tests, and not on the simulator, which has no answer to give.
 @MainActor
 enum AgeRange {
     static let gates = (first: 13, second: 18)
 
-    /// From a view: pass `@Environment(\.requestAgeRange)`.
-    static func refresh(app: AppModel, using request: DeclaredAgeRangeAction) async {
+    /// Asks once, when it should (`AgeCheck.shouldAsk`), from a view: pass `@Environment(\.requestAgeRange)`.
+    static func checkIfNeeded(app: AppModel, using request: DeclaredAgeRangeAction) async {
+        guard app.sideEffectsEnabled, !app.config.isHarness else { return }
+        let record = AgeCheck.record(in: app.defaults)
+        guard AgeCheck.shouldAsk(band: app.settings.ageBand, record: record) else { return }
+        #if targetEnvironment(simulator)
+        log.notice("age range not asked: the simulator has no answer")
+        #else
+        await refresh(app: app, using: request, previous: record)
+        #endif
+    }
+
+    /// From a view: pass `@Environment(\.requestAgeRange)`. Asks now, whatever was asked before (`checkIfNeeded` decides when).
+    static func refresh(app: AppModel, using request: DeclaredAgeRangeAction, previous: AgeCheck.Record? = nil) async {
         let declared: AppSettings.AgeBand?
+        let outcome: AgeCheck.Outcome
         do {
-            declared = band(from: try await request(ageGates: gates.first, gates.second))
+            let response = try await request(ageGates: gates.first, gates.second)
+            declared = band(from: response)
+            outcome = AgeCheck.outcome(of: response)
         } catch {
             log.notice("age range unavailable: \(String(describing: error), privacy: .public)")
             declared = nil
+            outcome = AgeCheck.outcome(of: error)
         }
         apply(declared, to: app)
+        AgeCheck.store(AgeCheck.Record(outcome: outcome, askedAt: app.now, attempts: (previous?.attempts ?? 0) + 1),
+                       in: app.defaults)
     }
 
     /// From anywhere: presents over the frontmost screen.
@@ -96,3 +118,73 @@ enum AgeRange {
 
     static let log = Logger(subsystem: "com.loopware.Capling", category: "age-range")
 }
+
+/// When the age check asks, and what each answer means for asking again: pure, apart from the record it keeps in UserDefaults
+/// (`capling.ageRange.v1`, on this iPhone).
+enum AgeCheck {
+    enum Outcome: String, Codable, Sendable {
+        /// A range was shared: the band is set.
+        case shared
+        /// The person (or a parent) chose not to share: the band stays as it was. Never asked again.
+        case declined
+        /// The system has no answer here (not available, an account or a request it won't take). Never asked again.
+        case unavailable
+        /// A passing failure (no network): tried again at a later launch.
+        case failed
+    }
+
+    struct Record: Codable, Equatable, Sendable {
+        var outcome: Outcome
+        var askedAt: Date
+        var attempts: Int
+    }
+
+    static let defaultsKey = "capling.ageRange.v1"
+    /// A passing failure is tried this many times in all, one launch apart, then left.
+    static let maxAttempts = 3
+
+    /// Ask only while the band is unknown (a known band came from a shared range, or from the level the person gave), never
+    /// twice after an answer or a decline, and again after a passing failure until `maxAttempts`.
+    static func shouldAsk(band: AppSettings.AgeBand, record: Record?) -> Bool {
+        guard band == .unknown else { return false }
+        guard let record else { return true }
+        return record.outcome == .failed && record.attempts < maxAttempts
+    }
+
+    static func outcome(of response: AgeRangeService.Response) -> Outcome {
+        switch response {
+        case .sharing: .shared
+        case .declinedSharing: .declined
+        @unknown default: .unavailable
+        }
+    }
+
+    static func outcome(of error: Error) -> Outcome {
+        guard let error = error as? AgeRangeService.Error else { return .failed }
+        switch error {
+        case .notAvailable, .invalidRequest: return .unavailable
+        default:
+            #if HAS_IOS27_SDK
+            if #available(iOS 27.0, *) {
+                switch error {
+                case .declinedOnboarding: return .declined
+                case .invalidAccount: return .unavailable
+                case .network: return .failed
+                default: break
+                }
+            }
+            #endif
+            return .failed
+        }
+    }
+
+    static func record(in defaults: UserDefaults) -> Record? {
+        guard let data = defaults.data(forKey: defaultsKey) else { return nil }
+        return try? JSONDecoder.cramless.decode(Record.self, from: data)
+    }
+
+    static func store(_ record: Record, in defaults: UserDefaults) {
+        if let data = try? JSONEncoder.cramless.encode(record) { defaults.set(data, forKey: defaultsKey) }
+    }
+}
+

@@ -85,8 +85,8 @@ extension AppModel {
         wipeLocalData()
     }
 
-    /// Removes every study model, the files beside the store, the settings (onboarding runs again), the session
-    /// and the sync ledger.
+    /// Removes every study model, the files beside the store, the settings (onboarding runs again), the session,
+    /// the half-typed answers and the sync ledger.
     func wipeLocalData() {
         for m in fetch(FetchDescriptor<ChatMessage>()) { context.delete(m) }
         for m in fetch(FetchDescriptor<ChatThread>()) { context.delete(m) }
@@ -103,6 +103,8 @@ extension AppModel {
         try? FileManager.default.removeItem(at: FileStore.root)
         account.clearLocalSession()
         sync.resetLedger()
+        clearSessionKeep()
+        defaults.removeObject(forKey: AgeCheck.defaultsKey)
         var fresh = AppSettings()
         fresh.installedAt = Date()
         settings = fresh

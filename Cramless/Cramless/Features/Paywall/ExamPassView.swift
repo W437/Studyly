@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// The Exam Pass downsell: offered to a free person who declines the paywall within three weeks of an exam.
+/// The Exam Pass downsell: offered to a free person who declines the paywall 8 to 21 days before the next exam (`ExamPassOffer`).
 /// Every Pro feature for 30 days, one payment, nothing to cancel. `examID` names the exam (nil: the soonest
 /// upcoming one, or onboarding's answer to "When's your next big exam?").
 struct ExamPassView: View {
@@ -68,7 +68,7 @@ struct ExamPassView: View {
                 .padding(.top, 22)
 
                 VStack(alignment: .leading, spacing: 11) {
-                    ForEach(PaywallCopy.benefits.prefix(3), id: \.text) {
+                    ForEach(PaywallCopy.benefits(isMinor: app.settings.isMinor).prefix(3)) {
                         PaywallBenefitRow(symbol: $0.symbol, text: $0.text)
                     }
                 }

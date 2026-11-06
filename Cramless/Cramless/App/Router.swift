@@ -31,7 +31,7 @@ enum Route: Hashable, Sendable {
 }
 
 enum SettingsPage: String, Hashable, CaseIterable, Sendable, Identifiable {
-    case account, subscription, study, notifications, aiPrivacy, assistant, accessibility, appearance, data, about, debug
+    case account, subscription, study, notifications, aiPrivacy, assistant, accessibility, appearance, help, data, about, debug
     /// DEBUG builds: every sound and haptic, for auditioning and filming.
     case feelLab
     var id: String { rawValue }
@@ -123,6 +123,8 @@ enum AppSheet: Identifiable, Hashable, Sendable {
     case todayReasons
     /// Today's quests up close.
     case quests
+    /// Help: write to a real person, what is always free, restore.
+    case help
 
     var id: String { String(describing: self) }
 }
@@ -135,6 +137,13 @@ enum AppCover: Identifiable, Hashable, Sendable {
     case onboarding(page: Int?)
 
     var id: String { String(describing: self) }
+}
+
+/// What a toast's button opens.
+enum ToastAction: Hashable, Sendable {
+    /// A screen pushed on a tab, which becomes the selected one.
+    case push(Route, AppTab)
+    case present(AppSheet)
 }
 
 @MainActor
@@ -181,6 +190,27 @@ final class Router {
 
     func toast(_ message: LocalizedStringResource, systemImage: String = "checkmark.circle.fill", tone: Toast.Tone = .success) {
         toast = Toast(message: message, systemImage: systemImage, tone: tone)
+    }
+
+    /// A toast with a button ("Open"): stays a little longer, and its button runs `action`.
+    func toast(_ message: LocalizedStringResource, systemImage: String = "checkmark.circle.fill", tone: Toast.Tone = .success,
+               actionTitle: LocalizedStringResource, action: ToastAction, duration: Double = 6) {
+        toast = Toast(message: message, systemImage: systemImage, tone: tone, actionTitle: actionTitle, action: action,
+                      duration: duration)
+    }
+
+    /// The toast's button was pressed: the toast goes, and what it offered opens (a pushed screen over any cover, or a sheet).
+    func runToastAction() {
+        guard let action = toast?.action else { return }
+        toast = nil
+        switch action {
+        case .push(let route, let tab):
+            sheet = nil
+            cover = nil
+            push(route, on: tab)
+        case .present(let sheet):
+            present(sheet)
+        }
     }
 
     /// Binding for a tab's navigation path.

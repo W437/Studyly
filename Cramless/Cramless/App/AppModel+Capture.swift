@@ -391,13 +391,16 @@ extension AppModel {
     }
 
     /// Lectures the app was closed in the middle of (a crash, a force-quit): the audio stream is remuxed into
-    /// `lecture.m4a`, its length read back, and what was transcribed before the close is kept. Call once at launch.
-    func recoverInterruptedLectures() async {
+    /// `lecture.m4a`, its length read back, and what was transcribed before the close is kept. Call once at launch. Returns
+    /// what it kept, for the toast that says so (`announceRecoveredLectures`).
+    @discardableResult
+    func recoverInterruptedLectures() async -> [RecoveredLecture] {
         let lecture = SourceKind.lecture.rawValue
         let captured = SourceStatus.captured.rawValue
         let candidates = fetch(FetchDescriptor<Source>(predicate: #Predicate {
             $0.kindRaw == lecture && $0.statusRaw == captured && $0.deletedAt == nil
         }))
+        var recovered: [RecoveredLecture] = []
         for source in candidates where source.fileName?.hasSuffix(LectureFiles.recordingName) == true
             && !LectureJobs.recording.contains(source.id) {
             let id = source.id
@@ -411,6 +414,19 @@ extension AppModel {
             source.status = source.segments.isEmpty ? .captured : .read
             touch(source)
             save()
+            if file != nil { recovered.append(RecoveredLecture(id: id, duration: source.duration)) }
+        }
+        return recovered
+    }
+
+    /// Says that lectures cut off by a crash were kept ("Cap kept your lecture up to 41:20.", with Open), once, at launch. Nothing
+    /// for a recording under `RecoveredLecture.worthTelling` (a stray tap on record), or while onboarding shows.
+    func announceRecoveredLectures(_ lectures: [RecoveredLecture]) {
+        guard settings.onboardingCompleted, let toast = RecoveredLecture.toast(for: lectures) else { return }
+        if let action = toast.action {
+            router.toast(toast.message, systemImage: "checkmark.circle.fill", tone: .success, actionTitle: "Open", action: action)
+        } else {
+            router.show(Toast(message: toast.message, systemImage: "checkmark.circle.fill", tone: .success, duration: 5))
         }
     }
 

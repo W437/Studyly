@@ -113,13 +113,23 @@ final class ExamPresentationTests: XCTestCase {
         XCTAssertEqual(ExamPresentation.phase(examDate: day(-3, hour: 9), now: now, calendar: cal), .past(days: 3))
     }
 
-    func testExamPassOnlyForFreeUsersWithinThreeWeeks() {
-        XCTAssertTrue(ExamPresentation.offersExamPass(plan: .free, phase: .ahead(days: 21)))
-        XCTAssertTrue(ExamPresentation.offersExamPass(plan: .free, phase: .eve))
-        XCTAssertFalse(ExamPresentation.offersExamPass(plan: .free, phase: .ahead(days: 22)))
-        XCTAssertFalse(ExamPresentation.offersExamPass(plan: .pro, phase: .ahead(days: 3)))
-        XCTAssertFalse(ExamPresentation.offersExamPass(plan: .pass, phase: .ahead(days: 3)))
-        XCTAssertFalse(ExamPresentation.offersExamPass(plan: .free, phase: .past(days: 2)))
+    func testExamPassOnlyForFreeUsersEightToTwentyOneDaysOut() {
+        func offers(_ days: Int, plan: Plan = .free, others: [Int] = []) -> Bool {
+            ExamPresentation.offersExamPass(plan: plan, examDate: day(days, hour: 9),
+                                            examDates: others.map { day($0, hour: 9) }, now: now, calendar: cal)
+        }
+        XCTAssertTrue(offers(21))
+        XCTAssertTrue(offers(8))
+        XCTAssertFalse(offers(22), "too early")
+        XCTAssertFalse(offers(7), "exam week")
+        XCTAssertFalse(offers(1), "the eve")
+        XCTAssertFalse(offers(0), "the day")
+        XCTAssertFalse(offers(-2), "past")
+        XCTAssertFalse(offers(15, plan: .pro))
+        XCTAssertFalse(offers(15, plan: .pass))
+        XCTAssertFalse(offers(15, others: [3]), "another exam in 3 days keeps it quiet")
+        XCTAssertTrue(offers(15, others: [40]))
+        XCTAssertFalse(offers(30, others: [10]), "this exam is past the window, though another is in it")
     }
 
     // MARK: What the questions cover
