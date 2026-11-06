@@ -95,13 +95,23 @@ struct ExamEditorView: View {
                     Toggle("Multiple choice", isOn: $draft.format.multipleChoice).tint(CLColor.tangerine)
                     Toggle("Short answer", isOn: $draft.format.shortAnswer).tint(CLColor.tangerine)
                     Toggle("Essay", isOn: $draft.format.essay).tint(CLColor.tangerine)
-                    TextField("Notes, like open book or 90 minutes", text: $draft.format.notes, axis: .vertical)
+                    LabeledContent("Questions on it") {
+                        TextField("Not sure", value: $draft.format.questionCount, format: .number)
+                            .keyboardType(.numberPad)
+                            .multilineTextAlignment(.trailing)
+                    }
+                    LabeledContent("Minutes") {
+                        TextField("Not sure", value: $draft.format.minutes, format: .number)
+                            .keyboardType(.numberPad)
+                            .multilineTextAlignment(.trailing)
+                    }
+                    TextField("Notes, like open book", text: $draft.format.notes, axis: .vertical)
                         .clFont(.body)
                         .lineLimit(1...4)
                 } header: {
                     Text("Format")
                 } footer: {
-                    Text("The format shapes the projected grade: multiple choice leaves room for a good guess.")
+                    Text("Mock exams follow the format. It shapes the projected grade too: multiple choice leaves room for a good guess.")
                 }
                 .clFont(.body)
                 .listRowBackground(CLColor.surface)

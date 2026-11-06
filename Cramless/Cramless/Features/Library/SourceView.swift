@@ -12,6 +12,7 @@ struct SourceView: View {
         let _ = app.revision
         if let source = app.source(sourceID), source.deletedAt == nil {
             content(source)
+                .task(id: sourceID) { app.noteOpened(sourceID: sourceID) }
         } else {
             ContentUnavailableView("This source is gone", systemImage: "doc.questionmark",
                                    description: Text("It was deleted on this or another device."))

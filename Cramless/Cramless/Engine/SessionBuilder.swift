@@ -17,6 +17,8 @@ struct SessionSpec: Sendable, Equatable {
     var itemIDs: [UUID] = []
     /// Questions a daily session takes first, after learning steps ("Fix my week"), if they are still due.
     var focusItemIDs: [UUID] = []
+    /// A mock's size. Nil: what the exam's format says, else `MockExamBuilder.defaultSize`.
+    var questionCount: Int? = nil
 }
 
 /// One question in a session.
@@ -211,6 +213,8 @@ struct SessionBuilder: Sendable {
             buildExplicit(spec.itemIDs, items: items, index: index, into: &session)
         case .practice:
             buildPractice(spec, items: items, index: index, into: &session)
+        case .mock:
+            buildMock(spec, items: items, index: index, into: &session)
         }
         return session
     }
@@ -583,6 +587,20 @@ struct SessionBuilder: Sendable {
         }
         for c in extra where used + c.cost <= budget { used += c.cost; picked.append(entry(c, .practice)) }
         session.entries = arrange(picked, byID: byID)
+    }
+
+    // MARK: Mock exam
+
+    /// The questions of a mock, seeded by the session's id. A mock runs on its own screen (`MockRunner`); this is what a request for one
+    /// comes to. Nothing for an exam that has gone, or with too few questions.
+    private func buildMock(_ spec: SessionSpec, items: [ItemSnapshot], index: ExamIndex, into session: inout BuiltSession) {
+        guard let exam = index.all.first(where: { $0.id == spec.examID }) else { return }
+        session.examID = exam.id
+        session.courseID = exam.courseID
+        let builder = MockExamBuilder(fsrs: fsrs, calendar: calendar, now: now)
+        guard let plan = builder.build(exam: exam, items: items, seed: StableRandom.seed(spec.id, day: today), size: spec.questionCount) else { return }
+        session.entries = plan.entries
+        session.budgetSeconds = Double(plan.minutes) * 60
     }
 
     // MARK: Order

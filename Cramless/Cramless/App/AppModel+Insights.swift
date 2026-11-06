@@ -235,6 +235,21 @@ extension AppModel {
         return (exam, readinessValue(of: ExamSnapshot(exam)))
     }
 
+    /// A course's questions as the Questions tab reads them, in the order given: recall now for the studied ones, and which sit in an open
+    /// mix-up.
+    func courseQuestionRows(_ items: [StudyItem]) -> [CourseQuestions.Row] {
+        let courses = Set(items.compactMap { $0.course?.id })
+        let mixedUp = Set(confusionSnapshots().filter { $0.status == .open && $0.courseID.map(courses.contains) == true }.flatMap(\.itemIDs))
+        let fsrs = self.fsrs
+        let now = self.now
+        return items.map { item in
+            let memory = item.memory
+            let studied = memory.state != .new && memory.lastReview != nil && memory.stability > 0
+            return CourseQuestions.Row(id: item.id, kind: item.kind, topicID: item.topicID, isSuspended: item.status == .suspended,
+                                       recall: studied ? fsrs.retrievability(of: memory, at: now) : nil, inMixUp: mixedUp.contains(item.id))
+        }
+    }
+
     /// A course's topics in topic order, each with its active questions: what the course page lists, with or without an exam.
     func courseTopics(_ course: Course) -> [LibraryFormat.CourseTopic] {
         var counts: [UUID: Int] = [:]

@@ -45,6 +45,8 @@ final class DeepLinkTests: XCTestCase {
         XCTAssertEqual(parse("capling://session?kind=fix"), .session(kind: .daily, examID: nil, confusionID: nil, courseID: nil),
                        "a fix without its confusion is today's session")
         XCTAssertEqual(parse("capling://session?kind=quickCheck"), .session(kind: .daily, examID: nil, confusionID: nil, courseID: nil))
+        XCTAssertEqual(parse("capling://session?kind=mock"), .session(kind: .daily, examID: nil, confusionID: nil, courseID: nil),
+                       "a mock isn't reachable from outside: it opens from its exam")
         XCTAssertEqual(parse("capling://session?kind=nonsense"), .session(kind: .daily, examID: nil, confusionID: nil, courseID: nil))
     }
 

@@ -19,6 +19,40 @@ struct QuestionCard<Content: View>: View {
     }
 }
 
+/// The box an answer in the person's own words is typed in.
+struct AnswerEditor: View {
+    @Binding var text: String
+    var focused: FocusState<Bool>.Binding
+
+    var body: some View {
+        ZStack(alignment: .topLeading) {
+            if text.isEmpty {
+                Text("Type your answer…")
+                    .clFont(.body)
+                    .foregroundStyle(CLColor.ink4)
+                    .padding(.horizontal, 5)
+                    .padding(.vertical, 8)
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
+            }
+            TextEditor(text: $text)
+                .focused(focused)
+                .clFont(.body)
+                .foregroundStyle(CLColor.ink)
+                .scrollContentBackground(.hidden)
+                .frame(minHeight: 116)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityLabel("Your answer")
+        }
+        .padding(.horizontal, 11)
+        .padding(.vertical, 8)
+        .background(CLColor.surface2, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous)
+            .strokeBorder(focused.wrappedValue ? CLColor.sky : CLColor.surface3, lineWidth: 2))
+        .animation(CLMotion.snap, value: focused.wrappedValue)
+    }
+}
+
 /// A question's scroll view: readable width on big screens, keyboard dismissed by dragging.
 struct QuestionScroll<Content: View>: View {
     /// Where the page is scrolled to, for a view that moves it itself (the summary's film hook).

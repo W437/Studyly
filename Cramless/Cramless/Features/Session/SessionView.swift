@@ -222,7 +222,9 @@ struct SessionTopBar: View {
     private var contextLine: String? {
         if runner.resumed, runner.answers.isEmpty { return String(localized: "Picked up where you left off.") }
         switch runner.kind {
-        case .daily, .quickCheck: return nil
+        case .daily:
+            return runner.courseName.map(SessionCopy.studyCourse)
+        case .quickCheck, .mock: return nil
         case .fix:
             let name = runner.built.weakSpots.first?.name
             return [SessionCopy.title(for: .fix), name].compactMap { $0 }.joined(separator: " · ")
@@ -231,7 +233,8 @@ struct SessionTopBar: View {
         case .catchUp:
             return "Catch-up · the ones you're closest to forgetting"
         case .practice:
-            return "Bonus round · extra practice"
+            return [String(localized: "Practice"), runner.topicName(runner.request.topicID) ?? runner.courseName]
+                .compactMap { $0 }.joined(separator: " · ")
         }
     }
 }

@@ -235,31 +235,7 @@ struct OwnWordsQuestionView: View {
     // MARK: Answering
 
     private var editor: some View {
-        ZStack(alignment: .topLeading) {
-            if text.isEmpty {
-                Text("Type your answer…")
-                    .clFont(.body)
-                    .foregroundStyle(CLColor.ink4)
-                    .padding(.horizontal, 5)
-                    .padding(.vertical, 8)
-                    .allowsHitTesting(false)
-                    .accessibilityHidden(true)
-            }
-            TextEditor(text: $text)
-                .focused($editorFocused)
-                .clFont(.body)
-                .foregroundStyle(CLColor.ink)
-                .scrollContentBackground(.hidden)
-                .frame(minHeight: 116)
-                .fixedSize(horizontal: false, vertical: true)
-                .accessibilityLabel("Your answer")
-        }
-        .padding(.horizontal, 11)
-        .padding(.vertical, 8)
-        .background(CLColor.surface2, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous)
-            .strokeBorder(editorFocused ? CLColor.sky : CLColor.surface3, lineWidth: 2))
-        .animation(CLMotion.snap, value: editorFocused)
+        AnswerEditor(text: $text, focused: $editorFocused)
     }
 
     // MARK: Graded

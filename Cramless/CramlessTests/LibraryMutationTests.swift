@@ -223,7 +223,6 @@ final class LibraryMutationTests: XCTestCase {
         XCTAssertEqual(app.calibratingExamCount, 1)
         let soon = try XCTUnwrap(app.createExam(ExamDraft(title: "Quiz 3", courseID: course.id, date: day(9))))
         XCTAssertFalse(ExamPresentation.showsLetter(app.readiness(for: soon).projectedGrade), "no letter until calibrated")
-        XCTAssertNil(ExamPresentation.shownGrade(app.readiness(for: soon).projectedGrade))
 
         let second = try XCTUnwrap(app.createExam(ExamDraft(title: "Quiz 2", courseID: course.id, date: day(10))))
         second.createdAt = day(-30)

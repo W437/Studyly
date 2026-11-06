@@ -9,7 +9,8 @@ import SwiftUI
 /// Harness: `CRAMLESS_ROUTE=exam[:n]` (0 the Chem quiz on Sunday, 1 the Bio midterm, 2 AP Psych, with
 /// `CRAMLESS_NOW=2026-11-06T14:00:00-05:00`); `CRAMLESS_SCENARIO=eve|past|graded|missed|thin|calibrated|ontrack|crowded|empty` puts
 /// the exam (or yesterday) in that state first (`AppModel.applyHarnessScenario`); `CRAMLESS_EXAM_SKIP=1` opens with the what-if on;
-/// `CRAMLESS_SCROLL=topics|plan|materials|path` scrolls to a section.
+/// `CRAMLESS_SCROLL=topics|plan|materials|path` scrolls to a section. `CRAMLESS_SCENARIO=mocked` adds a mock taken three days ago (the
+/// card's "Last mock" line); `fewItems` leaves five questions in scope (the card asks for more).
 struct ExamDetailView: View {
     let examID: UUID
 
@@ -59,6 +60,8 @@ struct ExamDetailModel {
     var offersRest = false
     var materials: [Material]
     var offersExamPass: Bool
+    /// The mock exam's card; nil on the eve, the day and after.
+    var mock: ExamPresentation.MockCard?
     var now: Date
     var calendar: Calendar
 
@@ -121,6 +124,12 @@ struct ExamDetailModel {
         offersExamPass = ExamPresentation.offersExamPass(plan: app.purchases.plan, examDate: exam.date,
                                                          examDates: app.upcomingExams().map(\.date), now: app.now,
                                                          calendar: app.calendar)
+        let offer = app.mockOffer(for: exam)
+        let last = offer == .hidden ? nil : app.lastMock(for: exam.id)
+        // Only a card that asks for more questions needs to know whether a reading has more to give.
+        var canWrite = false
+        if case .tooFew = offer { canWrite = app.restRequest(for: exam) != nil }
+        mock = ExamPresentation.mockCard(offer: offer, lastScore: last?.score, lastDate: last?.date, canWrite: canWrite, calendar: app.calendar)
     }
 
     var isPast: Bool { if case .past = phase { true } else { false } }
@@ -151,7 +160,9 @@ private struct ExamDetailContent: View {
                 if model.isPast, model.result != nil {
                     resultCard.padding(.top, 16)
                 }
-                // Stage 2: the mock exam card goes here, beside the projection (never on the eve or the day).
+                if let mock = model.mock {
+                    mockCard(mock).padding(.top, 16)
+                }
                 topicsSection.id("topics")
                 if let note = model.coverage {
                     // The ring is how well the questions are remembered; this is how much of the material they reach.
@@ -429,6 +440,67 @@ private struct ExamDetailContent: View {
             app.router.present(.session(SessionRequest(kind: .practice, courseID: model.courseID, examID: model.id, minutes: minutes,
                                                        topicID: topicID)))
         }
+    }
+
+    // MARK: The mock exam
+
+    private func mockCard(_ card: ExamPresentation.MockCard) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            CLIconBadge(systemImage: "timer", tint: .sky, size: 40)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(MockCopy.title)
+                    .clFont(.headline)
+                    .foregroundStyle(CLColor.ink)
+                    .accessibilityAddTraits(.isHeader)
+                switch card.kind {
+                case .offer(let line, let mix):
+                    Text(verbatim: line)
+                        .clFont(.subheadlineEmphasis)
+                        .foregroundStyle(CLColor.ink)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text(verbatim: mix)
+                        .clFont(.subheadline)
+                        .foregroundStyle(CLColor.ink2)
+                        .fixedSize(horizontal: false, vertical: true)
+                case .tooFew(let line, _):
+                    Text(verbatim: line)
+                        .clFont(.subheadline)
+                        .foregroundStyle(CLColor.ink2)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                if let last = card.last {
+                    Text(verbatim: last)
+                        .clFont(.footnoteEmphasis)
+                        .foregroundStyle(CLColor.ink3)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.top, 2)
+                }
+                switch card.kind {
+                case .offer:
+                    Button {
+                        CLHaptics.commit()
+                        app.router.present(.mockExam(examID: model.id))
+                    } label: {
+                        Text("Take it")
+                    }
+                    .buttonStyle(.cl(.dark, size: .medium, fullWidth: false))
+                    .padding(.top, 6)
+                case .tooFew(_, let canWrite):
+                    CLFlow(spacing: 8, lineSpacing: 8) {
+                        if canWrite {
+                            Button("Write more questions", action: addForTheRest)
+                                .buttonStyle(.cl(.dark, size: .medium, fullWidth: false))
+                        }
+                        Button("Add material") { app.router.present(.capture(courseID: model.courseID)) }
+                            .buttonStyle(.cl(canWrite ? .soft : .dark, size: .medium, fullWidth: false))
+                    }
+                    .padding(.top, 6)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .clCard()
+        .accessibilityElement(children: .contain)
     }
 
     // MARK: After the exam

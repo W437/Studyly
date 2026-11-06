@@ -66,6 +66,7 @@ struct LectureNotesView: View {
         .onAppear {
             load()
             focusOnce()
+            app.noteOpened(sourceID: sourceID)
         }
         .onChange(of: app.revision) { _, _ in load() }
         .onChange(of: app.ai.hasCloudConsent) { old, new in

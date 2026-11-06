@@ -24,12 +24,12 @@ enum PaywallCopy {
         return rows
     }
 
-    /// What every account keeps without paying, shown above the prices ("Always free"). A feature joins here when it ships free
-    /// (mock exams, in Stage 2, go after the plan row). The last row is the free AI allowance, in the relay's numbers
-    /// (`AIFreeLimits`; a test keeps them in step).
+    /// What every account keeps without paying, shown above the prices ("Always free"). A feature joins here when it ships free. The
+    /// last row is the free AI allowance, in the relay's numbers (`AIFreeLimits`; a test keeps them in step).
     static let alwaysFree: [Row] = [
         Row(symbol: "rectangle.stack", text: "Reviews and flashcards, as many as you like"),
         Row(symbol: "target", text: "A plan and readiness for every exam"),
+        Row(symbol: "timer", text: "Mock exams"),
         Row(symbol: "flame", text: "Your streak, quests and the sky"),
         Row(symbol: "square.and.arrow.down", text: "Quizlet and Anki imports"),
         Row(symbol: "sparkles", text: "Each week 3 AI scans and notes for 1 lecture; each day 20 graded answers and 10 questions for Cap"),

@@ -293,6 +293,22 @@ final class EngineSessionBuilderTests: XCTestCase {
 
     // MARK: Speed
 
+    func testAMockRequestBuildsTheExamsMock() {
+        let exam = ExamSnapshot(courseID: course, title: "Midterm", date: cal.adding(days: 9, to: now), format: ExamFormat())
+        let session = builder().build(SessionSpec(kind: .mock, examID: exam.id, questionCount: 10), items: world(), exams: [exam], topicNames: names)
+        XCTAssertEqual(session.kind, .mock)
+        XCTAssertEqual(session.examID, exam.id)
+        XCTAssertEqual(session.courseID, course)
+        XCTAssertEqual(session.entries.count, 10)
+        XCTAssertGreaterThan(session.budgetSeconds, 0)
+        XCTAssertTrue(session.entries.allSatisfy { $0.kind != .flashcard && $0.examID == exam.id })
+        XCTAssertEqual(session.entries.first?.kind, .mcq, "multiple choice first")
+        XCTAssertFalse(session.stopsAfter)
+
+        XCTAssertTrue(builder().build(SessionSpec(kind: .mock, examID: UUID()), items: world(), exams: [exam], topicNames: names).isEmpty, "an exam that has gone")
+        XCTAssertTrue(builder().build(SessionSpec(kind: .mock, examID: exam.id), items: Array(world().prefix(3)), exams: [exam], topicNames: names).isEmpty, "too few")
+    }
+
     func testFiveThousandItemsUnderFiftyMilliseconds() {
         let courses = (0..<5).map { _ in UUID() }
         let topicIDs = (0..<40).map { _ in UUID() }
