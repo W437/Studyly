@@ -176,6 +176,9 @@ sleep 4; xcrun simctl io <udid> screenshot shot.png
       `k` "I don't know") and presses Continue `CRAMLESS_AUTOPLAY_BEAT` ms after each panel, through to the summary.
       Film it with `CRAMLESS_MOCK_AI=0`, so the feedback is the real offline grade of that answer.
     - `CRAMLESS_SESSION_MINUTES=<n>` makes the session that long (a 5-minute one reaches its summary inside a film).
+    - `CRAMLESS_SESSION_DRAFT=<text>` (with `ownwords`): the first question's editor opens with those words "Kept from before"
+      (`AnswerDrafts`). `CRAMLESS_SESSION_RESUME=1` (with `session` or `session:catchUp|examEve`): a session of that kind was cut off
+      earlier today after three answers, with words typed on an own-words question; it picks up ("Picked up where you left off.").
     - `CRAMLESS_SESSION_STATE=flashcard-saved|mcq-saved` makes the first flashcard (or multiple-choice question) a
       fading memory and answers it right: a save, with the sky's flare.
     - `CRAMLESS_SUMMARY_SKY=<ms>` opens the memory sky that long after a summary's choreography, as a tap on its
@@ -196,7 +199,11 @@ sleep 4; xcrun simctl io <udid> screenshot shot.png
     something else, `_APPROVE=<ms>` presses Add and `_UNDO=<ms>` takes it back, `_SEED=1` (with `CRAMLESS_ROUTE=settings:assistant`) fills "Added by
     Cap", `CRAMLESS_RESEARCH=pro` shows a free account's web research. `scripts/cap_anim/films_assistant.sh <udid> <out>` films and shoots them all.
   - Paywall and onboarding: `CRAMLESS_PAYWALL_PLAN`, `CRAMLESS_PAYWALL_STATE=purchasing|pending|cancelled|failed|purchased|restored`,
-    `CRAMLESS_PAYWALL_TRIAL=0`, `CRAMLESS_PAYWALL_SCROLL`, `CRAMLESS_ONB_REMINDER=1`.
+    `CRAMLESS_PAYWALL_TRIAL=0`, `CRAMLESS_PAYWALL_SCROLL=free|plans|timeline` (`free`: the "Always free" card), `CRAMLESS_ONB_REMINDER=1`.
+  - Money and trust: `CRAMLESS_QUOTA=scans:2,lectures:1,grades:20` sets the free AI uses left on those meters, as if the server said so
+    (`scans:0` is the limit reached; the + sheet, the scanner and the recorder say it, `AllowanceCopy`); `CRAMLESS_LECTURE_RECOVERED=2480`
+    raises launch's "Cap kept your lecture up to 41:20." toast with Open (`=2480,3100`: two lectures); `CRAMLESS_ROUTE=settings:help`
+    opens Help.
 - Feel:
   - The harness is silent unless `CRAMLESS_SOUNDS=1`, but logs every cue to `Documents/feel-log.jsonl` for
     `film.sh`.
