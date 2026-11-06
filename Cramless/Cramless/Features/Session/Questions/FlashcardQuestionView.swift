@@ -19,6 +19,8 @@ struct FlashcardQuestionView: View {
     @State private var flipped = false
     @State private var intervals: [Rating: Double] = [:]
     @State private var flippedAtMs = 0
+    /// Back from an Undo: flipped as it was, and nothing plays again.
+    @State private var restored = false
 
     var body: some View {
         QuestionScroll {
@@ -42,9 +44,16 @@ struct FlashcardQuestionView: View {
             card
         }
         .sessionFooter { footer }
+        .onAppear(perform: pickUpRestore)
+        // The rating held for Undo moved the session's due load when it was recorded: a label can be a day off until then.
+        .onChange(of: runner.pending == nil) { _, recorded in
+            if recorded, runner.current?.id == entry.id { intervals = app.intervalPreview(itemID: item.id, sessionID: runner.sessionID) }
+        }
         .task {
-            app.readAloud(question: item)
+            pickUpRestore()
             intervals = app.intervalPreview(itemID: item.id, sessionID: runner.sessionID)
+            guard !restored else { return }
+            app.readAloud(question: item)
             if autoFlip {
                 do { try await nap(450) } catch { return }
                 flip()
@@ -178,13 +187,22 @@ struct FlashcardQuestionView: View {
     }
 
     private func rate(_ rating: Rating) {
+        guard runner.current?.id == entry.id else { return }
         // A self-rating sounds the same whatever it is, and neither builds nor breaks a run (ComboRun).
         CLFeel.play(.rated)
         app.stopReadingAloud()
         let review = runner.record(rating: rating, score: -1, answer: nil, gradedBy: "person", durationMs: flippedAtMs,
-                                   outcome: SessionRunner.Outcome(rating: rating))
+                                   outcome: SessionRunner.Outcome(rating: rating), undo: .flashcard(flippedAtMs: flippedAtMs))
         if review?.isSave == true { runner.flareSave(of: item) }
         withAnimation(CLMotion.settle) { runner.advance() }
+    }
+
+    /// The rating was undone: the card is back, flipped, as it was.
+    private func pickUpRestore() {
+        guard !restored, case .flashcard(let ms)? = runner.takeRestore(for: entry.id) else { return }
+        restored = true
+        flipped = true
+        flippedAtMs = ms
     }
 }
 

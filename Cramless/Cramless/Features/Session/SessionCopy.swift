@@ -50,6 +50,21 @@ enum SessionCopy {
         return "in \(text)"
     }
 
+    // MARK: Undo
+
+    /// The Undo pill: "Easy · back in 4 weeks".
+    static func undoLine(rating: Rating, days: Double) -> LocalizedStringResource {
+        "\(rating.title) · back in \(interval(days: days))"
+    }
+
+    /// What VoiceOver reads for the pill's button.
+    static func undoAccessibility(rating: Rating) -> LocalizedStringResource { "Undo \(rating.title)" }
+
+    /// What VoiceOver says when a rating is held.
+    static func undoAnnouncement(rating: Rating) -> LocalizedStringResource {
+        "Marked \(rating.title). Undo is at the bottom."
+    }
+
     // MARK: Grades
 
     /// The answer panel's headline: "Nice!", "Almost.", "Not yet.", "Here's the answer." (nothing was answered), or

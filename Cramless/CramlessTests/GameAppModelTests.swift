@@ -584,6 +584,26 @@ final class GameAppModelTests: XCTestCase {
         XCTAssertLessThan(incremental, .milliseconds(60), "a new answer is not a rescan of the log")
     }
 
+    // MARK: Undo
+
+    func testQuestsSeeAHeldRatingOnlyOnceItIsRecorded() throws {
+        let course = makeCourse()
+        let card = makeItem(in: course)
+        let other = makeItem(in: course)
+        app.save()
+        let runner = SessionRunner(app: app, request: SessionRequest(kind: .practice, itemIDs: [card.id, other.id]),
+                                   options: .init(liveActivity: false, undoWindow: .seconds(600)))
+        runner.start()
+        let key = cal.dayKey(for: clock.now)
+        let before = app.questFacts(forDay: key)
+        runner.record(rating: .good, score: -1, answer: nil, gradedBy: "person", durationMs: 3000, outcome: .right,
+                      undo: .flashcard(flippedAtMs: 3000))
+        runner.advance()
+        XCTAssertEqual(app.questFacts(forDay: key), before, "still held: nothing to read")
+        runner.commitPending()
+        XCTAssertEqual(app.questFacts(forDay: key).newLearned, before.newLearned + 1)
+    }
+
     // MARK: Asking for a rating
 
     func testTheRatingPromptNeverComesInTests() {

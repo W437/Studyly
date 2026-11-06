@@ -67,6 +67,7 @@ private struct SessionFooter<Primary: View, Secondary: View>: ViewModifier {
     let secondary: Secondary
 
     @Environment(\.dynamicTypeSize) private var typeSize
+    @Environment(\.sessionUndoSlot) private var undoSlot
 
     func body(content: Content) -> some View {
         content.safeAreaBar(edge: .bottom) {
@@ -79,6 +80,17 @@ private struct SessionFooter<Primary: View, Secondary: View>: ViewModifier {
                 }
             }
             .animation(CLMotion.sheet, value: feedback != nil)
+            // Undo floats just above the footer and takes no room, so no button moves under a finger when it comes and goes.
+            .overlay(alignment: .top) {
+                if let undoSlot {
+                    Color.clear
+                        .frame(height: 0)
+                        .overlay(alignment: .bottom) {
+                            UndoPill(runner: undoSlot.runner, entryID: undoSlot.entryID)
+                                .padding(.bottom, 4)
+                        }
+                }
+            }
             .dynamicTypeSize(...DynamicTypeSize.accessibility2)
         }
     }
@@ -103,6 +115,95 @@ private struct SessionFooter<Primary: View, Secondary: View>: ViewModifier {
                 .padding(.top, -18)
                 .ignoresSafeArea(edges: .bottom)
                 .allowsHitTesting(false)
+        }
+    }
+}
+
+/// Where a session's Undo shows: the footer of the question on screen (or, with `entryID` nil, of "That was the last one.").
+struct SessionUndoSlot {
+    let runner: SessionRunner
+    var entryID: String?
+}
+
+extension EnvironmentValues {
+    @Entry var sessionUndoSlot: SessionUndoSlot? = nil
+}
+
+/// "Easy · back in 4 weeks" and Undo, in a glass capsule, while a rating the person gave is held (`SessionRunner.PendingGrade`). It waits
+/// for the next question to arrive and steps aside once that one has been checked. ⌘Z on a keyboard.
+///
+/// DEBUG: `CRAMLESS_SESSION_UNDO=<ms>` presses Undo that long after the pill shows (once).
+struct UndoPill: View {
+    let runner: SessionRunner
+    /// The question whose footer this is; nil on "That was the last one."
+    var entryID: String?
+
+    private var held: SessionRunner.PendingGrade? {
+        guard let pending = runner.pending, runner.provisional == nil else { return nil }
+        guard let entryID else { return runner.phase == .wrapping ? pending : nil }
+        return runner.current?.id == entryID && entryID != pending.entry.id ? pending : nil
+    }
+
+    var body: some View {
+        let held = held
+        ZStack {
+            if let held {
+                pill(held)
+                    .transition(.opacity.combined(with: .offset(y: 8)))
+                    .task(id: held.reviewID) { await arrived(held) }
+            }
+        }
+        // It comes after the question it sits on has landed; it goes at once.
+        .animation(held == nil ? CLMotion.fade : CLMotion.settle.delay(0.22), value: held?.reviewID)
+    }
+
+    private func pill(_ pending: SessionRunner.PendingGrade) -> some View {
+        HStack(spacing: 4) {
+            Text(SessionCopy.undoLine(rating: pending.rating, days: pending.preview.scheduledDays))
+                .clFont(.footnoteEmphasis)
+                .foregroundStyle(CLColor.ink)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.leading, 16)
+                .accessibilityHidden(true)
+            Button(action: undo) {
+                Text("Undo")
+                    .clFont(.footnoteEmphasis)
+                    .foregroundStyle(CLColor.tangerineInk)
+                    .padding(.horizontal, 14)
+                    .frame(minHeight: CLMetrics.minHitTarget)
+                    .contentShape(Capsule())
+            }
+            .buttonStyle(.plain)
+            .keyboardShortcut("z", modifiers: .command)
+            .accessibilityLabel(SessionCopy.undoAccessibility(rating: pending.rating))
+        }
+        .padding(.trailing, 2)
+        .glassEffect(.regular, in: Capsule())
+        .padding(.horizontal, CLSpace.gutter)
+    }
+
+    /// The pill has shown: VoiceOver hears it (the rating's own sound doesn't say which it was).
+    private func arrived(_ pending: SessionRunner.PendingGrade) async {
+        AccessibilityNotification.Announcement(String(localized: SessionCopy.undoAnnouncement(rating: pending.rating))).post()
+        #if DEBUG
+        if let ms = TestHarness.once("CRAMLESS_SESSION_UNDO").flatMap(Int.init) {
+            do { try await nap(ms) } catch { return }
+            undo()
+        }
+        #endif
+    }
+
+    private func undo() {
+        CLHaptics.tap()
+        let runner = runner
+        // Two steps: the question leaving takes its way off screen from the frame before it goes.
+        runner.prepareArrival(.back)
+        Task { @MainActor in
+            try? await nap(30)
+            withAnimation(CLMotion.settle) { runner.undoPending() }
+            try? await nap(600)
+            if runner.arrival == .back { runner.prepareArrival(.forward) }
         }
     }
 }

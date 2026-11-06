@@ -1,6 +1,7 @@
 import Foundation
 import Observation
 import SwiftData
+import SwiftUI
 
 /// One session in progress: the queue, what each answer was, the `StudySession` row and the Live Activity.
 ///
@@ -8,6 +9,11 @@ import SwiftData
 /// person commits it (Continue, or a flashcard rating), moves on (an item still in a learning step comes back
 /// later through `SessionQueue`), keeps the Live Activity in step, and finishes into the engine's summary. It never
 /// grades and fires no haptics: those belong to the views, where the person acts.
+///
+/// A rating the person gave themselves can be taken back for a moment (`Options.undoWindow`): it is held (`PendingGrade`) with nothing
+/// written, the session moves on from a preview of what it will do, and it is recorded through the same path when the window ends,
+/// the next answer is recorded, the session closes or the app goes to the background. Holding rather than reverting is the point: a
+/// review log is append-only once sync has pushed it.
 @MainActor
 @Observable
 final class SessionRunner: Identifiable {
@@ -38,6 +44,8 @@ final class SessionRunner: Identifiable {
         /// Nothing to study.
         case empty
         case question
+        /// The last question's rating is held for Undo: "That was the last one." The summary starts when it is recorded.
+        case wrapping
         case finished
     }
 
@@ -46,13 +54,75 @@ final class SessionRunner: Identifiable {
         var liveActivity = true
         /// Items still in a learning step come back later in the session (off for the two-question check).
         var requeues = true
+        /// How long a self-given rating can be taken back. Nil: recorded at once (tests, onboarding, the quick check).
+        var undoWindow: Duration? = nil
     }
 
-    /// One recorded answer, in order.
+    /// One answer, in order. `isPending`: held for Undo, not recorded yet.
     struct Answer: Sendable, Equatable {
         var entry: SessionEntry
         var outcome: Outcome
         var review: ReviewOutcome
+        var isPending = false
+    }
+
+    /// What a question view needs to come back as it was when its rating is undone.
+    enum AnswerRestore {
+        /// A flashcard: flipped, its time to the flip kept.
+        case flashcard(flippedAtMs: Int)
+        /// An own-words answer: its panel, with no new grade and no sounds.
+        case ownWords(OwnWordsRestore)
+    }
+
+    /// An own-words answer as it stood on Continue.
+    struct OwnWordsRestore {
+        var submitted: String
+        var grade: GradeOutcome
+        var durationMs: Int
+        var intervals: [Rating: Double]
+        var ticked: Set<String>
+        var marked: Bool
+        var rulesFound: Bool
+        var override: Rating?
+        var secondLook: String?
+        var run: Int
+        var saved: Bool
+    }
+
+    /// A rating held for Undo: everything `recordReview` needs later, and how to go back.
+    struct PendingGrade {
+        var reviewID: UUID
+        var entry: SessionEntry
+        var rating: Rating
+        var score: Double
+        var answer: String?
+        var gradedBy: String
+        var durationMs: Int
+        var sessionID: UUID?
+        /// When the rating was given and the day it counts for, whenever it ends up recorded.
+        var ratedAt: Date
+        var dayKey: String
+        /// What recording it will do.
+        var preview: ReviewOutcome
+        var queueBefore: SessionQueue
+        var restore: AnswerRestore
+    }
+
+    /// How the next question comes on screen.
+    enum Arrival: Sendable, Equatable {
+        /// From the trailing edge.
+        case forward
+        /// Back from the leading edge (an Undo).
+        case back
+        /// Rising in place (after a flashcard flew off by a swipe).
+        case rise
+    }
+
+    /// Got it and Again for the flashcards so far, a held rating included. Hard and Easy count as got it.
+    struct FlashcardTally: Sendable, Equatable {
+        var gotIt = 0
+        var again = 0
+        var isEmpty: Bool { gotIt == 0 && again == 0 }
     }
 
     let id = UUID()
@@ -68,6 +138,10 @@ final class SessionRunner: Identifiable {
     /// The current question's grade before it is committed (colours its segment early).
     private(set) var provisional: Outcome?
     private(set) var answers: [Answer] = []
+    /// The rating being held for Undo, if any.
+    private(set) var pending: PendingGrade?
+    /// How the next question comes on screen (`SessionQuestionHost` reads it).
+    private(set) var arrival: Arrival = .forward
     /// The streak as it was when the session started (the summary shows what changed).
     private(set) var streakBefore: StreakState
     /// Wall clock, for the timer and answer durations (the app clock may be frozen by the harness).
@@ -80,6 +154,10 @@ final class SessionRunner: Identifiable {
     /// The latest save ("Saved it."), for the sky's flare over the session.
     private(set) var saveFlare: SaveFlare?
     @ObservationIgnored private var saveCount = 0
+    /// What an undone rating leaves for its question view to pick up as it comes back.
+    @ObservationIgnored private var restoring: (entryID: String, restore: AnswerRestore)?
+    /// Ends the Undo window.
+    @ObservationIgnored private var pendingTimer: Task<Void, Never>?
 
     @ObservationIgnored private let app: AppModel
     @ObservationIgnored private var items: [UUID: StudyItem] = [:]
@@ -147,6 +225,15 @@ final class SessionRunner: Identifiable {
             if answer.review.wasCorrect { right += 1 }
         }
         return right
+    }
+
+    /// The tally of the flashcards rated so far (ratings, not distinct cards: a card that came back counts again).
+    var flashcardTally: FlashcardTally {
+        var tally = FlashcardTally()
+        for answer in answers where answer.entry.kind == .flashcard {
+            if answer.review.rating == .again { tally.again += 1 } else { tally.gotIt += 1 }
+        }
+        return tally
     }
 
     func item(for entry: SessionEntry) -> StudyItem? {
@@ -258,14 +345,22 @@ final class SessionRunner: Identifiable {
     /// Records the current question's answer through the engine. Idempotent per entry. `gradedBy` says who graded it: "rules",
     /// "onDevice", "cloud", "person" for a rating the person gave (a flashcard, or another rating than the grade's), and "self" for an
     /// own-words answer the person marked against the model answer because no model graded it.
+    ///
+    /// `undo`: this is a rating the person gave themselves, and this is how its question comes back. With `Options.undoWindow` set it is
+    /// held instead of recorded, and what is returned is what recording it will do. Any older held rating is recorded first.
     @discardableResult
     func record(rating: Rating, score: Double, answer: String?, gradedBy: String, durationMs: Int,
-                outcome: Outcome) -> ReviewOutcome? {
+                outcome: Outcome, undo restore: AnswerRestore? = nil) -> ReviewOutcome? {
         guard phase == .question, let entry = queue.current else { return nil }
         if let done = answers.first(where: { $0.entry.id == entry.id }) { return done.review }
+        commitPending()
         let trimmed = answer?.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let review = app.recordReview(itemID: entry.itemID, rating: rating, score: score,
-                                            answer: (trimmed?.isEmpty ?? true) ? nil : trimmed, gradedBy: gradedBy,
+        let given = (trimmed?.isEmpty ?? true) ? nil : trimmed
+        if let restore, options.undoWindow != nil {
+            return hold(entry, rating: rating, score: score, answer: given, gradedBy: gradedBy, durationMs: durationMs,
+                        outcome: outcome, restore: restore)
+        }
+        guard let review = app.recordReview(itemID: entry.itemID, rating: rating, score: score, answer: given, gradedBy: gradedBy,
                                             durationMs: durationMs, sessionID: session?.id) else { return nil }
         answers.append(Answer(entry: entry, outcome: outcome, review: review))
         outcomes[entry.id] = outcome
@@ -273,17 +368,24 @@ final class SessionRunner: Identifiable {
         hasUnsavedAnswer = false
         // Recorded: what was typed for it is no longer a draft.
         app.clearAnswerDraft(for: entry.itemID)
-        if options.liveActivity {
-            let next = queue.upcoming.first
-            app.liveActivities.update(answered: min(distinctAnswered, max(activityTotal, 1)), correct: rightFirstTime,
-                                      topic: topicName(next?.topicID))
-        }
+        updateLiveActivity()
         return review
     }
 
-    /// Moves past the current question: an item still in a learning step is re-queued; the last one finishes.
-    func advance() {
+    private func updateLiveActivity() {
+        guard options.liveActivity else { return }
+        let next = queue.upcoming.first
+        app.liveActivities.update(answered: min(distinctAnswered, max(activityTotal, 1)), correct: rightFirstTime,
+                                  topic: topicName(next?.topicID))
+    }
+
+    /// Moves past the current question: an item still in a learning step is re-queued; the last one finishes (or, with its rating
+    /// held for Undo, waits on "That was the last one.").
+    func advance(arriving arrival: Arrival = .forward) {
         guard phase == .question, let entry = queue.current else { return }
+        // A question left without an answer leaves a held rating behind: it can't come back past this one.
+        if let pending, pending.entry.id != entry.id { commitPending() }
+        self.arrival = arrival
         if options.requeues, let answer = answers.last(where: { $0.entry.id == entry.id }) {
             queue.advance(rating: answer.review.rating, memoryAfter: answer.review.after)
         } else {
@@ -293,12 +395,108 @@ final class SessionRunner: Identifiable {
         hasUnsavedAnswer = false
         isTypingAnswer = false
         questionShownAt = Date()
-        if queue.isFinished { finish() } else { keepCheckpoint() }
+        if queue.isFinished {
+            if pending != nil { phase = .wrapping } else { finish() }
+        } else {
+            keepCheckpoint()
+        }
     }
+
+    // MARK: Undo
+
+    /// Holds a rating for the Undo window. The answer joins the session at once (segments, tally, Live Activity); nothing is written
+    /// until it is committed.
+    private func hold(_ entry: SessionEntry, rating: Rating, score: Double, answer: String?, gradedBy: String, durationMs: Int,
+                      outcome: Outcome, restore: AnswerRestore) -> ReviewOutcome? {
+        let reviewID = ModelID.make()
+        let ratedAt = app.now
+        guard let preview = app.previewReview(itemID: entry.itemID, rating: rating, score: score, sessionID: session?.id,
+                                              at: ratedAt, reviewID: reviewID) else { return nil }
+        pending = PendingGrade(reviewID: reviewID, entry: entry, rating: rating, score: score, answer: answer, gradedBy: gradedBy,
+                               durationMs: durationMs, sessionID: session?.id, ratedAt: ratedAt,
+                               dayKey: app.calendar.dayKey(for: ratedAt), preview: preview, queueBefore: queue, restore: restore)
+        answers.append(Answer(entry: entry, outcome: outcome, review: preview, isPending: true))
+        outcomes[entry.id] = outcome
+        provisional = nil
+        hasUnsavedAnswer = false
+        updateLiveActivity()
+        startPendingTimer()
+        return preview
+    }
+
+    private func startPendingTimer() {
+        pendingTimer?.cancel()
+        pendingTimer = nil
+        guard let window = options.undoWindow else { return }
+        #if DEBUG
+        if TestHarness.value("CRAMLESS_UNDO_HOLD") == "1" { return }
+        #endif
+        pendingTimer = Task { @MainActor [weak self] in
+            do { try await Task.sleep(for: window) } catch { return }
+            guard let self, !Task.isCancelled else { return }
+            withAnimation(CLMotion.settle) { self.commitPending() }
+        }
+    }
+
+    /// Records the held rating, if any, through the idempotent path, with the time and day it was given. On "That was the last one." the
+    /// summary starts here.
+    func commitPending() {
+        guard settlePending(), phase == .wrapping else { return }
+        finish()
+    }
+
+    /// Writes the held rating. True if there was one.
+    @discardableResult
+    private func settlePending() -> Bool {
+        guard let pending else { return false }
+        self.pending = nil
+        pendingTimer?.cancel()
+        pendingTimer = nil
+        let review = app.recordReview(itemID: pending.entry.itemID, rating: pending.rating, score: pending.score, answer: pending.answer,
+                                      gradedBy: pending.gradedBy, durationMs: pending.durationMs, sessionID: pending.sessionID,
+                                      at: pending.ratedAt, dayKey: pending.dayKey, reviewID: pending.reviewID)
+        if let index = answers.lastIndex(where: { $0.entry.id == pending.entry.id }) {
+            answers[index].isPending = false
+            if let review { answers[index].review = review }
+        }
+        // Recorded: what was typed for it is no longer a draft.
+        app.clearAnswerDraft(for: pending.entry.itemID)
+        return true
+    }
+
+    /// Takes the held rating back: the question returns (a copy it re-queued goes with it) and nothing was written.
+    func undoPending() {
+        guard let pending else { return }
+        self.pending = nil
+        pendingTimer?.cancel()
+        pendingTimer = nil
+        if let index = answers.lastIndex(where: { $0.entry.id == pending.entry.id }) { answers.remove(at: index) }
+        outcomes[pending.entry.id] = nil
+        queue = pending.queueBefore
+        restoring = (pending.entry.id, pending.restore)
+        provisional = nil
+        hasUnsavedAnswer = false
+        isTypingAnswer = false
+        phase = .question
+        questionShownAt = Date()
+        updateLiveActivity()
+        keepCheckpoint()
+    }
+
+    /// The way a question picks up the state it had when its rating was undone (once).
+    func takeRestore(for entryID: String) -> AnswerRestore? {
+        guard let restoring, restoring.entryID == entryID else { return nil }
+        self.restoring = nil
+        return restoring.restore
+    }
+
+    /// The next question is coming from this side. Set a moment before the change, so the question leaving takes it too.
+    func prepareArrival(_ arrival: Arrival) { self.arrival = arrival }
 
     /// Ends the session (idempotent): the engine's summary, the Live Activity's last word. Nothing is left to pick up.
     func finish() {
         guard phase != .finished else { return }
+        settlePending()
         let wasEmpty = phase == .empty
         phase = .finished
         if let session {
@@ -324,14 +522,15 @@ final class SessionRunner: Identifiable {
     /// Where the session stands, written at the start and at each question (and when the app leaves the screen), for a session
     /// kind that can pick up again (`SessionCheckpoint.resumableKinds`).
     func keepCheckpoint() {
-        guard phase == .question, let session, SessionCheckpoint.resumableKinds.contains(request.kind) else { return }
+        guard phase == .question || phase == .wrapping, let session,
+              SessionCheckpoint.resumableKinds.contains(request.kind) else { return }
         app.keepSessionCheckpoint(SessionCheckpoint(
             sessionID: session.id, kindRaw: request.kind.rawValue, courseID: request.courseID, examID: session.examID,
             dayKey: app.calendar.dayKey(for: session.startedAt), plannedSeconds: session.plannedSeconds,
             currentItemID: queue.current?.itemID, wallSeconds: wallSeconds, savedAt: app.now))
     }
 
-    /// Whether this entry's answer is recorded.
+    /// Whether this entry's answer is recorded (or held for Undo).
     func hasRecorded(_ entryID: String) -> Bool { outcomes[entryID] != nil }
 
     /// The person left early: everything answered stays recorded.
@@ -359,6 +558,12 @@ final class SessionRunner: Identifiable {
             entries.insert(Self.debugEntry(for: item), at: 0)
         }
         queue = SessionQueue(entries: entries)
+    }
+
+    /// Cuts the session down to its first question (a film of what follows the last one).
+    func debugKeepFirstOnly() {
+        guard phase == .ready, let first = queue.current else { return }
+        queue = SessionQueue(entries: [first])
     }
 
     private static func debugEntry(for item: StudyItem) -> SessionEntry {

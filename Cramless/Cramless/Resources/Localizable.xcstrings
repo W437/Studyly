@@ -139,6 +139,16 @@
         }
       }
     },
+    "%@ · back in %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ · back in %2$@"
+          }
+        }
+      }
+    },
     "%@ · skipped" : {},
     "%@%@" : {
       "localizations" : {
@@ -2084,6 +2094,7 @@
     "Mark as the right answer" : {},
     "Mark this moment as on the exam" : {},
     "Marked" : {},
+    "Marked %@. Undo is at the bottom." : {},
     "Marked by you" : {},
     "Marks its lines on the page" : {},
     "Matched to the key ideas on your iPhone" : {},
@@ -2633,6 +2644,7 @@
     "See Squad" : {},
     "See all" : {},
     "See all %lld" : {},
+    "See how it went" : {},
     "See my plan" : {},
     "See plans" : {},
     "See that card? Yep." : {},
@@ -2902,6 +2914,7 @@
     "That one's worth a look." : {},
     "That source isn't in your library anymore." : {},
     "That was a good one." : {},
+    "That was the last one." : {},
     "That's a friendly tap." : {},
     "That's a lot of boops." : {},
     "That's all the cloud AI for today, so Cap answered from your notes on this iPhone. It starts again at midnight." : {},
@@ -3066,6 +3079,7 @@
     "Type it, or slide" : {},
     "Type your answer…" : {},
     "Undo" : {},
+    "Undo %@" : {},
     "Untangled" : {},
     "Up to 300 pages at once" : {},
     "Up to date. Nice." : {},

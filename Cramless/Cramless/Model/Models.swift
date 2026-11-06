@@ -345,7 +345,12 @@ final class ReviewLog {
     }
 
     var rating: Rating { Rating(rawValue: ratingRaw) ?? .good }
-    var wasCorrect: Bool { ratingRaw >= Rating.hard.rawValue && (score < 0 || score >= 0.6) }
+    var wasCorrect: Bool { Self.wasCorrect(ratingRaw: ratingRaw, score: score) }
+
+    /// Whether an answer with this rating and score counts as correct (a score of -1: not graded).
+    nonisolated static func wasCorrect(ratingRaw: Int, score: Double) -> Bool {
+        ratingRaw >= Rating.hard.rawValue && (score < 0 || score >= 0.6)
+    }
 }
 
 @Model

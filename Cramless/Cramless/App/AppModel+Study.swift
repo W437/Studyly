@@ -102,10 +102,9 @@ extension AppModel {
         let now = answeredAt ?? self.now
         let before = item.memory
         let courseID = item.course?.id
-        let snapshot = ItemSnapshot(item, courseID: courseID)
-        var load = StudyRuntime.load(for: sessionID) ?? currentDueLoad()
-        let result = studyScheduler.schedule(snapshot, rating: rating, at: now, load: load,
-                                             exams: examSnapshots(upcomingOnly: true))
+        let scheduled = scheduledAnswer(to: item, rating: rating, at: now, sessionID: sessionID)
+        let result = scheduled.result
+        var load = scheduled.load
         let oldDay = before.state == .review ? before.due.map { calendar.dayNumber(for: $0) } : nil
         let newDay = result.memory.state == .review ? result.memory.due.map { calendar.dayNumber(for: $0) } : nil
         load.move(from: oldDay, to: newDay)
@@ -146,6 +145,28 @@ extension AppModel {
         return ReviewOutcome(itemID: itemID, rating: rating, before: before, after: result.memory,
                              wasCorrect: log.wasCorrect, scheduledDays: result.scheduledDays,
                              adjustment: result.adjustment, logID: log.id, recallBefore: result.retrievability)
+    }
+
+    /// What `recordReview` would return for this answer, with nothing written: the rating a session holds for its Undo window
+    /// (`SessionRunner.PendingGrade`). The same scheduling, the same due load and a deterministic fuzz, so recording it with the same
+    /// `at` and `reviewID` gives this very outcome. Nil when the item no longer exists.
+    func previewReview(itemID: UUID, rating: Rating, score: Double = -1, sessionID: UUID? = nil, at answeredAt: Date? = nil,
+                       reviewID: UUID) -> ReviewOutcome? {
+        guard let item = item(itemID), item.deletedAt == nil else { return nil }
+        let result = scheduledAnswer(to: item, rating: rating, at: answeredAt ?? now, sessionID: sessionID).result
+        return ReviewOutcome(itemID: itemID, rating: rating, before: item.memory, after: result.memory,
+                             wasCorrect: ReviewLog.wasCorrect(ratingRaw: rating.rawValue, score: score), scheduledDays: result.scheduledDays,
+                             adjustment: result.adjustment, logID: reviewID, recallBefore: result.retrievability)
+    }
+
+    /// One answer through the scheduler, against the session's due load (the one piece `recordReview` and `previewReview` share).
+    private func scheduledAnswer(to item: StudyItem, rating: Rating, at now: Date,
+                                 sessionID: UUID?) -> (result: ScheduledReview, load: DueLoad) {
+        let snapshot = ItemSnapshot(item, courseID: item.course?.id)
+        let load = StudyRuntime.load(for: sessionID) ?? currentDueLoad()
+        let result = studyScheduler.schedule(snapshot, rating: rating, at: now, load: load,
+                                             exams: examSnapshots(upcomingOnly: true))
+        return (result, load)
     }
 
     /// The rating for a 0…1 grade (see `Grading` for the thresholds: under 0.6 Again, under 0.8 Hard, else Good;
