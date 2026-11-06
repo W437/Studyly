@@ -347,7 +347,8 @@
         "id": { "type": "string" },
         "name": { "type": "string" },
         "joinedAt": { "type": "string", "format": "date-time" },
-        "isOwner": { "type": "boolean" }
+        "isOwner": { "type": "boolean" },
+        "studiedToday": { "type": "boolean" }
       },
       "required": ["id", "name", "joinedAt", "isOwner"],
       "additionalProperties": false
@@ -356,9 +357,18 @@
       "type": "object",
       "properties": {
         "seats": { "type": "integer" },
+        "sharing": { "type": "boolean" },
         "members": { "type": "array", "items": { "$ref": "#/$defs/SquadMember" } }
       },
       "required": ["seats", "members"],
+      "additionalProperties": false
+    },
+    "SquadStudiedResponse": {
+      "type": "object",
+      "properties": {
+        "recorded": { "type": "boolean" }
+      },
+      "required": ["recorded"],
       "additionalProperties": false
     },
     "AccountDeleteResponse": {
@@ -436,6 +446,24 @@
         "mentions": { "type": "array", "items": { "$ref": "#/$defs/ExamMentionVerdict" } }
       },
       "required": ["model", "mentions"],
+      "additionalProperties": false
+    },
+    "LastLookSentence": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "sentence": { "type": "string" }
+      },
+      "required": ["id", "sentence"],
+      "additionalProperties": false
+    },
+    "LastLookResponse": {
+      "type": "object",
+      "properties": {
+        "model": { "type": "string" },
+        "ideas": { "type": "array", "items": { "$ref": "#/$defs/LastLookSentence" } }
+      },
+      "required": ["model", "ideas"],
       "additionalProperties": false
     },
     "RelayErrorBody": {

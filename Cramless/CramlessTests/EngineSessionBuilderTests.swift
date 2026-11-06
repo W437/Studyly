@@ -266,6 +266,23 @@ final class EngineSessionBuilderTests: XCTestCase {
         XCTAssertLessThan(maxPicked, 0.66)
     }
 
+    func testAShorterDayIsNotACatchUpDay() {
+        // 15 minutes of questions due: nothing unusual on a 15-minute day, but over twice a 5-minute one.
+        let items = (0..<100).map { i in
+            EngineTest.studied(kind: .flashcard, topic: topics[i % 3], course: course, recall: 0.8, daysAgo: 12, now: now, cal: cal)
+        }
+        XCTAssertNotNil(builder().build(SessionSpec(kind: .daily, minutes: 5), items: items, topicNames: names).catchUp)
+        let busy = builder().build(SessionSpec(kind: .daily, minutes: 5, backlogMinutes: 15), items: items, topicNames: names)
+        XCTAssertNil(busy.catchUp, "a long day gave its minutes away; nothing has fallen behind")
+        XCTAssertLessThanOrEqual(busy.plannedSeconds, 300)
+        // A real backlog still is one.
+        let many = (0..<400).map { i in
+            EngineTest.studied(kind: .flashcard, topic: topics[i % 3], course: course, recall: 0.8, daysAgo: 12, now: now, cal: cal)
+        }
+        let behind = builder().build(SessionSpec(kind: .daily, minutes: 5, backlogMinutes: 15), items: many, topicNames: names)
+        XCTAssertEqual(behind.catchUp?.daysToClear, Int((400 * 9.0 / 900).rounded(.up)), "counted in usual days")
+    }
+
     func testCatchUpPutsTheNearestExamFirst() {
         let examCourse = UUID()
         let exam = ExamSnapshot(courseID: examCourse, date: cal.adding(days: 4, to: now))

@@ -286,6 +286,20 @@
       },
       "required": ["memberId"]
     },
+    "SquadShareRequest": {
+      "type": "object",
+      "properties": {
+        "on": { "type": "boolean" }
+      },
+      "required": ["on"]
+    },
+    "SquadStudiedRequest": {
+      "type": "object",
+      "properties": {
+        "dayKey": { "type": "string", "format": "date" }
+      },
+      "required": ["dayKey"]
+    },
     "TutorSourceInput": {
       "type": "object",
       "properties": {
@@ -448,6 +462,31 @@
         }
       },
       "required": ["course", "title", "recordedDay", "topics", "mentions"]
+    },
+    "LastLookRequest": {
+      "type": "object",
+      "properties": {
+        "course": { "type": "string", "maxLength": 200 },
+        "examTitle": { "$ref": "#/$defs/ShortText" },
+        "language": { "type": "string", "maxLength": 20 },
+        "ideas": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 8,
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "$ref": "#/$defs/Id" },
+              "topic": { "type": "string", "maxLength": 120 },
+              "prompt": { "type": "string", "minLength": 1, "maxLength": 2000 },
+              "answer": { "type": "string", "minLength": 1, "maxLength": 2000 },
+              "lines": { "type": "array", "maxItems": 6, "items": { "type": "string", "maxLength": 1000 } }
+            },
+            "required": ["id", "prompt", "answer", "lines"]
+          }
+        }
+      },
+      "required": ["course", "examTitle", "ideas"]
     },
     "Empty": {
       "type": "object",

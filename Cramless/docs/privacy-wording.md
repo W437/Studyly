@@ -95,7 +95,8 @@ Where each fact comes from:
   review history, study sessions, daily records and exams are stored in our database; page photos only with "Send page photos" on, in a
   private folder that only your account can read. Chats never sync. Row-level security means an account reads only its own rows
   (`Sync/SyncEngine.swift`).
-- **Squad:** members see each other's display names. Nothing else of yours.
+- **Squad:** members see each other's display names. If you turn on "Show when I've studied" (off by default), your Squad also sees whether you studied today: we keep your account and the day, for 14 days, and delete them when you turn it off, leave the Squad, or the owner's account goes.
+- **Calendar:** if you allow it, Capling reads when you're busy, on your iPhone, to offer to move study off long days. It reads only times, not what your events are, and nothing from your calendar leaves your iPhone.
 - **Purchases:** Apple's subscription transactions are verified by our server and kept so your plan follows you across devices.
 - **Deleting your account** deletes all of the above.
 - **No tracking, no ads, no analytics SDK.** The app uses no third-party code that collects data (no packages in `project.yml`).
@@ -125,6 +126,8 @@ Device ID. The privacy manifest `Cramless/Resources/PrivacyInfo.xcprivacy` now d
 The last four rows (Name, Search History and the two Usage Data ones) are judgment calls under Apple's definitions; they err on the side
 of declaring. Before 2026-10-27 the manifest declared five types (Email, User ID, Purchase History, Photos, Other User Content).
 
+**To re-check at Launch (added 2026-11-07, not yet live):** the Squad's studied-today (`squad_activity`: person + day, seen by their Squad, only for those who opt in) falls under Usage Data ▸ Product Interaction, already declared, but it is now shown to other users: read Apple's wording on that once more. The calendar stays on the phone, so it is not collected and adds no row (Apple's definition: data transmitted off the device); the purpose string says so. The last look sends questions, answers and page lines to OpenAI under the existing consent, the same User Content ▸ Other User Content row. If the policy page is live by then, section 2's Squad and Calendar lines go on it.
+
 ## 4. The age rating
 
 Facts for the questionnaire, which changes from year to year (the questions could not be read from here):
@@ -132,7 +135,7 @@ Facts for the questionnaire, which changes from year to year (the questions coul
 - Ask Cap is an AI assistant a student chats with. It never talks to other people, and shows nothing another user wrote.
 - It has no browser. Web research is the server reading a fixed list of about 50 study sites and returning a summary; links open in
   the user's own browser only when tapped. Under-18 accounts don't get it, and under-13 accounts get no cloud AI at all.
-- Squad shows only its members' display names.
+- Squad shows its members' display names and, for those who turn it on, whether they studied today. Nothing written by another user.
 
 My reading is "no unrestricted web access", but Apple's wording for a 13+ app was not confirmed (`docs/BUILD.md`); answer it when the
 questionnaire is in front of you, and tell me what it asks.

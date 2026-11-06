@@ -10,7 +10,8 @@ import Foundation
 /// | Catch-up | the same | the same, the backlog as the reason | "Study · 15 min" |
 /// | No exam (or none the session serves, `SessionFocus`) | none | its topics or courses | "Study · 15 min" |
 /// | Exam eve | moon, the exam · "Tomorrow · 10:00" | "Tonight: weak spots only" | "Tonight · 4 min" (the session's own minutes) |
-/// | Eve, nothing weak or done | the same | "Nothing left to review tonight" / "That's enough for tonight" | none |
+/// | Eve, nothing weak | the same | "Nothing left to review tonight" | none |
+/// | Eve, done | the same | "That's enough for tonight" | "Your last look" (quiet), when it has ideas |
 /// | Done | "Done for today" · "15 min · 24 answers" | "Bright tonight" | "5 more minutes" (quiet) |
 /// | All lit | none | "All lit" | "Practice Limiting reagents · 5 min", or "Practice · 5 min" when that doesn't fit |
 /// | No questions yet | none | "Let's make your first set" / "Add your first material" | "Try a sample page", "Scan a page" |
@@ -32,6 +33,8 @@ struct TodayHeroContent: Equatable, Sendable {
             case practice(topicID: UUID, courseID: UUID, minutes: Int)
             case sample
             case scan
+            /// The last look on an exam's eve.
+            case lastLook(examID: UUID)
         }
 
         var kind: Kind
@@ -51,7 +54,7 @@ struct TodayHeroContent: Equatable, Sendable {
                 return SessionRequest(kind: kind, examID: examID, minutes: minutes)
             case .practice(let topicID, let courseID, let minutes):
                 return SessionRequest(kind: .practice, courseID: courseID, minutes: minutes, topicID: topicID)
-            case .sample, .scan:
+            case .sample, .scan, .lastLook:
                 return nil
             }
         }
@@ -172,7 +175,8 @@ struct TodayHeroContent: Equatable, Sendable {
             return TodayHeroContent(
                 cap: .asleep, sky: .regionLit(id), twinkles: false,
                 chip: Chip(text: title, symbol: "moon.stars.fill", tone: .eve), when: exam?.when,
-                title: String(localized: "That's enough for tonight"), reason: TodayCopy.eveRest(title: title, several: several, time: time))
+                title: String(localized: "That's enough for tonight"), reason: TodayCopy.eveRest(title: title, several: several, time: time),
+                actions: snapshot.lastLookIdeas > 0 ? [.lastLook(examID: id, ideas: snapshot.lastLookIdeas)] : [])
 
         case .done:
             let extra = summary.sessionReady
@@ -226,6 +230,12 @@ private extension TodayHeroContent.Action {
         TodayHeroContent.Action(kind: .practice(topicID: topic.topicID, courseID: topic.courseID, minutes: 5),
                                 title: SkyCopy.practice(topic.name, minutes: 5), systemImage: "sparkles", prominent: true,
                                 shortTitle: .practiceFiveMinutes)
+    }
+
+    /// The last look: a quiet button, on a night that has already had its one big one.
+    static func lastLook(examID: UUID, ideas: Int) -> TodayHeroContent.Action {
+        TodayHeroContent.Action(kind: .lastLook(examID: examID), title: "Your last look", systemImage: "moon.stars", prominent: false,
+                                spoken: LastLookCopy.spoken(ideas: ideas))
     }
 
     /// Tonight's session, with its own minutes.

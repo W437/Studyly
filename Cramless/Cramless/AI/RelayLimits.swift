@@ -81,6 +81,13 @@ enum RelayLimits {
     static let mentionTopics = 30
     /// `ExamMentionRequest.title` and `.course` are the lecture's (`title`, `course`).
 
+    // The last look.
+    /// `LastLookRequest.ideas`: at most 8, each with a prompt and an answer of at most 2,000 and at most 6 lines of 1,000.
+    static let lastLookIdeas = 8
+    static let lastLookText = 2000
+    static let lastLookLines = 6
+    static let lastLookLine = 1000
+
     /// How much of the end of a label that has to be cut is kept ("p. 87", "· 07:40", "· card 7"): it says which one it is.
     static let labelTail = 24
 
@@ -237,6 +244,21 @@ extension SyllabusRequest {
             PageInput(page: page.page, label: page.label.clipped(toScalars: RelayLimits.label),
                       lines: page.lines.prefix(RelayLimits.pageLines).map { LineInput(id: $0.id, text: $0.text.clipped(toScalars: RelayLimits.lineText)) },
                       image: nil)
+        }
+        return request
+    }
+}
+
+extension LastLookRequest {
+    /// The request within the relay's limits.
+    func fitted() -> LastLookRequest {
+        var request = self
+        request.course = course.clipped(toScalars: RelayLimits.course)
+        request.examTitle = examTitle.clipped(toScalars: RelayLimits.title)
+        request.ideas = ideas.prefix(RelayLimits.lastLookIdeas).map { idea in
+            LastLookIdeaInput(id: idea.id.clipped(toScalars: RelayLimits.sourceID), topic: idea.topic?.clipped(toScalars: RelayLimits.studyTopicName),
+                              prompt: idea.prompt.clipped(toScalars: RelayLimits.lastLookText), answer: idea.answer.clipped(toScalars: RelayLimits.lastLookText),
+                              lines: idea.lines.prefix(RelayLimits.lastLookLines).map { $0.clipped(toScalars: RelayLimits.lastLookLine) })
         }
         return request
     }

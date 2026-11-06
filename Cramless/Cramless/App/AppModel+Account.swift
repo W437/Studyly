@@ -105,6 +105,8 @@ extension AppModel {
         sync.resetLedger()
         clearSessionKeep()
         clearNoticeLedger()
+        clearLastLooks()
+        clearSquadToday()
         defaults.removeObject(forKey: AgeCheck.defaultsKey)
         var fresh = AppSettings()
         fresh.installedAt = Date()
@@ -129,12 +131,18 @@ extension AppModel {
     }
 
     func squadMembers() async throws -> SquadMembers {
-        try await account.backend.squadMembers()
+        var members = try await account.backend.squadMembers()
+        #if DEBUG
+        members = debugShapeSquad(members)
+        #endif
+        noteSquadMembers(members)
+        return members
     }
 
     /// The owner removes a member, or a member leaves (pass your own id).
     func removeSquadMember(_ id: String) async throws -> SquadMembers {
         let members = try await account.backend.removeSquadMember(id: id)
+        noteSquadMembers(members)
         if id == account.userID { await account.refreshEntitlement() }
         return members
     }

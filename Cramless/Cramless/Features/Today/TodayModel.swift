@@ -103,6 +103,8 @@ struct TodaySnapshot: Equatable, Sendable {
     var eveTopics: [String] = []
     /// On the eve: the other exams' courses, which wait until after it (exams on the same day share the evening; they don't wait).
     var eveOthers: [String] = []
+    /// Once tonight's session is done: how many ideas the last look holds.
+    var lastLookIdeas = 0
     /// The exam today's finished sessions counted toward.
     var doneExam: TodayDoneExam?
     /// A topic to practise on a day with nothing due.
@@ -129,6 +131,8 @@ struct TodaySnapshot: Equatable, Sendable {
 
     /// There is material to study.
     var hasMaterial: Bool { hero != .empty && hero != .noMaterial }
+    /// "Your plan" may say who in the Squad has studied: never on an eve, which is calm, or in Quiet mode.
+    var showsSquad: Bool { !isEve && !quiet }
     /// The day is an exam's eve (before or after its session).
     var isEve: Bool {
         switch hero {
@@ -215,6 +219,7 @@ struct TodaySnapshot: Equatable, Sendable {
             snapshot.eveMinutes = built.tonightMinutes
             snapshot.eveTopics = eveTopicNames(of: built, exams: snapshot.eveExams, names: names, app: app)
             snapshot.eveOthers = otherCourses(exams, besides: snapshot.eveExams)
+            if case .examEveDone = snapshot.hero { snapshot.lastLookIdeas = app.lastLookCount(for: eve.id) }
         }
         snapshot.doneExam = app.todayDoneExamID().flatMap { id in exams.first { $0.id == id } }.map {
             TodayDoneExam(title: $0.title, readiness: $0.readiness, deltaToday: $0.deltaToday, daysLeft: $0.daysLeft)
@@ -339,6 +344,7 @@ struct TodaySnapshot: Equatable, Sendable {
                 snapshot.eveMinutes = built.tonightMinutes
                 snapshot.eveTopics = eveTopicNames(of: built, exams: [first], names: app.topicNames(), app: app)
                 snapshot.eveOthers = otherCourses(snapshot.exams, besides: snapshot.eveExams)
+                snapshot.lastLookIdeas = state == "eveDone" ? app.lastLookCount(for: id) : 0
                 // The week as the eve's: tonight's moon, tomorrow's exam.
                 for i in snapshot.strip.indices {
                     switch snapshot.strip[i].offset {

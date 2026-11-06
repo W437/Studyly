@@ -6,6 +6,8 @@
 //   POST /account/squad/redeem     {code} → SquadRedeemResponse
 //   GET  /account/squad/members    → SquadMembers
 //   POST /account/squad/remove     {memberId} → SquadMembers (the owner removes, or a member leaves)
+//   POST /account/squad/share      {on} → SquadMembers (share that you studied today with your Squad, off by default)
+//   POST /account/squad/studied    {dayKey} → SquadStudiedResponse (the day's first finished session, for someone who shares)
 //   POST /account/delete-ai-data   → {deleted: true}
 //   POST /account/delete           → {deleted: true} (every row, the storage folder and the auth user)
 
@@ -17,6 +19,7 @@ import type {
   SquadInvite,
   SquadMembers,
   SquadRedeemResponse,
+  SquadStudiedResponse,
 } from "../_shared/contract.ts";
 import type { Deps } from "../_shared/deps.ts";
 import { verifyTransactions } from "../_shared/entitlements.ts";
@@ -33,6 +36,7 @@ import {
   usageKeys,
 } from "../_shared/plans.ts";
 import { requireValid } from "../_shared/schemas.ts";
+import { isRealDay } from "../_shared/syllabus.ts";
 import { SQUAD_SEATS, type UserContext } from "../_shared/store.ts";
 import type { Caller } from "../_shared/auth.ts";
 
@@ -42,6 +46,8 @@ const ROUTES: Record<string, "GET" | "POST"> = {
   "/squad/redeem": "POST",
   "/squad/members": "GET",
   "/squad/remove": "POST",
+  "/squad/share": "POST",
+  "/squad/studied": "POST",
   "/delete-ai-data": "POST",
   "/delete": "POST",
 };
@@ -121,11 +127,14 @@ async function membersOf(c: Ctx): Promise<SquadMembers> {
   if (!r.ok) throw badRequest("You're not in a Squad yet.", 404);
   return {
     seats: SQUAD_SEATS,
+    sharing: r.members.find((m) => m.id === c.caller.userId)?.shares === true,
     members: r.members.map((m) => ({
       id: m.id,
       name: m.name.trim() || (m.isOwner ? "Squad owner" : "Squad member"),
       joinedAt: m.joinedAt,
       isOwner: m.isOwner,
+      // Only someone who chose to share has it at all, and "today" is their own.
+      ...(m.shares ? { studiedToday: m.lastStudiedDay === periodStart("day", c.now, m.timeZone) } : {}),
     })),
   };
 }
@@ -140,9 +149,26 @@ async function remove(c: Ctx): Promise<Response> {
   }
   // A member who left has no Squad to list any more.
   if (body.memberId.toLowerCase() === c.caller.userId) {
-    return json({ seats: SQUAD_SEATS, members: [] } satisfies SquadMembers);
+    return json({ seats: SQUAD_SEATS, sharing: false, members: [] } satisfies SquadMembers);
   }
   return json(await membersOf(c));
+}
+
+async function share(c: Ctx): Promise<Response> {
+  const body = requireValid<{ on: boolean }>("SquadShareRequest", await readJson(c.req, 4 * 1024));
+  const r = await c.deps.store.squadShare(c.caller.userId, body.on);
+  if (!r.ok) throw badRequest("You're not in a Squad yet.", 404);
+  return json(await membersOf(c));
+}
+
+/** The day's first finished session. A person's own day, within a day of what their profile's time zone says: a phone that has just crossed
+ * zones is believed, a date from another week isn't. */
+async function studied(c: Ctx): Promise<Response> {
+  const body = requireValid<{ dayKey: string }>("SquadStudiedRequest", await readJson(c.req, 4 * 1024));
+  if (!isRealDay(body.dayKey)) throw badRequest("That isn't a day.");
+  const today = Date.parse(`${periodStart("day", c.now, c.user.timeZone)}T00:00:00Z`);
+  if (Math.abs(Date.parse(`${body.dayKey}T00:00:00Z`) - today) > 86_400_000) throw badRequest("That day is too far from today.");
+  return json({ recorded: await c.deps.store.squadStudied(c.caller.userId, body.dayKey) } satisfies SquadStudiedResponse);
 }
 
 async function handle(req: Request, deps: Deps, route: string): Promise<Response> {
@@ -167,6 +193,10 @@ async function handle(req: Request, deps: Deps, route: string): Promise<Response
       return json(await membersOf(c));
     case "/squad/remove":
       return await remove(c);
+    case "/squad/share":
+      return await share(c);
+    case "/squad/studied":
+      return await studied(c);
     case "/delete-ai-data":
       await readJson(req, 4 * 1024, true);
       await deps.store.deleteAiData(caller.userId);

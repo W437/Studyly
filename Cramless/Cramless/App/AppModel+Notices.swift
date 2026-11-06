@@ -163,6 +163,12 @@ extension AppModel {
             markNoticeActed(NoticeEngine.tooEasyID(itemID))
             router.present(.ladder(parentID: itemID))
             return nil
+        case .askCalendar:
+            Task { await askForCalendar() }
+            return nil
+        case .moveBusyDay(let move):
+            applyBusyMove(move)
+            return nil
         case .teach(let topicID):
             markNoticeActed(NoticeEngine.teachID(topicID))
             router.present(.teach(topicID: topicID))
@@ -190,12 +196,68 @@ extension AppModel {
         save()
     }
 
-    /// Undo: the minutes come off the plan and the card comes back.
+    /// Undo: the minutes go back as they were and the card comes back.
     func undoFadeRescue(_ noticeID: String) {
         updateLedger { ledger in
             ledger.boosts.removeAll { $0.noticeID == noticeID }
             ledger.acted[noticeID] = nil
             if ledger.confirming == noticeID { ledger.confirming = nil }
+        }
+        save()
+    }
+
+    // MARK: Busy days
+
+    /// "Check my calendar": iOS asks (once, ever). Yes: the calendar is read and a long day's card follows if there is one. No: that's the end of it.
+    func askForCalendar() async {
+        // The question has had its answer: its place in today's deck is free for the long day it may find.
+        updateLedger { ledger in
+            ledger.acted[NoticeEngine.busyAskID] = calendar.dayKey(for: now)
+            ledger.dealt.removeAll { $0.id == NoticeEngine.busyAskID }
+        }
+        let access = await busyCalendar.requestAccess()
+        guard access == .granted else {
+            router.toast("Okay. Cap won't look at your calendar.", systemImage: "checkmark.circle.fill", tone: .neutral)
+            save()
+            return
+        }
+        await refreshBusyBlocks()
+        save()
+        if !noticeDeck().contains(where: { $0.kind == .busyDay }) {
+            router.toast("Nothing long this week. Cap will keep an eye out.", systemImage: "calendar", tone: .neutral)
+        }
+    }
+
+    /// What the calendar says about the days ahead, read off the main thread and held in memory only. A quiet job for launch and for coming back: it reads only with the switch on,
+    /// the access given and an exam near enough for a long day to matter.
+    func refreshBusyBlocks() async {
+        let near = examSnapshots(upcomingOnly: true).contains { calendar.dayDistance(from: now, to: $0.date) <= BusyDayFinder.examWithinDays }
+        guard settings.notices.allows(.busyDay), busyCalendar.access == .granted, near else {
+            if !noticeCache.busyBlocks.isEmpty {
+                noticeCache.busyBlocks = []
+                save()
+            }
+            return
+        }
+        let start = calendar.startOfDay(for: now)
+        let blocks = await busyCalendar.busyBlocks(from: start, to: calendar.adding(days: BusyDayFinder.readDays, to: start))
+        guard blocks != noticeCache.busyBlocks else { return }
+        noticeCache.busyBlocks = blocks
+        save()
+    }
+
+    /// "Move them": the minutes leave the long day and go to the days around it, on the plan and nowhere else. The slot says "Plan updated", with Undo (`undoFadeRescue`).
+    func applyBusyMove(_ move: BusyMove) {
+        let key = calendar.dayKey(for: now)
+        updateLedger { ledger in
+            ledger.boosts.removeAll { $0.noticeID == move.noticeID }
+            func boost(_ day: BusyMove.Day, minutes: Int) -> PlanBoost {
+                PlanBoost(noticeID: move.noticeID, examID: move.examID, examTitle: move.examTitle, origin: nil, dayKey: day.dayKey, minutes: minutes, itemIDs: [])
+            }
+            ledger.boosts.append(boost(move.busy, minutes: -move.minutes))
+            ledger.boosts += move.to.map { boost($0, minutes: $0.minutes) }
+            ledger.acted[move.noticeID] = key
+            ledger.confirming = move.noticeID
         }
         save()
     }
@@ -215,7 +277,7 @@ extension AppModel {
         return noticeLedger.boosts.filter { $0.dayKey == key }.flatMap(\.itemIDs)
     }
 
-    /// Minutes added per day, by day offset from today, for `PlanBuilder.boosts`. A later day's boost goes once all its questions have
+    /// Minutes added (or, on a long day, taken off) per day, by day offset from today, for `PlanBuilder.boosts`. A later day's boost for questions goes once all of them have
     /// been reviewed early.
     func planBoosts() -> (minutes: [Int: Int], pinned: [UUID: Int]) {
         let boosts = noticeLedger.boosts
@@ -227,7 +289,7 @@ extension AppModel {
         for boost in boosts {
             guard let day = calendar.dayNumber(forKey: boost.dayKey), day >= today else { continue }
             let offset = day - today
-            if offset > 0 {
+            if offset > 0, !boost.itemIDs.isEmpty {
                 if memory == nil {
                     let wanted = Set(boosts.flatMap(\.itemIDs))
                     memory = Dictionary(itemSnapshots().filter { wanted.contains($0.id) }.map { ($0.id, $0.memory) }, uniquingKeysWith: { a, _ in a })
@@ -341,6 +403,7 @@ extension AppModel {
         noticeCache.lookAlikes = nil
         noticeCache.lookAlikesWorking = nil
         noticeCache.sourceIDs = [:]
+        noticeCache.busyBlocks = []
         defaults.removeObject(forKey: Self.noticeLedgerKey)
     }
 
@@ -412,6 +475,8 @@ extension AppModel {
         inputs.tooEasy = ladderOffers(items: items, exams: exams).map {
             NoticeTooEasy(itemID: $0.itemID, next: $0.next, topicName: $0.topicName)
         }
+        inputs.calendarAccess = settings.notices.allows(.busyDay) ? busyCalendar.access : .denied
+        inputs.busyBlocks = noticeCache.busyBlocks
         inputs.teachOffers = teachOffers(items: items, exams: exams)
         return inputs
     }
@@ -556,6 +621,8 @@ final class NoticeCache {
     var lookAlikesWorking: String?
     /// Each question's source, once read.
     var sourceIDs: [UUID: UUID?] = [:]
+    /// What the calendar says about the days ahead. Never stored and never sent.
+    var busyBlocks: [BusyBlock] = []
 }
 
 /// One side of a look-alike pair.

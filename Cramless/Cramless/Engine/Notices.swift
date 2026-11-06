@@ -40,12 +40,16 @@ enum NoticeKind: String, Codable, CaseIterable, Sendable {
     /// A topic well remembered, a week or more before its exam: "Can you teach it?" (`TeachPlanner`).
     case teachBack
 
+    /// A long day in the calendar this week, before an exam (`BusyDayFinder`). First the question of whether Cap may look.
+    case busyDay
+
     // Reserved for cards still to come, so the settings and the ledger can already name them.
-    case busyDay, tooEasy, sameIdea
+    case tooEasy, sameIdea
 
     /// The kinds that deal cards in this build, in the order Settings lists their switches.
     static let live: [NoticeKind] = [.mixUp, .lookAlike, .fading, .welcomeBack, .mockOffer, .gap, .lectureDate]
         + [.tooEasy, .teachBack]
+        + [.busyDay]
 }
 
 /// The person's switches: which kinds Cap may bring up, and whether he may send a notification about them.
@@ -76,8 +80,8 @@ struct NoticeSettings: Codable, Equatable, Sendable {
 
 // MARK: - The ledger
 
-/// Minutes "Fix my week" added to one day, and the questions they are for. Stored in the ledger, so nothing is written to the
-/// questions' memory and Undo takes it all back.
+/// Minutes "Fix my week" added to one day, and the questions they are for; or minutes "Monday looks busy" moved, negative on the long day,
+/// with no questions. Stored in the ledger, so nothing is written to the questions' memory and Undo takes it all back.
 struct PlanBoost: Codable, Equatable, Sendable {
     var noticeID: String
     var examID: UUID
@@ -214,7 +218,7 @@ struct NoticeInputs: Sendable {
     var todayItems: Set<UUID> = []
     /// Today's goal is met.
     var goalMet = false
-    /// The daily goal: how far the sessions before an exam reach a backlog.
+    /// The daily goal: how far the sessions before an exam reach a backlog, and what a busy day can give up.
     var dailyMinutes = 0
     /// Where each overdue question came from.
     var sources: [UUID: FadeSource] = [:]
@@ -229,6 +233,10 @@ struct NoticeInputs: Sendable {
     var heardDates: [NoticeHeardDate] = []
     /// Questions that have become too easy, the strongest first (`Ladder`).
     var tooEasy: [NoticeTooEasy] = []
+    /// What may be read of the calendar.
+    var calendarAccess = CalendarAccess.denied
+    /// What it says is taken in the days ahead.
+    var busyBlocks: [BusyBlock] = []
     /// Topics strong enough to teach, the best remembered first (`TeachPlanner.offers`).
     var teachOffers: [NoticeTeachBack] = []
 }
@@ -274,6 +282,9 @@ struct Notice: Identifiable, Equatable, Sendable {
         case gap(ExamGap)
         case lectureDate(NoticeHeardDate)
         case tooEasy(NoticeTooEasy)
+        /// May Cap look at the calendar?
+        case busyAsk
+        case busyDay(BusyMove)
         case teachBack(NoticeTeachBack)
     }
 
@@ -287,7 +298,7 @@ struct Notice: Identifiable, Equatable, Sendable {
     }
 
     /// Stable for what it is about: `mix-<confusion>`, `pair-<hash of the two questions>`, `fade-<exam>-<day>`, `back-<last day studied>`, `mock-<exam>`,
-    /// `gap-<exam>`, `heard-<lecture>-<mention>`, `easy-<question>`.
+    /// `gap-<exam>`, `heard-<lecture>-<mention>`, `easy-<question>`, `busy-<day>`, `busy-ask`.
     var id: String
     var kind: NoticeKind
     var rank: Double
@@ -341,6 +352,11 @@ struct NoticeEngine: Sendable {
     static let pingWindow = 2...6
     /// A mix-up may notify when an exam that covers it is this close.
     static let mixUpPingDays = 7
+    /// The card that asks to read the calendar: an exam this close, this many days of study behind the person, and on at most this many days.
+    static let busyAskExamDays = BusyDayFinder.examWithinDays
+    static let busyAskAfterStudyDays = 2
+    static let busyAskShownDays = 2
+    static let busyAskID = "busy-ask"
 
     /// The order cards come in, highest first.
     enum Rank {
@@ -362,6 +378,10 @@ struct NoticeEngine: Sendable {
         static func gap(daysLeft: Int) -> Double { 480 - 10 * Double(daysLeft) }
         /// An exam the plan doesn't know about matters more than anything inside the plan. Below "welcome back" and a bad fade.
         static let lectureDate = 650.0
+        /// The closer the long day, the sooner it needs saying; a day of moved minutes isn't urgent next to something fading.
+        static func busyDay(daysAway: Int) -> Double { 420 - 20 * Double(daysAway) }
+        /// An offer, with nothing at stake: after anything that needs help.
+        static let busyAsk = 200.0
     }
 
     var inputs: NoticeInputs
@@ -377,6 +397,7 @@ struct NoticeEngine: Sendable {
         guard !inputs.exams.contains(where: { $0.date > now && calendar.dayDistance(from: now, to: $0.date) == 1 }) else { return [] }
         let cards = mixUpCards() + lookAlikeCards() + fadingCards() + welcomeBackCards() + mockOfferCards() + gapCards() + lectureDateCards()
             + tooEasyCards() + teachBackCards()
+            + busyDayCards()
         return cards.filter { inputs.settings.allows($0.kind) }
             .sorted { $0.rank != $1.rank ? $0.rank > $1.rank : $0.id < $1.id }
     }
@@ -578,6 +599,29 @@ struct NoticeEngine: Sendable {
     }
 
     static func tooEasyID(_ itemID: UUID) -> String { "easy-\(itemID.uuidString)" }
+
+    // MARK: Busy days
+
+    /// With the calendar open to him, the first long day ahead of an exam. Before that, one offer to look, while an exam is near enough for it to matter and once the person has
+    /// been studying for a while. iOS asks only once, so once they've answered this card is gone for good. Never a notification: nothing is at risk.
+    private func busyDayCards() -> [Notice] {
+        switch inputs.calendarAccess {
+        case .denied:
+            return []
+        case .notAsked:
+            let now = inputs.now, calendar = inputs.calendar
+            guard inputs.exams.contains(where: { $0.date > now && calendar.dayDistance(from: now, to: $0.date) <= Self.busyAskExamDays }),
+                  inputs.days.filter(\.studied).count >= Self.busyAskAfterStudyDays else { return [] }
+            let shown = inputs.ledger.seen[Self.busyAskID] ?? []
+            guard shown.count < Self.busyAskShownDays || shown.contains(dayKey) else { return [] }
+            return [Notice(id: Self.busyAskID, kind: .busyDay, rank: Rank.busyAsk, evidence: .busyAsk)]
+        case .granted:
+            let finder = BusyDayFinder(calendar: inputs.calendar, now: inputs.now, dailyMinutes: inputs.dailyMinutes, easyDays: inputs.easyDays,
+                                       goalMet: inputs.goalMet)
+            guard let move = finder.move(blocks: inputs.busyBlocks, exams: inputs.exams, hidden: { isHidden($0) }) else { return [] }
+            return [Notice(id: move.noticeID, kind: .busyDay, rank: Rank.busyDay(daysAway: move.busy.offset), evidence: .busyDay(move))]
+        }
+    }
 
     /// One topic at a time, the best remembered. Never a notification. It costs what any own-words answer costs, which the card says is nothing.
     private func teachBackCards() -> [Notice] {

@@ -224,6 +224,12 @@ enum TestHarness {
             let exam = arg.flatMap(Int.init).flatMap { exams.indices.contains($0) ? exams[$0] : nil }
                 ?? exams.first { if case .ready = app.mockOffer(for: $0) { true } else { false } } ?? exams.first
             if let exam { r.present(.mockExam(examID: exam.id)) }
+        // The last look, for the first exam it has ideas for (`CRAMLESS_LASTLOOK=offline|cloud`, see `LastLookView`).
+        case "lastLook":
+            // `lastLook:<n>`: the nth upcoming exam's (`lastLook:1` is the Bio midterm, whose notes have pages to open).
+            let exams = app.upcomingExams()
+            if let exam = arg.flatMap(Int.init).flatMap({ exams.indices.contains($0) ? exams[$0] : nil })
+                ?? exams.first(where: { app.lastLookCount(for: $0.id) > 0 }) { r.present(.lastLook(examID: exam.id)) }
         case "scanner": r.present(.scanner(courseID: firstCourse?.id, isOnboarding: false))
         case "capture": r.present(.capture(courseID: firstCourse?.id))
         case "captureFlow", "review":

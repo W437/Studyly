@@ -5,6 +5,8 @@
 import type {
   ExamMentionRequest,
   ExamMentionVerdict,
+  LastLookRequest,
+  LastLookSentence,
   PageInput,
   SyllabusExam,
   SyllabusFormat,
@@ -91,6 +93,9 @@ export function sanitizeSyllabus(raw: SyllabusExam[] | undefined, req: SyllabusR
   return out;
 }
 
+/** The longest last-look sentence kept, in characters. */
+export const LAST_LOOK_MAX_SENTENCE = 300;
+
 /** One verdict per mention the request had. A date has to be one the app's detector read from that sentence (the model may choose
  * among them, never make one up), a topic has to be one of the course's, in the course's spelling. */
 export function sanitizeExamMentions(
@@ -121,6 +126,23 @@ export function sanitizeExamMentions(
       ...(isExam && scopePhrase ? { scopePhrase } : {}),
       topics: isExam ? topics : [],
     });
+  }
+  return out;
+}
+
+/** One sentence per idea the request had, on one line and short enough to read in a breath. An empty sentence goes (the app says the question
+ * and its answer instead), and so does any that runs far over: a sentence that long has stopped being one idea. */
+export function sanitizeLastLook(raw: LastLookSentence[] | undefined, req: LastLookRequest): LastLookSentence[] {
+  const asked = new Set(req.ideas.map((idea) => idea.id));
+  const seen = new Set<string>();
+  const out: LastLookSentence[] = [];
+  for (const entry of raw ?? []) {
+    const id = text(entry.id);
+    if (!asked.has(id) || seen.has(id)) continue;
+    const sentence = text(entry.sentence).replace(/\s+/g, " ");
+    if (!sentence || sentence.length > LAST_LOOK_MAX_SENTENCE) continue;
+    seen.add(id);
+    out.push({ id, sentence });
   }
   return out;
 }

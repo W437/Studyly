@@ -8,7 +8,7 @@
 import type { MeterKey, Period, Plan, QuotaMeter, QuotaStatus } from "./contract.ts";
 import { ApiError } from "./errors.ts";
 
-/** The metered things. `extras` covers check, confusions, cards-from-chat, syllabus and exam-mention, which the app never shows; `redeems` caps
+/** The metered things. `extras` covers check, confusions, cards-from-chat, syllabus, exam-mention and last-look, which the app never shows; `redeems` caps
  * Squad invite-code attempts, so codes can't be guessed; `drafts` counts what Cap drafts for the student (cards, questions,
  * notes, exams): 3 a day on the free plan; `research` counts web research, which is a Pro feature (the free allowance is
  * none); `rounds` counts the rounds of an assistant reply after its first, which is a `tutor` message: the relay refuses a

@@ -31,7 +31,8 @@ extension AppModel {
         let tomorrowEve = examSnapshots(upcomingOnly: true).first { calendar.dayDistance(from: now, to: $0.date) == 2 }
         return TodayPlanStrip.make(today: now, plans: plans, past: past, todayMinutes: summary.plannedMinutes, todayDone: done,
                                    goal: settings.dailyMinutes, easyDays: settings.easyDays, tonightMinutes: tonightMinutes,
-                                   tomorrowEveMinutes: tomorrowEve.map { builtEveMinutes(examID: $0.id) }, calendar: calendar)
+                                   tomorrowEveMinutes: tomorrowEve.map { builtEveMinutes(examID: $0.id) }, boosts: planBoosts().minutes,
+                                   calendar: calendar)
     }
 
     /// What "Why these?" says about today's session (`TodayReasons`): its exam and scope, the exam's weakest topic and how many of

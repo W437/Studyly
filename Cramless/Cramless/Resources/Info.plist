@@ -99,6 +99,8 @@
 	<true/>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>Capling looks at when you're busy, on this iPhone, to plan your study around long days. It doesn't read what your events are, and nothing leaves your iPhone.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Capling uses the camera to scan pages of your textbooks, handouts and notes into questions, or a problem you're stuck on.</string>
 	<key>NSMicrophoneUsageDescription</key>

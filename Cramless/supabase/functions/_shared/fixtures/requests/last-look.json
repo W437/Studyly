@@ -1,0 +1,21 @@
+{
+  "course": "Bio 101",
+  "examTitle": "Bio 101 Midterm",
+  "language": "en",
+  "ideas": [
+    {
+      "id": "i1",
+      "topic": "Phases of mitosis",
+      "prompt": "What happens in anaphase?",
+      "answer": "Sister chromatids separate and move to opposite poles.",
+      "lines": ["Anaphase: sister chromatids separate at the centromere.", "The spindle pulls them to opposite poles of the cell."]
+    },
+    {
+      "id": "i2",
+      "topic": "Meiosis",
+      "prompt": "How many daughter cells does meiosis make?",
+      "answer": "Four, each with half the chromosomes.",
+      "lines": ["Meiosis makes four daughter cells.", "Each one has half the chromosomes of the parent cell."]
+    }
+  ]
+}

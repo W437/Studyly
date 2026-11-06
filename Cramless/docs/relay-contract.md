@@ -49,7 +49,7 @@ Every failure is JSON with an HTTP status:
 Messages are short, safe to show and never contain the person's material.
 
 **One quiet retry.** The JSON routes (`generate`, `check`, `grade`, `lecture`, `cards-from-chat`, `confusions`,
-`transcribe-image`, `quota`) are tried once more after a `503` or a `504`, or a connection that dropped before any answer, because a
+`transcribe-image`, `last-look`, `quota`) are tried once more after a `503` or a `504`, or a connection that dropped before any answer, because a
 gateway or a busy provider recovers and the same request works a moment later (the relay gives a failed request's scan or meter back,
 so a retry doesn't charge a scan twice). A `503` that names a wait (`retryAfter`, in the envelope or the `Retry-After` header) is
 retried after that wait when it is 15 seconds or less, and not at all when it is longer; a `503` that names none, a `504` and a
@@ -83,7 +83,7 @@ owner's Squad subscription is active; otherwise `free`.
   back. A refused request (validation, quota) costs nothing. One exception for the model routes: a failure the provider
   **billed** (a reply that could not be read, a search stream that was cut off) or a client that walked away (499) keeps
   the quota, so errors cannot be farmed for free model time.
-- `check`, `confusions`, `cards-from-chat`, `syllabus` and `exam-mention` share an internal meter (`extras`: 120 a day on free, 800 paid) that the app
+- `check`, `confusions`, `cards-from-chat`, `syllabus`, `exam-mention` and `last-look` share an internal meter (`extras`: 120 a day on free, 800 paid) that the app
   never shows; Squad code attempts are capped at 10 a day.
 - **The day's cost cap** sits under every meter, on every plan: once a person's model calls since their local midnight have cost the
   cap (10¢; the `DAILY_COST_CAP_USD` secret, `0` = off), each AI route answers `quota_exceeded` (429, `quota.meters` empty,
@@ -415,6 +415,18 @@ that mention's `candidates`, or it goes; `topics` only names from the request, i
 The rules on the phone (`ExamDateFinder`) decide without it when there is no consent, no network or an older relay. Whatever comes back, the exam covers the whole course in this version and
 `scopePhrase` is only shown; it is added only by the student's tap.
 
+### `POST ai/last-look` → `LastLookResponse`
+
+The student's shakiest ideas in plain words, for the night before an exam (`LastLookEngine`). The app asks ahead of time, from 48 hours before the exam until 18:00 on its eve, so the sentences are on the
+phone when the evening comes and the screen works with no connection. Request `LastLookRequest`: `course`, `examTitle`, `language?`, `ideas` (1 to 8: `{id, topic?, prompt, answer, lines}`, with up to 6 lines of what
+the question came from, each at most 1,000 characters). Body limit 128 KB.
+
+Reply: `model`, `ideas` [`{id, sentence}`], at most one per idea. Cleaning: an id the request didn't have goes, and so does a second sentence for an idea; whitespace is collapsed; an empty sentence or one over 300 characters goes. Meter:
+`extras` (about 0.2¢). Effort low, 2,000 tokens at most.
+
+The app checks every sentence again before keeping it (`LastLookEngine.keeps`): its content words must be in the question, the answer and the lines, and every number and negation in it must be there too. Otherwise that idea shows its question and answer, as it does
+when there is no consent, no connection or an older relay (which answers 404).
+
 ### `GET ai/quota` → `QuotaStatus`
 
 `plan` and `meters` [`{key, used, limit, period}`] for `scans`, `grades`, `tutor`, `lectures`, in that order.
@@ -450,11 +462,18 @@ after 14 days.
 |---|---|---|---|
 | `POST account/squad/invite` | `{}` | `SquadInvite` `{code, url, expiresAt}` | 403 `entitlement_required` (no active Squad subscription), 409 `bad_request` (full) |
 | `POST account/squad/redeem` | `{code}` (any case) | `SquadRedeemResponse` `{plan: "squad", ownerName}` | 404 unknown, 409 used / own Squad / already in another Squad / full, 410 expired, 403 `entitlement_required` (the owner's subscription ended), 429 after 10 attempts a day |
-| `GET account/squad/members` | | `SquadMembers` `{seats: 4, members: [{id, name, joinedAt, isOwner}]}`, owner first | 404 not in a Squad |
+| `GET account/squad/members` | | `SquadMembers` `{seats: 4, sharing?, members: [{id, name, joinedAt, isOwner, studiedToday?}]}`, owner first | 404 not in a Squad |
 | `POST account/squad/remove` | `{memberId}` | `SquadMembers` (empty `members` after leaving) | 403 `bad_request` (only the owner removes someone else), 404 |
+| `POST account/squad/share` | `{on}` | `SquadMembers` | 404 not in a Squad |
+| `POST account/squad/studied` | `{dayKey}` (yyyy-MM-dd) | `SquadStudiedResponse` `{recorded}` | 400 `bad_request` (not a day, or more than a day from today in the caller's time zone) |
 
 Redeeming a code of the Squad you're already in succeeds and leaves the code unused. When the owner's Squad
 subscription ends, members are back on free; when the owner deletes their account, the Squad goes with it.
+
+**Studied today.** Off for everyone until they switch it on (`profiles.share_squad_activity`, `POST account/squad/share`). `sharing` says whether the person asking shares. `studiedToday` is on a member only if that
+member shares (without it, the field isn't there at all), and is true when their last studied day is today by their own profile's time zone. The app sends `POST account/squad/studied` after the day's first finished session; it
+needs only a session, not sync, and for someone who doesn't share or has no Squad it keeps nothing and answers `{recorded: false}`. All that's stored is a person and a day (`squad_activity`, kept for two weeks): never a course, a topic, an answer or a number.
+Switching off deletes it at once; leaving a Squad or deleting an account also ends the sharing, and an owner's deletion ends it for everyone on that Squad.
 
 ### Deletion
 

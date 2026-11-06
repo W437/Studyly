@@ -486,6 +486,32 @@ struct ExamMentionResponse: Codable, Hashable, Sendable {
     var mentions: [ExamMentionVerdict]
 }
 
+struct LastLookIdeaInput: Codable, Hashable, Sendable {
+    var id: String
+    var topic: String?
+    var prompt: String
+    var answer: String
+    /// Up to 6 lines of what the question came from.
+    var lines: [String]
+}
+
+struct LastLookRequest: Codable, Hashable, Sendable {
+    var course: String
+    var examTitle: String
+    var language: String?
+    var ideas: [LastLookIdeaInput]
+}
+
+struct LastLookSentence: Codable, Hashable, Sendable {
+    var id: String
+    var sentence: String
+}
+
+struct LastLookResponse: Codable, Hashable, Sendable {
+    var model: String
+    var ideas: [LastLookSentence]
+}
+
 // MARK: - quota and entitlement
 
 struct QuotaMeter: Codable, Hashable, Sendable {
@@ -542,15 +568,33 @@ struct SquadRedeemResponse: Codable, Hashable, Sendable {
     var ownerName: String
 }
 
+struct SquadShareRequest: Codable, Hashable, Sendable {
+    var on: Bool
+}
+
+struct SquadStudiedRequest: Codable, Hashable, Sendable {
+    /// yyyy-MM-dd: the person's own day.
+    var dayKey: String
+}
+
+struct SquadStudiedResponse: Codable, Hashable, Sendable {
+    /// False when nothing was kept: they don't share, or they aren't in a Squad.
+    var recorded: Bool
+}
+
 struct SquadMember: Codable, Hashable, Sendable, Identifiable {
     var id: String
     var name: String
     var joinedAt: Date
     var isOwner: Bool
+    /// They finished a session today, by their own time zone. Nil for someone who doesn't share it.
+    var studiedToday: Bool?
 }
 
 struct SquadMembers: Codable, Hashable, Sendable {
     var seats: Int
+    /// The person asking shares that they studied.
+    var sharing: Bool?
     var members: [SquadMember]
 }
 

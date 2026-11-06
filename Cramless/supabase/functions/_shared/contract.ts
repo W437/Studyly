@@ -508,6 +508,34 @@ export interface ExamMentionResponse {
   mentions: ExamMentionVerdict[];
 }
 
+export interface LastLookIdeaInput {
+  id: string;
+  topic?: string;
+  prompt: string;
+  answer: string;
+  /** Up to 6 lines of what the question came from. */
+  lines: string[];
+}
+
+export interface LastLookRequest {
+  course: string;
+  examTitle: string;
+  language?: string;
+  /** Up to 8. */
+  ideas: LastLookIdeaInput[];
+}
+
+export interface LastLookSentence {
+  id: string;
+  sentence: string;
+}
+
+export interface LastLookResponse {
+  model: string;
+  /** At most one per idea asked about. The app checks each against the question and the lines. */
+  ideas: LastLookSentence[];
+}
+
 export type MeterKey = "scans" | "grades" | "tutor" | "lectures";
 export type Period = "day" | "week";
 
@@ -545,15 +573,33 @@ export interface SquadRedeemResponse {
   ownerName: string;
 }
 
+export interface SquadShareRequest {
+  on: boolean;
+}
+
+export interface SquadStudiedRequest {
+  /** yyyy-MM-dd: the person's own day. */
+  dayKey: string;
+}
+
+export interface SquadStudiedResponse {
+  /** False when nothing was kept: they don't share, or they aren't in a Squad. */
+  recorded: boolean;
+}
+
 export interface SquadMember {
   id: string;
   name: string;
   joinedAt: string;
   isOwner: boolean;
+  /** They finished a session today, by their own time zone. Only for someone who chose to share it: otherwise it isn't there at all. */
+  studiedToday?: boolean;
 }
 
 export interface SquadMembers {
   seats: number;
+  /** The person asking shares that they studied. */
+  sharing?: boolean;
   members: SquadMember[];
 }
 

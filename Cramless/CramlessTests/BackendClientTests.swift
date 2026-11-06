@@ -19,6 +19,8 @@ final class BackendClientTests: XCTestCase {
         server.on("POST", "/functions/v1/account/squad/redeem") { _ in .json(BackendTest.fixture("squad-redeem")) }
         server.on("GET", "/functions/v1/account/squad/members") { _ in .json(BackendTest.fixture("squad-members")) }
         server.on("POST", "/functions/v1/account/squad/remove") { _ in .json(BackendTest.fixture("squad-members")) }
+        server.on("POST", "/functions/v1/account/squad/share") { _ in .json(BackendTest.fixture("squad-members")) }
+        server.on("POST", "/functions/v1/account/squad/studied") { _ in .json(BackendTest.fixture("squad-studied")) }
         server.on("POST", "/functions/v1/account/delete-ai-data") { _ in .json(BackendTest.fixture("account-delete")) }
         server.on("POST", "/functions/v1/account/delete") { _ in .json(BackendTest.fixture("account-delete")) }
         let app = signedInApp(server)
@@ -37,6 +39,8 @@ final class BackendClientTests: XCTestCase {
         XCTAssertEqual(members.seats, 4)
         XCTAssertEqual(members.members.first?.isOwner, true)
         _ = try await backend.removeSquadMember(id: "u-priya")
+        _ = try await backend.setSquadSharing(on: true)
+        _ = try await backend.markSquadStudied(dayKey: "2026-11-06")
         let aiDeleted = try await backend.deleteAIData()
         XCTAssertTrue(aiDeleted.deleted)
         let accountDeleted = try await backend.deleteAccount()
@@ -50,6 +54,8 @@ final class BackendClientTests: XCTestCase {
             "POST /functions/v1/account/squad/redeem",
             "GET /functions/v1/account/squad/members",
             "POST /functions/v1/account/squad/remove",
+            "POST /functions/v1/account/squad/share",
+            "POST /functions/v1/account/squad/studied",
             "POST /functions/v1/account/delete-ai-data",
             "POST /functions/v1/account/delete",
         ])
@@ -63,8 +69,10 @@ final class BackendClientTests: XCTestCase {
         XCTAssertEqual(bodies[2]?.isEmpty, true)
         XCTAssertEqual(bodies[3]?["code"] as? String, "CAP-7Q4K")
         XCTAssertEqual(bodies[5]?["memberId"] as? String, "u-priya")
-        XCTAssertEqual(bodies[6]?.isEmpty, true)
-        XCTAssertEqual(bodies[7]?.isEmpty, true)
+        XCTAssertEqual(bodies[6]?["on"] as? Bool, true)
+        XCTAssertEqual(bodies[7]?["dayKey"] as? String, "2026-11-06")
+        XCTAssertEqual(bodies[8]?.isEmpty, true)
+        XCTAssertEqual(bodies[9]?.isEmpty, true)
     }
 
     func testTheErrorEnvelopeMapsToRelayErrors() async throws {

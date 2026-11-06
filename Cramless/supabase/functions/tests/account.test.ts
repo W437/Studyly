@@ -57,16 +57,133 @@ Deno.test("the Squad purchaser invites, a friend redeems, and the members list i
   assertEquals(await redeemed.json(), fixtureJson("squad-redeem"));
   assertEquals((await (await r.ai("quota", { user: "u-priya" })).json()).plan, "squad", "a member has the plan");
 
+  // Priya shares that she studied; Maya doesn't.
+  assertEquals((await r.account("squad/share", { user: "u-priya", body: { on: true } })).status, 200);
+  const marked = await r.account("squad/studied", { user: "u-priya", body: { dayKey: "2026-10-03" } });
+  assertEquals(await marked.json(), fixtureJson("squad-studied"));
+
   // The squad was created with the first invite; the owner's seat dates from then.
   r.store.squads.forEach((s) => (s.createdAt = Date.parse("2026-10-01T18:00:00Z")));
   const members = await (await r.account("squad/members", { user: "u-owner" })).json();
   assertEquals(members, fixtureJson("squad-members"));
   assertEquals(
     await (await r.account("squad/members", { user: "u-priya" })).json(),
-    members,
-    "members see the same list",
+    { ...members, sharing: true },
+    "members see the same list, and whether they share",
   );
   assertEquals(validate(contractSchema("SquadMembers"), members), []);
+});
+
+/** Maya owns a Squad, Priya and Sam are on it; Priya in Tokyo and Sam in New York. */
+async function sharingRig() {
+  const r = squadRig(spelling("AAAA", "BBBB"));
+  r.clock.set("2026-11-06T20:00:00Z");
+  r.store.profiles.get("u-priya")!.timeZone = "Asia/Tokyo";
+  r.store.profiles.get("u-3")!.timeZone = "America/New_York";
+  for (const user of ["u-priya", "u-3"]) {
+    const { code } = await (await r.account("squad/invite", { user: "u-owner", body: {} })).json();
+    assertEquals((await r.account("squad/redeem", { user, body: { code } })).status, 200);
+  }
+  return r;
+}
+
+const list = async (r: Awaited<ReturnType<typeof sharingRig>>, user = "u-owner") =>
+  await (await r.account("squad/members", { user })).json();
+const studiedToday = (members: { members: { id: string; studiedToday?: boolean }[] }, id: string) =>
+  members.members.find((m) => m.id === id)?.studiedToday;
+
+Deno.test("the dot is off by default: nothing is kept and nothing is shown until someone opts in", async () => {
+  const r = await sharingRig();
+  const before = await list(r);
+  assertEquals(before.sharing, false);
+  for (const m of before.members) assert(!("studiedToday" in m), "not false: not there at all");
+
+  const res = await r.account("squad/studied", { user: "u-priya", body: { dayKey: "2026-11-07" } });
+  assertEquals(res.status, 200);
+  assertEquals(await res.json(), { recorded: false });
+  assertEquals(r.store.activity.size, 0, "nothing kept for someone who hasn't opted in");
+
+  // Opted in, nothing yet: a false, for the people who share.
+  await r.account("squad/share", { user: "u-priya", body: { on: true } });
+  const shared = await list(r);
+  assertEquals(studiedToday(shared, "u-priya"), false);
+  assertEquals(studiedToday(shared, "u-3"), undefined);
+  assertEquals((await list(r, "u-priya")).sharing, true);
+  assertEquals((await list(r, "u-3")).sharing, false);
+});
+
+Deno.test("studied today is by each member's own time zone", async () => {
+  const r = await sharingRig();
+  await r.account("squad/share", { user: "u-priya", body: { on: true } });
+  await r.account("squad/share", { user: "u-3", body: { on: true } });
+  // 20:00 UTC on the 6th: in Tokyo it's already the 7th, in New York still the 6th.
+  assertEquals(await (await r.account("squad/studied", { user: "u-priya", body: { dayKey: "2026-11-07" } })).json(), { recorded: true });
+  assertEquals(await (await r.account("squad/studied", { user: "u-3", body: { dayKey: "2026-11-06" } })).json(), { recorded: true });
+  let members = await list(r);
+  assertEquals(studiedToday(members, "u-priya"), true);
+  assertEquals(studiedToday(members, "u-3"), true);
+  // Five hours on: it's the 7th in New York too, and Tokyo's day is still the 7th.
+  r.clock.set("2026-11-07T05:00:00Z");
+  members = await list(r);
+  assertEquals(studiedToday(members, "u-priya"), true);
+  assertEquals(studiedToday(members, "u-3"), false, "yesterday's dot is gone at their midnight");
+  // Twice in a day is once.
+  await r.account("squad/studied", { user: "u-3", body: { dayKey: "2026-11-07" } });
+  await r.account("squad/studied", { user: "u-3", body: { dayKey: "2026-11-07" } });
+  assertEquals([...r.store.activity.get("u-3")!].sort(), ["2026-11-06", "2026-11-07"]);
+});
+
+Deno.test("a day has to be real and about today", async () => {
+  const r = await sharingRig();
+  await r.account("squad/share", { user: "u-3", body: { on: true } });
+  for (const dayKey of ["2026-11-20", "2026-10-30", "2026-02-30", "tomorrow"]) {
+    const res = await r.account("squad/studied", { user: "u-3", body: { dayKey } });
+    assertEquals(res.status, 400, dayKey);
+    assertEquals((await errorOf(res)).code, "bad_request");
+  }
+  assertEquals((await r.account("squad/studied", { user: "u-3", body: {} })).status, 400);
+  assertEquals((await r.account("squad/share", { user: "u-3", body: {} })).status, 400);
+  assertEquals(r.store.activity.size, 0);
+});
+
+Deno.test("turning sharing off, leaving and deleting all take the dot away at once", async () => {
+  const r = await sharingRig();
+  await r.account("squad/share", { user: "u-3", body: { on: true } });
+  await r.account("squad/studied", { user: "u-3", body: { dayKey: "2026-11-06" } });
+  assertEquals(studiedToday(await list(r), "u-3"), true);
+
+  const off = await (await r.account("squad/share", { user: "u-3", body: { on: false } })).json();
+  assertEquals(off.sharing, false);
+  assertEquals(studiedToday(off, "u-3"), undefined);
+  assertEquals(r.store.activity.has("u-3"), false, "what was shared is deleted");
+
+  // Leaving ends sharing: a later Squad never sees it unless it's switched on again.
+  await r.account("squad/share", { user: "u-3", body: { on: true } });
+  await r.account("squad/studied", { user: "u-3", body: { dayKey: "2026-11-06" } });
+  const left = await r.account("squad/remove", { user: "u-3", body: { memberId: "u-3" } });
+  assertEquals((await left.json()).sharing, false);
+  assertEquals(r.store.activity.has("u-3"), false);
+  assertEquals(r.store.profiles.get("u-3")?.shares, false);
+  assertEquals(await (await r.account("squad/studied", { user: "u-3", body: { dayKey: "2026-11-06" } })).json(), { recorded: false });
+
+  // The owner deleting the account ends the Squad, and everyone's sharing on it.
+  await r.account("squad/share", { user: "u-priya", body: { on: true } });
+  await r.account("squad/studied", { user: "u-priya", body: { dayKey: "2026-11-07" } });
+  assertEquals((await r.account("delete", { user: "u-owner", body: {} })).status, 200);
+  assertEquals(r.store.activity.has("u-priya"), false);
+  assertEquals(r.store.profiles.get("u-priya")?.shares, false);
+});
+
+Deno.test("sharing needs a Squad", async () => {
+  const r = await sharingRig();
+  const res = await r.account("squad/share", { user: "u-4", body: { on: true } });
+  assertEquals(res.status, 404);
+  assertEquals((await errorOf(res)).code, "bad_request");
+  // A studied note from someone with no Squad is simply not kept, so a stale phone isn't told off.
+  assertEquals(await (await r.account("squad/studied", { user: "u-4", body: { dayKey: "2026-11-06" } })).json(), { recorded: false });
+  // Nothing without a session.
+  assertEquals((await r.account("squad/share", { user: null, body: { on: true } })).status, 401);
+  assertEquals((await r.account("squad/studied", { user: null, body: { dayKey: "2026-11-06" } })).status, 401);
 });
 
 Deno.test("only someone with an active Squad subscription can invite", async () => {
@@ -146,7 +263,7 @@ Deno.test("the owner removes a member; a member can leave; nobody else can remov
   const removed = await (await r.account("squad/remove", { user: "u-owner", body: { memberId: "u-priya" } })).json();
   assertEquals(removed.members.map((m: { id: string }) => m.id), ["u-owner", "u-3"]);
   const left = await (await r.account("squad/remove", { user: "u-3", body: { memberId: "u-3" } })).json();
-  assertEquals(left, { seats: 4, members: [] });
+  assertEquals(left, { seats: 4, sharing: false, members: [] });
   assertEquals((await r.account("squad/members", { user: "u-3" })).status, 404);
   assertEquals((await r.account("squad/remove", { user: "u-owner", body: { memberId: "u-3" } })).status, 404);
 });

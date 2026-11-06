@@ -50,6 +50,15 @@ enum NoticeContent {
                              detail: LadderCopy.noticeLine(next: offer.next),
                              action: .init(title: LadderCopy.noticeAction, systemImage: "arrow.up.right", run: .raiseQuestion(itemID: offer.itemID)),
                              cost: costLine(notice.cost))
+        case .busyAsk:
+            return CapNotice(id: notice.id, kind: .busyDay, title: String(localized: "Cap can plan around your long days"),
+                             detail: String(localized: "He'd look at your calendar for long busy stretches, only their times, on this iPhone. Nothing leaves it."),
+                             action: .init(title: String(localized: "Check my calendar"), systemImage: "calendar", run: .askCalendar),
+                             cost: costLine(notice.cost))
+        case .busyDay(let move):
+            return CapNotice(id: notice.id, kind: .busyDay, title: busyTitle(move, calendar: calendar), detail: busyDetail(move, now: now, calendar: calendar),
+                             action: .init(title: String(localized: "Move them"), systemImage: "calendar.badge.clock", run: .moveBusyDay(move)),
+                             cost: costLine(notice.cost))
         case .teachBack(let offer):
             return CapNotice(id: notice.id, kind: .teachBack, title: TeachCopy.noticeTitle(offer.topicName), detail: TeachCopy.noticeLine,
                              action: .init(title: TeachCopy.noticeAction, systemImage: "person.wave.2", run: .teach(topicID: offer.topicID)),
@@ -125,9 +134,36 @@ enum NoticeContent {
         return "\(lead) \(plan)"
     }
 
-    /// What's on the slot right after "Fix my week": "Plan updated" and what changed, with Undo.
+    // MARK: Busy days
+
+    /// "Monday looks busy", "Tomorrow looks busy".
+    static func busyTitle(_ move: BusyMove, calendar: Calendar) -> String {
+        move.busy.offset == 1 ? String(localized: "Tomorrow looks busy")
+            : String(localized: "\(weekday(move.busy.date, calendar: calendar)) looks busy")
+    }
+
+    /// "About 6 hours in your calendar. Move 10 minutes to Sunday and Tuesday?"
+    static func busyDetail(_ move: BusyMove, now: Date, calendar: Calendar) -> String {
+        let days = dayWords(move.to.map(\.date), now: now, calendar: calendar, withOn: false)
+        return "\(String(localized: "About \(move.hours) hours in your calendar.")) \(String(localized: "Move \(move.minutes) minutes to \(days)?"))"
+    }
+
+    /// What's on the slot right after "Fix my week" or a busy day's move: "Plan updated" and what changed, with Undo.
     static func confirmation(boosts: [PlanBoost], now: Date, calendar: Calendar) -> CapNotice? {
         guard let first = boosts.first else { return nil }
+        if let off = boosts.first(where: { $0.minutes < 0 }) {
+            let today = calendar.dayNumber(for: now)
+            func date(_ boost: PlanBoost) -> Date? { calendar.dayNumber(forKey: boost.dayKey).map { calendar.startOfDay(dayNumber: $0) } }
+            let from = date(off).map { day -> String in
+                calendar.dayNumber(for: day) == today + 1 ? String(localized: "tomorrow") : weekday(day, calendar: calendar)
+            } ?? ""
+            let to = dayWords(boosts.filter { $0.minutes > 0 }.compactMap(date), now: now, calendar: calendar, withOn: false)
+            return CapNotice(id: "confirm-\(first.noticeID)", kind: .busyDay, title: String(localized: "Plan updated"),
+                             detail: String(localized: "\(-off.minutes) minutes moved from \(from) to \(to)."),
+                             action: .init(title: String(localized: "Undo"), systemImage: "arrow.uturn.backward",
+                                           run: .undoFixMyWeek(noticeID: first.noticeID)),
+                             isConfirmation: true)
+        }
         let dates = boosts.compactMap { calendar.dayNumber(forKey: $0.dayKey) }.map { calendar.startOfDay(dayNumber: $0) }
         let days = dayWords(dates, now: now, calendar: calendar)
         let what = first.origin ?? first.examTitle
@@ -138,8 +174,8 @@ enum NoticeContent {
                          isConfirmation: true)
     }
 
-    /// "today and tomorrow", "today and Friday", "on Friday and Tuesday".
-    static func dayWords(_ dates: [Date], now: Date, calendar: Calendar) -> String {
+    /// "today and tomorrow", "today and Friday", "on Friday and Tuesday" (`withOn: false`: "Friday and Tuesday").
+    static func dayWords(_ dates: [Date], now: Date, calendar: Calendar, withOn: Bool = true) -> String {
         let today = calendar.dayNumber(for: now)
         var startsNamed = false
         let words: [String] = dates.enumerated().map { index, date in
@@ -152,7 +188,7 @@ enum NoticeContent {
             }
         }
         let list = words.formatted(.list(type: .and))
-        return startsNamed ? String(localized: "on \(list)") : list
+        return startsNamed && withOn ? String(localized: "on \(list)") : list
     }
 
     private static func weekday(_ date: Date, calendar: Calendar) -> String {
@@ -182,12 +218,17 @@ enum NoticeContent {
             return String(localized: "Still mixing up \(SessionCopy.mixUpPair(note.name))? A 2-minute fix is ready.")
         case .gap(let gap):
             return String(localized: "Some topics on your \(gap.examTitle) have no notes yet. Cap can help you fill them in.")
-        case .welcomeBack, .mockOffer, .lectureDate, .tooEasy, .teachBack:
+        case .welcomeBack, .mockOffer, .lectureDate, .tooEasy, .teachBack, .busyAsk, .busyDay:
             return nil
         }
     }
 
     // MARK: Settings
+
+    /// What a switch needs said under it.
+    static func switchNote(_ kind: NoticeKind) -> LocalizedStringResource? {
+        kind == .busyDay ? "Looks at when your calendar is busy, on this iPhone, never at what's in it." : nil
+    }
 
     /// A kind's switch in Settings ▸ Study.
     static func switchTitle(_ kind: NoticeKind) -> LocalizedStringResource {

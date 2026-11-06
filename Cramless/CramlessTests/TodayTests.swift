@@ -670,4 +670,17 @@ final class TodayTests: XCTestCase {
         XCTAssertEqual(SessionCopy.moreQuestions(5), "5 more questions")
         XCTAssertEqual(SessionCopy.unbroken("Bio 101 exam"), "Bio\u{00A0}101\u{00A0}exam")
     }
+
+    // MARK: The Squad's line
+
+    func testYourPlanOnlySaysWhoStudiedOnAnOrdinaryDayOutOfQuietMode() {
+        func snapshot(_ hero: TodayHero, quiet: Bool = false) -> TodaySnapshot {
+            TodaySnapshot(hero: hero, summary: TodaySummary(), streak: StreakState(), answersToday: 0, exams: [], firstCourseID: nil, initials: "M", quiet: quiet)
+        }
+        XCTAssertTrue(snapshot(.session).showsSquad)
+        XCTAssertTrue(snapshot(.done).showsSquad)
+        XCTAssertFalse(snapshot(.session, quiet: true).showsSquad, "Quiet mode")
+        XCTAssertFalse(snapshot(.examEve(UUID())).showsSquad, "an eve is calm")
+        XCTAssertFalse(snapshot(.examEveDone(UUID())).showsSquad)
+    }
 }

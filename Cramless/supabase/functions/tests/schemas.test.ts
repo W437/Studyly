@@ -47,6 +47,7 @@ export const FIXTURE_TYPES: Record<string, string> = {
   "squad-invite": "SquadInvite",
   "squad-members": "SquadMembers",
   "squad-redeem": "SquadRedeemResponse",
+  "squad-studied": "SquadStudiedResponse",
   "transcribe-image": "TranscribeImageResponse",
   "tutor-error": "TutorScript",
   "tutor-explain": "TutorScript",
@@ -58,8 +59,10 @@ export const FIXTURE_TYPES: Record<string, string> = {
   "tutor-photo-uncited": "TutorScript",
   syllabus: "SyllabusResponse",
   "exam-mention": "ExamMentionResponse",
+  "last-look": "LastLookResponse",
   "requests/syllabus": "SyllabusRequest",
   "requests/exam-mention": "ExamMentionRequest",
+  "requests/last-look": "LastLookRequest",
   "requests/assistant": "AssistantRequest",
   "requests/generate": "GenerateRequest",
   "requests/grade": "GradeRequest",
@@ -171,6 +174,7 @@ const SWIFT_TO_SCHEMA: Record<string, string> = {
   SquadRedeemResponse: "SquadRedeemResponse",
   SquadMember: "SquadMember",
   SquadMembers: "SquadMembers",
+  SquadStudiedResponse: "SquadStudiedResponse",
   AccountDeleteResponse: "AccountDeleteResponse",
   KeyIdea: "KeyIdea",
   Choice: "Choice",
@@ -182,6 +186,8 @@ const SWIFT_TO_SCHEMA: Record<string, string> = {
   SyllabusResponse: "SyllabusResponse",
   ExamMentionVerdict: "ExamMentionVerdict",
   ExamMentionResponse: "ExamMentionResponse",
+  LastLookSentence: "LastLookSentence",
+  LastLookResponse: "LastLookResponse",
 };
 
 const SWIFT_REQUESTS = [
@@ -198,8 +204,11 @@ const SWIFT_REQUESTS = [
   "EntitlementRequest",
   "SquadRedeemRequest",
   "SquadRemoveRequest",
+  "SquadShareRequest",
+  "SquadStudiedRequest",
   "SyllabusRequest",
   "ExamMentionRequest",
+  "LastLookRequest",
 ];
 
 Deno.test("contract.json has the Swift reply types' fields, and their optionality", async () => {
@@ -258,6 +267,7 @@ const PROVIDER_TYPES = [
   "TranscribeImageResponse",
   "SyllabusResponse",
   "ExamMentionResponse",
+  "LastLookResponse",
 ];
 const UNSUPPORTED = [
   "minLength",

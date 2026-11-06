@@ -6,10 +6,13 @@ import SwiftUI
 /// - A member (a seat on a friend's Squad) sees whose Squad it is, and can leave.
 /// - Without Squad: what it is ("You + 3 friends, $2.08 each a month"), the plans, and "Have a code?".
 ///
+/// - Owner and member alike see who has studied today, among those who share it, and have the switch to share it themselves (off until they turn it on).
+///
 /// Seats live on the server, so managing them needs an account; a build without accounts says so.
 ///
 /// Harness: `CRAMLESS_PLAN=squad` (an owner) with `CRAMLESS_ACCOUNT=apple`; `CRAMLESS_SQUAD=member` shows a seat on
-/// Maya's Squad; `CRAMLESS_SQUAD=invite` makes an invite at once.
+/// Maya's Squad; `CRAMLESS_SQUAD=invite` makes an invite at once; `CRAMLESS_SQUAD_TODAY=two|none|private|sharing` shapes who has shared what (`AppModel.debugShapeSquad`), here and on
+/// Today's line.
 struct SquadView: View {
     enum Role: Equatable { case owner, member, none }
 
@@ -22,6 +25,8 @@ struct SquadView: View {
     @State private var removing: SquadMember?
     @State private var confirmingLeave = false
     @State private var busy = false
+    /// The switch is on its way to the server.
+    @State private var sharingBusy = false
 
     private var hasAccounts: Bool { app.config.aiMode != .local }
 
@@ -96,6 +101,7 @@ struct SquadView: View {
                         }
                     }
                 }
+                shareSection
             }
             CLSectionHeader(title: "Invite a friend")
             inviteSection(open: max(0, seats - list.count), knowsSeats: members != nil)
@@ -169,6 +175,7 @@ struct SquadView: View {
                         MemberRow(member: m, isYou: false, joined: m.joinedAt) { EmptyView() }
                     }
                 }
+                shareSection
             }
             SettingsGroup(title: nil, footer: "You'll go back to the free plan. Everything you've studied stays.") {
                 SettingsActionRow(icon: "rectangle.portrait.and.arrow.right", title: "Leave Squad", destructive: true, busy: busy) {
@@ -223,6 +230,39 @@ struct SquadView: View {
                 }
             }
             .padding(.top, 16)
+        }
+    }
+
+    // MARK: Sharing
+
+    /// Off until the person turns it on. Off again, what they shared goes at once.
+    private var shareSection: some View {
+        SettingsGroup(title: "Today") {
+            SettingsToggleRow(title: SquadCopy.switchTitle, subtitle: SquadCopy.switchNote,
+                              isOn: Binding(get: { members?.sharing ?? false }, set: { setSharing($0) }),
+                              hintOn: "Shows your Squad a mark on days you finish a session.",
+                              hintOff: "Stops showing it, and deletes what was shared.")
+                .disabled(sharingBusy)
+        }
+    }
+
+    private func setSharing(_ on: Bool) {
+        guard !sharingBusy else { return }
+        CLHaptics.select()
+        sharingBusy = true
+        loadError = nil
+        // The switch moves as soon as it's touched, and goes back if the server says no.
+        let before = members
+        members?.sharing = on
+        Task {
+            do {
+                let updated = try await app.setSquadSharing(on)
+                withAnimation(CLMotion.settle) { members = updated }
+            } catch {
+                members = before
+                loadError = RelayError.message(for: error)
+            }
+            sharingBusy = false
         }
     }
 
@@ -322,7 +362,7 @@ private struct SeatsCard: View {
                 ForEach(0..<max(seats, members.count), id: \.self) { i in
                     VStack(spacing: 6) {
                         if i < members.count {
-                            InitialsAvatar(name: members[i].name, size: 54, fill: Self.fill(i))
+                            SquadFace(name: members[i].name, studied: members[i].studiedToday == true, size: 54, fill: Self.fill(i))
                         } else {
                             Circle()
                                 .strokeBorder(CLColor.ink4, style: StrokeStyle(lineWidth: 2, dash: [5, 5]))
@@ -346,6 +386,13 @@ private struct SeatsCard: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text(loading ? "Your Squad, loading" :
             "Your Squad: \(members.count) of \(seats) seats taken. \(members.map(\.name).joined(separator: ", "))."))
+        .accessibilityValue(Text(verbatim: studiedWords))
+    }
+
+    /// VoiceOver's "Priya studied today", from the same marks the faces show.
+    private var studiedWords: String {
+        let names = members.filter { $0.studiedToday == true }.map(\.name)
+        return names.isEmpty ? "" : SquadCopy.studied(names)
     }
 
     static func fill(_ index: Int) -> Color {
@@ -353,7 +400,7 @@ private struct SeatsCard: View {
     }
 }
 
-/// A member: their face, their name, when they joined.
+/// A member: their face, their name, when they joined, and, if they share it, that they studied today.
 private struct MemberRow<Trailing: View>: View {
     let member: SquadMember
     let isYou: Bool
@@ -362,11 +409,14 @@ private struct MemberRow<Trailing: View>: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            InitialsAvatar(name: member.name, size: 38, fill: member.isOwner ? CLColor.tangerine : CLColor.sky)
+            SquadFace(name: member.name, studied: member.studiedToday == true, size: 38, fill: member.isOwner ? CLColor.tangerine : CLColor.sky)
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
                     Text(isYou ? "\(member.name) (you)" : member.name).clFont(.bodyEmphasis).foregroundStyle(CLColor.ink)
                     if member.isOwner { CLPill(text: "Owner", tone: .mint) }
+                }
+                if member.studiedToday == true {
+                    Text("Studied today").clFont(.footnoteEmphasis).foregroundStyle(CLColor.mintInk)
                 }
                 Text("Joined \(joined.formatted(.dateTime.month(.abbreviated).day()))")
                     .clFont(.footnote).foregroundStyle(CLColor.ink2)

@@ -195,6 +195,7 @@
         }
       }
     },
+    "%@ looks busy" : {},
     "%@ made from it" : {},
     "%@ questions" : {},
     "%@ questions are in too" : {},
@@ -213,6 +214,7 @@
       }
     },
     "%@ so far" : {},
+    "%@ studied today" : {},
     "%@ this week" : {},
     "%@ to review" : {},
     "%@ today" : {},
@@ -681,6 +683,28 @@
         }
       }
     },
+    "%lld ideas" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld idea"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld ideas"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "%lld in a row" : {},
     "%lld left blank. They stay out of your score." : {
       "localizations" : {
@@ -797,6 +821,38 @@
                 "stringUnit" : {
                   "state" : "translated",
                   "value" : "%lld minutes left"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld minutes moved from %@ to %@." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%#@minutes@ moved from %2$@ to %3$@."
+          },
+          "substitutions" : {
+            "minutes" : {
+              "argNum" : 1,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg minute"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg minutes"
+                    }
+                  }
                 }
               }
             }
@@ -2271,6 +2327,28 @@
         }
       }
     },
+    "About %lld hours in your calendar." : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "About %lld hour in your calendar."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "About %lld hours in your calendar."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "About %lld min for this exam" : {},
     "About %lld min for this exam: %@" : {
       "localizations" : {
@@ -2797,6 +2875,7 @@
     "Cap asks you a question back" : {},
     "Cap asks, you answer out loud. For the bus, a walk or the gym." : {},
     "Cap brings it up tomorrow" : {},
+    "Cap can plan around your long days" : {},
     "Cap can't use the microphone right now, so you can type it to him." : {},
     "Cap checked the questions you reported." : {},
     "Cap couldn't back this question with %@, so it's out of your sessions." : {},
@@ -2910,6 +2989,7 @@
     "Cap won't bring these up. Turn them on again in Settings." : {},
     "Cap won't look anything up online." : {},
     "Cap writes down each idea as he hears it." : {},
+    "Cap wrote these from your questions and notes." : {},
     "Cap's answers and drafts, no daily limit" : {},
     "Cap's notes" : {},
     "Cap's own words" : {},
@@ -2953,6 +3033,7 @@
     "Check" : {},
     "Check it yourself" : {},
     "Check my answer" : {},
+    "Check my calendar" : {},
     "Check the problem" : {},
     "Check them before they join your sessions." : {},
     "Check this question" : {},
@@ -3355,6 +3436,7 @@
     "Hard" : {},
     "Harness routes" : {},
     "Have a code?" : {},
+    "He'd look at your calendar for long busy stretches, only their times, on this iPhone. Nothing leaves it." : {},
     "Hear an example" : {},
     "Hearing now" : {},
     "Hearing sound" : {},
@@ -3635,6 +3717,7 @@
     "Look-alikes" : {},
     "Looked again. All good." : {},
     "Looking at the calendar" : {},
+    "Looks at when your calendar is busy, on this iPhone, never at what's in it." : {},
     "Looks right" : {},
     "Looks wrong?" : {},
     "Lunch for the brain?" : {},
@@ -3740,6 +3823,39 @@
         }
       }
     },
+    "Move %lld minutes to %@?" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Move %#@minutes@ to %2$@?"
+          },
+          "substitutions" : {
+            "minutes" : {
+              "argNum" : 1,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg minute"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg minutes"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "Move them" : {},
     "Multiple choice" : {},
     "My answer should count" : {},
     "My brain is buffering." : {},
@@ -3813,6 +3929,7 @@
     "No marks until the end, like the real thing." : {},
     "No material yet" : {},
     "No notes yet" : {},
+    "No one in your Squad has studied yet today" : {},
     "No pressure. Just vibes." : {},
     "No question is ticked." : {},
     "No questions from this lecture yet." : {},
@@ -3879,12 +3996,14 @@
     "Nothing is due right now. Add pages to study more." : {},
     "Nothing is fading right now." : {},
     "Nothing left to review tonight" : {},
+    "Nothing long this week. Cap will keep an eye out." : {},
     "Nothing needs attention right now." : {},
     "Nothing planned. The plan is made at launch and after each change." : {},
     "Nothing that day in this what-if." : {},
     "Nothing to ask out loud right now." : {},
     "Nothing to delete: this build never sends anything to Cloud AI." : {},
     "Nothing to drill here" : {},
+    "Nothing to look at tonight" : {},
     "Nothing to mark." : {},
     "Nothing to restore on this Apple Account." : {},
     "Nothing to study for this exam yet. Add material and Capling plans the way there." : {},
@@ -3900,6 +4019,7 @@
     "Oh, hello there." : {},
     "Okay okay, I'm awake!" : {},
     "Okay, it'll come back." : {},
+    "Okay. Cap won't look at your calendar." : {},
     "Okay. We'll stop here." : {},
     "On hold" : {},
     "On the exam" : {},
@@ -4390,6 +4510,7 @@
         }
       }
     },
+    "Show when I've studied" : {},
     "Show-off. I like it." : {},
     "Shown" : {},
     "Shows that moment in the transcript" : {},
@@ -4401,6 +4522,7 @@
     "Shows the text read from this page" : {},
     "Shows this topic's questions" : {},
     "Shows what skipping that day costs. Nothing changes in your plan." : {},
+    "Shows your Squad a mark on days you finish a session." : {},
     "Sign in" : {},
     "Sign in and your courses, questions and streak come back to this iPhone." : {},
     "Sign in first" : {},
@@ -4559,6 +4681,7 @@
     "Stops editing this card" : {},
     "Stops sending anything to Cloud AI. Capling keeps working on this iPhone." : {},
     "Stops sending page photos. Their text still goes while Cloud AI is on." : {},
+    "Stops showing it, and deletes what was shared." : {},
     "Straight to the answer" : {},
     "Streak" : {},
     "Streaks and quests" : {},
@@ -4702,6 +4825,7 @@
     "That's all the drafts for today. They start again at midnight." : {},
     "That's all the web research for today. It resets at midnight." : {},
     "That's enough for tonight" : {},
+    "That's enough for tonight. Sleep is part of studying. Good luck tomorrow." : {},
     "That's enough for tonight. You're about %@ ready for tomorrow morning." : {},
     "That's enough for tonight. You're about %@ ready for tomorrow." : {},
     "That's enough." : {},
@@ -4948,6 +5072,7 @@
     "Today's session is in." : {},
     "Today: a tiny bit. Perfect." : {},
     "Tomorrow" : {},
+    "Tomorrow looks busy" : {},
     "Tomorrow · %@" : {},
     "Tomorrow's brain says thanks." : {},
     "Tomorrow-us will be ready." : {},
@@ -5104,6 +5229,7 @@
     "Where you are in the lecture" : {},
     "Which class is this for?" : {},
     "Which one is this? %@" : {},
+    "Who's in your Squad" : {},
     "Whoa, easy there!" : {},
     "Why" : {},
     "Why do cells divide by mitosis?" : {},
@@ -5238,7 +5364,7 @@
         }
       }
     },
-    "You went over your weak spots. Sleep is when today's studying sticks." : {},
+    "You went over your weak spots." : {},
     "You were %@ ready on the day." : {},
     "You were 80% ready on the morning of an exam." : {},
     "You were right. Cap fixed the question." : {},
@@ -5284,6 +5410,7 @@
     },
     "Your AI" : {},
     "Your Squad" : {},
+    "Your Squad sees a mark on days you finish a session. Never your courses, notes, answers or exams." : {},
     "Your Squad, loading" : {},
     "Your Squad: %lld of %lld seats taken. %@." : {
       "localizations" : {
@@ -5334,11 +5461,35 @@
     "Your data stays. Finishing onboarding brings you back here." : {},
     "Your exam" : {},
     "Your first set" : {},
+    "Your five shakiest ideas, in plain words" : {},
     "Your grade" : {},
     "Your grade landed within 5 points of your readiness." : {},
     "Your grade, in percent" : {},
     "Your iPhone's AI is off or unavailable, so you mark this one." : {},
     "Your invite code" : {},
+    "Your last look" : {},
+    "Your last look: %lld ideas, no quiz" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Your last look: %lld idea, no quiz"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Your last look: %lld ideas, no quiz"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "Your memory sky" : {},
     "Your memory sky is empty. Add class material and every question you study becomes a star." : {},
     "Your name" : {},
@@ -5355,6 +5506,7 @@
     "Your seat belongs to your account, so it follows you to a new iPhone, and your friend can see who joined." : {},
     "Your session for today shows up here." : {},
     "Your set goes there, and your plan is built for it." : {},
+    "Your shakiest ideas, in plain words" : {},
     "Your sky is %@" : {},
     "Your sky is waiting" : {},
     "Your stars waited for you. 5 minutes today is a good start." : {},
@@ -5502,6 +5654,7 @@
     "min" : {},
     "multiple choice" : {},
     "ng" : {},
+    "no quiz" : {},
     "not studied" : {},
     "nothing planned" : {},
     "on %@" : {},

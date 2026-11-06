@@ -22,6 +22,7 @@ final class RelayContractTests: XCTestCase {
         XCTAssertNoThrow(try RelayFixtures.load(TranscribeImageResponse.self, "transcribe-image"))
         XCTAssertNoThrow(try RelayFixtures.load(SyllabusResponse.self, "syllabus"))
         XCTAssertNoThrow(try RelayFixtures.load(ExamMentionResponse.self, "exam-mention"))
+        XCTAssertNoThrow(try RelayFixtures.load(LastLookResponse.self, "last-look"))
         XCTAssertNoThrow(try RelayFixtures.load(QuotaStatus.self, "quota-free"))
         XCTAssertNoThrow(try RelayFixtures.load(QuotaStatus.self, "quota-pro"))
         XCTAssertNoThrow(try RelayFixtures.load(EntitlementResponse.self, "entitlement"))
@@ -266,6 +267,32 @@ final class RelayContractTests: XCTestCase {
         XCTAssertEqual(asked.mentions[0].candidates.count, 4)
         XCTAssertEqual(asked.topics.count, 30)
         XCTAssertEqual(asked.title.unicodeScalars.count, 300)
+    }
+
+    func testALastLookRequestFitsTheRelaysLimits() throws {
+        // requests.json: LastLookRequest.ideas 8, each with a prompt and an answer of 2000, 6 lines of 1000, a topic of 120.
+        let long = String(repeating: "a", count: 5000)
+        let idea = LastLookIdeaInput(id: "i1", topic: long, prompt: long, answer: long, lines: Array(repeating: long, count: 9))
+        let fitted = LastLookRequest(course: long, examTitle: long, language: "en", ideas: Array(repeating: idea, count: 12)).fitted()
+        XCTAssertEqual(fitted.ideas.count, 8)
+        XCTAssertEqual(fitted.course.unicodeScalars.count, 200)
+        XCTAssertEqual(fitted.examTitle.unicodeScalars.count, 300)
+        XCTAssertEqual(fitted.ideas[0].prompt.unicodeScalars.count, 2000)
+        XCTAssertEqual(fitted.ideas[0].answer.unicodeScalars.count, 2000)
+        XCTAssertEqual(fitted.ideas[0].topic?.unicodeScalars.count, 120)
+        XCTAssertEqual(fitted.ideas[0].lines.count, 6)
+        XCTAssertEqual(fitted.ideas[0].lines[0].unicodeScalars.count, 1000)
+    }
+
+    func testTheMocksLastLookIsKeptByTheAppsOwnCheck() async throws {
+        let mock = MockRelayTransport(latencyScale: 0)
+        let reply = try await mock.lastLook(LastLookRequest(course: "Bio", examTitle: "Midterm", language: nil, ideas: [
+            LastLookIdeaInput(id: "i1", topic: nil, prompt: "What does the spindle do?", answer: "It pulls.", lines: ["The spindle pulls the chromatids apart."]),
+            LastLookIdeaInput(id: "i2", topic: nil, prompt: "Crossing over", answer: "Chromosomes swap pieces.", lines: []),
+            LastLookIdeaInput(id: "i3", topic: nil, prompt: "How many?", answer: "4", lines: []),
+        ]))
+        XCTAssertEqual(reply.ideas, [LastLookSentence(id: "i1", sentence: "The spindle pulls the chromatids apart."),
+                                     LastLookSentence(id: "i2", sentence: "Crossing over: Chromosomes swap pieces.")])
     }
 
     func testTheMockPutsTheCoursesOwnIdsOnTheSyllabusFixture() async throws {

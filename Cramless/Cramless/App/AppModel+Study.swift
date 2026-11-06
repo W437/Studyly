@@ -33,6 +33,7 @@ extension AppModel {
         return SessionSpec(id: request.id, kind: request.kind, minutes: minutes, courseID: request.courseID,
                            topicID: request.topicID, examID: request.examID, confusionID: request.confusionID,
                            itemIDs: request.itemIDs, focusItemIDs: daily ? boostedItemsToday() : [], questionCount: request.questionCount,
+                           backlogMinutes: daily ? backlogMinutesToday() : nil,
                            kinds: request.spokenOnly ? OutLoudPolicy.kinds : nil,
                            excludedItemIDs: request.spokenOnly ? unspeakableItemIDs() : [])
     }
@@ -243,6 +244,7 @@ extension AppModel {
         }
         save()
         StudyRuntime.end(session.id)
+        if !logs.isEmpty, session.kind != .quickCheck { noteSessionFinishedForSquad() }
 
         let startOfToday = calendar.startOfDay(for: now)
         let earlierToday = fetch(FetchDescriptor<ReviewLog>(predicate: #Predicate { $0.reviewedAt >= startOfToday }))

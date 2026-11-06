@@ -11,6 +11,7 @@ import type {
   GeneratedItem,
   GenerateRequest,
   GradeRequest,
+  LastLookRequest,
   LectureRequest,
   PageInput,
   ResearchRequest,
@@ -31,7 +32,8 @@ export type Task =
   | "cards"
   | "transcribe"
   | "syllabus"
-  | "exam-mention";
+  | "exam-mention"
+  | "last-look";
 
 function prompt(name: string): string {
   const text = PROMPTS[name];
@@ -346,6 +348,32 @@ export function examMentionContent(req: ExamMentionRequest): ContentBlock[] {
       mentions,
       "",
       "Answer once per mention.",
+    ].join("\n"),
+  }];
+}
+
+/** The ideas of a last look, each with the question it comes from and the lines behind it. */
+export function lastLookContent(req: LastLookRequest): ContentBlock[] {
+  const ideas = req.ideas.map((idea) =>
+    [
+      `<idea id="${attr(idea.id)}">`,
+      ...(idea.topic?.trim() ? [`Topic: ${oneLine(idea.topic, 120)}`] : []),
+      `Question: ${idea.prompt}`,
+      `Answer: ${idea.answer}`,
+      ...idea.lines.map((line) => `Line: ${line}`),
+      "</idea>",
+    ].join("\n")
+  ).join("\n");
+  return [{
+    type: "text",
+    text: [
+      `Course: ${oneLine(req.course, 200)}`,
+      `Exam: ${oneLine(req.examTitle, 200)}`,
+      ...(req.language?.trim() ? [`Language: ${oneLine(req.language, 20)}`] : []),
+      "",
+      ideas,
+      "",
+      "One plain sentence per idea.",
     ].join("\n"),
   }];
 }

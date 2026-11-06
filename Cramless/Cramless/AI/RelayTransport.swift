@@ -22,6 +22,8 @@ protocol RelayTransport: Sendable {
     func syllabus(_ request: SyllabusRequest) async throws -> SyllabusResponse
     /// One look at the sentences an exam date was heard in, after the student asked to add it.
     func examMention(_ request: ExamMentionRequest) async throws -> ExamMentionResponse
+    /// The student's shakiest ideas in plain words, written ahead of an exam's eve.
+    func lastLook(_ request: LastLookRequest) async throws -> LastLookResponse
     func quota() async throws -> QuotaStatus
 }
 
@@ -42,6 +44,10 @@ extension RelayTransport {
 
     func examMention(_ request: ExamMentionRequest) async throws -> ExamMentionResponse {
         throw RelayError.upstream("Checking an exam date isn't available here.")
+    }
+
+    func lastLook(_ request: LastLookRequest) async throws -> LastLookResponse {
+        throw RelayError.upstream("The last look isn't available here.")
     }
 }
 

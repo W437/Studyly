@@ -138,4 +138,29 @@ final class TodayPlanStripTests: XCTestCase {
         let week = make([], goal: 20)
         for day in week where day.offset > 0 { XCTAssertEqual(day.mark, .minutes(20)) }
     }
+
+    // MARK: Minutes moved
+
+    func testALongDaysMinutesShowOnTheDaysAroundIt() {
+        let moved = TodayPlanStrip.make(today: now, plans: [plan("Midterm", examIn: 9)], past: [], todayMinutes: 15, todayDone: false, goal: 15,
+                                        easyDays: [], boosts: [1: 5, 2: -10, 3: 5], calendar: cal)
+        func minutes(_ offset: Int) -> TodayPlanDay.Mark? { moved.first { $0.offset == offset }?.mark }
+        XCTAssertEqual(minutes(2), .minutes(15), "the plan day's own session still says what it was built with")
+        XCTAssertEqual(minutes(1), .minutes(20))
+        XCTAssertEqual(minutes(3), .minutes(20))
+        // A plan built with the move has the shorter day in it.
+        let shorter = plan("Midterm", examIn: 9)
+        var days = shorter.days
+        days[2] = planDay(2, .study, session: 5)
+        let built = TodayPlanStrip.make(today: now, plans: [TodayPlanStrip.ExamPlan(title: "Midterm", days: days)], past: [], todayMinutes: 15, todayDone: false,
+                                        goal: 15, easyDays: [], boosts: [2: -10], calendar: cal)
+        XCTAssertEqual(built.first { $0.offset == 2 }?.mark, .minutes(5))
+    }
+
+    func testWithNoExamPlanTheGoalMovesToo() {
+        let week = TodayPlanStrip.make(today: now, plans: [], past: [], todayMinutes: 15, todayDone: false, goal: 15, easyDays: [], boosts: [2: -10],
+                                       calendar: cal)
+        XCTAssertEqual(week.first { $0.offset == 2 }?.mark, .minutes(5))
+        XCTAssertEqual(week.first { $0.offset == 1 }?.mark, .minutes(15))
+    }
 }

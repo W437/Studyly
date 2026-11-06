@@ -21,7 +21,7 @@ import Foundation
 //   • under-18: the tutor is always on hints first.
 
 enum AIJob: String, CaseIterable, Sendable {
-    case generate, grade, tutor, confusions, lecture, cardsFromChat, transcribeImage, syllabus, examMention
+    case generate, grade, tutor, confusions, lecture, cardsFromChat, transcribeImage, syllabus, examMention, lastLook
 
     /// The free limit the job counts against.
     var meter: QuotaMeter.Key? {
@@ -30,14 +30,14 @@ enum AIJob: String, CaseIterable, Sendable {
         case .grade: .grades
         case .tutor: .tutor
         case .lecture: .lectures
-        case .confusions, .cardsFromChat, .transcribeImage, .syllabus, .examMention: nil
+        case .confusions, .cardsFromChat, .transcribeImage, .syllabus, .examMention, .lastLook: nil
         }
     }
 
-    /// This iPhone's model can do this job (mistake patterns, handwriting, a syllabus and a date heard in a lecture need the cloud).
+    /// This iPhone's model can do this job (mistake patterns, handwriting, a syllabus, a date heard in a lecture and a last look's sentences need the cloud).
     var runsOnDevice: Bool {
         switch self {
-        case .confusions, .transcribeImage, .syllabus, .examMention: false
+        case .confusions, .transcribeImage, .syllabus, .examMention, .lastLook: false
         default: true
         }
     }
@@ -54,6 +54,7 @@ enum AIJob: String, CaseIterable, Sendable {
         case .transcribeImage: "Read handwriting, math and diagrams"
         case .syllabus: "Read your syllabus"
         case .examMention: "Check a date heard in a lecture"
+        case .lastLook: "Say your shakiest ideas in plain words"
         }
     }
 }
@@ -151,7 +152,7 @@ enum AIRouting {
         switch c.job {
         case .grade:
             order = c.strongest || c.preferCloud ? [.cloud, .onDevice] : [.onDevice, .cloud]
-        case .confusions, .transcribeImage, .syllabus, .examMention:
+        case .confusions, .transcribeImage, .syllabus, .examMention, .lastLook:
             order = [.cloud]
         case .generate, .tutor, .lecture, .cardsFromChat:
             order = [.cloud, .privateCloud, .onDevice]

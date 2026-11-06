@@ -167,8 +167,8 @@ struct TodayView: View {
     @ViewBuilder
     private func rest(_ snap: TodaySnapshot) -> some View {
         if snap.hasMaterial, !snap.strip.isEmpty {
-            TodayPlanCard(days: snap.strip, quests: snap.isEve ? QuestsToday() : snap.quests,
-                          onCalendar: { open(.streak) }, onQuests: { present(.quests) })
+            TodayPlanCard(days: snap.strip, quests: snap.isEve ? QuestsToday() : snap.quests, showsSquad: snap.showsSquad,
+                          onCalendar: { open(.streak) }, onQuests: { present(.quests) }, onSquad: { open(.squad) })
         }
         if snap.isEve, let eve = snap.eveExam {
             TodayQuietLine(text: TodayCopy.quietLine(examTitle: snap.eveTitle ?? eve.title, others: snap.eveOthers))
@@ -282,6 +282,7 @@ struct TodayView: View {
             if let request = action.request { start(request) }
         case .sample: sample()
         case .scan: scan(snap)
+        case .lastLook(let examID): present(.lastLook(examID: examID))
         }
     }
 

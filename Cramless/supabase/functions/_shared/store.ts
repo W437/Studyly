@@ -83,6 +83,12 @@ export interface SquadMemberRow {
   name: string;
   joinedAt: string;
   isOwner: boolean;
+  /** Their profile's time zone: what "today" means for them. */
+  timeZone: string;
+  /** They switched on sharing that they studied. */
+  shares: boolean;
+  /** yyyy-MM-dd: the last day of theirs they finished a session on. Only for someone who shares. */
+  lastStudiedDay: string | null;
 }
 
 export type MembersResult =
@@ -90,6 +96,8 @@ export type MembersResult =
   | { ok: false; reason: "no_squad" };
 
 export type RemoveResult = { ok: true } | { ok: false; reason: "not_allowed" | "not_found" };
+
+export type ShareResult = { ok: true } | { ok: false; reason: "no_squad" };
 
 export const SQUAD_SEATS = 4;
 
@@ -118,6 +126,10 @@ export interface Store {
   squadRedeem(userId: string, code: string, now: Date): Promise<RedeemResult>;
   squadMembers(userId: string): Promise<MembersResult>;
   squadRemove(actorId: string, memberId: string): Promise<RemoveResult>;
+  /** Switches sharing that they studied. Off deletes what was shared. */
+  squadShare(userId: string, on: boolean): Promise<ShareResult>;
+  /** They finished a session on `day` (yyyy-MM-dd). False when nothing was kept: no opt-in, or no Squad. */
+  squadStudied(userId: string, day: string): Promise<boolean>;
   deleteAiData(userId: string): Promise<void>;
   /** Every row, the person's storage folder and the auth user. */
   deleteAccount(userId: string): Promise<void>;

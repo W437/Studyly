@@ -18,7 +18,7 @@ struct CapNotice: Identifiable, Equatable, Sendable {
             case showLookAlike(LookAlikePair)
             /// "Fix my week": adds the minutes to the plan.
             case fixMyWeek(FadeRescue)
-            /// Takes "Fix my week" back.
+            /// Takes back what "Fix my week" or a busy day's move did to the plan.
             case undoFixMyWeek(noticeID: String)
             /// "Take it": a mock of this exam.
             case takeMock(examID: UUID)
@@ -28,6 +28,10 @@ struct CapNotice: Identifiable, Equatable, Sendable {
             case openHeardDate(sourceID: UUID, noticeID: String)
             /// "Yes, harder": a harder question for this one.
             case raiseQuestion(itemID: UUID)
+            /// "Check my calendar": asks iOS, once.
+            case askCalendar
+            /// "Move them": takes minutes off a long day and gives them to the days around it.
+            case moveBusyDay(BusyMove)
             /// "Teach Cap": explain this topic to him.
             case teach(topicID: UUID)
         }

@@ -14,6 +14,7 @@ import {
   type NotificationUpdate,
   type RedeemResult,
   type RemoveResult,
+  type ShareResult,
   type ScanKind,
   type ScanResult,
   SQUAD_SEATS,
@@ -36,7 +37,9 @@ const RANK: Record<string, number> = { squad: 3, pro: 2, pass: 1 };
 const iso = (ms: number) => new Date(ms).toISOString().replace(/\.\d{3}Z$/, "Z");
 
 export class MemoryStore implements Store {
-  readonly profiles = new Map<string, { displayName: string; timeZone: string }>();
+  readonly profiles = new Map<string, { displayName: string; timeZone: string; shares?: boolean }>();
+  /** user → the days they finished a session on. */
+  readonly activity = new Map<string, Set<string>>();
   readonly entitlements: Entitlement[] = [];
   readonly counters = new Map<string, number>();
   readonly windows = new Map<string, ScanWindow>();
@@ -50,6 +53,16 @@ export class MemoryStore implements Store {
   /** Users whose deleteAccount ran. */
   readonly deleted = new Set<string>();
   #nextSquad = 1;
+
+  #inSquad(userId: string): boolean {
+    return [...this.squads.values()].some((s) => s.ownerId === userId) || this.members.some((m) => m.userId === userId);
+  }
+
+  #stopSharing(userId: string): void {
+    const profile = this.profiles.get(userId);
+    if (profile) profile.shares = false;
+    this.activity.delete(userId);
+  }
 
   addUser(id: string, displayName = "", timeZone = "UTC"): string {
     this.profiles.set(id, { displayName, timeZone });
@@ -272,11 +285,17 @@ export class MemoryStore implements Store {
     }
     if (!squad) return Promise.resolve({ ok: false, reason: "no_squad" });
     const name = (id: string) => this.profiles.get(id)?.displayName ?? "";
+    const day = (id: string) => {
+      const profile = this.profiles.get(id);
+      const shares = profile?.shares === true;
+      const days = shares ? [...(this.activity.get(id) ?? [])].sort() : [];
+      return { timeZone: profile?.timeZone ?? "UTC", shares, lastStudiedDay: days.at(-1) ?? null };
+    };
     const members = [
-      { id: squad.ownerId, name: name(squad.ownerId), joinedAt: iso(squad.createdAt), isOwner: true },
+      { id: squad.ownerId, name: name(squad.ownerId), joinedAt: iso(squad.createdAt), isOwner: true, ...day(squad.ownerId) },
       ...this.#squadMembers(squad.id)
         .sort((a, b) => a.joinedAt - b.joinedAt || (a.userId < b.userId ? -1 : 1))
-        .map((m) => ({ id: m.userId, name: name(m.userId), joinedAt: iso(m.joinedAt), isOwner: false })),
+        .map((m) => ({ id: m.userId, name: name(m.userId), joinedAt: iso(m.joinedAt), isOwner: false, ...day(m.userId) })),
     ];
     return Promise.resolve({ ok: true, squadId: squad.id, ownerId: squad.ownerId, members });
   }
@@ -287,7 +306,27 @@ export class MemoryStore implements Store {
     const owner = this.squads.get(membership.squadId)!.ownerId;
     if (actorId !== owner && actorId !== memberId) return Promise.resolve({ ok: false, reason: "not_allowed" });
     this.members.splice(this.members.indexOf(membership), 1);
+    this.#stopSharing(memberId);
     return Promise.resolve({ ok: true });
+  }
+
+  squadShare(userId: string, on: boolean): Promise<ShareResult> {
+    if (!this.#inSquad(userId)) return Promise.resolve({ ok: false, reason: "no_squad" });
+    if (on) {
+      const profile = this.profiles.get(userId);
+      if (profile) profile.shares = true;
+    } else {
+      this.#stopSharing(userId);
+    }
+    return Promise.resolve({ ok: true });
+  }
+
+  squadStudied(userId: string, day: string): Promise<boolean> {
+    if (this.profiles.get(userId)?.shares !== true || !this.#inSquad(userId)) return Promise.resolve(false);
+    const days = this.activity.get(userId) ?? new Set<string>();
+    days.add(day);
+    this.activity.set(userId, days);
+    return Promise.resolve(true);
   }
 
   // ---- Deletion ----
@@ -304,7 +343,10 @@ export class MemoryStore implements Store {
     for (const squad of [...this.squads.values()].filter((s) => s.ownerId === userId)) {
       this.squads.delete(squad.id);
       for (let i = this.members.length - 1; i >= 0; i--) {
-        if (this.members[i].squadId === squad.id) this.members.splice(i, 1);
+        if (this.members[i].squadId === squad.id) {
+          this.#stopSharing(this.members[i].userId);
+          this.members.splice(i, 1);
+        }
       }
       for (const [code, inv] of this.invites) if (inv.squadId === squad.id) this.invites.delete(code);
     }
@@ -315,6 +357,7 @@ export class MemoryStore implements Store {
     for (const key of [...this.counters.keys()]) if (key.startsWith(`${userId}|`)) this.counters.delete(key);
     this.windows.delete(userId);
     void this.deleteAiData(userId);
+    this.activity.delete(userId);
     this.profiles.delete(userId);
     this.deleted.add(userId);
     return Promise.resolve();

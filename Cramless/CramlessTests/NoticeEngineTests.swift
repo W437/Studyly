@@ -237,7 +237,7 @@ final class NoticeEngineTests: XCTestCase {
         XCTAssertTrue(settings.allows(.mockOffer), "a new kind starts on")
         let empty = try JSONDecoder.cramless.decode(NoticeSettings.self, from: Data("{}".utf8))
         XCTAssertEqual(empty, NoticeSettings())
-        XCTAssertEqual(NoticeKind.live, [.mixUp, .lookAlike, .fading, .welcomeBack, .mockOffer, .gap, .lectureDate, .tooEasy, .teachBack])
+        XCTAssertEqual(NoticeKind.live, [.mixUp, .lookAlike, .fading, .welcomeBack, .mockOffer, .gap, .lectureDate, .tooEasy, .teachBack, .busyDay])
         for kind in ["gap", "lectureDate", "busyDay", "tooEasy", "teachBack", "sameIdea"] {
             XCTAssertNotNil(NoticeKind(rawValue: kind), "\(kind) is reserved")
         }
@@ -1202,5 +1202,178 @@ extension NoticeEngineTests {
         XCTAssertEqual(old.off, [.mixUp])
         XCTAssertTrue(old.allows(.gap))
         XCTAssertTrue(old.allows(.lectureDate))
+    }
+
+    // MARK: Busy days
+
+    /// A stretch on the day `offset` days from now, between these hours.
+    private func block(_ offset: Int, _ from: Int, _ to: Int, minutes: Int = 0) -> BusyBlock {
+        let day = cal.adding(days: offset, to: cal.startOfDay(for: now))
+        return BusyBlock(start: cal.date(bySettingHour: from, minute: 0, second: 0, of: day)!,
+                         end: cal.date(bySettingHour: to, minute: minutes, second: 0, of: day)!)
+    }
+
+    private func busyFinder(goal: Int = 15, easy: [Int] = [], goalMet: Bool = false) -> BusyDayFinder {
+        BusyDayFinder(calendar: cal, now: now, dailyMinutes: goal, easyDays: easy, goalMet: goalMet)
+    }
+
+    func testALongDayIsLongBlocksNotABusyAfternoon() {
+        let f = busyFinder(), day = cal.dayNumber(for: now) + 3
+        XCTAssertEqual(f.busyHours(on: day, blocks: [block(3, 9, 15)]), 6)
+        // A lunch and two meetings: nothing long, however full.
+        XCTAssertEqual(f.busyHours(on: day, blocks: [block(3, 9, 10), block(3, 11, 12), block(3, 13, 14), block(3, 15, 16)]), 0)
+        // Back-to-back classes are one block; a real gap isn't.
+        XCTAssertEqual(f.busyHours(on: day, blocks: [block(3, 9, 11), block(3, 11, 13), block(3, 13, 14)]), 5)
+        XCTAssertEqual(f.busyHours(on: day, blocks: [block(3, 9, 11), block(3, 12, 14)]), 0)
+        // Only waking hours count, and only this day's part of a stretch.
+        XCTAssertEqual(f.busyHours(on: day, blocks: [block(3, 0, 8)]), 0)
+        XCTAssertEqual(f.busyHours(on: day, blocks: [BusyBlock(start: block(2, 20, 21).start, end: block(4, 10, 11).end)]), 14)
+    }
+
+    func testMinutesLeaveALongDayForTheDaysAroundIt() throws {
+        let midterm = exam(in: 9)
+        // Thursday 22 Oct: Sunday is long.
+        let move = try XCTUnwrap(busyFinder().move(blocks: [block(3, 9, 15)], exams: [midterm]))
+        XCTAssertEqual(move.busy.offset, 3)
+        XCTAssertEqual(move.hours, 6)
+        XCTAssertEqual(move.minutes, 10, "it keeps 5 of its 15")
+        XCTAssertEqual(move.busy.minutes, 10)
+        XCTAssertEqual(move.to.map(\.offset), [2, 4], "the day before and the day after")
+        XCTAssertEqual(move.to.map(\.minutes), [5, 5])
+        XCTAssertEqual(move.examID, midterm.id)
+        XCTAssertEqual(move.noticeID, "busy-\(cal.dayKey(for: cal.adding(days: 3, to: now)))")
+    }
+
+    func testAMoveIsAddedUpInWholeMinutesAndWithinWhatADayCanTake() throws {
+        let midterm = exam(in: 9)
+        let odd = try XCTUnwrap(busyFinder(goal: 20).move(blocks: [block(3, 9, 15)], exams: [midterm]))
+        XCTAssertEqual(odd.minutes, 15)
+        XCTAssertEqual(odd.to.map(\.minutes), [8, 7])
+        // One day can take it: at most 10 more.
+        let lone = try XCTUnwrap(busyFinder(goal: 30).move(blocks: [block(3, 9, 15), block(4, 9, 15), block(1, 9, 15), block(2, 9, 15), block(5, 9, 15)],
+                                                       exams: [midterm]))
+        XCTAssertEqual(lone.busy.offset, 1, "the first long day")
+        XCTAssertEqual(lone.to.map(\.offset), [0])
+        XCTAssertEqual(lone.minutes, 10)
+    }
+
+    func testAShortGoalHasNothingToMove() {
+        XCTAssertNil(busyFinder(goal: 5).move(blocks: [block(3, 9, 15)], exams: [exam(in: 9)]))
+        XCTAssertNil(busyFinder(goal: 8).move(blocks: [block(3, 9, 15)], exams: [exam(in: 9)]))
+        XCTAssertNotNil(busyFinder(goal: 10).move(blocks: [block(3, 9, 15)], exams: [exam(in: 9)]))
+    }
+
+    func testTheMoveKeepsAwayFromExamsEvesLighterDaysAndOtherLongDays() throws {
+        // The exam is in 5 days: its eve is day 4 and can't take minutes, and a long day on the eve itself isn't offered.
+        let soon = exam(in: 5)
+        let move = try XCTUnwrap(busyFinder().move(blocks: [block(3, 9, 15)], exams: [soon]))
+        XCTAssertEqual(move.to.map(\.offset), [1, 2], "the eve doesn't take any, and no day after the exam")
+        XCTAssertNil(busyFinder().move(blocks: [block(4, 9, 15)], exams: [soon]), "the eve")
+        XCTAssertNil(busyFinder().move(blocks: [block(5, 9, 15)], exams: [soon]), "the exam's day")
+        // No exam ahead of the long day, or none near enough: nothing to protect.
+        XCTAssertNil(busyFinder().move(blocks: [block(6, 9, 15)], exams: [exam(in: 5)]))
+        XCTAssertNil(busyFinder().move(blocks: [block(3, 9, 15)], exams: [exam(in: 15)]))
+        XCTAssertNil(busyFinder().move(blocks: [block(3, 9, 15)], exams: []))
+        // Today's goal is met: today takes nothing.
+        let tomorrow = try XCTUnwrap(busyFinder(goalMet: true).move(blocks: [block(1, 9, 15)], exams: [exam(in: 9)]))
+        XCTAssertEqual(tomorrow.to.map(\.offset), [2, 3])
+        let open = try XCTUnwrap(busyFinder().move(blocks: [block(1, 9, 15)], exams: [exam(in: 9)]))
+        XCTAssertEqual(open.to.map(\.offset), [0, 2])
+        // A lighter day takes none.
+        let weekdays = cal.dayNumber(for: now) + 2
+        let light = try XCTUnwrap(busyFinder(easy: [Calendar.weekday(dayNumber: weekdays)]).move(blocks: [block(3, 9, 15)], exams: [exam(in: 9)]))
+        XCTAssertEqual(light.to.map(\.offset), [1, 4])
+        // Another long day takes none.
+        let two = try XCTUnwrap(busyFinder().move(blocks: [block(3, 9, 15), block(4, 9, 15)], exams: [exam(in: 9)]))
+        XCTAssertEqual(two.to.map(\.offset), [1, 2])
+    }
+
+    private func busyInputs(_ change: (inout NoticeInputs) -> Void = { _ in }) -> NoticeInputs {
+        inputs {
+            $0.exams = [exam(in: 9)]
+            $0.dailyMinutes = 15
+            $0.days = days(1...3)
+            $0.calendarAccess = .granted
+            $0.busyBlocks = [block(3, 9, 15)]
+            change(&$0)
+        }
+    }
+
+    func testTheBusyCardIsOneMoreOfCapsCards() throws {
+        let dealt = deal(busyInputs())
+        let card = try XCTUnwrap(dealt.deck.first)
+        XCTAssertEqual(card.kind, .busyDay)
+        XCTAssertEqual(card.rank, NoticeEngine.Rank.busyDay(daysAway: 3))
+        XCTAssertFalse(card.notifiable, "no notification: nothing is at risk")
+        XCTAssertEqual(card.cost, .none)
+        XCTAssertNil(NoticeContent.pingBody(card))
+        let words = NoticeContent.card(card, firstName: "Maya", now: now, calendar: cal)
+        XCTAssertEqual(words.title, "Sunday looks busy")
+        XCTAssertEqual(words.detail, "About 6 hours in your calendar. Move 10 minutes to Saturday and Monday?")
+        XCTAssertEqual(words.action?.title, "Move them")
+        XCTAssertEqual(words.cost, "No AI")
+        guard case .moveBusyDay(let move)? = words.action?.run else { return XCTFail("the button moves them") }
+        XCTAssertEqual(move.noticeID, card.id)
+        // Later and acted on keep it away, as any card; switched off it never shows, and without the calendar there's nothing to go on.
+        XCTAssertTrue(deal(busyInputs { $0.ledger.snoozed = [card.id] }).deck.isEmpty)
+        XCTAssertTrue(deal(busyInputs { $0.ledger.acted[card.id] = cal.dayKey(for: now) }).deck.isEmpty)
+        XCTAssertTrue(deal(busyInputs { $0.settings.off = [.busyDay] }).deck.isEmpty)
+        XCTAssertTrue(deal(busyInputs { $0.calendarAccess = .denied }).deck.isEmpty)
+        // Quiet on an eve, like every other card.
+        XCTAssertTrue(deal(busyInputs { $0.exams = [exam(in: 1), exam(in: 9)] }).deck.isEmpty)
+    }
+
+    func testTomorrowAndTodayInTheBusyWords() throws {
+        let move = try XCTUnwrap(busyFinder().move(blocks: [block(1, 9, 15)], exams: [exam(in: 9)]))
+        XCTAssertEqual(NoticeContent.busyTitle(move, calendar: cal), "Tomorrow looks busy")
+        XCTAssertEqual(NoticeContent.busyDetail(move, now: now, calendar: cal), "About 6 hours in your calendar. Move 10 minutes to today and Saturday?")
+    }
+
+    func testTheConfirmationSaysWhatMovedAndCanBeUndone() throws {
+        let key = { (days: Int) in self.cal.dayKey(for: self.cal.adding(days: days, to: self.now)) }
+        func boost(_ day: Int, _ minutes: Int) -> PlanBoost {
+            PlanBoost(noticeID: "busy-x", examID: UUID(), examTitle: "Midterm", origin: nil, dayKey: key(day), minutes: minutes, itemIDs: [])
+        }
+        let card = try XCTUnwrap(NoticeContent.confirmation(boosts: [boost(3, -10), boost(2, 5), boost(4, 5)], now: now, calendar: cal))
+        XCTAssertEqual(card.kind, .busyDay)
+        XCTAssertTrue(card.isConfirmation)
+        XCTAssertEqual(card.title, "Plan updated")
+        XCTAssertEqual(card.detail, "10 minutes moved from Sunday to Saturday and Monday.")
+        XCTAssertEqual(card.action?.run, .undoFixMyWeek(noticeID: "busy-x"))
+        let near = try XCTUnwrap(NoticeContent.confirmation(boosts: [boost(1, -10), boost(0, 5), boost(2, 5)], now: now, calendar: cal))
+        XCTAssertEqual(near.detail, "10 minutes moved from tomorrow to today and Saturday.")
+    }
+
+    func testTheOfferToLookComesOnceAnExamIsNearAndNotOnDayOne() throws {
+        func ask(_ change: (inout NoticeInputs) -> Void = { _ in }) -> NoticeInputs { busyInputs { $0.calendarAccess = .notAsked; change(&$0) } }
+        let card = try XCTUnwrap(deal(ask()).deck.first)
+        XCTAssertEqual(card.id, NoticeEngine.busyAskID)
+        XCTAssertEqual(card.rank, NoticeEngine.Rank.busyAsk)
+        let words = NoticeContent.card(card, firstName: "", now: now, calendar: cal)
+        XCTAssertEqual(words.title, "Cap can plan around your long days")
+        XCTAssertEqual(words.action?.run, .askCalendar)
+        XCTAssertEqual(words.cost, "No AI")
+        XCTAssertTrue(words.detail.contains("only their times"), "says what it reads")
+        XCTAssertTrue(words.detail.contains("Nothing leaves"), "and that it stays here")
+        XCTAssertTrue(deal(ask { $0.exams = [exam(in: 15)] }).deck.isEmpty, "no exam near")
+        XCTAssertTrue(deal(ask { $0.days = days(1...1) }).deck.isEmpty, "too soon to ask")
+        // Put off, it comes back the next day; after two days of being shown, it stops asking.
+        let today = cal.dayKey(for: now)
+        XCTAssertFalse(deal(ask { $0.ledger.seen[NoticeEngine.busyAskID] = ["2026-10-20"] }).deck.isEmpty)
+        XCTAssertFalse(deal(ask { $0.ledger.seen[NoticeEngine.busyAskID] = ["2026-10-20", today] }).deck.isEmpty, "it stays for the rest of its second day")
+        XCTAssertTrue(deal(ask { $0.ledger.seen[NoticeEngine.busyAskID] = ["2026-10-19", "2026-10-20"] }).deck.isEmpty)
+    }
+
+    func testOtherCardsStillComeFirst() {
+        let dealt = deal(busyInputs {
+            $0.mixUps = [mixUp()]
+        })
+        XCTAssertEqual(dealt.deck.map(\.kind), [.mixUp, .busyDay])
+    }
+
+    func testTheCalendarSwitchSaysWhatItReads() {
+        XCTAssertEqual(NoticeContent.switchTitle(.busyDay).key, "Busy days")
+        XCTAssertNotNil(NoticeContent.switchNote(.busyDay))
+        XCTAssertNil(NoticeContent.switchNote(.mixUp))
     }
 }

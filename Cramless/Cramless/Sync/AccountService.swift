@@ -348,6 +348,10 @@ final class AccountService: AccessTokenProvider {
         entitlement = value
         let plan = value?.plan
         app?.purchases.applyServerGrant(plan == .free ? nil : plan, until: value?.expiresAt)
+        // A seat on a friend's Squad is known only from here: now the Squad's line on Today can be read.
+        if plan == .squad, let app, app.sideEffectsEnabled {
+            Task(priority: .utility) { await app.refreshSquadToday() }
+        }
     }
 
     private func signedIn(_ fresh: AuthSession) {
