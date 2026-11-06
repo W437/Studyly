@@ -13,8 +13,6 @@ struct ChoiceQuestionView: View {
     var autoContinue: Int? = nil
 
     @Environment(AppModel.self) private var app
-    @Environment(\.dynamicTypeSize) private var typeSize
-
     @State private var order: [Int] = []
     /// The original index picked; -1 for "I don't know".
     @State private var picked: Int?
@@ -77,7 +75,7 @@ struct ChoiceQuestionView: View {
 
     // MARK: Options
 
-    private enum OptionState { case idle, right, wrong, dimmed }
+    private typealias OptionState = ChoiceOptionState
 
     private func state(_ index: Int) -> OptionState {
         guard picked != nil else { return .idle }
@@ -91,13 +89,13 @@ struct ChoiceQuestionView: View {
         let text = choices[index].text
         let rippleAmplitude = (state == .right ? FeedbackTone.mint : FeedbackTone.rose).rippleAmplitude
         return Button { pick(index) } label: {
-            optionTile(letter: letter, text: text, state: state)
+            ChoiceOptionTile(letter: letter, text: text, state: state)
                 // The picked option ripples as its verdict lands.
                 .clRipple(trigger: index == picked ? 1 : 0, amplitude: rippleAmplitude)
                 .opacity(state == .dimmed ? 0.45 : 1)
                 .contentShape(RoundedRectangle(cornerRadius: CLRadius.option, style: .continuous))
         }
-        .buttonStyle(.pressable(depth: 4, edge: edge(state)))
+        .buttonStyle(.pressable(depth: 4, edge: state.edge))
         .allowsHitTesting(picked == nil)
         .keyboardShortcut(KeyEquivalent(Character(letter.lowercased())), modifiers: [])
         .accessibilityLabel("\(letter). \(text)")
@@ -105,72 +103,9 @@ struct ChoiceQuestionView: View {
         .accessibilityAddTraits(state == .wrong ? .isSelected : [])
     }
 
-    private func optionTile(letter: String, text: String, state: OptionState) -> some View {
-        let marked = state == .right || state == .wrong
-        return HStack(alignment: typeSize.isAccessibilitySize ? .top : .center, spacing: 12) {
-            Text(letter)
-                .clFont(.number(14, .bold))
-                .foregroundStyle(marked ? CLColor.onFill : CLColor.ink2)
-                .frame(width: 28, height: 28)
-                .background(keyFill(state), in: RoundedRectangle(cornerRadius: 9, style: .continuous))
-            Text(text)
-                .clFont(.bodyEmphasis)
-                .foregroundStyle(CLColor.ink)
-                .multilineTextAlignment(.leading)
-                .fixedSize(horizontal: false, vertical: true)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            if marked {
-                Image(systemName: state == .right ? "checkmark.circle.fill" : "xmark.circle.fill")
-                    .font(.system(size: 20, weight: .semibold))
-                    .foregroundStyle(state == .right ? CLColor.mintInk : CLColor.roseInk)
-                    // Draws itself on; symbol effects follow the system's Reduce Motion by themselves.
-                    .transition(.symbolEffect(.drawOn))
-            }
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 13)
-        .frame(minHeight: 56)
-        .background(fill(state), in: RoundedRectangle(cornerRadius: CLRadius.option, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: CLRadius.option, style: .continuous)
-            .strokeBorder(border(state), lineWidth: 2))
-    }
-
-    private func keyFill(_ state: OptionState) -> Color {
-        switch state {
-        case .right: CLColor.mint
-        case .wrong: CLColor.rose
-        default: CLColor.surface
-        }
-    }
-
-    private func fill(_ state: OptionState) -> Color {
-        switch state {
-        case .right: CLColor.mintSoft
-        case .wrong: CLColor.roseSoft
-        default: CLColor.surface2
-        }
-    }
-
-    /// The edge each option stands on: it sinks onto it when pressed.
-    private func edge(_ state: OptionState) -> Color {
-        switch state {
-        case .right: CLColor.mintEdge
-        case .wrong: CLColor.roseEdge
-        default: CLColor.surfaceEdge
-        }
-    }
-
-    private func border(_ state: OptionState) -> Color {
-        switch state {
-        case .right: CLColor.mint
-        case .wrong: CLColor.rose
-        default: .clear
-        }
-    }
-
     private func accessibilityValue(_ state: OptionState) -> String {
         switch state {
-        case .idle, .dimmed: ""
+        case .idle, .dimmed, .chosen: ""
         case .right: picked == correctIndex ? "Your answer. Correct." : "The correct answer."
         case .wrong: "Your answer. Not correct."
         }
@@ -259,5 +194,102 @@ struct ChoiceQuestionView: View {
                       durationMs: durationMs, outcome: grade.isCorrect ? .right : .wrong)
         CLHaptics.select()
         withAnimation(CLMotion.settle) { runner.advance() }
+    }
+}
+
+/// How a multiple-choice option looks: before an answer, its verdict after one, and in a mock, chosen with no verdict.
+enum ChoiceOptionState {
+    case idle, right, wrong, dimmed, chosen
+
+    /// The edge the option stands on: it sinks onto it when pressed.
+    var edge: Color {
+        switch self {
+        case .right: CLColor.mintEdge
+        case .wrong: CLColor.roseEdge
+        case .chosen: CLColor.tangerineEdge
+        default: CLColor.surfaceEdge
+        }
+    }
+
+    var fill: Color {
+        switch self {
+        case .right: CLColor.mintSoft
+        case .wrong: CLColor.roseSoft
+        default: CLColor.surface2
+        }
+    }
+
+    var keyFill: Color {
+        switch self {
+        case .right: CLColor.mint
+        case .wrong: CLColor.rose
+        case .chosen: CLColor.tangerine
+        default: CLColor.surface
+        }
+    }
+
+    var border: Color {
+        switch self {
+        case .right: CLColor.mint
+        case .wrong: CLColor.rose
+        case .chosen: CLColor.tangerine
+        default: .clear
+        }
+    }
+
+    var isMarked: Bool { self == .right || self == .wrong || self == .chosen }
+}
+
+/// One option of a multiple-choice question: its letter, its words, and its mark.
+struct ChoiceOptionTile: View {
+    let letter: String
+    let text: String
+    let state: ChoiceOptionState
+
+    @Environment(\.dynamicTypeSize) private var typeSize
+
+    var body: some View {
+        HStack(alignment: typeSize.isAccessibilitySize ? .top : .center, spacing: 12) {
+            Text(letter)
+                .clFont(.number(14, .bold))
+                .foregroundStyle(state.isMarked ? CLColor.onFill : CLColor.ink2)
+                .frame(width: 28, height: 28)
+                .background(state.keyFill, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+            Text(text)
+                .clFont(.bodyEmphasis)
+                .foregroundStyle(CLColor.ink)
+                .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            if state.isMarked {
+                Image(systemName: symbol)
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundStyle(symbolInk)
+                    // Draws itself on; symbol effects follow the system's Reduce Motion by themselves.
+                    .transition(.symbolEffect(.drawOn))
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 13)
+        .frame(minHeight: 56)
+        .background(state.fill, in: RoundedRectangle(cornerRadius: CLRadius.option, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: CLRadius.option, style: .continuous)
+            .strokeBorder(state.border, lineWidth: 2))
+    }
+
+    private var symbol: String {
+        switch state {
+        case .wrong: "xmark.circle.fill"
+        case .chosen: "circle.inset.filled"
+        default: "checkmark.circle.fill"
+        }
+    }
+
+    private var symbolInk: Color {
+        switch state {
+        case .wrong: CLColor.roseInk
+        case .chosen: CLColor.tangerineInk
+        default: CLColor.mintInk
+        }
     }
 }

@@ -205,10 +205,10 @@ sleep 4; xcrun simctl io <udid> screenshot shot.png
     `CRAMLESS_CAPTURE_INPUT=photo|text`, `CRAMLESS_REVIEW_EDIT|UNTICK|SCROLL|PEEK|APPROVE|ALLOW`,
     `CRAMLESS_RECORD_FLAG|PAUSE|STOP`, `CRAMLESS_NOTES_FOCUS`, `CRAMLESS_IMPORT`, `CRAMLESS_PASTE_TEXT`,
     `CRAMLESS_CANVAS=375x667` (SE size).
-  - Library and exams: `CRAMLESS_SCENARIO=eve|past|graded|missed|repair|thin|calibrated|ontrack|crowded|empty` (each documented in
-    `AppModel.applyHarnessScenario`; `calibrated` logs two past grades so the letter shows), `CRAMLESS_SCROLL=<section>`,
+  - Library and exams: `CRAMLESS_SCENARIO=eve|past|graded|missed|repair|thin|calibrated|ontrack|crowded|empty|bright|mocked|fewItems` (each documented in
+    `AppModel.applyHarnessScenario`; `calibrated` logs two past grades so the letter shows; `bright`: nothing is fading), `CRAMLESS_SCROLL=<section>`,
     `CRAMLESS_SEARCH=<words>`, `CRAMLESS_GRADE=<n>`. `CRAMLESS_ROUTE=course:<n>` opens the nth course (`course:3` is Spanish II,
-    with no exam); `CRAMLESS_ROUTE=exam:<n>` the nth upcoming exam, and `CRAMLESS_EXAM_SKIP=1` opens it with "What if I skip …?" on.
+    with no exam), `CRAMLESS_COURSE_TAB=topics|sources|questions` on that tab, `CRAMLESS_COURSE_FILTER=attention|suspended|<kind>|topic:<n>` with Questions filtered, `CRAMLESS_SCROLL=tabs` with the tabs at the top; `CRAMLESS_ROUTE=exam:<n>` the nth upcoming exam, and `CRAMLESS_EXAM_SKIP=1` opens it with "What if I skip …?" on.
     The exam page's numbers are pinned with `CRAMLESS_NOW=2026-11-06T14:00:00-05:00` (the Chem quiz on Sunday at 10:00).
   - Ask, Settings and Squad: `CRAMLESS_ASK`, `CRAMLESS_ASK_MODE=open` (Cap's style open in the composer), `CRAMLESS_CHAT`, `CRAMLESS_AGE`, `CRAMLESS_TUTOR`, `CRAMLESS_CARDS`,
     `CRAMLESS_EXPLAIN`, `CRAMLESS_SYNC`, `CRAMLESS_NOTIFY`, `CRAMLESS_SQUAD`, `CRAMLESS_ACCOUNT=apple|email`.
@@ -219,6 +219,8 @@ sleep 4; xcrun simctl io <udid> screenshot shot.png
     Cap", `CRAMLESS_RESEARCH=pro` shows a free account's web research. `scripts/cap_anim/films_assistant.sh <udid> <out>` films and shoots them all.
   - Paywall and onboarding: `CRAMLESS_PAYWALL_PLAN`, `CRAMLESS_PAYWALL_STATE=purchasing|pending|cancelled|failed|purchased|restored`,
     `CRAMLESS_PAYWALL_TRIAL=0`, `CRAMLESS_PAYWALL_SCROLL=free|plans|timeline` (`free`: the "Always free" card), `CRAMLESS_ONB_REMINDER=1`.
+  - Progress: `CRAMLESS_ROUTE=month` opens the month sheet, `CRAMLESS_ROUTE=streak CRAMLESS_SCROLL=heatmap` the streak page's twelve weeks, `CRAMLESS_SCROLL=week|exams|fading|mixups|more` the tab's sections; `CRAMLESS_SKY=memory` opens "How you remember" over the sky.
+  - Mock exam: `CRAMLESS_ROUTE=mock[:<n>]` opens a mock of the nth upcoming exam (without a number, the first with enough questions; `mock:0` is the Chem quiz, multiple choice only, and too short: the too-few state), `CRAMLESS_MOCK=intro|mcq|short|cloze|review|timeup|marking|summary|selfcheck` opens on that state (`selfcheck` with `CRAMLESS_CONSENT=0`: the own-words answers are the person's to mark), `CRAMLESS_MOCK_AUTOPLAY=rrwpk…` answers every question by that pattern (`r` right, `p` partly, `w` wrong, `k` left blank), `CRAMLESS_AUTOPLAY_BEAT` ms apart, then hands in; `CRAMLESS_MOCK_ELAPSED=<s>` starts the clock that far gone. The exam page's card: `CRAMLESS_SCENARIO=mocked` (a mock taken three days ago, "Last mock"), `fewItems` (five questions left in scope, "Write more questions").
   - Money and trust: `CRAMLESS_QUOTA=scans:2,lectures:1,grades:20` sets the free AI uses left on those meters, as if the server said so
     (`scans:0` is the limit reached; the + sheet, the scanner and the recorder say it, `AllowanceCopy`); `CRAMLESS_LECTURE_RECOVERED=2480`
     raises launch's "Cap kept your lecture up to 41:20." toast with Open (`=2480,3100`: two lectures); `CRAMLESS_ROUTE=settings:help`

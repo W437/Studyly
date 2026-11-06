@@ -254,14 +254,12 @@ final class ExamPresentationTests: XCTestCase {
     func testTheLetterWaitsForCalibration() throws {
         let projected = ProjectedGrade(percent: 0.88, letter: "B+", isCalibrated: false)
         XCTAssertFalse(ExamPresentation.showsLetter(projected))
-        XCTAssertNil(ExamPresentation.shownGrade(projected))
         XCTAssertNil(projection(sundayQuiz(projected: 0.74), grade: projected)?.letter, "no letter from a projection alone")
 
         let calibrated = ProjectedGrade(percent: 0.88, letter: "B+", isCalibrated: true)
         XCTAssertEqual(projection(sundayQuiz(projected: 0.74), grade: calibrated)?.letter, "From your past grades, that's about a B+.")
         XCTAssertEqual(ExamPresentation.calibratedProjectionLine(ProjectedGrade(percent: 0.94, letter: "A", isCalibrated: true)),
                        "From your past grades, that's about an A.")
-        XCTAssertEqual(ExamPresentation.calibratedGradeLine(calibrated), "Projected B+ from your grades")
     }
 
     private var chemToday: ExamPresentation.TodayWork {
@@ -392,5 +390,56 @@ final class ExamPresentationTests: XCTestCase {
         XCTAssertEqual(work.examSeconds, 160)
         XCTAssertEqual(work.topics, ["Moles", "Gas laws"], "the most time first")
         XCTAssertEqual(work.examMinutes, 3)
+    }
+
+    // MARK: The mock exam's card
+
+    func testTheMockCardsStates() {
+        XCTAssertNil(ExamPresentation.mockCard(offer: .hidden, lastScore: nil, lastDate: nil, canWrite: true, calendar: cal), "the eve, the day, after")
+
+        let few = ExamPresentation.mockCard(offer: .tooFew(have: 3), lastScore: nil, lastDate: nil, canWrite: true, calendar: cal)
+        XCTAssertEqual(few?.kind, .tooFew(line: "A mock needs 8 questions on this exam's topics. You have 3.", canWrite: true))
+        let cantWrite = ExamPresentation.mockCard(offer: .tooFew(have: 0), lastScore: nil, lastDate: nil, canWrite: false, calendar: cal)
+        XCTAssertEqual(cantWrite?.kind, .tooFew(line: "A mock needs 8 questions on this exam's topics. You have 0.", canWrite: false))
+
+        let entries = (0..<8).map { i in SessionEntry(itemID: UUID(), reason: .new, kind: i < 6 ? .mcq : .recall, estimatedSeconds: 60) }
+        let plan = MockPlan(examID: UUID(), courseID: nil, entries: entries, minutes: 15, expectedByItem: [:])
+        let ready = ExamPresentation.mockCard(offer: .ready(plan), lastScore: 0.72, lastDate: day(-3), canWrite: false, calendar: cal)
+        guard case .offer(let line, let mix)? = ready?.kind else { return XCTFail("an offer") }
+        XCTAssertEqual(line, "8 questions like the real one · 15 min")
+        XCTAssertTrue(mix.hasPrefix("Matches your exam: 6 multiple choice"), mix)
+        XCTAssertTrue(mix.hasSuffix("Only this exam's topics."), mix)
+        XCTAssertTrue(ready?.last?.hasPrefix("Last mock: 72% on ") == true)
+    }
+
+    func testAnExamFormatStoredBeforeItsCountsStillDecodes() throws {
+        let old = #"{"multipleChoice":true,"shortAnswer":false,"essay":true,"notes":"open book"}"#.data(using: .utf8)!
+        let format = try JSONDecoder().decode(ExamFormat.self, from: old)
+        XCTAssertTrue(format.essay)
+        XCTAssertEqual(format.notes, "open book")
+        XCTAssertNil(format.questionCount)
+        XCTAssertNil(format.minutes)
+
+        var counted = ExamFormat()
+        counted.questionCount = 30
+        counted.minutes = 90
+        let back = try JSONDecoder().decode(ExamFormat.self, from: JSONEncoder().encode(counted))
+        XCTAssertEqual(back, counted)
+    }
+
+    func testTheFormatLineSaysItsCounts() {
+        var format = ExamFormat(multipleChoice: true, shortAnswer: false, essay: false, notes: " open book ")
+        XCTAssertEqual(LibraryFormat.formatLine(format), "Multiple choice · open book")
+        format.questionCount = 30
+        format.minutes = 90
+        XCTAssertEqual(LibraryFormat.formatLine(format), "Multiple choice · 30 questions · 90 min · open book")
+    }
+
+    func testTheEditorKeepsCountsThatMakeSense() {
+        var draft = ExamDraft(date: now)
+        draft.format.questionCount = 0
+        draft.format.minutes = 90
+        XCTAssertNil(draft.cleanFormat.questionCount)
+        XCTAssertEqual(draft.cleanFormat.minutes, 90)
     }
 }

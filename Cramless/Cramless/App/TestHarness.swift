@@ -140,6 +140,10 @@ enum TestHarness {
             if let arg, let page = SettingsPage(rawValue: arg) { r.push(.settingsPage(page), on: .today) }
         case "squad": r.push(.squad, on: .today)
         case "streak": r.push(.streak, on: .progress)
+        // Progress's month sheet.
+        case "month":
+            r.tab = .progress
+            r.present(.streakMonth)
         // Every badge, and one badge up close: `badge:<id>` (see `Badge`), `badge:streak30`.
         case "badges": r.push(.badges, on: .progress)
         case "badge": if let id = arg.flatMap(Badge.init(rawValue:)) { r.present(.badge(id)) }
@@ -159,6 +163,13 @@ enum TestHarness {
             r.present(.session(SessionRequest(kind: kind, courseID: nil, examID: kind == .examEve ? firstExam?.id : nil,
                                               confusionID: confusion,
                                               minutes: value("CRAMLESS_SESSION_MINUTES").flatMap(Int.init))))
+        // `mock:<n>`: a mock of the nth upcoming exam; without a number, the first with enough questions. `CRAMLESS_MOCK` sets its state
+        // (see `MockExamView`).
+        case "mock":
+            let exams = app.upcomingExams()
+            let exam = arg.flatMap(Int.init).flatMap { exams.indices.contains($0) ? exams[$0] : nil }
+                ?? exams.first { if case .ready = app.mockOffer(for: $0) { true } else { false } } ?? exams.first
+            if let exam { r.present(.mockExam(examID: exam.id)) }
         case "scanner": r.present(.scanner(courseID: firstCourse?.id, isOnboarding: false))
         case "capture": r.present(.capture(courseID: firstCourse?.id))
         case "captureFlow", "review":

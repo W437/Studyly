@@ -317,5 +317,43 @@
         "other": "%arg sources"
       }
     }
+  },
+  "%lld short answers": {
+    "one": "%lld short answer",
+    "other": "%lld short answers"
+  },
+  "%lld essay questions": {
+    "one": "%lld essay question",
+    "other": "%lld essay questions"
+  },
+  "Mark %lld answers yourself": {
+    "one": "Mark %lld answer yourself",
+    "other": "Mark %lld answers yourself"
+  },
+  "%lld left blank. They stay out of your score.": {
+    "one": "%lld left blank. It stays out of your score.",
+    "other": "%lld left blank. They stay out of your score."
+  },
+  "%lld minutes left": {
+    "one": "%lld minute left",
+    "other": "%lld minutes left"
+  },
+  "%lld of %lld short answers marked": {
+    "value": "%1$lld of %#@answers@ marked",
+    "substitutions": {
+      "answers": {
+        "argNum": 2,
+        "one": "%arg short answer",
+        "other": "%arg short answers"
+      }
+    }
+  },
+  "%lld days studied": {
+    "one": "%lld day studied",
+    "other": "%lld days studied"
+  },
+  "%lld questions to review": {
+    "one": "%lld question to review",
+    "other": "%lld questions to review"
   }
 }

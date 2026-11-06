@@ -31,7 +31,7 @@ extension AppModel {
         if minutes == nil, request.kind == .daily || request.kind == .catchUp { minutes = dailyBudgetMinutes() }
         return SessionSpec(id: request.id, kind: request.kind, minutes: minutes, courseID: request.courseID,
                            topicID: request.topicID, examID: request.examID, confusionID: request.confusionID,
-                           itemIDs: request.itemIDs)
+                           itemIDs: request.itemIDs, questionCount: request.questionCount)
     }
 
     /// The session for a request, built from the store as it is now. Cheap enough to call for a preview.
@@ -40,12 +40,30 @@ extension AppModel {
         let items: [ItemSnapshot]
         if request.kind == .quickCheck || (request.kind == .practice && !request.itemIDs.isEmpty) {
             items = itemSnapshots(ids: request.itemIDs)
+        } else if request.kind == .mock {
+            items = request.examID.flatMap { exam($0) }.map(mockEligibleItems(for:)) ?? []
         } else {
             items = itemSnapshots()
         }
         return SessionBuilder(settings: settings, calendar: calendar, now: now).build(
             spec, items: items, exams: examSnapshots(upcomingOnly: true), confusions: confusionSnapshots(),
             topicNames: topicNames())
+    }
+
+    /// "Study Bio 101 · 15 min" on the course page: the daily rules limited to this course, at the whole daily goal (not what today has
+    /// left); with nothing due or new there, a practice round on the course. Nil with nothing to study at all.
+    func courseStudy(_ course: Course) -> CourseStudy? {
+        let daily = SessionRequest(kind: .daily, courseID: course.id, minutes: settings.dailyMinutes)
+        let session = buildSession(daily)
+        if !session.isEmpty {
+            return CourseStudy(request: daily, minutes: session.plannedMinutes,
+                               title: String(localized: "Study \(course.name) · \(session.plannedMinutes) min"))
+        }
+        let practice = SessionRequest(kind: .practice, courseID: course.id)
+        let extra = buildSession(practice)
+        guard !extra.isEmpty else { return nil }
+        return CourseStudy(request: practice, minutes: extra.plannedMinutes,
+                           title: String(localized: "Practice \(course.name) · \(extra.plannedMinutes) min"))
     }
 
     /// Starts a session: inserts its StudySession (with readiness before, for the exam it counts toward) and
@@ -345,6 +363,13 @@ extension AppModel {
     func currentDueLoad() -> DueLoad {
         DueLoad(items: itemSnapshots(), grid: DayGrid(calendar: calendar, from: now, count: 400))
     }
+}
+
+/// What the course page's main button starts, with its words.
+struct CourseStudy: Equatable, Sendable {
+    var request: SessionRequest
+    var minutes: Int
+    var title: String
 }
 
 /// Session-scoped caches: the due load a session's answers are balanced against, kept up to date answer by

@@ -526,6 +526,29 @@ final class SyncEngineTests: XCTestCase {
 
 /// Dates, JSON values and row mapping.
 final class SyncRecordsTests: XCTestCase {
+    /// A mock is a session like any other on the wire: its kind is plain text, so it needs no migration.
+    func testAMockSessionRoundTrips() throws {
+        let session = StudySession(kind: .mock, startedAt: Date(timeIntervalSince1970: 1_800_000_000), plannedSeconds: 1200, examID: UUID())
+        let row = SyncRecords.row(session)
+        XCTAssertEqual(row.string("kind"), "mock")
+        let back = try XCTUnwrap(SyncRecords.makeSession(row))
+        XCTAssertEqual(back.kind, .mock)
+        XCTAssertEqual(back.examID, session.examID)
+    }
+
+    func testAnExamFormatKeepsItsCountsOnTheWire() throws {
+        let exam = Exam(course: nil, title: "Midterm", date: Date(timeIntervalSince1970: 1_800_000_000))
+        var format = ExamFormat()
+        format.questionCount = 30
+        format.minutes = 90
+        exam.format = format
+        let row = SyncRecords.row(exam)
+        let copy = Exam(course: nil, title: "", date: .distantPast)
+        copy.formatData = row.blob("format")
+        XCTAssertEqual(copy.format.questionCount, 30)
+        XCTAssertEqual(copy.format.minutes, 90)
+    }
+
     func testPostgresTimestampsParseAndFormat() throws {
         let base = try XCTUnwrap(ISO8601DateFormatter().date(from: "2026-10-22T09:00:00Z"))
         XCTAssertEqual(SupabaseDate.parse("2026-10-22T09:00:00Z"), base)

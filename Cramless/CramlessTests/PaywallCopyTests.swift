@@ -143,11 +143,11 @@ final class PaywallCopyTests: XCTestCase {
         XCTAssertEqual(words(PaywallCopy.alwaysFree), [
             "Reviews and flashcards, as many as you like",
             "A plan and readiness for every exam",
+            "Mock exams",
             "Your streak, quests and the sky",
             "Quizlet and Anki imports",
             "Each week 3 AI scans and notes for 1 lecture; each day 20 graded answers and 10 questions for Cap",
         ])
-        XCTAssertFalse(words(PaywallCopy.alwaysFree).joined().lowercased().contains("mock"), "mock exams join once they ship")
         // The allowance row says the relay's own numbers.
         let allowance = words(PaywallCopy.alwaysFree).last ?? ""
         XCTAssertTrue(allowance.contains("\(AIFreeLimits.limit(.scans)) AI scans"))

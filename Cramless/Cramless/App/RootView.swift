@@ -239,6 +239,8 @@ struct SheetDestination: View {
         case .todayReasons: TodayReasonsSheet()
         case .quests: TodayQuestsSheet()
         case .help: HelpSheet()
+        case .streakMonth: StreakMonthSheet()
+        case .skyMemory: SkyMemorySheet()
         }
     }
 }
@@ -250,6 +252,7 @@ struct CoverDestination: View {
     var body: some View {
         switch cover {
         case .session(let request): SessionView(request: request)
+        case .mockExam(let examID): MockExamView(examID: examID)
         case .scanner(let courseID, let isOnboarding): ScannerFlowView(courseID: courseID, isOnboarding: isOnboarding)
         case .captureFlow(let request): CaptureFlowView(request: request)
         case .record(let courseID): RecordView(courseID: courseID)

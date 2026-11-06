@@ -163,8 +163,8 @@ extension View {
     }
 }
 
-/// A topic on the course page: its readiness for the next exam with a meter, a coverage gap with "Add material", "Not on the
-/// Midterm", or (no exam to come) just its questions. Only the first shows a number.
+/// A topic on the course page: its readiness for the next exam with a meter, a coverage gap with "Add material", or (not on that exam, or
+/// no exam to come) just its questions. Only the first shows a number.
 struct LibraryTopicRow: View {
     let name: String
     let state: LibraryFormat.TopicLine.State
@@ -183,9 +183,7 @@ struct LibraryTopicRow: View {
                         .foregroundStyle(questionCount > 0 && value < 0.005 ? CLColor.ink3 : CLColor.ink)
                 case .gap:
                     CLPill(text: "No material yet", tone: .rose)
-                case .notOnExam(let exam):
-                    Text("Not on the \(exam)").clFont(.footnote).foregroundStyle(CLColor.ink3)
-                case .noExam:
+                case .notOnExam, .noExam:
                     Text("\(questionCount) questions").clFont(.footnote).foregroundStyle(CLColor.ink3)
                 }
             }
@@ -265,11 +263,13 @@ struct LibrarySourceRow: View {
     /// Off inside a List, which draws its own.
     var showsChevron = true
 
+    @Environment(\.dynamicTypeSize) private var typeSize
+
     var body: some View {
         HStack(spacing: 12) {
             CLIconBadge(systemImage: kind.systemImage, tint: tint, size: 34)
             VStack(alignment: .leading, spacing: 2) {
-                Text(title).clFont(.subheadlineEmphasis).foregroundStyle(CLColor.ink).lineLimit(2)
+                Text(title).clFont(.subheadlineEmphasis).foregroundStyle(CLColor.ink).lineLimit(typeSize.isAccessibilitySize ? nil : 2)
                 Text(meta).clFont(.footnote).foregroundStyle(CLColor.ink2)
             }
             .frame(maxWidth: .infinity, alignment: .leading)

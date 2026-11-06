@@ -319,6 +319,9 @@ enum SampleData {
         s.dailyMinutes = 15
         s.onboardingCompleted = true
         app.settings = s
+        // "Recent" on the Library: two sources opened on this iPhone lately.
+        app.noteOpened(sourceID: slides.id, at: day(0, hour: 8))
+        app.noteOpened(sourceID: lecture.id, at: day(-3))
         try? context.save()
         _ = app.save()
     }

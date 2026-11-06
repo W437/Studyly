@@ -102,35 +102,48 @@ final class ProgressPresentationTests: XCTestCase {
         XCTAssertEqual(ProgressPresentation.weekdaySymbols(calendar: calendar()), ["S", "M", "T", "W", "T", "F", "S"])
     }
 
-    private func light(_ name: String, dim: Int, bright: Int = 4, lit: Int? = nil, recall: Double? = 0.8,
-                       readiness: Double? = nil) -> ProgressPresentation.TopicLight {
+    private func light(_ name: String, dim: Int, examDays: Int? = nil) -> ProgressPresentation.TopicLight {
         ProgressPresentation.TopicLight(id: UUID(), name: name, courseID: UUID(), courseName: "Bio", color: .sky, index: 0,
-                                        dimCount: dim, brightCount: bright, litCount: lit ?? (dim + bright), meanRecall: recall,
-                                        readiness: readiness)
+                                        dimCount: dim, examDays: examDays)
     }
 
-    /// Fading is the sky's dim line (questions under 0.7 recall), ordered by readiness for the course's next exam: the weakest topic
-    /// on an exam first; topics on no exam after, most fading first. The rows show counts, never a percentage.
-    func testFadingPutsTheWeakestForTheNextExamFirst() {
-        let topics = [light("Off exam, 5 dim", dim: 5), light("Strong", dim: 1, readiness: 0.82), light("Weak", dim: 1, readiness: 0.31),
-                      light("Middling", dim: 3, readiness: 0.55), light("Nothing fading", dim: 0, readiness: 0.1),
+    /// Fading is the sky's dim line (questions under 0.7 recall), for the nearest exam first, then the most fading; topics on no exam after.
+    /// The rows show counts, never a percentage.
+    func testFadingPutsTheNearestExamFirstThenTheMostFading() {
+        let topics = [light("Off exam, 5 dim", dim: 5), light("Far", dim: 9, examDays: 30), light("Soon, 1 dim", dim: 1, examDays: 2),
+                      light("Soon, 3 dim", dim: 3, examDays: 2), light("Nothing fading", dim: 0, examDays: 1),
                       light("Off exam, 2 dim", dim: 2)]
-        XCTAssertEqual(ProgressPresentation.fading(topics, count: 3).map(\.name), ["Weak", "Middling", "Strong"])
+        XCTAssertEqual(ProgressPresentation.fading(topics, count: 3).map(\.name), ["Soon, 3 dim", "Soon, 1 dim", "Far"])
         XCTAssertEqual(ProgressPresentation.fading(topics, count: 10).map(\.name),
-                       ["Weak", "Middling", "Strong", "Off exam, 5 dim", "Off exam, 2 dim"], "a topic with nothing fading never shows")
+                       ["Soon, 3 dim", "Soon, 1 dim", "Far", "Off exam, 5 dim", "Off exam, 2 dim"], "a topic with nothing fading never shows")
         XCTAssertTrue(ProgressPresentation.fading([], count: 3).isEmpty)
         XCTAssertEqual(ProgressPresentation.fadingLine(2), "2 questions fading")
         XCTAssertEqual(ProgressPresentation.fadingLine(1), "1 question fading")
     }
 
-    func testBrightestLeavesOutTheFadingAndTheBarelyStudied() {
-        let fading = light("Fading", dim: 3, bright: 9, recall: 0.9)
-        let topics = [fading, light("All bright", dim: 0, bright: 6, recall: 0.92), light("Mostly", dim: 1, bright: 5, recall: 0.95),
-                      light("One star", dim: 0, bright: 1, recall: 0.99), light("All dim", dim: 4, bright: 0, recall: 0.5),
-                      light("Also all bright", dim: 0, bright: 3, recall: 0.97)]
-        let names = ProgressPresentation.brightest(topics, excluding: [fading.id], count: 3).map(\.name)
-        XCTAssertEqual(names, ["Also all bright", "All bright", "Mostly"], "the brightest share first, then recall")
-        XCTAssertFalse(names.contains("One star"), "needs two studied stars")
-        XCTAssertFalse(names.contains("Fading"), "never one of the fading")
+    /// An exam's region says which constellations it covers: a topic takes the nearest exam that covers it, and an exam gone by counts for none.
+    func testATopicsExamIsTheNearestThatCoversIt() {
+        let cal = calendar()
+        let now = cal.date(from: DateComponents(year: 2026, month: 11, day: 6, hour: 14))!
+        let soon = UUID(), later = UUID(), past = UUID(), course = UUID()
+        func region(_ id: UUID, _ covers: [Int]) -> SkyLayout.Region {
+            SkyLayout.Region(examID: id, courseID: course, title: "", center: SkyPoint(x: 0, y: 0), radius: 1, covers: covers)
+        }
+        let days = ProgressPresentation.daysToNearestExam(
+            regions: [region(later, [0, 1]), region(soon, [1]), region(past, [2])],
+            examDates: [soon: cal.date(byAdding: .day, value: 2, to: now)!, later: cal.date(byAdding: .day, value: 20, to: now)!,
+                        past: cal.date(byAdding: .day, value: -2, to: now)!],
+            now: now, calendar: cal)
+        XCTAssertEqual(days[0], 20)
+        XCTAssertEqual(days[1], 2)
+        XCTAssertNil(days[2])
+    }
+
+    func testTheExamRowAndTheTilesInWords() {
+        XCTAssertEqual(ProgressPresentation.examLine(days: 2, delta: 0.15), "in 2 days · +15% this week")
+        XCTAssertEqual(ProgressPresentation.examLine(days: 1, delta: 0), "tomorrow · ±0% this week")
+        XCTAssertEqual(ProgressPresentation.examLine(days: 0, delta: -0.03), "today · −3% this week")
+        XCTAssertEqual(ProgressPresentation.skyLine(stars: 63, dim: 17), "63 stars · 17 dim")
+        XCTAssertEqual(ProgressPresentation.monthHeadline(days: 12, best: 12, freezes: 1), "12-day streak · Best 12 · 1 freeze saved")
     }
 }

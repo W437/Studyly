@@ -249,6 +249,9 @@ final class SessionRunner: Identifiable {
 
     func topicName(_ id: UUID?) -> String? { id.flatMap { topicNames[$0] } }
 
+    /// The course a session is limited to.
+    var courseName: String? { request.courseID.flatMap { app.course($0)?.name } }
+
     /// The segment colour for queue position `index`.
     func segment(_ index: Int) -> SegmentState {
         let entries = queue.entries
@@ -341,7 +344,8 @@ final class SessionRunner: Identifiable {
         phase = .question
         activityTotal = Set(queue.entries.map(\.itemID)).count
         if options.liveActivity {
-            app.liveActivities.startSession(title: SessionCopy.title(for: request.kind), total: activityTotal,
+            let title = request.kind == .daily ? courseName.map(SessionCopy.studyCourse) : nil
+            app.liveActivities.startSession(title: title ?? SessionCopy.title(for: request.kind), total: activityTotal,
                                             plannedMinutes: built.plannedMinutes)
         }
         keepCheckpoint()

@@ -1,16 +1,19 @@
 import SwiftUI
 
-/// The Library tab: every course with its next exam, that exam's readiness (or "Add a date") and counts; search across
-/// questions, sources and lectures; and the ways to bring material in. With no courses yet, Cap invites a sample page.
+/// The Library tab: what was recent (questions to review, sources opened or added lately), every course with its next exam, that exam's
+/// readiness (or "Add a date") and counts; search across questions, sources and lectures. With no courses yet, Cap invites a sample page
+/// and shows the ways to bring material in (with courses, the tab bar's + is that way in).
 ///
 /// Harness: `CRAMLESS_ROUTE=library` (Spanish II has no exam); `CRAMLESS_SCENARIO=past` first moves the soonest exam three days back,
-/// so its course has only a past exam.
+/// so its course has only a past exam. `CRAMLESS_SCROLL=recent`.
 struct LibraryView: View {
     @Environment(AppModel.self) private var app
     @State private var query = ""
     @State private var searching = false
     @State private var entries: [LibrarySearch.Entry] = []
     @State private var courseToDelete: LibraryCourseModel?
+    /// Read when the tab shows (an open isn't a change of the store), and when the store changes.
+    @State private var recent: [LibraryRecent.Row] = []
 
     var body: some View {
         let _ = app.revision
@@ -25,6 +28,7 @@ struct LibraryView: View {
                         .padding(.top, 8)
                     BringYourStuff()
                 } else {
+                    if !recent.isEmpty { LibraryRecentSection(rows: recent) }
                     CLSectionHeader(title: "Courses", actionTitle: "New") { app.router.present(.newCourse) }
                     LazyVStack(spacing: 14) {
                         ForEach(courses) { course in
@@ -42,7 +46,6 @@ struct LibraryView: View {
                         .fixedSize(horizontal: false, vertical: true)
                         .padding(.top, 10)
                         .padding(.horizontal, 4)
-                    BringYourStuff()
                 }
             }
             .padding(.horizontal, CLSpace.gutter)
@@ -55,6 +58,7 @@ struct LibraryView: View {
         }
         .scrollDismissesKeyboard(.immediately)
         .clScreenBackground()
+        .captureDebugCanvas()
         .navigationTitle("Library")
         .navigationBarTitleDisplayMode(.large)
         .searchable(text: $query, isPresented: $searching, prompt: Text("Search questions, sources and lectures"))
@@ -81,17 +85,9 @@ struct LibraryView: View {
                     Label("Search", systemImage: "magnifyingglass")
                 }
             }
-            ToolbarItem(placement: .topBarTrailing) {
-                Menu {
-                    Button("New course", systemImage: "folder.badge.plus") { app.router.present(.newCourse) }
-                    Button("Make a card", systemImage: "square.and.pencil") { app.router.present(.newItem(courseID: nil)) }
-                    Button("Import a deck", systemImage: "rectangle.stack") { app.router.present(.importDeck(courseID: nil)) }
-                    Button("Add material", systemImage: "doc.viewfinder") { app.router.present(.capture(courseID: nil)) }
-                } label: {
-                    Label("Add", systemImage: "plus")
-                }
-            }
         }
+        .onAppear { recent = app.libraryRecent() }
+        .onChange(of: app.revision) { _, _ in recent = app.libraryRecent() }
         .alert(courseToDelete.map { "Delete \($0.name)?" } ?? "", isPresented: Binding(
             get: { courseToDelete != nil }, set: { if !$0 { courseToDelete = nil } })) {
             Button("Delete course", role: .destructive) {
