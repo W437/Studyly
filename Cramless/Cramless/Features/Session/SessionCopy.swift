@@ -56,7 +56,7 @@ enum SessionCopy {
 
     // MARK: The flashcard swipe
 
-    /// A chip's word, and what VoiceOver's action says: Good reads "Got it" here.
+    /// A chip's word, and what VoiceOver's action says. Hard counts as "Got it" on the swipe's side.
     static func swipeWord(_ rating: Rating) -> LocalizedStringResource {
         rating == .again ? "Again" : "Got it"
     }
@@ -76,9 +76,9 @@ enum SessionCopy {
     /// What VoiceOver reads for the pill's button.
     static func undoAccessibility(rating: Rating) -> LocalizedStringResource { "Undo \(rating.title)" }
 
-    /// What VoiceOver says when a rating is held.
+    /// What VoiceOver says when a rating is held: "Got it. Undo is at the bottom."
     static func undoAnnouncement(rating: Rating) -> LocalizedStringResource {
-        "Marked \(rating.title). Undo is at the bottom."
+        "\(rating.title). Undo is at the bottom."
     }
 
     // MARK: Grades

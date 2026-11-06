@@ -96,7 +96,7 @@ final class WidgetLaneServiceTests: XCTestCase {
         state.studiedToday = true
         XCTAssertEqual(ExamWeekCopy.today(state: state, courseName: "Bio 101"), "Today's session is done.")
         state.daysLeft = 1
-        XCTAssertEqual(ExamWeekCopy.today(state: state, courseName: "Bio 101"), "10 minutes of weak spots tonight, then sleep.")
+        XCTAssertEqual(ExamWeekCopy.today(state: state, courseName: "Bio 101"), "Weak spots tonight, then sleep.")
         state.daysLeft = 0
         XCTAssertEqual(ExamWeekCopy.today(state: state, courseName: "Bio 101"), "Today. You've prepared for this.")
     }

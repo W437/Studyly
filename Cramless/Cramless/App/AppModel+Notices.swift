@@ -402,6 +402,7 @@ extension AppModel {
         inputs.bestStreak = settings.quietMode ? 0 : streak().best
         inputs.todayItems = Set(built.entries.map(\.itemID))
         inputs.goalMet = minutesDone >= settings.dailyMinutes + boostMinutesToday()
+        inputs.dailyMinutes = settings.dailyMinutes
         inputs.sources = fadeSources(items: items, exams: exams)
         inputs.topicNames = topicNames()
         inputs.cloudLessons = ai.route(.confusions).usesCloud

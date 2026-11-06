@@ -360,7 +360,7 @@ enum ExamWeekCopy {
     static func today(state: ExamWeekAttributes.ContentState, courseName: String) -> String {
         switch state.daysLeft {
         case ..<1: return "Today. You've prepared for this."
-        case 1: return "10 minutes of weak spots tonight, then sleep."
+        case 1: return "Weak spots tonight, then sleep."
         default:
             return state.studiedToday ? "Today's session is done."
                 : "\(state.todayMinutes) minutes today keeps you on track."

@@ -453,7 +453,7 @@ struct SuggestionBanner: View {
     }
 }
 
-/// "Counts as Good · next review in 4 days", with a menu to change the rating the grade suggested.
+/// "Counts as Got it · next review in 4 days", with a menu to change the rating the grade suggested.
 struct RatingAdjuster: View {
     let auto: Rating
     @Binding var override: Rating?

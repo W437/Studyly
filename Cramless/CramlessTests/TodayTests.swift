@@ -168,11 +168,12 @@ final class TodayTests: XCTestCase {
     }
 
     func testTheWeekShowsTheEveAndTheExamAndNothingRed() throws {
-        world(quizIn: 2)
+        let (_, quiz, _) = world(quizIn: 2)
         let strip = TodaySnapshot.make(app: app).strip
         XCTAssertEqual(strip.map(\.offset), [-2, -1, 0, 1, 2, 3, 4])
         let eve = try XCTUnwrap(app.examPlans().first?.days.first { $0.kind == .examEve })
-        XCTAssertEqual(strip[3].mark, .eve(minutes: eve.shownMinutes), "what the exam page's plan says about that evening")
+        XCTAssertGreaterThan(eve.shownMinutes, 0)
+        XCTAssertEqual(strip[3].mark, .eve(minutes: app.builtEveMinutes(examID: quiz.id)), "tomorrow's eve: what its button will say")
         XCTAssertEqual(strip[3].examTitles, ["Chem 110 Quiz"])
         XCTAssertEqual(strip[4].mark, .exam(count: 1))
         XCTAssertEqual(strip[0].mark, .missed, "no record: a hollow circle")
@@ -186,6 +187,9 @@ final class TodayTests: XCTestCase {
         XCTAssertTrue(snapshot.isEve)
         XCTAssertFalse(snapshot.eveTopics.isEmpty)
         XCTAssertTrue(Set(snapshot.eveTopics).isSubset(of: ["Limiting reagents", "Moles"]))
+        let readiness = app.topicReadiness(for: quiz)
+        let values = snapshot.eveTopics.map { name in readiness.first { $0.name == name }?.value ?? 2 }
+        XCTAssertEqual(values, values.sorted(), "weakest first, like the day's title")
         XCTAssertEqual(snapshot.eveOthers, ["Bio 101"])
         XCTAssertEqual(TodayCopy.quietLine(examTitle: quiz.title, others: snapshot.eveOthers),
                        "Cap is quiet tonight. Bio 101 can wait until after Chem 110 Quiz.")
@@ -390,12 +394,12 @@ final class TodayTests: XCTestCase {
 
     // MARK: Fix my week on the day card
 
-    /// Chem 110 with 80 long-overdue questions and a quiz in 6 days: more than a session holds, so a fading card fires.
+    /// Chem 110 with long-overdue questions and a quiz in 6 days. 200 are more than the sessions before it can reach, so a fading card fires.
     @discardableResult
-    private func fadingWorld() throws -> (chem: Course, quiz: Exam) {
+    private func fadingWorld(questions: Int = 200) throws -> (chem: Course, quiz: Exam) {
         let chem = Course(name: "Chem 110", now: clock.now)
         app.context.insert(chem)
-        for i in 0..<80 {
+        for i in 0..<questions {
             let item = StudyItem(course: chem, kind: .recall, status: .active, origin: .person, prompt: "Q\(i)", answer: "A long enough answer number \(i).", now: clock.now)
             item.memory = MemoryState(state: .review, stability: 1.4, difficulty: 5, due: cal.adding(days: -20, to: clock.now),
                                       lastReview: cal.adding(days: -25, to: clock.now), reps: 3)
@@ -407,6 +411,22 @@ final class TodayTests: XCTestCase {
         chem.exams.append(quiz)
         app.save()
         return (chem, quiz)
+    }
+
+    /// 80 own-words questions at the daily goal clear before the quiz: the catch-up card says so, and no card says they'll go dim.
+    func testABacklogThatClearsBeforeTheExamDealsNoFadingCard() throws {
+        try fadingWorld(questions: 80)
+        let snapshot = TodaySnapshot.make(app: app)
+        XCTAssertEqual(snapshot.hero, .catchUp)
+        XCTAssertLessThan(snapshot.summary.catchUpDaysToClear, 6, "cleared before the quiz")
+        XCTAssertFalse(snapshot.notices.contains { $0.kind == .fading })
+    }
+
+    func testABacklogTooBigForTheDaysLeftCountsOnlyWhatTheyCantReach() throws {
+        try fadingWorld()
+        let (_, rescue) = try fadingCard()
+        XCTAssertLessThan(rescue.dimCount, 200 - 25, "the sessions ahead reach the rest")
+        XCTAssertGreaterThan(rescue.dimCount, 80)
     }
 
     private func fadingCard() throws -> (card: CapNotice, rescue: FadeRescue) {
@@ -447,7 +467,7 @@ final class TodayTests: XCTestCase {
 
     /// The store's order changes between launches, and here every question ties, so the engines' ties are all decided by it.
     func testTheSameQuestionsMakeTheSameSessionAndCardHoweverTheyWereStored() throws {
-        let ids = (0..<80).map { _ in UUID() }
+        let ids = (0..<200).map { _ in UUID() }
         func make(_ order: [UUID]) throws -> (session: [UUID], dim: Int?) {
             let app = try StudyTestApp.make(clock: clock, calendar: cal)
             let chem = Course(name: "Chem 110", now: clock.now)

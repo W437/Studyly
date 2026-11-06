@@ -32,9 +32,18 @@ final class TodayPlanStripTests: XCTestCase {
     }
 
     private func make(_ plans: [TodayPlanStrip.ExamPlan], past: [DaySnapshot] = [], todayMinutes: Int = 15, done: Bool = false,
-                      goal: Int = 15, easy: [Int] = [], tonight: Int? = nil) -> [TodayPlanDay] {
+                      goal: Int = 15, easy: [Int] = [], tonight: Int? = nil, tomorrowEve: Int? = nil) -> [TodayPlanDay] {
         TodayPlanStrip.make(today: now, plans: plans, past: past, todayMinutes: todayMinutes, todayDone: done, goal: goal,
-                            easyDays: easy, tonightMinutes: tonight, calendar: cal)
+                            easyDays: easy, tonightMinutes: tonight, tomorrowEveMinutes: tomorrowEve, calendar: cal)
+    }
+
+    /// One number: an eve tomorrow reads the session its button will start, like tonight's; later eves can only be the plan's estimate.
+    func testAnEveTomorrowSaysWhatItsButtonWillSay() {
+        let quiz = plan("Chem 110 Quiz", examIn: 2, eve: 1)
+        XCTAssertEqual(make([quiz], tomorrowEve: 2)[3].mark, .eve(minutes: 2))
+        XCTAssertEqual(make([quiz], tomorrowEve: 0)[3].mark, .eve(minutes: 0), "nothing to review")
+        XCTAssertEqual(make([quiz])[3].mark, .eve(minutes: 1), "none built: the plan's")
+        XCTAssertEqual(make([plan("Chem 110 Quiz", examIn: 3, eve: 1)], tomorrowEve: 2)[4].mark, .eve(minutes: 1), "that eve isn't tomorrow")
     }
 
     func testSevenDaysTwoBackTodayAndFourAhead() {

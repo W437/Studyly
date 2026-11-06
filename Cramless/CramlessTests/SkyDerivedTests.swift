@@ -474,4 +474,20 @@ final class CLSoundLaunchTests: XCTestCase {
         await sound.prewarm([.right(combo: 2)])
         XCTAssertEqual(sound.renderedCount, 3, "and asking again renders nothing more")
     }
+
+    /// The audio system can abort the process from inside its first call on a busy Mac, and simulator recordings are silent anyway.
+    func testTheSimulatorBuildsNoEngineUnlessALaunchAsksForSound() async throws {
+        XCTAssertFalse(CLSoundOutput.mayBuild(simulator: true, askedForSound: false))
+        XCTAssertTrue(CLSoundOutput.mayBuild(simulator: true, askedForSound: true))
+        XCTAssertTrue(CLSoundOutput.mayBuild(simulator: false, askedForSound: false))
+        #if targetEnvironment(simulator)
+        try XCTSkipIf(ProcessInfo.processInfo.environment["CRAMLESS_SOUNDS"] == "1")
+        let sound = CLSound()
+        sound.isEnabled = true
+        await sound.prewarm([.flourish])
+        sound.play(.flourish)
+        sound.suspend()
+        XCTAssertFalse(sound.hasAudioGraph)
+        #endif
+    }
 }

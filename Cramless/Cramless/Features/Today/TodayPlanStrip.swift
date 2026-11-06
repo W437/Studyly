@@ -50,9 +50,10 @@ enum TodayPlanStrip {
 
     /// The week. `today` is now; `past` are the day records (any range; only the two days back are read); `todayMinutes` is the
     /// session planned now and `todayDone` that the day's goal is met; `goal` the daily minutes; `easyDays` the weekdays (1 Sunday
-    /// ... 7 Saturday) that are easy; `tonightMinutes` the eve session built for tonight, when today is an eve (0: nothing to review).
+    /// ... 7 Saturday) that are easy; `tonightMinutes` the eve session built for tonight, when today is an eve (0: nothing to review), and
+    /// `tomorrowEveMinutes` the same for an eve tomorrow: those days read the number their button says, later eves the plan's estimate.
     static func make(today: Date, plans: [ExamPlan], past: [DaySnapshot], todayMinutes: Int, todayDone: Bool, goal: Int,
-                     easyDays: [Int], tonightMinutes: Int? = nil, calendar: Calendar) -> [TodayPlanDay] {
+                     easyDays: [Int], tonightMinutes: Int? = nil, tomorrowEveMinutes: Int? = nil, calendar: Calendar) -> [TodayPlanDay] {
         let todayNumber = calendar.dayNumber(for: today)
         let records = Dictionary(past.map { (calendar.dayNumber(for: $0.day), $0) }, uniquingKeysWith: { a, b in a.studied ? a : b })
         // What each exam's plan says about each day ahead.
@@ -99,7 +100,8 @@ enum TodayPlanStrip {
                 day.mark = .exam(count: titles.count)
                 day.examTitles = titles
             } else if let titles = eves[offset] {
-                let minutes = (offset == 0 ? tonightMinutes : nil) ?? eveMinutes[offset] ?? 1
+                let built = offset == 0 ? tonightMinutes : offset == 1 ? tomorrowEveMinutes : nil
+                let minutes = built ?? eveMinutes[offset] ?? 1
                 day.mark = offset == 0 && todayDone ? .done : .eve(minutes: minutes)
                 day.examTitles = titles
             } else if offset == 0 {

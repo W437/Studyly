@@ -181,7 +181,7 @@ sleep 4; xcrun simctl io <udid> screenshot shot.png
     the simulator's own setting (others may share it). Routes `todayWhy`, `quests` (the sheets) and `skyList` (the sky as a list,
     "Study something else"); `streak` shows the month with exams and eves marked.
   - Cap's cards, from the real engine (`App/AppModel+NoticeHarness.swift`): `CRAMLESS_NOTICES=mixup,lookalike,fading,back,mock,gap,lecturedate|all|none` shapes the demo world so those kinds and no others fire
-    (`lookalike`: the Bio midterm 9 days out; `fading`: 6 days out with its questions 20 days overdue, and 30 more own-words ones added so a session can't hold them; `back`: 8 days away after a 23-day run; `mock`: the Bio midterm 5 days out); `CRAMLESS_NOTICE_STATE=second|later|done|allLater`
+    (`lookalike`: the Bio midterm 9 days out; `fading`: 4 days out with its questions 20 days overdue, and 60 more own-words ones added so the sessions before it can't reach them all; `back`: 8 days away after a 23-day run; `mock`: the Bio midterm 5 days out); `CRAMLESS_NOTICE_STATE=second|later|done|allLater`
     puts the deck part way through the day (`done`: "Plan updated"). `CRAMLESS_ROUTE=lookAlike` opens the sheet on the best pair, `CRAMLESS_LOOKALIKE=rules|cloud|writing` holds its lesson in that state.
     `CRAMLESS_ROUTE=settings:notifications CRAMLESS_NOTICES=fading` shows the ping in the page's planned list.
     `CRAMLESS_NOTICES=tooeasy` (or `CRAMLESS_LADDER=offer`): a Bio midterm question has become too easy (`Ladder`). `CRAMLESS_ROUTE=ladder` opens "Yes, harder" on a question, with `CRAMLESS_LADDER=writing|proposal|added` holding that state (`LadderSheet`).
@@ -203,7 +203,7 @@ sleep 4; xcrun simctl io <udid> screenshot shot.png
     - The flashcard swipe: `flashcard-drag` holds the flipped card 60% of the way right; `flashcard-swiped` swipes it (the next one up, the tally at 1 and 0,
       the pill stays); `CRAMLESS_SESSION_SWIPE=rrlhe` plays a session of flashcards only by that pattern (`r` swipe right, `l` swipe left, `h` the Hard
       tile, `e` the Easy tile, `f` only flips, for a real finger), `CRAMLESS_AUTOPLAY_BEAT` ms on each flipped card. Check the swipe itself with a real drag too
-      (`mobilecli io swipe x1,y1,x2,y2 --duration 700`: a fast one is a flick, which counts from anywhere).
+      (`mobilecli io swipe x1,y1,x2,y2 --duration 700`: a fast one is a flick, which counts from anywhere). `CRAMLESS_SESSION_LONG_ANSWER=1` (with a flashcard state) gives the card an answer longer than the screen: a real drag up scrolls it, a real drag sideways swipes it (`FlashcardSwipe.SwipePan`).
     - `CRAMLESS_SESSION_STATE=flashcard-saved|mcq-saved` makes the first flashcard (or multiple-choice question) a
       fading memory and answers it right: a save, with the sky's flare.
     - `CRAMLESS_SUMMARY_SKY=<ms>` opens the memory sky that long after a summary's choreography, as a tap on its
@@ -247,7 +247,8 @@ sleep 4; xcrun simctl io <udid> screenshot shot.png
     opens Help.
 - Feel:
   - The harness is silent unless `CRAMLESS_SOUNDS=1`, but logs every cue to `Documents/feel-log.jsonl` for
-    `film.sh`.
+    `film.sh`. On a simulator no audio engine is built at all without it, harness or not (`CLSoundOutput`): the audio system's first call aborted
+    the process on a busy Mac.
   - `CRAMLESS_SOUND_PALETTE=marimba|kalimba|glass` picks the palette.
   - `CRAMLESS_FEELLAB=sounds|cap|cast|confetti` opens that section of the Feel lab and plays all of it in turn: every
     cue, each of Cap's moments, every pose with its clip, each size of celebration.

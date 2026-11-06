@@ -15,6 +15,12 @@ extension AppModel {
         return fetch(descriptor).first?.examID
     }
 
+    /// The eve session's minutes as its button and the plan say them, built from what is true now. One number for the button, the strip, the
+    /// exam page's plan and the evening's notification.
+    func builtEveMinutes(examID: UUID) -> Int {
+        buildSession(SessionRequest(kind: .examEve, examID: examID)).tonightMinutes
+    }
+
     /// "Your plan": two days back, today and four ahead, across every exam's share of the daily goal (`TodayPlanStrip`).
     /// `tonightMinutes`: the eve session built for tonight, when today is an eve.
     func todayStrip(summary: TodaySummary, tonightMinutes: Int? = nil) -> [TodayPlanDay] {
@@ -22,9 +28,10 @@ extension AppModel {
         let plans = examPlans().map { TodayPlanStrip.ExamPlan(title: titles[$0.examID] ?? "", days: $0.days) }
         let past = daySnapshots(since: calendar.adding(days: -TodayPlanStrip.back, to: now))
         let done = (summary.studiedToday && summary.minutesDone >= summary.minutesGoal) || eveSessionDone(summary)
+        let tomorrowEve = examSnapshots(upcomingOnly: true).first { calendar.dayDistance(from: now, to: $0.date) == 2 }
         return TodayPlanStrip.make(today: now, plans: plans, past: past, todayMinutes: summary.plannedMinutes, todayDone: done,
                                    goal: settings.dailyMinutes, easyDays: settings.easyDays, tonightMinutes: tonightMinutes,
-                                   calendar: calendar)
+                                   tomorrowEveMinutes: tomorrowEve.map { builtEveMinutes(examID: $0.id) }, calendar: calendar)
     }
 
     /// What "Why these?" says about today's session (`TodayReasons`): its exam and scope, the exam's weakest topic and how many of
@@ -34,6 +41,8 @@ extension AppModel {
         let focus = sessionFocus(session)
         let exams = examSnapshots(upcomingOnly: true)
         var input = TodayReasons.Input()
+        input.sessionTotal = session.entries.count
+        input.examQuestions = focus.examID == nil ? 0 : focus.questionCount
         if let id = focus.examID, let snapshot = exams.first(where: { $0.id == id }), let model = exam(id) {
             input.examTitle = snapshot.title
             input.when = TodayCopy.when(snapshot.date, now: now, calendar: calendar)
