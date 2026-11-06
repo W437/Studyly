@@ -43,7 +43,7 @@ struct ReadinessRing: View {
             if projected != nil, reach > current + 0.002 {
                 Circle()
                     .trim(from: current, to: reach)
-                    .stroke(CLColor.readiness(ahead).opacity(0.3), style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
+                    .stroke(CLColor.readiness(ahead).opacity(0.24), style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
                     .rotationEffect(.degrees(-90))
             }
             Circle()

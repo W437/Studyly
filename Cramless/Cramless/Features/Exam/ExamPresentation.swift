@@ -576,7 +576,8 @@ enum ExamPresentation {
 
     static func skipCost(_ option: SkipOption, planned: Double, skipped: Double, examDate: Date, now: Date,
                          calendar: Calendar) -> SkipCost {
-        let points = max(0, Int(((planned - skipped) * 100).rounded()))
+        // From the two percentages as shown, so the points always match them ("69% instead of 73%" is 4 points).
+        let points = max(0, Int((planned * 100).rounded()) - Int((skipped * 100).rounded()))
         if points < 2 {
             return SkipCost(points: points, title: String(localized: "Skipping \(option.name) costs almost nothing"),
                             detail: String(localized: "The days around it pick up its reviews."))

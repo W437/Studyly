@@ -84,7 +84,8 @@ struct LibraryCourseCard: View {
     @ViewBuilder
     private var trailing: some View {
         if let readiness = model.readiness {
-            ReadinessRing(value: readiness, size: 52, lineWidth: 6)
+            // Bigger at the accessibility text sizes, where the number inside it would otherwise stay small.
+            ReadinessRing(value: readiness, size: typeSize.isAccessibilitySize ? 80 : 52, lineWidth: typeSize.isAccessibilitySize ? 8 : 6)
                 .accessibilityHidden(true)
         } else {
             LibraryAddDateSlot()
@@ -116,7 +117,11 @@ struct LibraryAddDateButton: View {
 
 private struct LibraryAddDateLabel: View {
     var body: some View {
-        Label("Add a date", systemImage: "calendar.badge.plus")
+        // An HStack rather than a Label: inside a List row a Label can lose its title to the row's label style.
+        HStack(spacing: 6) {
+            Image(systemName: "calendar.badge.plus").accessibilityHidden(true)
+            Text("Add a date")
+        }
             .clFont(.footnoteEmphasis)
             .foregroundStyle(CLColor.skyInk)
             .padding(.horizontal, 12)

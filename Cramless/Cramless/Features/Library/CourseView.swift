@@ -360,8 +360,10 @@ private struct CourseHeader: View {
                 CLIconBadge(systemImage: model.symbol, tint: model.color, size: 56)
                 VStack(alignment: .leading, spacing: 3) {
                     Text(model.examLine).clFont(.headline).foregroundStyle(CLColor.ink)
+                        .fixedSize(horizontal: false, vertical: true)
                     Text(LibraryFormat.courseCounts(sources: model.sources, questions: model.questions))
                         .clFont(.subheadline).foregroundStyle(CLColor.ink2)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 if let readiness = model.readiness {
@@ -371,14 +373,15 @@ private struct CourseHeader: View {
                 }
             }
             if model.readiness == nil {
-                HStack(alignment: .center, spacing: 12) {
+                VStack(alignment: .leading, spacing: 10) {
                     Text("Add an exam date and Capling shows how ready you are.")
                         .clFont(.subheadline)
                         .foregroundStyle(CLColor.ink2)
                         .fixedSize(horizontal: false, vertical: true)
-                        .frame(maxWidth: .infinity, alignment: .leading)
                     LibraryAddDateButton(courseName: model.name, action: addDate)
+                        .fixedSize()
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(14)
                 .background(CLColor.surface, in: RoundedRectangle(cornerRadius: CLRadius.option, style: .continuous))
             }
