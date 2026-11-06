@@ -1449,6 +1449,47 @@ trust rules and the screens are in `docs/assistant.md`, the wire format in `docs
   `x…y…` taps; `CRAMLESS_CANVAS=375x667` applies to Today. Scripts: `films_hero.sh` (no constellation taps; a Reduce Motion film),
   `j_game.py` (opens the quests sheet), `j_study.py` (the exams row's tile), `j_sky.py` (the band's pill).
 
+## Stage 2a: Cap's cards (2026-11-06)
+
+The engine that fills Today's "Cap noticed" slot, and its first four kinds. Plan: `~/.claude/plans/capling-build-plan.md` ▸ 2a, appendix 5.
+
+- **The engine** (`Engine/Notices.swift`, pure; `NoticeEngine`, `Notice`, `NoticeKind`, `NoticeLedger`, `NoticeSlot`, `NoticePing`): `candidates()` (every
+  kind, ranked: welcome back 1000; fading 500 + 200·share − 10·days; mix-up 400 + 20·min(misses, 10); look-alike 300 + 100·similarity (+50 linked)
+  − 10·days; none when any exam is tomorrow), `dealt(_:)` (at most 3 a day, one per kind; dealt once, later arrivals join while there's room),
+  `deck(_:ledger:)` (dealt, still true, not put off or acted on within 7 days), `slot` ("2 of 3") and `pings`. The file's head says how to add a kind:
+  `gap`, `lectureDate`, `busyDay`, `tooEasy`, `teachBack`, `sameIdea` and `mockOffer` are reserved raw values.
+- **The ledger** stays on the phone (UserDefaults `capling.notices.v1`, kept by `App/AppModel+Notices.swift`): today's deck, Later, what was acted on and
+  seen, notifications sent, and the boosts. It imports the old `capling.study.confusionSnooze` once. A second device deals its own deck and doesn't see
+  boosts; what crosses devices is already synced (mix-ups, memory). `AppSettings.notices` holds the switches (`off`, `notify`); old settings open with
+  everything on. Candidates are worked out once per revision, day and settings (`NoticeCache`).
+- **Mix-ups:** the open confusions. A mix-up with no misses (an adopted look-alike) reads "… look alike" / "Spotted before any mix-up." on the card, in `SessionCopy.missLine`
+  and on `ConfusionView`. **The session summary no longer asks Cloud AI before a tap**: it shows the rules' version at once, and `explainConfusion` runs only after "Fix it now"
+  (a spinner on the button; at most `AppModel.lessonWait`, 10 s, then the rules). "Not now" adopts the rules' version with no AI at all.
+- **Welcome back:** a week or more away, 3 or more study days ever, on at most 2 days per absence, gone after a session today, never a notification. Promises only what is
+  true (`StreakState.best` is kept, 5 minutes lights the flame). No restored streak.
+- **Fading** (`Engine/Fading.swift`): `FadeFinder`: overdue studied questions in the exam's scope, under `ReviewOutcome.fadingRecall` (0.7, the sky's dim line) on the exam's
+  date, not in today's session or a boost; at least 5; 3 to 14 days before. `FadeRescue`: today (unless the goal is met), then days that aren't lighter days, an exam or an
+  exam's eve; at most 3 days, 10 minutes each, the same minutes on each, dimmest first; `kept` from `ExpectedReview` (shown only with 5 or more); "From <source>" at 60%, else
+  "Mostly <topic>" at 60%, else nothing. **"Fix my week"** stores `PlanBoost`s in the ledger and writes no memory: `dailyBudgetMinutes()` and `TodaySummary.minutesGoal` add today's
+  boost, `SessionSpec.focusItemIDs` puts its questions first in the daily session (still-due ones only), and `PlanBuilder.boosts` / `.pinned` add the minutes to a day's whole session
+  and give the questions their day (`sharedPlans()` widens the day's capacity), which the plan strip and exam page read. Undo removes them. A later day's boost goes once its questions
+  have all been reviewed early; a day gone by ends its boost, and what it didn't reach can bring a card back the next day under a new id. It rarely fires for someone who keeps up, by design.
+- **Look-alikes** (`Engine/LookAlikes.swift`): `LookAlikeFinder`, on the phone, for exams in the next 21 days; signals, guards and the buckets that keep it cheap are in its header.
+  `CramlessTests/Fixtures/lookalike-corpus.json` (labelled decks with traps, some held out from tuning) gates it at 90% precision in `NoticeEngineTests`. Pairs are worked out once a day and when
+  the questions or mix-ups change in number or state. `LookAlikeView` is the sheet (`AppSheet.lookAlike`). Cloud AI runs only there, after "Show me", on the relay's `extras` meter (`ConfusionsRequest.lookAlike`, sent only
+  when true; `AIRouter.lookAlikeLesson`; the prompt's look-alike section; fixture `confusions-lookalike.json`); the rules' version is `LocalConfusions.sideBySide`. "Try 2 questions" adopts it (`ConfusionCandidate.Reason.lookAlike`, no misses)
+  and starts the fix; "Not a look-alike" saves a dismissed `Confusion`, which syncs, and both finders skip it. A fixed look-alike with no misses doesn't count for the "mix-ups fixed" badges (the day's quest counts it: the drill was done).
+- **Notifications** (`NoticeEngine.pings`, `NotificationPlanner`): `Kind.notice` after the exam notes and before the reminder, `capling.notice.<dayKey>`, `capling://today?notice=<id>` (`DeepLink.notice`: that card first; a
+  fading card's link has no day in it). 2 to 6 days before the card's exam, at most one a day, replacing that day's reminder and streak nudge; never on a day with an exam note; at the reminder time, or 18:00 with
+  reminders off; quiet hours as ever; no new permission prompt. Only notifiable kinds (fading, look-alike, a mix-up with an exam within 7 days), never a card already seen on Today that day (on screen, by
+  `onScrollVisibilityChange`), once per card; "Later" makes it tomorrow's candidate. `noteNoticePings` records when a ping is planned; once that time has passed it counts as sent.
+- **Settings:** Study ▸ "Cap noticed" (a switch per live kind), Notifications ▸ "Cap noticed" (the `notify` switch). The card's menu: "Don't show these".
+- **Hooks:** `App/AppModel+NoticeHarness.swift` (in `Cramless/CLAUDE.md`).
+- **Relay deploy (not done; needs the owner's approval):** `ai` with the look-alike section of `_shared/prompts/confusions.md`, `confusionsContent`, the `lookAlike` field in `_shared/schemas/requests.json` and `contract.ts`, and
+  the mock's `confusions-lookalike` fixture. No database change, no new secret. Until it is deployed the app's request reaches a relay that ignores the field (its schema allows extra properties) and usually returns no confusions, so the
+  sheet falls back to the rules' lesson.
+- **Device checks:** the notification itself (tap opens that card first); the sheet with a real relay. `LIVE_ONLY=lookalike deno task live` checks the look-alike prompt on the real model (a fraction of a cent; not run yet).
+
 ## App Store Connect (2026-11-01)
 
 The Capling record on the Loopware team (app 6828649543) is filled in by `scripts/asc/`. Every command is re-runnable and has
