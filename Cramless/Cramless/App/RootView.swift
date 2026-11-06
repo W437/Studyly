@@ -1,3 +1,4 @@
+import DeclaredAgeRange
 import SwiftUI
 
 /// The shell: onboarding until it's done, then the tabs. Hosts the one sheet, the one cover and the toast, so
@@ -5,6 +6,7 @@ import SwiftUI
 struct RootView: View {
     @Environment(AppModel.self) private var app
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.requestAgeRange) private var requestAgeRange
     @State private var started = false
 
     var body: some View {
@@ -56,8 +58,15 @@ struct RootView: View {
             #if DEBUG
             try? await Task.sleep(for: .milliseconds(350))
             TestHarness.applyRoute(to: app)
+            TestHarness.applyLaunchToasts(to: app)
             await DeviceProbe.runIfRequested(app: app)
             #endif
+            // Someone who finished onboarding before the age check existed is asked once, a moment after launch (onboarding asks
+            // everyone else). Nothing waits for it.
+            if app.settings.onboardingCompleted {
+                try? await Task.sleep(for: .seconds(1.5))
+                await AgeRange.checkIfNeeded(app: app, using: requestAgeRange)
+            }
         }
         .onOpenURL { url in DeepLinks.handle(url, app: app) }
         .onChange(of: scenePhase) { _, phase in

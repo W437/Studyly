@@ -1,3 +1,4 @@
+import DeclaredAgeRange
 import SwiftUI
 
 /// Drives onboarding: owns the step machine, maps it onto a navigation stack, and performs the side effects
@@ -117,6 +118,7 @@ struct OnboardingFlow: View {
     let startPage: Int?
 
     @Environment(AppModel.self) private var app
+    @Environment(\.requestAgeRange) private var requestAgeRange
     @State private var coordinator: OnboardingCoordinator
 
     init(startPage: Int?) {
@@ -144,6 +146,15 @@ struct OnboardingFlow: View {
                 .presentationDetents([.medium, .large])
         }
         .onAppear { coordinator.app = app }
+        // The four questions are about the person; the age range is asked once, right after them, before anything that depends on
+        // it (Cloud AI's consent, Cap's tutor). The system's own sheet; nothing waits for it (`AgeRange.checkIfNeeded`).
+        .onChange(of: coordinator.step) { _, step in
+            guard step == .firstSet else { return }
+            Task {
+                try? await nap(700)
+                await AgeRange.checkIfNeeded(app: app, using: requestAgeRange)
+            }
+        }
     }
 
     @ViewBuilder
