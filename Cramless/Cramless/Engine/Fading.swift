@@ -59,6 +59,9 @@ struct FadeRescue: Equatable, Sendable, Hashable {
 ///
 /// A question counts when it is in the exam's scope, studied, overdue, under the line on the exam's date and not in today's session. So one
 /// only on a finished exam never counts: only exams still to come are looked at.
+/// It also has to be out of the plan's reach. The daily sessions ahead work through the overdue questions (the nearest exam's first, then the
+/// lowest recall, as a catch-up session does), so a backlog that clears before the exam never goes dim and the card would be false beside
+/// "cleared in 3 days". Only what is left after the days before the exam (`dailySeconds` each, half on a lighter day, the eve's own session on the eve) counts.
 /// With at least 5, the rescue takes today (unless the goal is met), then the next days that aren't lighter days, an exam or an
 /// exam's eve; 3 days at most, 10 minutes each at most, the dimmest questions first. It is offered only if at least 5 of them would be
 /// over the line on exam day after their review (`ExpectedReview`).
@@ -75,6 +78,8 @@ struct FadeFinder: Sendable {
     var now: Date
     var easyDays: [Int] = []
     var goalMet = false
+    /// The daily goal, in seconds: how far the sessions ahead reach.
+    var dailySeconds: Double = 0
 
     private func isEasy(_ day: Int) -> Bool {
         !easyDays.isEmpty && easyDays.contains(Calendar.weekday(dayNumber: day))
@@ -97,11 +102,12 @@ struct FadeFinder: Sendable {
         let key = calendar.dayKey(for: now)
         let examDays = upcoming.map { calendar.dayNumber(for: $0.date) }
         let busy = Set(examDays + examDays.map { $0 - 1 })
+        let queue = sessionOrder(overdue, exams: upcoming)
         // Who's going dim, per exam.
         var going: [(exam: ExamSnapshot, dim: [(item: ItemSnapshot, recall: Double)], share: Double, days: Int)] = []
         for exam in inWindow where !hidden(Self.noticeID(exam, dayKey: key)) {
             var dim: [(item: ItemSnapshot, recall: Double)] = []
-            for item in overdue where exam.covers(item) {
+            for item in outOfReach(queue, before: exam, today: today) where exam.covers(item) {
                 guard let last = item.memory.lastReview else { continue }
                 let recall = fsrs.forecastRecall(stability: item.memory.stability, last: last, at: exam.date)
                 if recall < ReviewOutcome.fadingRecall { dim.append((item, recall)) }
@@ -120,6 +126,40 @@ struct FadeFinder: Sendable {
             }
         }
         return []
+    }
+
+    /// The overdue questions in the order sessions reach them: the nearest exam's first, then the lowest recall.
+    private func sessionOrder(_ overdue: [ItemSnapshot], exams: [ExamSnapshot]) -> [ItemSnapshot] {
+        guard dailySeconds > 0 else { return overdue }
+        let index = ExamIndex(exams, after: now, calendar: calendar)
+        return overdue.map { item in
+            (item: item, days: index.soonest(covering: item).flatMap { index.daysLeft[$0.id] } ?? Int.max,
+             recall: fsrs.retrievability(of: item.memory, at: now))
+        }.sorted { a, b in
+            if a.days != b.days { return a.days < b.days }
+            return a.recall != b.recall ? a.recall < b.recall : a.item.id < b.item.id
+        }.map(\.item)
+    }
+
+    /// What is left of the queue after the sessions from tomorrow to the exam's eve. Today's are already out of it.
+    private func outOfReach(_ queue: [ItemSnapshot], before exam: ExamSnapshot, today: Int) -> ArraySlice<ItemSnapshot> {
+        guard dailySeconds > 0 else { return queue[...] }
+        let examDay = calendar.dayNumber(for: exam.date)
+        var left = 0.0
+        for day in stride(from: today + 1, to: examDay, by: 1) {
+            if day == examDay - 1 {
+                left += min(dailySeconds, PlanBuilder.examEveSeconds)
+            } else {
+                left += isEasy(day) ? dailySeconds * StudyScheduler.easyDayCapacity : dailySeconds
+            }
+        }
+        var reached = 0
+        for item in queue {
+            left -= item.kind.typicalSeconds
+            if left < 0 { break }
+            reached += 1
+        }
+        return queue[reached...]
     }
 
     static func noticeID(_ exam: ExamSnapshot, dayKey: String) -> String { "fade-\(exam.id.uuidString)-\(dayKey)" }

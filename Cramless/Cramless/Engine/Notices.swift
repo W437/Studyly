@@ -208,6 +208,8 @@ struct NoticeInputs: Sendable {
     var todayItems: Set<UUID> = []
     /// Today's goal is met.
     var goalMet = false
+    /// The daily goal: how far the sessions before an exam reach a backlog.
+    var dailyMinutes = 0
     /// Where each overdue question came from.
     var sources: [UUID: FadeSource] = [:]
     var topicNames: [UUID: String] = [:]
@@ -494,7 +496,7 @@ struct NoticeEngine: Sendable {
     private func fadingCards() -> [Notice] {
         let boosted = Set(inputs.ledger.boosts.flatMap(\.itemIDs))
         let finder = FadeFinder(fsrs: inputs.fsrs, calendar: inputs.calendar, now: inputs.now, easyDays: inputs.easyDays,
-                                goalMet: inputs.goalMet)
+                                goalMet: inputs.goalMet, dailySeconds: Double(inputs.dailyMinutes) * 60)
         return finder.rescues(items: inputs.items, exams: inputs.exams, todayItems: inputs.todayItems, boosted: boosted,
                               sources: inputs.sources, topicNames: inputs.topicNames, hidden: { isHidden($0) }).map { rescue in
             Notice(id: rescue.noticeID, kind: .fading, rank: Rank.fading(dimShare: rescue.dimShare, daysLeft: rescue.daysLeft),
