@@ -75,22 +75,37 @@ struct PageFocus: Equatable {
 /// A ring drawn by hand around a block of lines: a superellipse rather than an ellipse, because a true ellipse runs through the words at the
 /// block's corners. It wanders a little and its end runs just past its start, as a pen's does. The same every time. Draw it with `.trim`.
 struct PenCircleShape: Shape {
-    /// How square its shoulders are: 2 is an ellipse.
-    private static let squareness = 3.6
+    /// How square its shoulders are: 2 is an ellipse. This is the roundest it gets; a taller block needs them squarer (`squareness(for:)`).
+    private static let leastSquareness = 3.6
+    private static let mostSquareness = 8.0
+    /// The space the page leaves around the lines, on each side, inside the ring's frame.
+    private static let margin = CGSize(width: 12, height: 10)
     private static let steps = 120
+    /// How far the line strays in and out as it goes round, as a share of its reach.
+    private static let wander = 0.012
     /// How far past its start the pen goes, in degrees.
     private static let overshoot = 26.0
+
+    /// The roundest ring that still has the corners of its lines inside, the stroke's width to spare.
+    private static func squareness(for rect: CGRect) -> Double {
+        // Where a corner of the lines falls, with the line at its furthest in.
+        let x = max(0, 1 - margin.width / max(rect.width / 2, 1)) / (1 - wander)
+        let y = max(0, 1 - margin.height / max(rect.height / 2, 1)) / (1 - wander)
+        var squareness = leastSquareness
+        while squareness < mostSquareness, pow(x, squareness) + pow(y, squareness) > 0.97 { squareness += 0.2 }
+        return squareness
+    }
 
     func path(in rect: CGRect) -> Path {
         var path = Path()
         let start = -160.0
+        let exponent = 2 / Self.squareness(for: rect)
         for step in 0...Self.steps {
             let progress = Double(step) / Double(Self.steps)
             let degrees = start + progress * (360 + Self.overshoot)
             let angle = degrees * .pi / 180
             // A slow wander, and the end drifting outward so it passes outside its start instead of landing on it.
-            let reach = 1 + 0.012 * sin(3 * angle + 0.7) + 0.035 * max(0, progress - 0.88) / 0.12
-            let exponent = 2 / Self.squareness
+            let reach = 1 + Self.wander * sin(3 * angle + 0.7) + 0.035 * max(0, progress - 0.88) / 0.12
             let x = copysign(pow(abs(cos(angle)), exponent), cos(angle)) * reach
             let y = copysign(pow(abs(sin(angle)), exponent), sin(angle)) * reach
             let point = CGPoint(x: rect.midX + CGFloat(x) * rect.width / 2, y: rect.midY + CGFloat(y) * rect.height / 2)

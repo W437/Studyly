@@ -74,8 +74,9 @@ final class LibraryPageFocusTests: XCTestCase {
     }
 
     func testThePenCircleLeavesTheCornersOfItsLinesInside() {
-        // Blocks of one, two and three lines, in the frame the page draws them: 26 wider and 20 taller.
-        for block in [CGSize(width: 160, height: 18), CGSize(width: 240, height: 44), CGSize(width: 280, height: 70)] {
+        // Blocks of one, two, three and five lines, in the frame the page draws them: 26 wider and 20 taller.
+        for block in [CGSize(width: 160, height: 18), CGSize(width: 240, height: 44), CGSize(width: 280, height: 70),
+                      CGSize(width: 300, height: 124)] {
             let frame = CGRect(x: 0, y: 0, width: block.width + 26, height: block.height + 20)
             let ring = PenCircleShape().path(in: frame)
             let lines = CGRect(x: 13, y: 10, width: block.width, height: block.height)
