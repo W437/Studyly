@@ -513,6 +513,7 @@ final class LecturePlayerTests: CaptureTestCase {
         var seeks: [Double] = []
         var pauses = 0
         var closes = 0
+        var released: [Bool] = []
         var published: [LecturePlayer.NowPlaying] = []
 
         func position() async -> Double { now }
@@ -520,7 +521,7 @@ final class LecturePlayerTests: CaptureTestCase {
         func seek(to seconds: Double) { seeks.append(seconds); now = seconds }
         func pause() { pauses += 1 }
         func setRate(_ rate: Double) { rates.append(rate) }
-        func close() { closes += 1 }
+        func close(releasingSession: Bool) { closes += 1; released.append(releasingSession) }
         func publish(_ info: LecturePlayer.NowPlaying) { published.append(info) }
     }
 
@@ -602,6 +603,7 @@ final class LecturePlayerTests: CaptureTestCase {
         XCTAssertFalse(player.isPlaying)
         XCTAssertEqual(fake.closes, 1)
         XCTAssertFalse(AudioFocus.owners.contains(.playback))
+        XCTAssertEqual(fake.released, [false], "the session is the new owner's now: deactivating it would silence a recording")
     }
 
     func testSpeedCyclesAndReachesThePlayingAudio() async {
@@ -656,6 +658,7 @@ final class LecturePlayerTests: CaptureTestCase {
         player.leave()
         XCTAssertFalse(player.isPlaying)
         XCTAssertEqual(fake.closes, 1)
+        XCTAssertEqual(fake.released, [true], "leaving gives other apps their audio back")
         XCTAssertFalse(AudioFocus.owners.contains(.playback))
         player.open(lecture)
         XCTAssertEqual(player.position, 35, "coming back finds the same place")
@@ -739,7 +742,7 @@ final class LecturePlayerTests: CaptureTestCase {
         playback.seek(to: 0.5)
         let position = await playback.position()
         XCTAssertEqual(position, 0.5, accuracy: 0.05)
-        playback.close()
+        playback.close(releasingSession: true)
         let missing = await SystemLecturePlayback.make(url: root.appending(path: "nothing.m4a"))
         XCTAssertNil(missing)
     }

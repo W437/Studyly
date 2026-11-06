@@ -552,14 +552,15 @@ struct OwnWordsQuestionView: View {
                 }
                 .buttonStyle(.cl(.soft, size: .medium))
             }
-            if grade.mode == .selfCheck ? canGradeAgain : (grade.needsSecondLook && grade.mode != .provisional) {
+            let offersRegrade = grade.mode == .selfCheck ? canGradeAgain : (grade.needsSecondLook && grade.mode != .provisional)
+            if offersRegrade {
                 Button(action: gradeAgain) {
                     Label(regrading ? "Checking…" : "Grade again", systemImage: "flag")
                 }
                 .buttonStyle(.cl(.soft, size: .medium))
                 .disabled(regrading)
             }
-            if runner.offersLooksWrong { LooksWrongButton(item: item, given: submitted) }
+            if runner.offersLooksWrong { LooksWrongButton(item: item, given: submitted, compact: offersRegrade) }
         } else {
             Button("I don't know yet") {
                 text = ""

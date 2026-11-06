@@ -1,23 +1,38 @@
 import SwiftUI
 
-/// "Looks wrong?", in the answer panel's second row and under a flipped flashcard. Icon only when the row has no room for its words.
+/// "Looks wrong?", in the answer panel's second row and under a flipped flashcard. A quiet text button, so it fits beside "Explain my mistake"
+/// even on the smallest iPhone. Its icon alone (`compact`) when a third button shares the row, or when larger text leaves no room for its
+/// words; at the accessibility sizes the row moves into the scroll, where the words fit again.
 struct LooksWrongButton: View {
     let item: StudyItem
     var given: String? = nil
+    var compact = false
 
     @Environment(AppModel.self) private var app
+    @Environment(\.dynamicTypeSize) private var typeSize
+
+    private var iconOnly: Bool {
+        guard !typeSize.isAccessibilitySize else { return false }
+        return compact || typeSize > .large
+    }
 
     var body: some View {
         Button {
             CLHaptics.tap()
             app.router.present(.looksWrong(itemID: item.id, given: given ?? ""))
         } label: {
-            ViewThatFits(in: .horizontal) {
-                Label("Looks wrong?", systemImage: "exclamationmark.bubble").fixedSize()
+            HStack(spacing: 4) {
                 Image(systemName: "exclamationmark.bubble")
+                if !iconOnly { Text("Looks wrong?") }
             }
+            .clFont(.footnoteEmphasis)
+            .foregroundStyle(CLColor.ink2)
+            .padding(.horizontal, 2)
+            .frame(minWidth: CLMetrics.minHitTarget, minHeight: CLMetrics.minHitTarget)
+            .contentShape(Rectangle())
         }
-        .buttonStyle(.cl(.ghost, size: .medium, fullWidth: false))
+        .buttonStyle(.plain)
+        .fixedSize(horizontal: !typeSize.isAccessibilitySize, vertical: false)
         .accessibilityLabel(Text("Looks wrong?"))
     }
 }

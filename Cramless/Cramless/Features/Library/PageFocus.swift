@@ -72,7 +72,8 @@ struct PageFocus: Equatable {
     }
 }
 
-/// A circle drawn by hand around something: a little off round, its end running past its start, as a pen's does. Draw it with `.trim`.
+/// A circle drawn by hand around something: a little off round, its end running past its start, as a pen's does. Its shoulders are fuller than an
+/// ellipse's, because a true ellipse around a block of lines runs through the words at the block's corners. Draw it with `.trim`.
 struct PenCircleShape: Shape {
     func path(in rect: CGRect) -> Path {
         let cx = rect.midX, cy = rect.midY, rx = rect.width / 2, ry = rect.height / 2
@@ -87,7 +88,8 @@ struct PenCircleShape: Shape {
         var from = -160.0
         for turn in turns {
             let span = turn.end - from
-            let handle = CGFloat(4.0 / 3.0 * tan(span * .pi / 720))
+            // 4/3 tan(span/4) would be a true arc; more pulls the curve out towards the box's corners.
+            let handle = CGFloat(4.0 / 3.0 * tan(span * .pi / 720)) * 1.5
             let a0 = from * .pi / 180, a1 = turn.end * .pi / 180
             let start = point(from, 1)
             let end = point(turn.end, turn.stretch)

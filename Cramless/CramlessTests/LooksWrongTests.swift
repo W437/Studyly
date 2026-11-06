@@ -1,4 +1,5 @@
 import SwiftData
+import SwiftUI
 import XCTest
 @testable import Cramless
 
@@ -251,6 +252,21 @@ final class LooksWrongTests: CaptureTestCase {
         XCTAssertTrue(runner.answers.isEmpty, "nothing recorded")
         XCTAssertEqual(w.app.fetch(FetchDescriptor<ReviewLog>()).count, 0)
         XCTAssertEqual(runner.phase, .finished)
+    }
+
+    func testTheAnswerPanelsRowFitsTheSmallestIPhone() throws {
+        let w = try world()
+        // The row as the panel lays it out, at the text size the words show at: 375 wide less the gutters, 10 between.
+        func width(_ view: some View) -> CGFloat {
+            UIHostingController(rootView: view.environment(w.app).dynamicTypeSize(.large))
+                .sizeThatFits(in: CGSize(width: CGFloat.greatestFiniteMagnitude, height: .greatestFiniteMagnitude)).width
+        }
+        let explain = width(Label("Explain my mistake", systemImage: "bubble.left").clFont(.subheadlineEmphasis).padding(.horizontal, 16))
+        let looksWrong = width(LooksWrongButton(item: w.item))
+        XCTAssertLessThanOrEqual(looksWrong, 130)
+        XCTAssertGreaterThanOrEqual(looksWrong, CLMetrics.minHitTarget)
+        XCTAssertLessThanOrEqual(explain + 10 + looksWrong, 375 - 2 * CLSpace.gutter)
+        XCTAssertLessThan(width(LooksWrongButton(item: w.item, compact: true)), looksWrong, "only the icon, with a third button in the row")
     }
 
     func testTheWordsSayWhatHappened() {

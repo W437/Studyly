@@ -448,7 +448,7 @@ private struct PagePenCircles: View {
                 PenCircleShape()
                     .trim(from: 0, to: pen)
                     .stroke(CLColor.tangerine, style: StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round))
-                    .frame(width: block.width * geo.size.width + 20, height: block.height * geo.size.height + 16)
+                    .frame(width: block.width * geo.size.width + 26, height: block.height * geo.size.height + 20)
                     .position(x: block.midX * geo.size.width, y: block.midY * geo.size.height)
             }
         }
@@ -490,7 +490,7 @@ private struct TextPage: View {
                     PenCircleShape()
                         .trim(from: 0, to: pen)
                         .stroke(CLColor.tangerine, style: StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round))
-                        .frame(width: run.width + 16, height: run.height + 14)
+                        .frame(width: run.width + 24, height: run.height + 20)
                         .position(x: run.midX, y: run.midY)
                 }
             }

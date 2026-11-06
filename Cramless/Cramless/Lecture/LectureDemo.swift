@@ -62,7 +62,7 @@ final class DemoLecturePlayback: LecturePlayback {
         self.rate = rate
     }
 
-    func close() { pause() }
+    func close(releasingSession: Bool) { pause() }
 
     func publish(_ info: LecturePlayer.NowPlaying) {}
 }

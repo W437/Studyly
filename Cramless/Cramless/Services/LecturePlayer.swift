@@ -15,8 +15,9 @@ protocol LecturePlayback: AnyObject {
     func seek(to seconds: Double)
     func pause()
     func setRate(_ rate: Double)
-    /// Pauses and hands the audio session back.
-    func close()
+    /// Stops. `releasingSession` hands the audio session back to other apps; false when another owner is taking it right now, whose session
+    /// a late deactivation would silence (a recorder would go on recording nothing).
+    func close(releasingSession: Bool)
     /// What the lock screen shows and the time it counts from.
     func publish(_ info: LecturePlayer.NowPlaying)
 }
@@ -202,7 +203,7 @@ final class LecturePlayer {
     /// The recorder or read-aloud has claimed the audio (`AudioFocus`): the lecture stops talking over it.
     func yieldAudio() {
         guard playback != nil else { return }
-        close()
+        close(releasingSession: false)
     }
 
     /// Reads the audio's own position: one tick of the clock, about four times a second while playing.
@@ -252,7 +253,7 @@ final class LecturePlayer {
                 return
             }
             guard let self, !Task.isCancelled, self.track?.sourceID == track.sourceID else {
-                made.close()
+                made.close(releasingSession: false)
                 return
             }
             made.onEvent = { [weak self] event in self?.handle(event) }
@@ -261,14 +262,14 @@ final class LecturePlayer {
         }
     }
 
-    private func close() {
+    private func close(releasingSession: Bool = true) {
         loading?.cancel()
         loading = nil
         ticking?.cancel()
         ticking = nil
         isPlaying = false
         resumeAfterInterruption = false
-        playback?.close()
+        playback?.close(releasingSession: releasingSession)
         playback = nil
         AudioFocus.release(.playback)
         setCommandsEnabled(false)
@@ -457,7 +458,7 @@ final class SystemLecturePlayback: NSObject, LecturePlayback {
         audio.queue.async { audio.player.rate = Float(rate) }
     }
 
-    func close() {
+    func close(releasingSession: Bool) {
         for observer in observers { NotificationCenter.default.removeObserver(observer) }
         observers = []
         let audio = self.audio
@@ -465,7 +466,9 @@ final class SystemLecturePlayback: NSObject, LecturePlayback {
         audio.queue.async {
             audio.player.stop()
             MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
-            try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+            if releasingSession {
+                try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+            }
         }
     }
 
