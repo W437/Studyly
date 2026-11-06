@@ -115,7 +115,29 @@ final class StudyDemoWorldTests: XCTestCase {
         lines.append("\(focusExam.title): \(pct(rFocus.value)) ready now · about \(pct(after)) after today")
         lines.append("Chem 110 Quiz after today's session: about \(pct(app.readinessAfter(session, for: ExamSnapshot(chem)))) (now \(pct(rChem.value)), \(Int(((focus.secondsByExam[chem.id] ?? 0) / 60).rounded())) min of it)")
         lines.append("Shared plans: " + app.examPlans().map { p in "\(exams.first { $0.id == p.examID }?.title ?? "?") " + p.days.prefix(4).map { "\($0.offset):\(Int($0.seconds))s/\(Int($0.neededSeconds))s" }.joined(separator: " ") }.joined(separator: " | "))
+        // The exam page and the Library read the same numbers.
+        let phase = ExamPresentation.phase(examDate: chem.date, now: app.now, calendar: cal)
+        let topics = ExamPresentation.topicsWeakestFirst(rChem.topics, target: rChem.target)
+        let projection = try XCTUnwrap(ExamPresentation.projection(
+            phase: phase, plan: plan, questionCount: rChem.itemsInScope, weakestTopic: topics.first { $0.isWeakest }?.name,
+            grade: rChem.projectedGrade, examDate: chem.date, now: app.now, calendar: cal))
+        let work = ExamPresentation.todayWork(entries: session.entries, sessionMinutes: session.plannedMinutes, exam: ExamSnapshot(chem),
+                                              topicNames: names, studiedToday: false, missedYesterday: false)
+        let stops = ExamPresentation.stops(plan: plan, phase: phase, examTitle: chem.title, examDate: chem.date, today: work,
+                                           skipped: nil, now: app.now, calendar: cal)
+        lines.append("Chem page: \(projection.sentence) \(projection.nudge ?? "") · letter \(projection.letter ?? "none")")
+        lines.append("Chem stops: " + stops.map { "\($0.title) [\($0.detail ?? "")]" }.joined(separator: " → "))
+        lines.append("Chem topics: " + topics.map { "\($0.name) \($0.value.map(pct) ?? "gap")\($0.isWeakest ? " (weakest)" : "")" }.joined(separator: ", "))
+        for course in app.courses {
+            lines.append("Library \(course.name): \(app.courseReadiness(course).map { "\(pct($0.value)) for \($0.exam.title)" } ?? "Add a date")")
+        }
         print("\n===== DEMO FRIDAY =====\n" + lines.joined(separator: "\n") + "\n=======================\n")
+
+        let chemCourse = try XCTUnwrap(chem.course)
+        XCTAssertEqual(app.courseReadiness(chemCourse)?.value ?? -1, rChem.value, accuracy: 1e-12, "the Library ring is the exam ring")
+        XCTAssertNil(projection.letter, "one logged grade or none: no letter")
+        XCTAssertTrue(projection.sentence.contains("ready by Sunday"), projection.sentence)
+        XCTAssertNil(app.courseReadiness(try XCTUnwrap(app.courses.first { $0.name == "Spanish II" })), "Spanish II has no exam")
 
         XCTAssertLessThan(rChem.projected, 0.8, "hours counted, right and wrong answers both in the forecast")
         XCTAssertLessThan(skipped.projectedReadiness, rChem.projected, "skipping the eve costs readiness")

@@ -212,18 +212,28 @@ enum ExamPresentation {
 
     // MARK: Days in words
 
+    /// "Saturday", in the calendar's language. A calendar made without a locale has the root one, whose "wide" weekdays are "Sat":
+    /// the person's own locale stands in for it.
+    static func weekday(_ date: Date, calendar: Calendar) -> String {
+        var c = calendar
+        if (c.locale?.identifier ?? "").isEmpty { c.locale = .autoupdatingCurrent }
+        let symbols = c.weekdaySymbols
+        let index = c.component(.weekday, from: date) - 1
+        return symbols.indices.contains(index) ? symbols[index] : date.formatted(LibraryFormat.dateStyle(calendar).weekday(.wide))
+    }
+
     /// "today", "Saturday" within the week, "Nov 29" after.
     static func dayName(_ date: Date, now: Date, calendar: Calendar) -> String {
         let days = calendar.dayDistance(from: now, to: date)
         if days == 0 { return String(localized: "today") }
-        if (1...6).contains(days) { return date.formatted(LibraryFormat.dateStyle(calendar).weekday(.wide)) }
+        if (1...6).contains(days) { return weekday(date, calendar: calendar) }
         return LibraryFormat.shortDate(date, calendar: calendar)
     }
 
     /// The exam's day in a sentence: "by Sunday", "by Nov 29".
     static func examDayName(_ date: Date, now: Date, calendar: Calendar) -> String {
         let days = calendar.dayDistance(from: now, to: date)
-        if (1...6).contains(days) { return date.formatted(LibraryFormat.dateStyle(calendar).weekday(.wide)) }
+        if (1...6).contains(days) { return weekday(date, calendar: calendar) }
         return LibraryFormat.shortDate(date, calendar: calendar)
     }
 
@@ -294,8 +304,8 @@ enum ExamPresentation {
         if daysLeft <= nearDays {
             let names = plan.days.filter { $0.kind != .exam && $0.seconds > 0 && !$0.isSkipped }.map { day -> String in
                 if day.offset == 0 { return String(localized: "today") }
-                let weekday = day.date.formatted(LibraryFormat.dateStyle(calendar).weekday(.wide))
-                return day.kind == .examEve ? String(localized: "\(weekday) evening") : weekday
+                let name = weekday(day.date, calendar: calendar)
+                return day.kind == .examEve ? String(localized: "\(name) evening") : name
             }
             result.sentence = names.isEmpty
                 ? String(localized: "You'll be about \(projected) ready by \(when).") + past
@@ -463,7 +473,11 @@ enum ExamPresentation {
         case .today, .past: return []
         case .ahead, .eve: break
         }
-        func weekday(_ d: Date) -> String { d.formatted(LibraryFormat.dateStyle(calendar).weekday(.wide)) }
+        /// "Saturday" within the week, "Nov 13" further on.
+        func weekday(_ d: Date) -> String {
+            calendar.dayDistance(from: now, to: d) <= 6 ? Self.weekday(d, calendar: calendar)
+                : LibraryFormat.shortDate(d, calendar: calendar)
+        }
         func minutes(_ seconds: Double) -> Int { max(1, Int((seconds / 60).rounded())) }
         let eveLine = String(localized: "Weak spots only, then sleep")
         var stops: [Stop] = []
@@ -549,7 +563,7 @@ enum ExamPresentation {
     static func skipOption(plan: StudyPlan, phase: Phase, calendar: Calendar) -> SkipOption? {
         guard case .ahead = phase,
               let day = plan.days.first(where: { $0.offset >= 1 && $0.kind != .exam && $0.seconds > 0 }) else { return nil }
-        return SkipOption(offset: day.offset, name: day.date.formatted(LibraryFormat.dateStyle(calendar).weekday(.wide)))
+        return SkipOption(offset: day.offset, name: weekday(day.date, calendar: calendar))
     }
 
     /// What skipping costs, in points of readiness on exam day: "Skipping Saturday costs about 8 points" / "About 69% ready by Sunday

@@ -24,6 +24,17 @@ final class LocalizationTests: XCTestCase {
         XCTAssertEqual(String(localized: "Cap kept \(3) lectures that were cut off."), "Cap kept 3 lectures that were cut off.")
     }
 
+    /// The counts the one-number screens say: fading questions, points of readiness, a session's share for one exam.
+    func testTheOneNumberCountsReadInTheSingularToo() {
+        XCTAssertEqual(String(localized: "\(1) questions fading"), "1 question fading")
+        XCTAssertEqual(String(localized: "\(3) questions fading"), "3 questions fading")
+        XCTAssertEqual(String(localized: "\(1) points"), "1 point")
+        XCTAssertEqual(String(localized: "\(1) questions"), "1 question")
+        XCTAssertEqual(String(localized: "Based on \(1) questions so far."), "Based on 1 question so far.")
+        XCTAssertEqual(String(localized: "About \(4) of the \(15) minutes are for this exam."), "About 4 of the 15 minutes are for this exam.")
+        XCTAssertEqual(String(localized: "About \(1) of the \(1) minutes are for this exam."), "About 1 of the 1 minute is for this exam.")
+    }
+
     func testVerbatimTextIsShownAsItIs() {
         XCTAssertEqual(String(localized: LocalizedStringResource.verbatim("Bio 101 · %@ 100%")), "Bio 101 · %@ 100%")
         XCTAssertEqual(String(localized: LocalizedStringResource.verbatim("")), "")
