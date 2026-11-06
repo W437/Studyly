@@ -483,6 +483,19 @@ enum RelayError: Error, Equatable, Sendable {
         }
     }
 
+    /// The cloud didn't get to answer, and may well if asked again: no connection, a timeout, a server error, or the account still being made.
+    /// A limit, a refusal, a request it turned down or no consent is not this: asking again wouldn't change them.
+    var isUnreachable: Bool {
+        switch self {
+        case .offline: true
+        case .upstream(let message): !message.hasPrefix(Self.modelRefusalStart)
+        default: false
+        }
+    }
+
+    /// How the relay's words start when the model itself refused to answer (an `upstream` error in the tutor's stream, handler.ts).
+    static let modelRefusalStart = "Cap can't help with that one"
+
     /// The anonymous account the relay needs isn't made yet: sign-ups are rate limited or the network is out, and the app
     /// keeps trying in the background (`AccountService`). A cloud job that meets this falls back to the next tier and says
     /// Cloud AI is getting ready. (An `.upstream` with a fixed message, so nothing that switches over the cases changes.)

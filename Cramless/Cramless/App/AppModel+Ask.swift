@@ -104,10 +104,10 @@ extension AppModel {
 
     /// The person's question, added to the chat (which takes its name from the first one).
     @discardableResult
-    func addQuestion(_ text: String, to thread: ChatThread, contextItemID: UUID? = nil) -> ChatMessage? {
+    func addQuestion(_ text: String, to thread: ChatThread, contextItemID: UUID? = nil, fromPhoto: Bool = false) -> ChatMessage? {
         let clean = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !clean.isEmpty, thread.modelContext != nil else { return nil }
-        let message = ChatMessage(thread: thread, role: .user, text: clean, contextItemID: contextItemID,
+        let message = ChatMessage(thread: thread, role: .user, text: clean, contextItemID: contextItemID, fromPhoto: fromPhoto,
                                   now: nextMessageTime(in: thread))
         context.insert(message)
         thread.messages.append(message)
@@ -147,13 +147,16 @@ extension AppModel {
     /// is sent in words that name what it's about.
     func tutorInput(for thread: ChatThread, context: TutorContext? = nil, preferring sourceID: UUID? = nil,
                     lastQuestionAs: String? = nil) -> TutorInput {
-        var messages = thread.sortedMessages.map { TutorMessage(role: $0.role, text: $0.text) }
+        let sorted = thread.sortedMessages
+        var messages = sorted.map { TutorMessage(role: $0.role, text: $0.text) }
         if let lastQuestionAs, let i = messages.lastIndex(where: { $0.role == .user }) {
             messages[i].text = lastQuestionAs
         }
         let course = liveCourse(thread.courseID)
         return TutorInput(messages: messages, course: course?.name,
-                          material: tutorMaterial(courseID: course?.id, preferring: sourceID), context: context)
+                          material: tutorMaterial(courseID: course?.id, preferring: sourceID), context: context,
+                          fromPhoto: sorted.contains(where: \.fromPhoto),
+                          lastIsPhotoText: sorted.last(where: { $0.role == .user })?.fromPhoto ?? false)
     }
 
     /// "Explain my mistake": the question, the answer it expects and what the person gave.

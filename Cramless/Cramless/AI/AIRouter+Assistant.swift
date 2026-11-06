@@ -22,6 +22,13 @@ extension AIRouter {
         return route(.tutor, content: question).usesCloud
     }
 
+    /// A problem can be snapped: its words can reach the relay (a build with one, an account that isn't under 13). Without Cloud AI turned on
+    /// yet, Cap gives the offline hint and offers it. No side effects, so a view may ask.
+    var canSnapProblem: Bool {
+        guard let app, cloudAvailableInThisBuild else { return false }
+        return AIAgeGate(app.settings) != .child
+    }
+
     /// Ask Cap's tools can be offered on the empty screen: the cloud is open (consent, a relay, an account that isn't a child's)
     /// and the relay has an assistant. No side effects, so a view may ask.
     var assistantReady: Bool {

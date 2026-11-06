@@ -7,7 +7,7 @@ import Foundation
 ///
 /// Grading picks `grade-correct`, `grade-partial` or `grade-incorrect` by how many key ideas have a term in the
 /// response. Magic words in any text the request carries: `#fail` gives an upstream error (the tutor plays
-/// `tutor-error`), `#quota` gives the quota error of `error-quota.json`.
+/// `tutor-error`), `#quota` gives the quota error of `error-quota.json`, `#uncovered` is a problem from a photo the notes don't hold.
 struct MockRelayTransport: RelayTransport {
 
     enum Latency {
@@ -63,10 +63,11 @@ struct MockRelayTransport: RelayTransport {
             let task = Task {
                 do {
                     let question = request.messages.last { $0.role == .user }?.text ?? ""
+                    #if DEBUG
+                    if OfflineHarness.isOffline { throw URLError(.notConnectedToInternet) }
+                    #endif
                     if question.contains("#quota") { throw Self.quotaError() }
-                    let name = question.contains("#fail") ? "tutor-error"
-                        : (request.mode == .hints || request.minor) ? "tutor-hints" : "tutor-explain"
-                    let script = try RelayFixtures.load(TutorScript.self, name)
+                    let script = try RelayFixtures.load(TutorScript.self, Self.tutorScript(for: request, question: question))
                     for step in script.events {
                         try await Self.sleep(Double(step.delayMs) / 1000 * scale)
                         if let event = step.tutorEvent { continuation.yield(event) }
@@ -80,12 +81,30 @@ struct MockRelayTransport: RelayTransport {
         }
     }
 
+    /// The canned reply a tutor request gets, chosen as the relay's MOCK mode chooses (`tutorFixture` in mock.ts): a problem from a photo,
+    /// then "Explain my mistake", then the mode. `#uncovered` is the reply a problem the notes don't hold gets.
+    static func tutorScript(for request: TutorRequest, question: String) -> String {
+        if question.contains("#fail") { return "tutor-error" }
+        if request.fromPhoto == true {
+            var uncovered = question.contains("#uncovered")
+            #if DEBUG
+            if ProcessInfo.processInfo.environment["CRAMLESS_SNAP"] == "notcovered" { uncovered = true }
+            #endif
+            return uncovered ? "tutor-photo-uncited" : "tutor-photo"
+        }
+        if request.context != nil { return "tutor-mistake" }
+        return request.mode == .hints || request.minor ? "tutor-hints" : "tutor-explain"
+    }
+
     func assistant(_ request: AssistantRequest) -> AsyncThrowingStream<AssistantEvent, Error> {
         let scale = latencyScale
         return AsyncThrowingStream { continuation in
             let task = Task {
                 do {
                     let question = request.messages.last { $0.role == .user }?.text ?? ""
+                    #if DEBUG
+                    if OfflineHarness.isOffline { throw URLError(.notConnectedToInternet) }
+                    #endif
                     if question.contains("#quota") { throw Self.quotaError() }
                     let script = try RelayFixtures.load(AssistantScript.self, request.mockScript)
                     for step in script.events {

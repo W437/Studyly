@@ -30,6 +30,32 @@ final class DeepLinkTests: XCTestCase {
         XCTAssertEqual(parse("capling://streak"), .streak)
     }
 
+    func testAChatLink() {
+        let id = UUID()
+        XCTAssertEqual(parse(CramlessLink.chat(id).absoluteString), .chat(id))
+        XCTAssertEqual(parse("capling://ask/chat/\(id.uuidString.lowercased())"), .chat(id))
+        XCTAssertEqual(parse("capling://ask/chat/not-a-uuid"), .tab(.ask), "a bad id still opens Ask")
+        XCTAssertEqual(parse("capling://ask/chat"), .tab(.ask))
+    }
+
+    func testAChatLinkOpensTheChatInAsk() {
+        let app = AITestSupport.makeApp()
+        app.settings.onboardingCompleted = true
+        let thread = app.startChat(courseID: nil)
+        app.router.tab = .today
+        app.router.present(.newCourse)
+        DeepLinks.perform(.chat(thread.id), app: app)
+        XCTAssertEqual(app.router.tab, .ask)
+        XCTAssertNil(app.router.sheet)
+        XCTAssertEqual(app.router.paths[.ask], [.chat(thread.id)])
+        // A chat that has gone: Ask, and nothing pushed.
+        app.router.popToRoot(.ask)
+        app.router.tab = .today
+        DeepLinks.perform(.chat(UUID()), app: app)
+        XCTAssertEqual(app.router.tab, .ask)
+        XCTAssertEqual(app.router.paths[.ask], [])
+    }
+
     func testSessions() {
         let confusion = UUID()
         let exam = UUID()

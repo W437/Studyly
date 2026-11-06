@@ -56,6 +56,11 @@ enum AIJob: String, CaseIterable, Sendable {
     }
 }
 
+extension AIJob {
+    /// The tutor's consent line when what Cloud AI would do is a problem from a photo.
+    static let snapFeature = "Work through a problem from a photo"
+}
+
 enum AITier: String, CaseIterable, Sendable {
     case rules, onDevice, privateCloud, cloud
 

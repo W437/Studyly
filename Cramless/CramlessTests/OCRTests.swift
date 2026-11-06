@@ -113,6 +113,88 @@ final class OCRTests: CaptureTestCase {
         XCTAssertEqual(page.label, "1")
     }
 
+    // MARK: A problem from a photo
+
+    private func stagedProblem(_ lines: [String]) throws -> String {
+        let image = Render.textImage(lines)
+        return try XCTUnwrap(PageImageStore.stage(imageData: [Render.jpeg(image)]).first)
+    }
+
+    func testZZProbeProblemConfidences() async throws {
+        for (name, lines) in [("words", ["A cell goes through mitosis.", "How many daughter cells does it make?"]),
+                              ("digits", ["Problem 3.", "A cell with 46 chromosomes goes through mitosis.", "How many chromosomes does each daughter cell have?"]),
+                              ("short", ["Problem 3."]),
+                              ("algebra", ["Solve for x: 2x + 3 = 11", "Then find y when y = 3x - 2"]),
+                              ("sup", ["Solve for x: 2x² + 3x − 5 = 0", "Find ∫ x dx from 0 to 3"]),
+                              ("chem", ["How many moles of water are in 54 g of water?", "2H2 + O2 -> 2H2O"]),
+                              ("homework", ["Homework 3, question 5", "4 mol H2 and 3 mol O2 react. Which is the limiting reagent?"])] {
+            let image = Render.textImage(lines)
+            let staged = try XCTUnwrap(PageImageStore.stage(imageData: [Render.jpeg(image)]).first)
+            let direct = try await TextRecognizer.read(XCTUnwrap(image.cgImage), pageIndex: 0, preferredLanguages: ["en-US"])
+            let viaFile = try await TextRecognizer.read(imageAt: staged, pageIndex: 0, preferredLanguages: ["en-US"])
+            print("PROBE \(name): direct conf \(direct.read.confidence) issue \(String(describing: direct.read.issue)) dropped \(direct.read.droppedLines) lines \(direct.lines.map(\.text)) | file conf \(viaFile.read.confidence) issue \(String(describing: viaFile.read.issue)) dropped \(viaFile.read.droppedLines) lines \(viaFile.lines.map(\.text)) | langs \(Locale.preferredLanguages)")
+        }
+    }
+
+    func testAPrintedProblemIsReadAndItsPhotoIsGone() async throws {
+        let path = try stagedProblem(["Problem 3.", "A cell with 46 chromosomes goes through mitosis.", "How many chromosomes does each daughter cell have?"])
+        XCTAssertTrue(FileManager.default.fileExists(atPath: FileStore.url(for: path).path))
+        let reading = await SnapReader.read(stagedAt: path, preferredLanguages: ["en-US"])
+        XCTAssertTrue(reading.hasWords)
+        XCTAssertTrue(reading.text.contains("46 chromosomes"), reading.text)
+        XCTAssertTrue(reading.text.contains("daughter cell"), reading.text)
+        XCTAssertNil(reading.issue)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: FileStore.url(for: path).path), "the photo stays on this iPhone only for the reading")
+        let folder = (path as NSString).deletingLastPathComponent
+        XCTAssertFalse(FileManager.default.fileExists(atPath: FileStore.url(for: folder).path), "nor does its folder")
+    }
+
+    func testASheetInEnglishIsReadOnAnIPhoneSetToAnotherLanguage() async throws {
+        let lines = ["Problem 3.", "A cell with 46 chromosomes goes through mitosis.", "How many chromosomes does each daughter cell have?"]
+        // Read with Chinese first, printed English scores under the gate and the page keeps nothing (measured at 0.3 to 0.5).
+        let image = try XCTUnwrap(Render.textImage(lines).cgImage)
+        let gated = try await TextRecognizer.read(image, pageIndex: 0, preferredLanguages: ["zh-Hant-TW"])
+        print("OCR snap: zh-Hant first, confidence \(gated.read.confidence), lines \(gated.lines.count)")
+        let reading = await SnapReader.read(stagedAt: try stagedProblem(lines), preferredLanguages: ["zh-Hant-TW"])
+        XCTAssertTrue(reading.text.contains("46 chromosomes"), reading.text)
+    }
+
+    func testABlankPhotoHasNoWordsAndIsGoneToo() async throws {
+        let path = try stagedProblem([])
+        let reading = await SnapReader.read(stagedAt: path, preferredLanguages: ["en-US"])
+        XCTAssertFalse(reading.hasWords)
+        XCTAssertEqual(reading.issue, .noText)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: FileStore.url(for: path).path))
+    }
+
+    func testAPhotoThatCantBeOpenedIsUnreadable() async throws {
+        let path = try FileStore.write(Data("not an image".utf8), folder: "\(PageImageStore.stagingFolder)/bad", name: "page-0.jpg")
+        let reading = await SnapReader.read(stagedAt: path)
+        XCTAssertFalse(reading.hasWords)
+        XCTAssertEqual(reading.issue, .unreadable)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: FileStore.url(for: path).path))
+    }
+
+    func testAMathPageKeepsItsWordsAndSaysSo() {
+        let page = CapturedPage(pageIndex: 0, label: "1", lines: [TextLine(id: "p0.l0", text: "Solve 2x² + 3x = 5", box: nil)], read: PageRead(engine: .vision, issue: .mathLike))
+        let reading = SnapReader.reading(from: page)
+        XCTAssertEqual(reading.text, "Solve 2x² + 3x = 5")
+        XCTAssertEqual(reading.issue, .mathLike)
+        XCTAssertTrue(reading.hasWords)
+    }
+
+    func testAWholePageReadByMistakeIsCut() {
+        let line = TextLine(id: "p0.l0", text: String(repeating: "word ", count: 2_000), box: nil)
+        let page = CapturedPage(pageIndex: 0, label: "1", lines: [line], read: PageRead(engine: .vision))
+        XCTAssertLessThanOrEqual(SnapReader.reading(from: page).text.count, SnapReader.maxCharacters)
+    }
+
+    func testDiscardingLeavesEverythingButStagedPages() throws {
+        let kept = try FileStore.write(Data([1]), folder: "sources/x", name: "page-0.jpg")
+        PageImageStore.discardStaged([kept])
+        XCTAssertTrue(FileManager.default.fileExists(atPath: FileStore.url(for: kept).path))
+    }
+
     // MARK: The gate, pure
 
     private func raw(_ text: String, x: Double = 0.1, y: Double, w: Double = 0.6, h: Double = 0.02, confidence: Double = 1) -> RawLine {

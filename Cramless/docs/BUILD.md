@@ -1502,6 +1502,37 @@ trust rules and the screens are in `docs/assistant.md`, the wire format in `docs
   springing back, a flick, a vertical drag and a swipe on an unflipped card doing nothing, Undo by a tap on the pill (flashcard and own-words marks), the app going to the background
   committing the last question. Not checked: haptics, ⌘Z and the arrow keys with a hardware keyboard, a live VoiceOver session.
 
+### Stage 3: Ask, the mistake, a snapped problem and answers that wait (2026-11-06, lane `s3-ask`)
+
+- **The model:** `ChatMessage.fromPhoto` (a question read off a photo), `waitingSince` (a question kept for later), `answersQuestionID` (an answer that came later). One change, optional or
+  defaulted, so a lightweight migration (`AskLaterTests` opens a store written with the old chat). Chats never sync. `ChatThread.isFromPhoto`.
+- **The mistake in three steps:** the relay's `tutorMessages` asks for three short parts separated by a blank line whenever `context` is present (`mistakeInstruction`, in the last turn, so the
+  material stays the same bytes for the prompt cache). Pure `MistakeSteps.split` (`AskText.swift`) takes those, and what else can arrive: two parts, one paragraph, a question alone, the offline
+  tutor's two shapes, "not covered" and a decline (one page). `ExplainMistakeView` is a pager: Back and Next, dots, a swipe, each page its own scroll view, a slide (a cross-fade under Reduce Motion),
+  pages unlocking as the stream reaches them. Step 1 `MistakeCard` + the first part; step 2 the reason + its page chips; step 3 `QuickCheckCard` + `MistakeCardMaker` ("Make this a card":
+  `ai.cardsFromChat(maxItems: 1)`, an inline editable draft, then `AppModel.addMistakeCard`: the question's course and topic, linked to the cited page). Adults get `.explain` in this flow (step 1
+  shows the answer anyway); under 18 stays on hints, and part 2 is a nudge. The follow-up composer is as it was.
+- **Snap a problem:** the camera in `ChatComposer` (`AIRouter.canSnapProblem`: a relay and not under 13; hidden too with no notes in the chat's course). `SnapFlow`: the document camera or a photo
+  (a dialog; straight to the library where there is no camera), one page, staged, `SnapReader.read` (Vision on the phone; the staged file is deleted either way), `SnapConfirmView` (a fitted sheet:
+  reading, "Check the problem" with the math note, or "couldn't read" with Try again and Type it). On an iPhone set to another language, printed English scores under the page gate when that language is read
+  first (0.3 to 0.5 with Traditional Chinese first, measured on the Simulator), so the reader looks once more with English before it gives up. `AskStreams.ask(…, fromPhoto:)` keeps the whole chat with the tutor: never the assistant, always `.hints`, its follow-ups too, and the pill is locked with the reason.
+  `runTutor`: this iPhone's model isn't asked (it states answers in hints mode), `TutorPolicy` doesn't read the photo's own words (a typed follow-up is read as usual), and the
+  cloud's answer is held until it is complete (`streamTutor(holdsForCitation:)`, `showHeld`): shown only with a citation that is really in the notes and no "couldn't find", else
+  `LocalTutor.snapNotCovered`, or `snapUnverified` later in the chat, where "add the chapter" would be wrong. A consent card "Work through a problem from a photo". `PhotoProblemBubble`.
+  Relay: `fromPhoto?` in `contract.ts`, `requests.json`, Swift and the contract doc; `tutorSystem` forces hints and adds `prompts/tutor-problem.md` before the picture rule, which stays last as measured.
+  MOCK scripts `tutor-photo`, `tutor-photo-uncited`, `tutor-mistake` (`tutorFixture` and `MockRelayTransport.tutorScript` choose alike).
+- **The tutor bakeoff's problems:** `tools/tutor_bakeoff` has a group `problem` of 12 (`fromPhoto`, the whole course as passages, nine covered and three not; a rule of thumb per case for a handed-over answer,
+  pinned without a key by `tests/tutor_bakeoff_cases.test.ts`). `--groups problem,mistake` runs them; `report.ts` adds "what the student would see" and a `parts` check on the mistakes. **Not run yet: it needs a key.**
+  `deno task live` gained `mistake` and `photo` checks, for the deploy.
+- **Answered later** (`App/AppModel+AnswerLater.swift`, pure rules `AnswerLater`): `TutorOutcome.cloudUnreachable` (the relay's error before any words, `RelayError.isUnreachable`: offline, a timeout, a server error; not
+  a limit, a refusal, a request turned down, no consent); the note tells "You're offline" from "couldn't be reached". `AskStreams.Note.offersLater` puts `AnswerLaterCard` under the reply. `keepForLater`: at most 3, consent, not under 13, a
+  question of the student's, not Explain my mistake. `answerWaitingQuestions(trigger:)`: oldest first, the chat up to that question, `AIRouter.cloudTutorReply` (nil, never the offline fallback; a nil stops the round),
+  the answer placed right after the reply given at the time (`createdAt` between it and what the student said next), dropped after 7 days. The tutor only. Triggers: launch, `scenePhase` active, `Services/Connectivity.swift`
+  (`NWPathMonitor`, only while active and something waits), `Services/AnswerLaterTask.swift` (`BGAppRefreshTask` `com.loopware.Capling.answer-later`, at least 15 min ahead, registered in the app delegate;
+  `BGTaskSchedulerPermittedIdentifiers` and `fetch` in Info.plist; `project.yml` takes the plist as it is, so it has no change). In the app: the answer and a toast with Open; away: `NotificationScheduler.postAnswered` (`.passive`, id
+  `capling.answer.<chat>`, `capling://ask/chat/<id>`: `CramlessLink.chat`, `DeepLink.chat`), which `staleIdentifiers` leaves alone. It asks for no permission, and it sits outside the "Cap noticed" rule: the student asked.
+- **Wording for Launch:** `docs/privacy-wording.md` (a problem's words leave, the photo doesn't), the camera's purpose string, the consent card. Consent stays at version 3: a snapped problem is a question. `docs/relay-contract.md` now says 4,000 words (`TutorSelection.tutor`); the privacy page's "about 6,000 words" in `AIConsent`'s comment and its update of 2026-11-03 still say the old number.
+
 ## App Store Connect (2026-11-01)
 
 The Capling record on the Loopware team (app 6828649543) is filled in by `scripts/asc/`. Every command is re-runnable and has

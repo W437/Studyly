@@ -100,7 +100,7 @@
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>NSCameraUsageDescription</key>
-	<string>Capling uses the camera to scan pages of your textbooks, handouts and notes into questions.</string>
+	<string>Capling uses the camera to scan pages of your textbooks, handouts and notes into questions, or a problem you're stuck on.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Capling records the lectures you choose to record and turns them into notes on this iPhone.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
@@ -110,6 +110,11 @@
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>audio</string>
+		<string>fetch</string>
+	</array>
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>com.loopware.Capling.answer-later</string>
 	</array>
 	<key>UIAppFonts</key>
 	<array>

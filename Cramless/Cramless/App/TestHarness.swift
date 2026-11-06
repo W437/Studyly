@@ -1,6 +1,26 @@
 import Foundation
 
 #if DEBUG
+/// The mock relay's connection in a harness launch (read off the main actor, by the transport).
+enum OfflineHarness {
+    /// Set by `CRAMLESS_ASK=later`, which needs no connection whatever the launch says.
+    nonisolated(unsafe) static var forced = false
+    private static let launched = Date()
+
+    private static var environment: [String: String] { ProcessInfo.processInfo.environment }
+
+    /// The milliseconds after launch the connection comes back, with `CRAMLESS_OFFLINE_UNTIL`.
+    static var backOnlineAfter: Int? {
+        _ = launched
+        return environment["CRAMLESS_OFFLINE_UNTIL"].flatMap(Int.init)
+    }
+
+    static var isOffline: Bool {
+        if let ms = backOnlineAfter { return Date().timeIntervalSince(launched) * 1000 < Double(ms) }
+        return forced || environment["CRAMLESS_OFFLINE"] == "1"
+    }
+}
+
 /// Launch-time hooks for headless screenshots and UI checks (DEBUG only). Pass them through simctl with the
 /// SIMCTL_CHILD_ prefix:
 ///
@@ -16,6 +36,9 @@ import Foundation
 ///
 /// A screen that needs a deeper state (a graded answer, a half-played scene) reads its own variable in its own
 /// view, and documents it beside the view.
+///
+/// - `CRAMLESS_OFFLINE=1`: the mock relay can't be reached (as `URLError.notConnectedToInternet`); `CRAMLESS_OFFLINE_UNTIL=<ms>`: only for that long
+///   after launch, and then the app acts on the connection coming back (`OfflineHarness`).
 @MainActor
 enum TestHarness {
     private static var consumed: Set<String> = []

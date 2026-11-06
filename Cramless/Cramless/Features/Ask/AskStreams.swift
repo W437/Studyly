@@ -34,6 +34,8 @@ final class AskStreams {
         var suggestion: AISuggestion?
         var grounded: Bool
         var interrupted: Bool
+        /// Cloud AI couldn't be reached, so the reply came from this iPhone: the student can have Cap answer it later.
+        var offersLater = false
     }
 
     private(set) var live: [UUID: Live] = [:]
@@ -61,14 +63,15 @@ final class AskStreams {
     /// Asks Cap in a chat: adds the question, streams the answer, saves it when complete. One answer at a time per
     /// chat. `sendAs` is what the tutor reads instead of the shown words when they lean on the chat ("Explain with
     /// an analogy", a quick-check answer). `context` seeds an "Explain my mistake" chat; `contextItemID` marks its
-    /// messages.
+    /// messages. `fromPhoto`: the words were read off a photo the student snapped; the chat stays with the tutor from then on.
     func ask(_ question: String, in thread: ChatThread, app: AppModel, sendAs: String? = nil, context: TutorContext? = nil,
-             contextItemID: UUID? = nil, preferring sourceID: UUID? = nil) {
+             contextItemID: UUID? = nil, preferring sourceID: UUID? = nil, fromPhoto: Bool = false) {
         let threadID = thread.id
-        guard live[threadID] == nil, app.addQuestion(question, to: thread, contextItemID: contextItemID) != nil else { return }
+        guard live[threadID] == nil, app.addQuestion(question, to: thread, contextItemID: contextItemID, fromPhoto: fromPhoto) != nil else { return }
         let input = app.tutorInput(for: thread, context: context, preferring: sourceID, lastQuestionAs: sendAs)
         // Ask Cap's assistant first (it can make things as well as answer); the tutor when it can't or shouldn't.
-        let assistantWanted = contextItemID == nil && app.ai.assistantAvailable(question: sendAs ?? question, hasContext: context != nil)
+        let assistantWanted = !input.fromPhoto && contextItemID == nil
+            && app.ai.assistantAvailable(question: sendAs ?? question, hasContext: context != nil)
         let assistantInput = assistantWanted ? app.assistantInput(for: thread, lastQuestionAs: sendAs) : nil
         let ticket = UUID()
         tickets[threadID] = ticket
@@ -221,6 +224,7 @@ final class AskStreams {
         }
         guard let message = app.saveAnswer(outcome, to: thread, contextItemID: contextItemID) else { return }
         notes[message.id] = Note(origin: outcome.origin, note: outcome.note, suggestion: outcome.suggestion,
-                                 grounded: outcome.grounded, interrupted: outcome.interrupted)
+                                 grounded: outcome.grounded, interrupted: outcome.interrupted,
+                                 offersLater: outcome.cloudUnreachable && contextItemID == nil)
     }
 }

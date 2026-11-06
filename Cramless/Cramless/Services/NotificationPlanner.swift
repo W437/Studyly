@@ -24,6 +24,8 @@ import Foundation
 /// - At most 2 a day and at least an hour apart, by priority: exam eve, exam week, reminder, streak.
 /// - Nothing in the past. Identifiers start with "capling."; requests starting "trial." belong to PurchaseStore
 ///   and are never removed (`staleIdentifiers`).
+/// - **A question kept for later** answered while the app is away (`answered(_:)`) is not planned here: it goes out at once, quietly, and a
+///   reschedule leaves it alone. The student asked for it, so the rules above don't count it.
 enum NotificationPlanner {
     struct ExamInfo: Equatable, Sendable {
         var id: UUID
@@ -87,6 +89,8 @@ enum NotificationPlanner {
     }
 
     static let prefix = "capling."
+    /// A question answered later (`NotificationScheduler.postAnswered`). Not part of any plan, so a reschedule leaves it.
+    static let answerPrefix = "capling.answer."
     static let studyCategory = "capling.study"
     static let examCategory = "capling.exam"
     static let reminderDays = 7
@@ -218,7 +222,17 @@ enum NotificationPlanner {
     /// PurchaseStore's "trial." requests survive every reschedule.
     static func staleIdentifiers(pending: [String], planned: [Planned]) -> [String] {
         let keep = Set(planned.map(\.id))
-        return pending.filter { $0.hasPrefix(prefix) && !keep.contains($0) }
+        return pending.filter { $0.hasPrefix(prefix) && !$0.hasPrefix(answerPrefix) && !keep.contains($0) }
+    }
+
+    /// What to say when questions kept for later were answered while the app was away: the chat's name for one (its link opens it), the count
+    /// for more (the Ask tab). Nil for none.
+    static func answered(_ chats: [(id: UUID, title: String)]) -> (id: String, body: String, url: URL)? {
+        guard let first = chats.first else { return nil }
+        guard chats.count > 1 else {
+            return ("\(answerPrefix)\(first.id.uuidString)", String(localized: "Cap answered “\(first.title)”"), CramlessLink.chat(first.id))
+        }
+        return ("\(answerPrefix)\(first.id.uuidString)", String(localized: "Cap answered \(chats.count) of your questions"), CramlessLink.ask)
     }
 
     // MARK: Copy

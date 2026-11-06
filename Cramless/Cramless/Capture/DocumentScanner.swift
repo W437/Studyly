@@ -25,6 +25,8 @@ struct DocumentScannerView: UIViewControllerRepresentable {
 
     static var isSupported: Bool { VNDocumentCameraViewController.isSupported }
 
+    /// The most pages kept, in scan order (the camera itself can't be limited). Nil: all of them.
+    var maxPages: Int? = nil
     /// Called once on the main actor. The scanner stays on screen until then (staging takes about a tenth of a
     /// second a page), so dismiss it here.
     var onFinish: @MainActor (Outcome) -> Void
@@ -37,14 +39,20 @@ struct DocumentScannerView: UIViewControllerRepresentable {
 
     func updateUIViewController(_ controller: VNDocumentCameraViewController, context: Context) {
         context.coordinator.onFinish = onFinish
+        context.coordinator.maxPages = maxPages
     }
 
-    func makeCoordinator() -> Coordinator { Coordinator(onFinish: onFinish) }
+    func makeCoordinator() -> Coordinator {
+        let coordinator = Coordinator(onFinish: onFinish)
+        coordinator.maxPages = maxPages
+        return coordinator
+    }
 
     /// VisionKit calls the delegate on the main thread; `@preconcurrency` checks that at run time.
     @MainActor
     final class Coordinator: NSObject, @preconcurrency VNDocumentCameraViewControllerDelegate {
         var onFinish: @MainActor (Outcome) -> Void
+        var maxPages: Int?
         private var finished = false
 
         init(onFinish: @escaping @MainActor (Outcome) -> Void) { self.onFinish = onFinish }
@@ -52,7 +60,7 @@ struct DocumentScannerView: UIViewControllerRepresentable {
         func documentCameraViewController(_ controller: VNDocumentCameraViewController, didFinishWith scan: VNDocumentCameraScan) {
             guard !finished else { return }
             finished = true
-            let pages = ScannedPages(scan: scan)
+            let pages = ScannedPages(scan: scan, limit: maxPages)
             Task {
                 let outcome: Outcome
                 do {
@@ -84,11 +92,13 @@ struct DocumentScannerView: UIViewControllerRepresentable {
 /// delivered, which is what makes handing it to another thread sound.
 private struct ScannedPages: @unchecked Sendable {
     let scan: VNDocumentCameraScan
+    var limit: Int? = nil
 
     func stage() throws -> [String] {
+        let count = min(scan.pageCount, limit ?? scan.pageCount)
         var images: [PageImage] = []
-        images.reserveCapacity(scan.pageCount)
-        for index in 0..<scan.pageCount {
+        images.reserveCapacity(count)
+        for index in 0..<count {
             let page = try autoreleasepool { try PageImagePipeline.normalize(image: scan.imageOfPage(at: index)) }
             images.append(page)
         }

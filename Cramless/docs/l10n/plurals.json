@@ -171,6 +171,10 @@
     "one": "AI notes for %lld lecture left this week",
     "other": "AI notes for %lld lectures left this week"
   },
+  "Cap answered %lld of your questions": {
+    "one": "Cap answered %lld of your questions",
+    "other": "Cap answered %lld of your questions"
+  },
   "Cap kept %lld lectures that were cut off.": {
     "one": "Cap kept %lld lecture that was cut off.",
     "other": "Cap kept %lld lectures that were cut off."
