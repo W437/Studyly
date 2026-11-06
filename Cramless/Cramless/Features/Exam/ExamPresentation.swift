@@ -144,7 +144,7 @@ enum ExamPresentation {
         enum Kind: Equatable, Sendable {
             /// "20 questions like the real one · 25 min", "Matches your exam: …".
             case offer(line: String, mix: String)
-            /// "A mock needs 8 questions …"; `canWrite`: a reading has something left to write questions from.
+            /// "This exam is multiple choice. A mock needs 8 of those, …"; `canWrite`: a reading has something left to write questions from.
             case tooFew(line: String, canWrite: Bool)
         }
 
@@ -153,17 +153,17 @@ enum ExamPresentation {
         var last: String?
     }
 
-    static func mockCard(offer: MockOffer, lastScore: Double?, lastDate: Date?, canWrite: Bool, calendar: Calendar) -> MockCard? {
+    static func mockCard(offer: MockOffer, format: ExamFormat, lastScore: Double?, lastDate: Date?, canWrite: Bool, calendar: Calendar) -> MockCard? {
         let last = lastScore.flatMap { score in lastDate.map { MockCopy.lastLine(score: score, date: $0, calendar: calendar) } }
         switch offer {
         case .hidden:
             return nil
         case .tooFew(let have):
-            return MockCard(kind: .tooFew(line: MockCopy.tooFew(have: have), canWrite: canWrite), last: last)
+            return MockCard(kind: .tooFew(line: MockCopy.tooFew(have: have, format: format), canWrite: canWrite), last: last)
         case .ready(let plan):
             return MockCard(kind: .offer(line: MockCopy.cardLine(questions: plan.entries.count, minutes: plan.minutes),
-                                         mix: MockCopy.mixLine(multiple: plan.multipleChoiceCount, short: plan.shortCount,
-                                                               essay: plan.essayCount)),
+                                         mix: MockCopy.mixLine(multiple: plan.multipleChoiceCount, fillIns: plan.fillInCount,
+                                                               short: plan.shortCount, essay: plan.essayCount)),
                             last: last)
         }
     }
@@ -516,7 +516,8 @@ enum ExamPresentation {
 
     /// The plan as stops. Within `nearDays`: today, each later study day, the eve, the exam. Further: today, "Then about N min a day
     /// until <date>", the eve, the exam. A skipped day (the what-if) shows as its own stop. `tonightMinutes`: on the eve, the session
-    /// built for tonight, so the "Tonight" stop and the button say one number (0: nothing to review). `eveDone`: tonight's session is finished.
+    /// built for tonight, so the "Tonight" stop and the button say one number (0: nothing to review); with the eve tomorrow, the same session
+    /// as built now, so this stop and Today's strip say one number too. `eveDone`: tonight's session is finished.
     static func stops(plan: StudyPlan, phase: Phase, examTitle: String, examDate: Date, today: TodayWork, skipped: Int?,
                       tonightMinutes: Int? = nil, eveDone: Bool = false, now: Date, calendar: Calendar) -> [Stop] {
         switch phase {
@@ -574,7 +575,12 @@ enum ExamPresentation {
                                 detail: String(localized: "Nothing that day in this what-if."), isSkipped: true)
                 }
                 if day.kind == .examEve {
-                    return Stop(id: "d\(day.offset)", kind: .eve, title: String(localized: "\(name) · about \(day.shownMinutes) min"),
+                    let built = day.offset == 1 ? tonightMinutes : nil
+                    if built == 0 {
+                        return Stop(id: "d\(day.offset)", kind: .eve, title: String(localized: "\(name) · nothing to review"),
+                                    detail: String(localized: "Sleep is part of studying."))
+                    }
+                    return Stop(id: "d\(day.offset)", kind: .eve, title: String(localized: "\(name) · about \(built ?? day.shownMinutes) min"),
                                 detail: eveLine)
                 }
                 return Stop(id: "d\(day.offset)", kind: .day, title: String(localized: "\(name) · about \(day.shownMinutes) min"))

@@ -23,7 +23,12 @@ extension AppModel {
     func notificationExams() -> [NotificationPlanner.ExamInfo] {
         upcomingExams()
             .filter { $0.course?.deletedAt == nil }
-            .map { NotificationPlanner.ExamInfo(id: $0.id, title: $0.title, courseName: $0.course?.name, date: $0.date) }
+            .map { exam in
+                // Its evening is tonight or tomorrow: the note says what that session holds now.
+                let days = calendar.dayDistance(from: now, to: exam.date)
+                return NotificationPlanner.ExamInfo(id: exam.id, title: exam.title, courseName: exam.course?.name, date: exam.date,
+                                                    eveMinutes: (1...2).contains(days) ? builtEveMinutes(examID: exam.id) : nil)
+            }
     }
 
     // MARK: Read aloud

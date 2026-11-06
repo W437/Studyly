@@ -11,6 +11,8 @@ struct TodaySummary: Equatable, Sendable {
     var minutesDone: Int = 0
     /// The size of today's session as built now, in minutes.
     var plannedMinutes: Int = 0
+    /// And in questions: what the session from Today's card holds (a question that comes back counts once).
+    var plannedQuestions: Int = 0
     var reviews: Int = 0
     var newItems: Int = 0
     var weakSpots: Int = 0

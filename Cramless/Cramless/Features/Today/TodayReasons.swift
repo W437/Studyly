@@ -45,6 +45,9 @@ enum TodayReasons {
         var others: [Other] = []
         /// Questions in the exam's scope: under `TodayCopy.fewQuestions` the readiness is a thin guess and a row says so.
         var scopeCount: Int = 0
+        /// The session's questions in all, the same number the card says, and how many of them are for the exam.
+        var sessionTotal: Int = 0
+        var examQuestions: Int = 0
     }
 
     static func make(_ input: Input) -> [Row] {
@@ -56,6 +59,12 @@ enum TodayReasons {
             let title = input.when.map { "\(exam) · \($0)" } ?? exam
             rows.append(Row(id: "exam", symbol: "graduationcap.fill", title: title, detail: input.courseName.isEmpty && input.scopeTopics.isEmpty ? nil : covers))
         }
+        // The whole session first, so the counts after it read as its parts.
+        let shared = input.examTitle != nil && input.examQuestions < input.sessionTotal
+        if input.sessionTotal > 0 {
+            let detail = shared && input.examQuestions > 0 ? input.examTitle.map { String(localized: "\(input.examQuestions) are for \($0).") } : nil
+            rows.append(Row(id: "total", symbol: "list.bullet", title: String(localized: "About \(input.sessionTotal) questions today"), detail: detail))
+        }
         if let weakest = input.weakestName {
             let detail = input.weakestToday > 0 ? String(localized: "\(input.weakestToday) of today's questions are on it.") : nil
             rows.append(Row(id: "weakest", symbol: "scope",
@@ -63,11 +72,13 @@ enum TodayReasons {
                             detail: detail))
         }
         if input.due > 0 {
-            rows.append(Row(id: "due", symbol: "clock.arrow.circlepath", title: String(localized: "\(input.due) questions are due"),
+            rows.append(Row(id: "due", symbol: "clock.arrow.circlepath",
+                            title: shared ? String(localized: "\(input.due) for this exam are due") : String(localized: "\(input.due) questions are due"),
                             detail: String(localized: "You're about to forget them, so they come back now.")))
         }
         if input.new > 0 {
-            rows.append(Row(id: "new", symbol: "sparkles", title: String(localized: "\(input.new) new questions"),
+            rows.append(Row(id: "new", symbol: "sparkles",
+                            title: shared ? String(localized: "\(input.new) new questions for this exam") : String(localized: "\(input.new) new questions"),
                             detail: input.examTitle == nil ? String(localized: "A few at a time, so they stick.")
                                 : String(localized: "A few at a time, so it's all in before the exam.")))
         }

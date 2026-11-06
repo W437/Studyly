@@ -22,6 +22,15 @@ final class CaptureTextTests: CaptureTestCase {
         XCTAssertEqual(pages[0].read, .typed)
     }
 
+    /// Whatever the iPhone's language: "Dr. Smith" isn't two sentences in English notes. (Run with `-testLanguage zh-Hant` to see it matter.)
+    func testSentencesGoByTheTextsOwnLanguage() {
+        XCTAssertEqual(TextPaginator.sentences(in: "Dr. Smith said it's on the test. Bring a pencil."),
+                       ["Dr. Smith said it's on the test.", "Bring a pencil."])
+        XCTAssertEqual(TextPaginator.sentences(in: "Dr. Smith said it's on the test.", language: .english), ["Dr. Smith said it's on the test."])
+        XCTAssertEqual(TextPaginator.language(of: "Mitosis makes two identical cells, and meiosis makes four different ones."), .english)
+        XCTAssertNil(TextPaginator.language(of: "12 + 30"))
+    }
+
     func testPagesOfAboutSixHundredWordsBreakAtParagraphs() {
         // 15 paragraphs of 100 words: 1500 words.
         let text = (0..<15).map { paragraph($0) }.joined(separator: "\n\n")

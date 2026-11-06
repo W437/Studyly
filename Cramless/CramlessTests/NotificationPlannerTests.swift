@@ -157,7 +157,7 @@ final class NotificationPlannerTests: XCTestCase {
         XCTAssertEqual(p[0].body, "15 minutes keeps Chem 110 on track. 18 cards are due.")
         XCTAssertEqual(p[0].url, CramlessLink.session)
         XCTAssertEqual(p[1].body, "15 minutes tonight and your 12-day streak is safe.")
-        XCTAssertEqual(p[2].body, "Chem 110 tomorrow. 10 minutes of weak spots, then sleep.")
+        XCTAssertEqual(p[2].body, "Chem 110 tomorrow. A few minutes on your weak spots, then sleep.", "too far off to know its minutes")
         XCTAssertEqual(DeepLinks.parse(p[2].url),
                        .session(kind: .examEve, examID: chemID, confusionID: nil, courseID: nil))
         XCTAssertEqual(p[3].body, "15 minutes keeps Bio 101 on track. Bio 101 Midterm is in 21 days.",
@@ -186,8 +186,21 @@ final class NotificationPlannerTests: XCTestCase {
         }
         let eves = p.filter { $0.kind == .examEve }
         XCTAssertEqual(eves.count, 1)
-        XCTAssertEqual(eves.first?.body, "Chem 110 and Bio 101 tomorrow. 10 minutes of weak spots, then sleep.")
+        XCTAssertEqual(eves.first?.body, "Chem 110 and Bio 101 tomorrow. A few minutes on your weak spots, then sleep.")
         XCTAssertEqual(eves.first?.url, CramlessLink.session(kind: "examEve"))
+    }
+
+    func testTheEveningNoteSaysTheBuiltSessionsMinutes() {
+        func note(_ minutes: Int?) -> String? {
+            plan {
+                $0.exams = [.init(id: UUID(), title: "Chem 110 Quiz", courseName: "Chem 110", date: WidgetTestSupport.date(2026, 10, 24, 10),
+                                  eveMinutes: minutes)]
+            }.first { $0.kind == .examEve }?.body
+        }
+        XCTAssertEqual(note(4), "Chem 110 tomorrow. 4 minutes of weak spots, then sleep.")
+        XCTAssertEqual(note(1), "Chem 110 tomorrow. 1 minute of weak spots, then sleep.")
+        XCTAssertEqual(note(0), "Chem 110 tomorrow. Nothing left to review. Sleep is part of studying.")
+        XCTAssertEqual(note(nil), "Chem 110 tomorrow. A few minutes on your weak spots, then sleep.")
     }
 
     // MARK: Today

@@ -1514,7 +1514,7 @@ trust rules and the screens are in `docs/assistant.md`, the wire format in `docs
 - **One number for the eve.** `BuiltSession.tonightMinutes` (the built session's planned minutes, rounded up, at most 10; 0 with nothing to
   review) drives Today's button, its spoken words, its reason and tonight's mark in the strip, and on the exam page the button, its line
   and the plan's "Tonight". An eve ahead in the strip shows `PlanDay.shownMinutes`, what the exam page's stop shows. With nothing to review
-  the exam page has no button and its stop says "Tonight · nothing to review". The evening notification still says "10 minutes of weak spots"
+  the exam page has no button and its stop says "Tonight · nothing to review". The evening notification said a fixed "10 minutes of weak spots" until lane `s2-polish`
   (written ahead of time).
 - **A picked-up session** (`SessionRunner`): the clock counts from the time already spent (the checkpoint's wall seconds, or the session's
   active seconds if those are more; the closed time is never in it), and the bar starts with the earlier answers (`earlier`, from the log;
@@ -1599,6 +1599,21 @@ An exam used to know only what the student happened to add. Now it can know its 
 - **Flagged questions first among ties:** `ItemSnapshot.examFlagged`, from `AppModel.examFlaggedItemIDs()` (a question anchored to the flagged segment or the next, or starting within 60 s; worked out only when a lecture or the number of questions changes). `SessionBuilder.weaker`: recall within the same twentieth is a tie, and in a tie the flagged one goes first, in the due, priority and eve lists; among one exam's new questions it goes first; among topics about as weak, the one with a flagged question. With nothing flagged the order is what it was. Readiness doesn't read it.
 - **Words:** the camera's purpose string and the policy paragraph are noted in `docs/privacy-wording.md` for Launch; no new data type.
 - **Verified (2026-11-06, merged with main at d354307):** full suite: 2064 tests, 27 skipped, 0 failures. `deno task test`: 267 passed, 12 ignored. The live check ran only as a dry run against the local OpenAI stand-in (`tools/live_check.ts`, canned replies): `LIVE_ONLY=syllabus,exam-mention deno task live` with a real key is still to do, and the relay isn't deployed. Screens looked at in light and dark, at the largest text, and at SE size for the covers. Not checked: the real document camera, `NSDataDetector` on real syllabus layouts outside the sample.
+
+### Stage 2: fixes after the first review (2026-11-06, lane `s2-polish`)
+
+- **The flashcard scrolls and swipes** (`FlashcardSwipe.SwipePan`): a SwiftUI `DragGesture` on a scroll view's content, simultaneous or not, kept a long answer from scrolling at all
+  (a real drag on iOS 27: nothing moved). The swipe is now a `UIPanGestureRecognizer` that begins only when a drag starts sideways, and with the four-tile grid the card has no gesture at all.
+  Checked with real drags at normal and the largest text; `CRAMLESS_SESSION_LONG_ANSWER=1` makes the long card.
+- **The card names the session it starts:** `TodaySummary.plannedQuestions` and `SessionFocus.questionCount` give "6 questions you're about to forget and 1 new one for this exam. About 39 questions in all today.", and "Why these?" opens its counts with the same total.
+- **One word:** `Rating.title` says "Got it" for Good everywhere a student reads it (Undo, the grid, "Counts as", VoiceOver, the intro).
+- **Mock words:** too few questions says why in the exam's own terms; fill-ins are counted apart from short answers, so the intro and marking agree; the summary explains its prediction beside readiness, with no new number.
+- **Fading counts only what the plan can't reach** (`FadeFinder.dailySeconds`): the overdue questions in the order sessions take them, less what the days from tomorrow to the eve hold. A backlog that clears before the exam deals no card.
+- **The theme lives on the window** (`WindowTheme` in `RootView`), not in `.preferredColorScheme` at the root, which fixed the status bar's colour and overrode the screens below. With Light the clock now stays white over the night band and in the sky, and follows the page once the band has scrolled away, as it does with System.
+- **One number for the eve:** `AppModel.builtEveMinutes` feeds tonight's button, the strip's circle for an eve today or tomorrow, the exam page's stop and the evening notification. A note further off says no number. The eve's topics are weakest first.
+- **Sound can't stop the app** (`CLSoundOutput`): under load the audio system's first call blocked the main thread for 20 s and then aborted the process from inside AudioToolbox (`AURemoteIO::Initialize`, `_ReportRPCTimeout`), which no app code can catch. All audio-system work now runs on one queue off the main thread, late cues are dropped, the session is activated first (a slow or failed answer means no sounds until the app next suspends), and a simulator builds no engine unless a launch has `CRAMLESS_SOUNDS=1`. On a phone the abort itself stays possible if the audio server hangs after answering the session; it costs a sound, not a frozen screen, up to that point.
+- **Other languages:** sentences split by the text's own language (`TextPaginator.language(of:)`), and every photo reader retries in English when the person's languages keep nothing (`TextRecognizer.readingEnglishToo`).
+- Smaller: "Uses Cloud AI" instead of a price on Cap's cards; chips and the course button wrap at the largest sizes; the Notifications page uses one clock format; the Questions tab has one order (`CourseQuestions.comesBefore`).
 
 ## Stage 2a: Cap's cards (2026-11-06)
 

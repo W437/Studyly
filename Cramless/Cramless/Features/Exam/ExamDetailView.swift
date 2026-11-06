@@ -107,8 +107,11 @@ struct ExamDetailModel {
                                            exam: ExamSnapshot(exam), topicNames: app.topicNames(), studiedToday: summary.studiedToday,
                                            missedYesterday: strip.first.map { $0.kind == .missed || $0.kind == .frozen } == true)
         if case .eve = phase {
-            tonightMinutes = app.buildSession(SessionRequest(kind: .examEve, examID: exam.id)).tonightMinutes
+            tonightMinutes = app.builtEveMinutes(examID: exam.id)
             eveDone = app.eveSessionDone(summary)
+        } else if app.calendar.dayDistance(from: app.now, to: exam.date) == 2 {
+            // Its evening is tomorrow: the plan's stop says what Today's strip says.
+            tonightMinutes = app.builtEveMinutes(examID: exam.id)
         }
         study = ExamPresentation.studyAction(phase: phase, today: today, weakest: topics.first { $0.isWeakest }, courseName: course.name,
                                              eveMinutes: tonightMinutes ?? SessionBuilder.examEveMinutes, eveDone: eveDone)
@@ -143,7 +146,7 @@ struct ExamDetailModel {
         // Only a card that asks for more questions needs to know whether a reading has more to give.
         var canWrite = false
         if case .tooFew = offer { canWrite = app.restRequest(for: exam) != nil }
-        mock = ExamPresentation.mockCard(offer: offer, lastScore: last?.score, lastDate: last?.date, canWrite: canWrite, calendar: app.calendar)
+        mock = ExamPresentation.mockCard(offer: offer, format: exam.format, lastScore: last?.score, lastDate: last?.date, canWrite: canWrite, calendar: app.calendar)
         if case .ahead = phase, !app.gapIsPutOff(exam.id), let found = app.examGap(for: exam, topics: readiness.topics) {
             gap = found
             gapDrafts = found.waiting.isEmpty ? nil : app.draftSource(forTopics: found.waiting.map(\.id), in: course.id)

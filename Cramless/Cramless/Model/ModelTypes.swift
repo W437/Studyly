@@ -169,12 +169,13 @@ enum Rating: Int, Codable, CaseIterable, Sendable, Identifiable {
 
     var id: Int { rawValue }
 
+    /// What the student reads. Good is "Got it", on the swipe, the tiles, Undo and for VoiceOver alike.
     var title: String {
         switch self {
-        case .again: "Again"
-        case .hard: "Hard"
-        case .good: "Good"
-        case .easy: "Easy"
+        case .again: String(localized: "Again")
+        case .hard: String(localized: "Hard")
+        case .good: String(localized: "Got it")
+        case .easy: String(localized: "Easy")
         }
     }
 }

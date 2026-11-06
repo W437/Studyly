@@ -39,7 +39,7 @@ struct IntroPage: Identifiable, Sendable {
                   sceneDescription: "Demo: a textbook page is scanned. Its key lines are highlighted, and three cards appear, a flashcard, a multiple choice question and an own-words question, each linked to page 87."),
         IntroPage(id: 1, scene: .flashcards, title: "Flashcards that\ncome back in time.",
                   body: "Cards return just before you'd forget them. Bring your Anki or Quizlet decks.",
-                  sceneDescription: "Demo: a flashcard asks what mitosis makes. It flips to the answer, two genetically identical cells. You rate it Good, and a week lights the day it comes back: in 5 days."),
+                  sceneDescription: "Demo: a flashcard asks what mitosis makes. It flips to the answer, two genetically identical cells. You mark it Got it, and a week lights the day it comes back: in 5 days."),
         IntroPage(id: 2, scene: .ownWords, title: "Answer in your\nown words.",
                   body: "No more flip-and-guess. Type or say it, and see exactly what you nailed and what's missing.",
                   sceneDescription: "Demo: an answer typed in your own words is graded. It hits growth and repair, and identical cells, and the missing idea is named: the same number of chromosomes. Two of three, almost."),

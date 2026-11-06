@@ -51,7 +51,7 @@ struct CapNotice: Identifiable, Equatable, Sendable {
     var detail: String
     var action: Action?
     var link: Link? = nil
-    /// What the button costs: "No AI", "Under 1¢".
+    /// What the button uses: "No AI", "Uses Cloud AI".
     var cost: String? = nil
     /// "Plan updated": a card already acted on, saying what changed, with Undo and no "Later".
     var isConfirmation = false

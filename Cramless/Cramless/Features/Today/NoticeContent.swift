@@ -77,11 +77,11 @@ enum NoticeContent {
             : String(localized: "Your stars waited for you. 5 minutes today is a good start.")
     }
 
-    /// "No AI", "Under 1¢", "1 draft", "Free".
+    /// "No AI", "Uses Cloud AI", "1 draft", "Free". Never a price: no one is charged for a card.
     static func costLine(_ cost: Notice.Cost) -> String {
         switch cost {
         case .none: String(localized: "No AI")
-        case .cloud: String(localized: "Under 1¢")
+        case .cloud: String(localized: "Uses Cloud AI")
         case .drafts(let n): String(localized: "\(n) drafts")
         case .free: String(localized: "Free")
         }

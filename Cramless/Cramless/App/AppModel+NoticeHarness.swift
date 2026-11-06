@@ -6,8 +6,8 @@ import SwiftData
 //
 // - `CRAMLESS_NOTICES=mixup,lookalike,fading,back,mock,gap,lecturedate|all|none`: those kinds and no others. `gap`: the Bio midterm 12 days out, with its topics that
 //   have no questions; `lecturedate`: Lecture 6 heard a date for a second quiz, two weeks off. `lookalike`: the Bio midterm 9 days out, with the
-//   sample page's look-alikes. `fading`: the midterm 6 days out, and its questions 20 days overdue, with 30 more added, so that more of them than today's session
-//   holds. `back`: 8 days without study after a 23-day run. `mock`: the midterm 5 days out. `mixup` needs nothing: the demo world has an open mix-up.
+//   sample page's look-alikes. `fading`: the midterm 4 days out, and its questions 20 days overdue, with 60 more added, so that the sessions before it can't reach
+//   them all (the card counts only what they can't). `back`: 8 days without study after a 23-day run. `mock`: the midterm 5 days out. `mixup` needs nothing: the demo world has an open mix-up.
 // - `CRAMLESS_NOTICES=tooeasy` (or `CRAMLESS_LADDER=offer`): one of the Bio midterm's questions has become too easy, with three real reviews
 //   behind it, and the midterm is 20 days out.
 // - `CRAMLESS_NOTICE_STATE=second|later|done|allLater`, once the deck is dealt: `second` the first card acted on, so "2 of N" shows; `later` the
@@ -32,7 +32,7 @@ extension AppModel {
         let midterm = upcomingExams().first { $0.title == "Bio 101 Midterm" }
         let chem = upcomingExams().first { $0.title == "Chem 110 Quiz" }
         if asked.contains("fading") || all {
-            debugMoveExam(midterm, toDays: 6)
+            debugMoveExam(midterm, toDays: 4)
             // An exam two days out would make the session its own and take days from the plan: this is the midterm's week.
             debugMoveExam(chem, toDays: 40)
             debugMakeOverdue(course: midterm?.course)
@@ -105,7 +105,7 @@ extension AppModel {
         guard let course else { return }
         let existing = course.items.filter { $0.deletedAt == nil && $0.status == .active }.sorted { $0.id.uuidString < $1.id.uuidString }
         ModelID.seeded("notice-harness") {
-            for index in 0..<30 where !existing.isEmpty {
+            for index in 0..<60 where !existing.isEmpty {
                 let like = existing[index % existing.count]
                 let extra = StudyItem(course: course, topicID: like.topicID, kind: .recall, status: .active, origin: .person,
                                       prompt: "In your own words: \(like.prompt)", answer: like.answer, sourceRef: like.sourceRef, now: now)

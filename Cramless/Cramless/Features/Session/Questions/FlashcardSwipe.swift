@@ -6,19 +6,14 @@ enum SwipeRule {
     static let distanceShare = 0.35
     /// A flick this fast (points a second) counts from anywhere.
     static let flickSpeed = 700.0
-    /// How far a finger moves before the drag is called horizontal or vertical.
-    static let lockDistance = 12.0
-    /// Horizontal only when it is this much more sideways than up or down, so the question can still scroll.
-    static let lockRatio = 1.5
+    /// A drag is the swipe only when it starts this much more sideways than up or down, so the question can still scroll.
+    static let sidewaysRatio = 1.5
     /// The card's tilt at the far end of a drag, in degrees.
     static let maxTilt = 8.0
 
-    enum Lock: Equatable { case horizontal, vertical }
-
-    /// The way a drag has gone, once it has gone far enough to say.
-    static func lock(dx: Double, dy: Double) -> Lock? {
-        guard (dx * dx + dy * dy).squareRoot() >= lockDistance else { return nil }
-        return abs(dx) > lockRatio * abs(dy) ? .horizontal : .vertical
+    /// The way a drag has started: sideways is the swipe, anything else belongs to the scroll view.
+    static func startsSideways(dx: Double, dy: Double) -> Bool {
+        abs(dx) > sidewaysRatio * abs(dy)
     }
 
     /// The rating a released drag gives: right is "got it" (Good), left is Again, nil springs back. A flick back the other way is a
@@ -96,8 +91,6 @@ struct FlashcardSwipeLayer<Content: View>: View {
     @ViewBuilder var content: Content
 
     @Environment(\.clReduceMotion) private var reduceMotion
-    @GestureState private var fingerDown = false
-    @State private var lock: SwipeRule.Lock?
     @State private var armed: Rating?
 
     var body: some View {
@@ -110,14 +103,7 @@ struct FlashcardSwipeLayer<Content: View>: View {
             .offset(x: state.offset)
             .opacity(state.gone ? 0 : 1)
             .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { state.width = $0 }
-            .simultaneousGesture(drag, including: enabled ? .all : .subviews)
-            // A gesture the system took away never says it ended.
-            .onChange(of: fingerDown) { _, down in
-                guard !down, !state.isFlying else { return }
-                lock = nil
-                armed = nil
-                state.springBack()
-            }
+            .gesture(SwipePan(isEnabled: enabled, onMove: moved, onEnd: ended, onCancel: cancelled))
     }
 
     @ViewBuilder
@@ -141,35 +127,77 @@ struct FlashcardSwipeLayer<Content: View>: View {
         }
     }
 
-    private var drag: some Gesture {
-        DragGesture(minimumDistance: SwipeRule.lockDistance)
-            .updating($fingerDown) { _, down, _ in down = true }
-            .onChanged { value in
-                guard !state.isFlying else { return }
-                let dx = Double(value.translation.width)
-                if lock == nil { lock = SwipeRule.lock(dx: dx, dy: Double(value.translation.height)) }
-                guard lock == .horizontal else { return }
-                if !state.isDragging { state.isDragging = true }
-                state.offset = value.translation.width
-                let now = SwipeRule.armed(dx: dx, width: Double(state.width))
-                if now != armed {
-                    armed = now
-                    CLHaptics.select()
-                }
-            }
-            .onEnded { value in
-                defer {
-                    lock = nil
-                    armed = nil
-                }
-                guard lock == .horizontal, !state.isFlying else { return }
-                if let rating = SwipeRule.decide(dx: Double(value.translation.width), velocity: Double(value.velocity.width),
-                                                 width: Double(state.width)) {
-                    onSwipe(rating)
-                } else {
-                    state.springBack()
-                }
-            }
+    private func moved(_ dx: CGFloat) {
+        guard !state.isFlying else { return }
+        if !state.isDragging { state.isDragging = true }
+        state.offset = dx
+        let now = SwipeRule.armed(dx: Double(dx), width: Double(state.width))
+        if now != armed {
+            armed = now
+            CLHaptics.select()
+        }
+    }
+
+    private func ended(dx: CGFloat, velocity: CGFloat) {
+        armed = nil
+        guard !state.isFlying else { return }
+        if let rating = SwipeRule.decide(dx: Double(dx), velocity: Double(velocity), width: Double(state.width)) {
+            onSwipe(rating)
+        } else {
+            state.springBack()
+        }
+    }
+
+    private func cancelled() {
+        armed = nil
+        guard !state.isFlying else { return }
+        state.springBack()
+    }
+}
+
+/// A finger on the flipped card, from UIKit. A drag that starts sideways is the swipe; one that starts up or down never begins, so a long answer
+/// scrolls. (A SwiftUI `DragGesture` on the scroll view's content, even a simultaneous one, kept it from scrolling at all.) While the swipe runs,
+/// the question view turns its scrolling off (`FlashcardSwipeState.isDragging`). Distances are in the window: the card itself is moving.
+private struct SwipePan: UIGestureRecognizerRepresentable {
+    var isEnabled: Bool
+    var onMove: (CGFloat) -> Void
+    var onEnd: (_ dx: CGFloat, _ velocity: CGFloat) -> Void
+    var onCancel: () -> Void
+
+    final class Coordinator: NSObject, UIGestureRecognizerDelegate {
+        func gestureRecognizerShouldBegin(_ recognizer: UIGestureRecognizer) -> Bool {
+            guard let pan = recognizer as? UIPanGestureRecognizer else { return false }
+            let moved = pan.translation(in: pan.view?.window)
+            return SwipeRule.startsSideways(dx: Double(moved.x), dy: Double(moved.y))
+        }
+
+        /// The scroll view's own pan runs alongside until the swipe has switched its scrolling off.
+        func gestureRecognizer(_ recognizer: UIGestureRecognizer,
+                               shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer) -> Bool { true }
+    }
+
+    func makeCoordinator(converter: CoordinateSpaceConverter) -> Coordinator { Coordinator() }
+
+    func makeUIGestureRecognizer(context: Context) -> UIPanGestureRecognizer {
+        let pan = UIPanGestureRecognizer()
+        pan.maximumNumberOfTouches = 1
+        pan.delegate = context.coordinator
+        return pan
+    }
+
+    func updateUIGestureRecognizer(_ recognizer: UIPanGestureRecognizer, context: Context) {
+        recognizer.isEnabled = isEnabled
+    }
+
+    func handleUIGestureRecognizerAction(_ recognizer: UIPanGestureRecognizer, context: Context) {
+        let window = recognizer.view?.window
+        let dx = recognizer.translation(in: window).x
+        switch recognizer.state {
+        case .began, .changed: onMove(dx)
+        case .ended: onEnd(dx, recognizer.velocity(in: window).x)
+        case .cancelled, .failed: onCancel()
+        default: break
+        }
     }
 }
 
@@ -178,7 +206,8 @@ struct FlashcardTallyView: View {
     let tally: SessionRunner.FlashcardTally
 
     var body: some View {
-        HStack(spacing: 6) {
+        // One above the other at the accessibility sizes, where side by side they would lose their words.
+        ReflowStack(spacing: 6) {
             CLPill(text: "Got it \(tally.gotIt)", tone: .mint, systemImage: "checkmark")
             CLPill(text: "Again \(tally.again)", tone: .rose, systemImage: "arrow.uturn.backward")
         }

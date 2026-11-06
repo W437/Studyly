@@ -93,7 +93,7 @@ final class MockExamTests: XCTestCase {
         let pool = items(20, .mcq, topic: a) + items(10, .recall, topic: a) + items(20, .mcq, topic: b) + items(10, .cloze, topic: b)
         let plan = try XCTUnwrap(builder.build(exam: exam(), items: pool, seed: 5, size: 20))
         XCTAssertEqual(plan.multipleChoiceCount, 15)
-        XCTAssertEqual(plan.shortCount, 5)
+        XCTAssertEqual(plan.shortCount + plan.fillInCount, 5)
         XCTAssertTrue(plan.entries.prefix(15).allSatisfy { $0.kind == .mcq }, "multiple choice first")
         XCTAssertTrue(plan.entries.dropFirst(15).allSatisfy { $0.kind != .mcq })
         for pair in zip(plan.entries.prefix(15), plan.entries.prefix(15).dropFirst()) {
@@ -246,7 +246,16 @@ final class MockExamTests: XCTestCase {
 
     func testTheWordsReadRight() {
         XCTAssertEqual(MockCopy.cardLine(questions: 20, minutes: 25), "20 questions like the real one · 25 min")
-        XCTAssertEqual(MockCopy.tooFew(have: 3), "A mock needs 8 questions on this exam's topics. You have 3.")
+        XCTAssertEqual(MockCopy.tooFew(have: 2, format: ExamFormat(multipleChoice: true, shortAnswer: false)),
+                       "This exam is multiple choice. A mock needs 8 of those, and you have 2.")
+        XCTAssertEqual(MockCopy.tooFew(have: 3, format: ExamFormat(multipleChoice: false, shortAnswer: true)),
+                       "This exam is short answer. A mock needs 8 of those, and you have 3.")
+        XCTAssertEqual(MockCopy.tooFew(have: 0, format: ExamFormat(multipleChoice: false, shortAnswer: false, essay: true)),
+                       "This exam is essay questions. A mock needs 8 of those, and you have 0.")
+        XCTAssertEqual(MockCopy.tooFew(have: 5, format: ExamFormat(multipleChoice: true, shortAnswer: true)),
+                       "This exam is multiple choice and short answer. A mock needs 8 of those, and you have 5.")
+        XCTAssertEqual(MockCopy.tooFew(have: 1, format: ExamFormat(multipleChoice: false, shortAnswer: false)),
+                       "A mock needs 8 multiple-choice or written questions, and you have 1.")
         XCTAssertEqual(MockCopy.verdictLine(.asExpected), "Right where Cap expected.")
         XCTAssertEqual(MockCopy.verdictLine(.better), "Better than Cap expected.")
         XCTAssertEqual(MockCopy.scored(0.72), "You scored 72%.")
@@ -258,6 +267,27 @@ final class MockExamTests: XCTestCase {
         XCTAssertTrue(MockCopy.mixLine(multiple: 15, short: 5, essay: 0).contains("15 multiple choice"))
         XCTAssertTrue(MockCopy.mixLine(multiple: 15, short: 5, essay: 0).contains("5 short answers"))
         XCTAssertFalse(MockCopy.mixLine(multiple: 15, short: 0, essay: 0).contains("short"))
+    }
+
+    /// The intro's short answers are what marking counts: fill-ins are marked at once and have their own word.
+    func testTheMixAndTheMarkingCountTheSameAnswers() throws {
+        let pool = items(4, .cloze, topic: UUID()) + items(8, .recall, topic: UUID())
+        let plan = try XCTUnwrap(builder.build(exam: exam(format: ExamFormat(multipleChoice: false, shortAnswer: true)), items: pool, seed: 5, size: 12))
+        XCTAssertEqual(plan.fillInCount, 4)
+        XCTAssertEqual(plan.shortCount, 8)
+        XCTAssertEqual(MockCopy.mixLine(multiple: plan.multipleChoiceCount, fillIns: plan.fillInCount, short: plan.shortCount, essay: plan.essayCount),
+                       "Matches your exam: 4 fill-ins and 8 short answers. Only this exam's topics.")
+        XCTAssertEqual(MockCopy.markingLine(done: 8, total: plan.shortCount), "8 of 8 short answers marked")
+        XCTAssertEqual(MockCopy.markingLine(done: 1, total: 1), "1 of 1 short answer marked")
+        XCTAssertEqual(MockCopy.markingLine(done: 2, total: 3, hasEssays: true), "2 of 3 written answers marked")
+        XCTAssertEqual(MockCopy.mixLine(multiple: 1, fillIns: 1, short: 1, essay: 1),
+                       "Matches your exam: 1 multiple choice, 1 fill-in, 1 short answer, and 1 essay question. Only this exam's topics.")
+    }
+
+    /// The prediction sits beside the exam page's readiness, a different number on purpose: the summary says why, with no number of its own.
+    func testThePredictionExplainsItselfWithoutANewPercentage() {
+        XCTAssertEqual(MockCopy.predictionNote, "Cap's prediction is for this mock, today. Readiness is what you'd remember on exam day.")
+        XCTAssertFalse(MockCopy.predictionNote.contains("%"))
     }
 
     func testPluralsReadInTheSingular() {

@@ -30,12 +30,11 @@ final class SwipeRuleTests: XCTestCase {
         XCTAssertEqual(SwipeRule.decide(dx: 200, velocity: -300, width: width), .good, "a slow drift back is not a flick")
     }
 
-    func testTheDirectionLockLeavesScrollingAlone() {
-        XCTAssertNil(SwipeRule.lock(dx: 6, dy: 6), "too little to say")
-        XCTAssertEqual(SwipeRule.lock(dx: 14, dy: 2), .horizontal)
-        XCTAssertEqual(SwipeRule.lock(dx: 2, dy: 14), .vertical)
-        XCTAssertEqual(SwipeRule.lock(dx: 12, dy: 8), .vertical, "exactly 1.5 times sideways is not enough")
-        XCTAssertEqual(SwipeRule.lock(dx: -13, dy: 8), .horizontal)
+    func testADragThatStartsUpOrDownIsLeftToTheScrollView() {
+        XCTAssertTrue(SwipeRule.startsSideways(dx: 14, dy: 2))
+        XCTAssertFalse(SwipeRule.startsSideways(dx: 2, dy: 14))
+        XCTAssertFalse(SwipeRule.startsSideways(dx: 12, dy: 8), "exactly 1.5 times sideways is not enough")
+        XCTAssertTrue(SwipeRule.startsSideways(dx: -13, dy: 8))
     }
 
     func testTheTiltAndTheStampStayInBounds() {

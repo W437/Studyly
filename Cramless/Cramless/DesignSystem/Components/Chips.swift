@@ -6,12 +6,18 @@ struct CLChip: View {
     var systemImage: String?
     var selected = false
 
+    @Environment(\.dynamicTypeSize) private var typeSize
+
     var body: some View {
         HStack(spacing: 6) {
             if let systemImage {
                 Image(systemName: systemImage).font(.system(size: 13, weight: .semibold))
             }
-            Text(title).clFont(.footnoteEmphasis).lineLimit(1)
+            // One line, except at the accessibility sizes, where a chip too long for its row wraps instead of losing words.
+            Text(title)
+                .clFont(.footnoteEmphasis)
+                .lineLimit(typeSize.isAccessibilitySize ? nil : 1)
+                .fixedSize(horizontal: false, vertical: typeSize.isAccessibilitySize)
         }
         .padding(.horizontal, 12)
         .frame(minHeight: 32)
@@ -116,10 +122,12 @@ struct CLFlow: Layout {
         }
     }
 
-    /// A subview at its own size, but never wider than a line (a chip too long for one at the largest text sizes truncates instead of
-    /// running off the edge).
+    /// A subview at its own size, but never wider than a line: one too long for a line is measured at the line's width, so a chip that can
+    /// wrap (the accessibility sizes) wraps, and takes the height it needs, instead of running off the edge.
     private static func fitted(_ view: LayoutSubview, to width: CGFloat) -> CGSize {
         let size = view.sizeThatFits(.unspecified)
-        return CGSize(width: min(size.width, width), height: size.height)
+        guard size.width > width else { return size }
+        let wrapped = view.sizeThatFits(ProposedViewSize(width: width, height: nil))
+        return CGSize(width: min(wrapped.width, width), height: wrapped.height)
     }
 }
