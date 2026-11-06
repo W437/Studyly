@@ -237,7 +237,7 @@ final class NoticeEngineTests: XCTestCase {
         XCTAssertTrue(settings.allows(.mockOffer), "a new kind starts on")
         let empty = try JSONDecoder.cramless.decode(NoticeSettings.self, from: Data("{}".utf8))
         XCTAssertEqual(empty, NoticeSettings())
-        XCTAssertEqual(NoticeKind.live, [.mixUp, .lookAlike, .fading, .welcomeBack, .mockOffer, .tooEasy])
+        XCTAssertEqual(NoticeKind.live, [.mixUp, .lookAlike, .fading, .welcomeBack, .mockOffer, .gap, .lectureDate, .tooEasy])
         for kind in ["gap", "lectureDate", "busyDay", "tooEasy", "teachBack", "sameIdea"] {
             XCTAssertNotNil(NoticeKind(rawValue: kind), "\(kind) is reserved")
         }
@@ -1049,5 +1049,123 @@ private extension Notice {
     func title() -> String? {
         if case .mixUp(let note) = evidence { return note.name }
         return nil
+    }
+}
+
+extension NoticeEngineTests {
+    // MARK: Gaps
+
+    private func gap(in days: Int = 9, names: [String] = ["Meiosis", "Genetics"], exam: ExamSnapshot? = nil) -> ExamGap {
+        let e = exam ?? self.exam(in: days)
+        return ExamGap(examID: e.id, examTitle: e.title, examDate: e.date, daysLeft: days, topics: names.map { .init(id: UUID(), name: $0) }, waiting: [])
+    }
+
+    func testAGapCardSaysWhichTopicsAndOpensTheSheet() throws {
+        let midterm = exam(in: 9)
+        let i = inputs {
+            $0.exams = [midterm]
+            $0.gaps = [gap(exam: midterm)]
+        }
+        let card = try XCTUnwrap(deal(i).deck.first)
+        XCTAssertEqual(card.kind, .gap)
+        XCTAssertEqual(card.id, NoticeEngine.gapID(midterm.id))
+        XCTAssertEqual(card.rank, NoticeEngine.Rank.gap(daysLeft: 9))
+        XCTAssertEqual(card.examID, midterm.id)
+        XCTAssertTrue(card.notifiable)
+        let words = NoticeContent.card(card, firstName: "Maya", now: now, calendar: cal)
+        XCTAssertEqual(words.title, "2 topics on your Bio 101 Midterm have no notes")
+        XCTAssertEqual(words.detail, "Meiosis and Genetics. Want help filling them in?")
+        XCTAssertEqual(words.action?.title, "Fill the gap")
+        XCTAssertEqual(words.action?.run, .fillGap(examID: midterm.id))
+        XCTAssertEqual(words.link, .exam(midterm.id))
+        XCTAssertEqual(words.cost, "Free")
+        XCTAssertEqual(NoticeContent.pingBody(card), "Some topics on your Bio 101 Midterm have no notes yet. Cap can help you fill them in.")
+    }
+
+    func testAGapCardWaitsForItsWindowAndARealGap() {
+        let midterm = exam(in: 40)
+        XCTAssertTrue(deal(inputs {
+            $0.exams = [midterm]
+            $0.gaps = [gap(in: 40, exam: midterm)]
+        }).deck.isEmpty, "too far off")
+        let near = exam(in: 9)
+        var waiting = gap(names: [], exam: near)
+        waiting.waiting = [.init(id: UUID(), name: "Meiosis")]
+        XCTAssertTrue(deal(inputs {
+            $0.exams = [near]
+            $0.gaps = [waiting]
+        }).deck.isEmpty, "drafts waiting aren't a gap")
+        XCTAssertTrue(deal(inputs {
+            $0.exams = [near, exam(in: 1, title: "Quiz")]
+            $0.gaps = [gap(exam: near)]
+        }).deck.isEmpty, "Cap is quiet on an eve")
+    }
+
+    func testTheNearestExamsGapRanksFirstAndOneCardShows() {
+        let soon = exam(in: 5, title: "Quiz"), later = exam(in: 20)
+        let i = inputs {
+            $0.exams = [soon, later]
+            $0.gaps = [gap(in: 20, exam: later), gap(in: 5, exam: soon)]
+        }
+        let deck = deal(i).deck
+        XCTAssertEqual(deck.map(\.examID), [soon.id], "one card per kind")
+    }
+
+    func testAGapCardRespectsItsSwitchAndPutsItselfOffUntilTomorrow() {
+        let midterm = exam(in: 9)
+        XCTAssertTrue(deal(inputs {
+            $0.exams = [midterm]
+            $0.gaps = [gap(exam: midterm)]
+            $0.settings.off = [.gap]
+        }).deck.isEmpty)
+        XCTAssertTrue(deal(inputs {
+            $0.exams = [midterm]
+            $0.gaps = [gap(exam: midterm)]
+            $0.ledger.snoozed = [NoticeEngine.gapID(midterm.id)]
+        }).deck.isEmpty)
+        XCTAssertTrue(NoticeKind.live.contains(.gap))
+        XCTAssertEqual(String(localized: NoticeContent.switchTitle(.gap)), "Gaps in your notes")
+    }
+
+    // MARK: Dates heard in a lecture
+
+    private func heard(in days: Int = 14) -> NoticeHeardDate {
+        NoticeHeardDate(sourceID: UUID(), lectureTitle: "Lecture 6", mentionID: "s7-2026-11-05", quote: "The quiz is on November 5th.",
+                        date: cal.adding(days: days, to: now), title: "Quiz")
+    }
+
+    func testAHeardDateCardShowsTheWordsAndLeadsToTheLecture() throws {
+        let date = heard()
+        let i = inputs { $0.heardDates = [date] }
+        let card = try XCTUnwrap(deal(i).deck.first)
+        XCTAssertEqual(card.kind, .lectureDate)
+        XCTAssertEqual(card.rank, NoticeEngine.Rank.lectureDate)
+        XCTAssertFalse(card.notifiable, "a date that may be misheard is never sent")
+        XCTAssertNil(NoticeContent.pingBody(card))
+        let words = NoticeContent.card(card, firstName: "", now: now, calendar: cal)
+        XCTAssertEqual(words.title, "Cap heard an exam date")
+        XCTAssertEqual(words.detail, "“The quiz is on November 5th.” From Lecture 6.")
+        XCTAssertEqual(words.action?.title, "See it")
+        XCTAssertEqual(words.action?.run, .openHeardDate(sourceID: date.sourceID, noticeID: card.id))
+    }
+
+    func testADateGoneByIsNoCardAndAnExamInThePlanComesFirstOnlyAfterWelcomeBack() {
+        XCTAssertTrue(deal(inputs { $0.heardDates = [heard(in: -1)] }).deck.isEmpty)
+        let midterm = exam(in: 9)
+        let i = inputs {
+            $0.exams = [midterm]
+            $0.mixUps = [mixUp(misses: 3)]
+            $0.heardDates = [heard()]
+            $0.days = days(9...14)
+            $0.items = faded(1, on: midterm)
+        }
+        XCTAssertEqual(deal(i).deck.map(\.kind), [.welcomeBack, .lectureDate, .mixUp])
+    }
+
+    func testOldSettingsStillDecodeWithTheNewKindsOn() throws {
+        let old = try JSONDecoder.cramless.decode(NoticeSettings.self, from: Data(#"{"off":["mixUp","someKindFromLater"],"notify":false}"#.utf8))
+        XCTAssertEqual(old.off, [.mixUp])
+        XCTAssertTrue(old.allows(.gap))
+        XCTAssertTrue(old.allows(.lectureDate))
     }
 }

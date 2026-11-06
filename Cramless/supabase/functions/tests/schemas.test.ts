@@ -56,6 +56,10 @@ export const FIXTURE_TYPES: Record<string, string> = {
   "tutor-mistake": "TutorScript",
   "tutor-photo": "TutorScript",
   "tutor-photo-uncited": "TutorScript",
+  syllabus: "SyllabusResponse",
+  "exam-mention": "ExamMentionResponse",
+  "requests/syllabus": "SyllabusRequest",
+  "requests/exam-mention": "ExamMentionRequest",
   "requests/assistant": "AssistantRequest",
   "requests/generate": "GenerateRequest",
   "requests/grade": "GradeRequest",
@@ -172,6 +176,12 @@ const SWIFT_TO_SCHEMA: Record<string, string> = {
   Choice: "Choice",
   ClozeSpec: "ClozeSpec",
   Section: "LectureSection",
+  SyllabusTopic: "SyllabusTopic",
+  SyllabusFormat: "SyllabusFormat",
+  SyllabusExam: "SyllabusExam",
+  SyllabusResponse: "SyllabusResponse",
+  ExamMentionVerdict: "ExamMentionVerdict",
+  ExamMentionResponse: "ExamMentionResponse",
 };
 
 const SWIFT_REQUESTS = [
@@ -188,6 +198,8 @@ const SWIFT_REQUESTS = [
   "EntitlementRequest",
   "SquadRedeemRequest",
   "SquadRemoveRequest",
+  "SyllabusRequest",
+  "ExamMentionRequest",
 ];
 
 Deno.test("contract.json has the Swift reply types' fields, and their optionality", async () => {
@@ -244,6 +256,8 @@ const PROVIDER_TYPES = [
   "LectureResponse",
   "CardsFromChatResponse",
   "TranscribeImageResponse",
+  "SyllabusResponse",
+  "ExamMentionResponse",
 ];
 const UNSUPPORTED = [
   "minLength",
@@ -261,7 +275,11 @@ function walk(node: unknown, visit: (n: Schema) => void): void {
   if (Array.isArray(node)) node.forEach((n) => walk(n, visit));
   else if (node && typeof node === "object") {
     visit(node as Schema);
-    for (const v of Object.values(node)) walk(v, visit);
+    for (const [key, value] of Object.entries(node)) {
+      // `properties` and `$defs` map names to schemas: a property may be called "format" without being the keyword.
+      if (key === "properties" || key === "$defs") Object.values(value as object).forEach((v) => walk(v, visit));
+      else walk(value, visit);
+    }
   }
 }
 

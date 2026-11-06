@@ -1,0 +1,31 @@
+{
+  "course": "Bio 101",
+  "examTitle": "Midterm",
+  "today": "2026-11-06",
+  "topics": [
+    { "id": "t1", "name": "Phases of mitosis" },
+    { "id": "t2", "name": "Cytokinesis" }
+  ],
+  "pages": [
+    {
+      "page": 0,
+      "label": "1",
+      "lines": [
+        { "id": "p0.l0", "text": "BIO 101: Cell Biology" },
+        { "id": "p0.l1", "text": "Fall 2026 syllabus" },
+        { "id": "p0.l2", "text": "Grading: midterm 30%, final exam 40%, labs 30%" },
+        { "id": "p0.l3", "text": "Midterm exam" },
+        { "id": "p0.l4", "text": "Friday, November 20, 10:00 AM" },
+        { "id": "p0.l5", "text": "Covers:" },
+        { "id": "p0.l6", "text": "Week 4: Phases of mitosis" },
+        { "id": "p0.l7", "text": "Week 5: Cytokinesis" },
+        { "id": "p0.l8", "text": "Week 6: Meiosis" },
+        { "id": "p0.l9", "text": "Week 7: Genetics basics" },
+        { "id": "p0.l10", "text": "40 questions: 30 multiple choice and 10 short answers, 90 minutes." },
+        { "id": "p0.l11", "text": "One page of notes allowed." },
+        { "id": "p0.l12", "text": "Final exam: December 14" },
+        { "id": "p0.l13", "text": "The final covers everything from the term." }
+      ]
+    }
+  ]
+}

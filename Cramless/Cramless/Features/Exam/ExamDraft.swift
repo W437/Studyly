@@ -13,6 +13,11 @@ struct ExamDraft: Equatable, Sendable {
     var target = 0.9
     /// With no course yet, the name of the course to make for it (the editor asks for it, so "Add an exam" never dead-ends).
     var newCourseName = ""
+    /// Topics the syllabus names that the course doesn't have yet. `createExam` and `updateExam` make them first, in the same save, and put them
+    /// in scope; with nothing added for them yet, they are the gaps the exam page shows.
+    var newTopics: [String] = []
+    /// A syllabus filled this draft (the editor says so).
+    var fromSyllabus = false
 
     static let targetRange: ClosedRange<Double> = 0.7...0.95
     static let targetStep = 0.05
@@ -68,7 +73,7 @@ struct ExamDraft: Equatable, Sendable {
     /// What still stops the draft from being saved, said plainly; nil when it's ready.
     var problem: String? {
         if courseID == nil, newCourseName.clTrimmed.isEmpty { return "Pick the course this exam is for." }
-        if !wholeCourse && scope.isEmpty { return "Pick at least one topic, or the whole course." }
+        if !wholeCourse && scope.isEmpty && newTopics.isEmpty { return "Pick at least one topic, or the whole course." }
         return nil
     }
 }

@@ -20,6 +20,8 @@ final class RelayContractTests: XCTestCase {
         XCTAssertNoThrow(try RelayFixtures.load(LectureResponse.self, "lecture"))
         XCTAssertNoThrow(try RelayFixtures.load(CardsFromChatResponse.self, "cards-from-chat"))
         XCTAssertNoThrow(try RelayFixtures.load(TranscribeImageResponse.self, "transcribe-image"))
+        XCTAssertNoThrow(try RelayFixtures.load(SyllabusResponse.self, "syllabus"))
+        XCTAssertNoThrow(try RelayFixtures.load(ExamMentionResponse.self, "exam-mention"))
         XCTAssertNoThrow(try RelayFixtures.load(QuotaStatus.self, "quota-free"))
         XCTAssertNoThrow(try RelayFixtures.load(QuotaStatus.self, "quota-pro"))
         XCTAssertNoThrow(try RelayFixtures.load(EntitlementResponse.self, "entitlement"))
@@ -234,6 +236,48 @@ final class RelayContractTests: XCTestCase {
         XCTAssertEqual(RelayLimits.researchTopic, 200)
         XCTAssertEqual(RelayLimits.researchFocus, 300)
         XCTAssertEqual(RelayLimits.pageLines, 800)
+    }
+
+    func testTheSyllabusAndMentionLimitsAreTheRelays() throws {
+        // requests.json: SyllabusRequest.pages 6, topics 60 of 120; ExamMentionRequest.mentions 5 of 2000 with 4 candidates, topics 30 of 120.
+        XCTAssertEqual(RelayLimits.syllabusPages, 6)
+        XCTAssertEqual(RelayLimits.syllabusTopics, 60)
+        XCTAssertEqual(RelayLimits.studyTopicName, 120)
+        XCTAssertEqual(RelayLimits.mentions, 5)
+        XCTAssertEqual(RelayLimits.mentionText, 2000)
+        XCTAssertEqual(RelayLimits.mentionCandidates, 4)
+        XCTAssertEqual(RelayLimits.mentionTopics, 30)
+        let long = String(repeating: "x", count: 9000)
+        let page = PageInput(page: 0, label: long, lines: [LineInput(id: "p0.l0", text: long)], image: "photo")
+        let fitted = SyllabusRequest(course: long, examTitle: long, today: "2026-11-06",
+                                     topics: (0..<70).map { SyllabusTopicInput(id: "t\($0)", name: long) }, pages: Array(repeating: page, count: 8)).fitted()
+        XCTAssertEqual(fitted.pages.count, 6)
+        XCTAssertEqual(fitted.topics.count, 60)
+        XCTAssertEqual(fitted.topics[0].name.unicodeScalars.count, 120)
+        XCTAssertEqual(fitted.course.unicodeScalars.count, 200)
+        XCTAssertEqual(fitted.pages[0].label.unicodeScalars.count, 40)
+        XCTAssertEqual(fitted.pages[0].lines[0].text.unicodeScalars.count, 4000)
+        XCTAssertNil(fitted.pages[0].image, "a syllabus never sends its photo")
+        let mention = ExamMentionInput(id: "m", text: long, candidates: ["a", "b", "c", "d", "e"])
+        let asked = ExamMentionRequest(course: "", title: long, recordedDay: "2026-11-06", language: nil, topics: Array(repeating: long, count: 40),
+                                       mentions: Array(repeating: mention, count: 7)).fitted()
+        XCTAssertEqual(asked.mentions.count, 5)
+        XCTAssertEqual(asked.mentions[0].text.unicodeScalars.count, 2000)
+        XCTAssertEqual(asked.mentions[0].candidates.count, 4)
+        XCTAssertEqual(asked.topics.count, 30)
+        XCTAssertEqual(asked.title.unicodeScalars.count, 300)
+    }
+
+    func testTheMockPutsTheCoursesOwnIdsOnTheSyllabusFixture() async throws {
+        let mock = MockRelayTransport(latencyScale: 0)
+        let request = SyllabusRequest(course: "Bio", examTitle: nil, today: "2026-11-06", topics: [SyllabusTopicInput(id: "t7", name: "CYTOKINESIS")],
+                                      pages: [PageInput(page: 0, label: "1", lines: [LineInput(id: "p0.l7", text: "Week 5: Cytokinesis")], image: nil)])
+        let reply = try await mock.syllabus(request)
+        let topics = try XCTUnwrap(reply.exams.first?.topics)
+        XCTAssertEqual(topics.first { $0.name == "Cytokinesis" }?.topicId, "t7")
+        XCTAssertEqual(topics.first { $0.name == "Cytokinesis" }?.lineIds, ["p0.l7"])
+        XCTAssertNil(topics.first { $0.name == "Phases of mitosis" }?.topicId, "the fixture's own t1 isn't this course's")
+        XCTAssertEqual(topics.first { $0.name == "Phases of mitosis" }?.lineIds, [], "nor its lines")
     }
 
     /// `lookAlike` is sent only when true, so a request for a mix-up reads as it always did, and an older relay never sees it.

@@ -158,8 +158,8 @@ extension AppModel {
     /// Turns a generated page set into draft items for `source`, in `course` (or the source's course, or the default
     /// course, or a provisional one). A set made before for the same source is replaced. Returns the drafts.
     @discardableResult
-    func makeDrafts(from outcome: GenerationOutcome, source: Source, course: Course? = nil) -> [StudyItem] {
-        makeDrafts(DraftInput(outcome), source: source, course: course)
+    func makeDrafts(from outcome: GenerationOutcome, source: Source, course: Course? = nil, topicID: UUID? = nil) -> [StudyItem] {
+        makeDrafts(DraftInput(outcome), source: source, course: course, topicID: topicID)
     }
 
     /// A lecture's notes and its draft questions: the notes are saved on the source, the questions become drafts.
@@ -200,7 +200,7 @@ extension AppModel {
     }
 
     @discardableResult
-    func makeDrafts(_ input: DraftInput, source: Source, course: Course? = nil) -> [StudyItem] {
+    func makeDrafts(_ input: DraftInput, source: Source, course: Course? = nil, topicID: UUID? = nil) -> [StudyItem] {
         var report = draftReport(sourceID: source.id)
         // A set made again (with Cloud AI, say) replaces the one before it, except for the pages it didn't read: the questions already
         // written for those stay, and the note says so (a partial run never swaps a fuller set for a smaller one).
@@ -237,11 +237,13 @@ extension AppModel {
             if !target.sources.contains(where: { $0.id == source.id }) { target.sources.append(source) }
         }
 
+        // A capture aimed at one topic (filling a gap): every question is that topic's, whatever the generator calls it, and no new topic is made.
+        let aimed = topicID.flatMap { id in target.topics.first { $0.id == id && $0.deletedAt == nil } }
         // Topics, made once: an existing topic with the same name is reused.
         var topicIDs: [String: UUID] = [:]
         var created = report?.createdTopicIDs ?? []
-        var order: [String] = []
-        let named = input.topics + input.items.map { GeneratedTopic(name: $0.topic, summary: "") }
+        var order: [String] = aimed.map { [$0.name] } ?? []
+        let named = aimed != nil ? [] : input.topics + input.items.map { GeneratedTopic(name: $0.topic, summary: "") }
         for topic in named {
             let key = topic.name.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
             guard !key.isEmpty, topicIDs[key] == nil else { continue }
@@ -258,7 +260,7 @@ extension AppModel {
             // A millisecond apart, so the review keeps the generator's order.
             let stamp = now.addingTimeInterval(Double(index) / 1000)
             let item = ItemFactory.makeItem(from: generated, course: target,
-                                            topicID: topicIDs[generated.topic.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()],
+                                            topicID: aimed?.id ?? topicIDs[generated.topic.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()],
                                             source: source, page: page, origin: input.origin, status: .draft, now: stamp)
             // Every item here passed a check against its source (the cloud's, or the grounding check on this iPhone).
             item.checkedAt = now

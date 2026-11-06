@@ -144,6 +144,15 @@ extension AppModel {
             markNoticeActed(NoticeEngine.mockOfferID(examID))
             router.present(.mockExam(examID: examID))
             return nil
+        case .fillGap(let examID):
+            // Like a look-alike: opening the sheet has seen to it, and the exam page still says so until it's filled.
+            markNoticeActed(NoticeEngine.gapID(examID))
+            router.present(.fillGap(examID: examID, topicID: nil))
+            return nil
+        case .openHeardDate(let sourceID, let noticeID):
+            markNoticeActed(noticeID)
+            router.push(.lectureNotes(sourceID))
+            return nil
         case .raiseQuestion(let itemID):
             markNoticeActed(NoticeEngine.tooEasyID(itemID))
             router.present(.ladder(parentID: itemID))
@@ -387,6 +396,8 @@ extension AppModel {
         inputs.topicNames = topicNames()
         inputs.cloudLessons = ai.route(.confusions).usesCloud
         inputs.mockOffers = noticeMockOffers()
+        inputs.gaps = noticeGaps(items: items)
+        inputs.heardDates = noticeHeardDates()
         inputs.tooEasy = ladderOffers(items: items, exams: exams).map {
             NoticeTooEasy(itemID: $0.itemID, next: $0.next, topicName: $0.topicName)
         }

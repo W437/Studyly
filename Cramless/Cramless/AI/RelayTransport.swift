@@ -18,6 +18,10 @@ protocol RelayTransport: Sendable {
     func assistant(_ request: AssistantRequest) -> AsyncThrowingStream<AssistantEvent, Error>
     /// Streams web research from trusted study sites: the search as it happens, then a cited summary. Pro only.
     func research(_ request: ResearchRequest) -> AsyncThrowingStream<ResearchEvent, Error>
+    /// What a syllabus says about its exams. Text only.
+    func syllabus(_ request: SyllabusRequest) async throws -> SyllabusResponse
+    /// One look at the sentences an exam date was heard in, after the student asked to add it.
+    func examMention(_ request: ExamMentionRequest) async throws -> ExamMentionResponse
     func quota() async throws -> QuotaStatus
 }
 
@@ -29,6 +33,15 @@ extension RelayTransport {
 
     func research(_ request: ResearchRequest) -> AsyncThrowingStream<ResearchEvent, Error> {
         AsyncThrowingStream { $0.finish(throwing: RelayError.upstream("Web research isn't available here.")) }
+    }
+
+    // Transports (and test doubles) that don't read syllabi leave the job to the offline rules.
+    func syllabus(_ request: SyllabusRequest) async throws -> SyllabusResponse {
+        throw RelayError.upstream("Reading a syllabus isn't available here.")
+    }
+
+    func examMention(_ request: ExamMentionRequest) async throws -> ExamMentionResponse {
+        throw RelayError.upstream("Checking an exam date isn't available here.")
     }
 }
 

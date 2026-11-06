@@ -146,7 +146,7 @@ final class AITransportTests: XCTestCase {
     func testHTTPRoutesAndQuotaIsAGet() async throws {
         XCTAssertEqual(HTTPRelayTransport.Route.allCases.map(\.rawValue),
                        ["generate", "check", "grade", "tutor", "confusions", "lecture", "cards-from-chat", "transcribe-image",
-                        "assistant", "research", "quota"])
+                        "assistant", "research", "syllabus", "exam-mention", "quota"])
         AIStubURLProtocol.handler = { _ in .init(chunks: [self.fixtureData("quota-free")]) }
         let quota = try await http().quota()
         XCTAssertEqual(quota.meter(.scans)?.limit, 3)

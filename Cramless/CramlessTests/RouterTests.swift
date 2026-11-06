@@ -114,6 +114,13 @@ final class RouterTests: XCTestCase {
              .allowCloud(feature: AIJob.transcribeImage.feature), nil),
             ("lecture: device busy (transient)", context(.lecture, device: .unavailable(.lowPower)), [.cloud], nil, nil),
             ("cards: everything", context(.cardsFromChat), [.cloud, .onDevice], nil, nil),
+            ("syllabus: cloud only", context(.syllabus), [.cloud], nil, nil),
+            ("syllabus: no consent", context(.syllabus, consent: false), [], .allowCloud(feature: AIJob.syllabus.feature), nil),
+            ("syllabus: free for everyone, whatever else is spent", context(.syllabus, quota: .exhausted), [.cloud], nil, nil),
+            ("syllabus: a local build has the rules", context(.syllabus, mode: .local, consent: false), [], nil, nil),
+            ("syllabus: never under 13", context(.syllabus, age: .child), [], nil, nil),
+            ("exam mention: cloud only", context(.examMention), [.cloud], nil, nil),
+            ("exam mention: no consent", context(.examMention, consent: false), [], .allowCloud(feature: AIJob.examMention.feature), nil),
         ]
         for (name, ctx, tiers, suggestion, limit) in rows {
             let route = AIRouting.route(ctx)

@@ -258,7 +258,7 @@ final class CaptureRun {
                 failure = .noQuestions(outcome.note)
                 return
             }
-            app.makeDrafts(from: outcome, source: source, course: regenerating == nil ? app.course(request.courseID) : nil)
+            app.makeDrafts(from: outcome, source: source, course: regenerating == nil ? app.course(request.courseID) : nil, topicID: request.topicID)
             // The pages of a rest are used up once its drafts exist, whatever the person then keeps: the next tap moves on. Only the
             // pages that were read: a part that failed, or never started (the free scans ran out), leaves its pages for the next tap.
             if let plan = request.rest { app.noteRestRun(plan, readPages: outcome.pagesRead) }

@@ -63,6 +63,8 @@ Deno.test("MOCK: every JSON route answers its fixture byte for byte, with believ
     ["lecture", lectureBody, "lecture", 2500],
     ["cards-from-chat", cardsBody, "cards-from-chat", 1200],
     ["transcribe-image", transcribeBody, "transcribe-image", 1500],
+    ["syllabus", fixtureJson("requests/syllabus"), "syllabus", 1800],
+    ["exam-mention", fixtureJson("requests/exam-mention"), "exam-mention", 900],
   ];
   for (const [route, body, name, latency] of cases) {
     r.sleeps.length = 0;

@@ -10,7 +10,8 @@ import SwiftUI
 /// `CRAMLESS_NOW=2026-11-06T14:00:00-05:00`); `CRAMLESS_SCENARIO=eve|past|graded|missed|thin|calibrated|ontrack|crowded|empty` puts
 /// the exam (or yesterday) in that state first (`AppModel.applyHarnessScenario`); `CRAMLESS_EXAM_SKIP=1` opens with the what-if on;
 /// `CRAMLESS_SCROLL=topics|plan|materials|path` scrolls to a section. `CRAMLESS_SCENARIO=mocked` adds a mock taken three days ago (the
-/// card's "Last mock" line); `fewItems` leaves five questions in scope (the card asks for more).
+/// card's "Last mock" line); `fewItems` leaves five questions in scope (the card asks for more); `gap` leaves a topic of the exam with drafts waiting too, beside the
+/// topics with nothing yet (the gap card, `FillGapSheet`).
 struct ExamDetailView: View {
     let examID: UUID
 
@@ -66,6 +67,10 @@ struct ExamDetailModel {
     var offersExamPass: Bool
     /// The mock exam's card; nil on the eve, the day and after.
     var mock: ExamPresentation.MockCard?
+    /// Topics with no notes, while there is time to fill them (nil once put off for the day).
+    var gap: ExamGap?
+    /// The drafts waiting for the gap's `waiting` topics.
+    var gapDrafts: UUID?
     var now: Date
     var calendar: Calendar
 
@@ -139,6 +144,10 @@ struct ExamDetailModel {
         var canWrite = false
         if case .tooFew = offer { canWrite = app.restRequest(for: exam) != nil }
         mock = ExamPresentation.mockCard(offer: offer, lastScore: last?.score, lastDate: last?.date, canWrite: canWrite, calendar: app.calendar)
+        if case .ahead = phase, !app.gapIsPutOff(exam.id), let found = app.examGap(for: exam, topics: readiness.topics) {
+            gap = found
+            gapDrafts = found.waiting.isEmpty ? nil : app.draftSource(forTopics: found.waiting.map(\.id), in: course.id)
+        }
     }
 
     var isPast: Bool { if case .past = phase { true } else { false } }
@@ -179,7 +188,7 @@ private struct ExamDetailContent: View {
                                      offersMore: note.offersMore && model.offersRest, centered: false, onAdd: addForTheRest)
                         .padding(.top, 12)
                 }
-                // Stage 3: the gap card (a topic of the syllabus with no material) goes here, under the topics.
+                if let gap = model.gap { gapCard(gap).padding(.top, 12) }
                 planSection.id("plan")
                 materials.id("materials")
                 if !model.isPast { historyFold.padding(.top, 16).id("path") }
@@ -200,6 +209,9 @@ private struct ExamDetailContent: View {
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
                     Button("Edit exam", systemImage: "pencil") { app.router.present(.editExam(model.id)) }
+                    if !model.isPast {
+                        Button(SyllabusCopy.setFromSyllabus, systemImage: "camera") { app.router.present(.syllabus(examID: model.id)) }
+                    }
                     if isPastOrToday {
                         Button(model.result == nil ? "Log your grade" : "Change your grade", systemImage: "checkmark.seal") {
                             app.router.present(.logGrade(examID: model.id))
@@ -224,8 +236,9 @@ private struct ExamDetailContent: View {
         }
         #if DEBUG
         .task {
-            // Harness: `CRAMLESS_EXAM_SKIP=1` opens with "What if I skip …?" on.
+            // Harness: `CRAMLESS_EXAM_SKIP=1` opens with "What if I skip …?" on; `CRAMLESS_GAP` opens "Fill the gap" (`FillGapSheet`).
             if TestHarness.once("CRAMLESS_EXAM_SKIP") == "1", model.skip != nil { toggleSkip() }
+            if TestHarness.once("CRAMLESS_GAP") != nil { app.router.present(.fillGap(examID: model.id, topicID: nil)) }
         }
         #endif
     }
@@ -512,6 +525,59 @@ private struct ExamDetailContent: View {
         .accessibilityElement(children: .contain)
     }
 
+    // MARK: The gap
+
+    /// A topic of this exam with no notes can't count toward readiness: the card says which, and offers help.
+    private func gapCard(_ gap: ExamGap) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            CLIconBadge(systemImage: "text.badge.plus", tint: .tangerine, size: 40)
+            VStack(alignment: .leading, spacing: 4) {
+                if !gap.topics.isEmpty {
+                    Text(verbatim: ExamGapCopy.title(count: gap.topics.count, examTitle: gap.examTitle))
+                        .clFont(.headline)
+                        .foregroundStyle(CLColor.ink)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityAddTraits(.isHeader)
+                    Text(verbatim: ExamGapCopy.detail(gap.topics.map(\.name)))
+                        .clFont(.subheadline)
+                        .foregroundStyle(CLColor.ink2)
+                        .fixedSize(horizontal: false, vertical: true)
+                    CaptureChips {
+                        Button("Fill the gap") {
+                            CLHaptics.commit()
+                            app.router.present(.fillGap(examID: model.id, topicID: nil))
+                        }
+                        .buttonStyle(.cl(.dark, size: .medium, fullWidth: false))
+                        Button("Later") {
+                            CLHaptics.tap()
+                            app.snoozeNotice(NoticeEngine.gapID(model.id))
+                        }
+                        .buttonStyle(.cl(.ghost, size: .medium, fullWidth: false))
+                    }
+                    .padding(.top, 6)
+                }
+                if !gap.waiting.isEmpty {
+                    Text(verbatim: ExamGapCopy.waiting(gap.waiting.map(\.name)))
+                        .clFont(gap.topics.isEmpty ? .subheadlineEmphasis : .subheadline)
+                        .foregroundStyle(gap.topics.isEmpty ? CLColor.ink : CLColor.ink2)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.top, gap.topics.isEmpty ? 0 : 6)
+                    if let source = model.gapDrafts {
+                        Button("Review them") {
+                            CLHaptics.tap()
+                            app.router.present(.reviewDraft(sourceID: source))
+                        }
+                        .buttonStyle(.cl(.soft, size: .medium, fullWidth: false))
+                        .padding(.top, 4)
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .clCard()
+        .accessibilityElement(children: .contain)
+    }
+
     // MARK: After the exam
 
     private var resultCard: some View {
@@ -548,7 +614,7 @@ private struct ExamDetailContent: View {
                         app.router.present(.session(SessionRequest(kind: .practice, courseID: model.courseID, examID: model.id,
                                                                    minutes: topic.practiceMinutes, topicID: topic.id)))
                     } onAdd: {
-                        app.router.present(.capture(courseID: model.courseID))
+                        app.router.present(.fillGap(examID: model.id, topicID: topic.id))
                     }
                     .padding(.horizontal, 16)
                     .padding(.vertical, 12)

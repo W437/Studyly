@@ -115,6 +115,15 @@ extension AppSettings {
 
 extension AppModel {
 
+    /// A research summary as a note in the course, with the pages it rests on: Ask Cap's "Save as note" and "Fill the gap". Nil when there's no text.
+    func saveResearchNote(_ result: ResearchResult, course: Course) -> Source? {
+        guard !result.text.clTrimmed.isEmpty else { return nil }
+        let sources = (result.cited.isEmpty ? result.sources : result.cited).prefix(6)
+        let footer = sources.isEmpty ? "" : "\n\nSources\n" + sources.map { "• \($0.title ?? $0.domain): \($0.url)" }.joined(separator: "\n")
+        let body = CapMarkdown.plain(result.text) + footer
+        return try? createSource(fromText: body, title: "From the web: \(result.topic)", course: course)
+    }
+
     /// The tools the model may use for this student.
     var assistantTools: [AssistantToolName] {
         AssistantToolName.allCases.filter { $0 != .researchWeb || settings.assistantWeb }
@@ -488,12 +497,7 @@ extension AppModel {
             made = [exam.id]
         case .research(let result):
             guard !result.text.clTrimmed.isEmpty else { return fail(String(localized: "There is nothing to save yet.")) }
-            let sources = (result.cited.isEmpty ? result.sources : result.cited).prefix(6)
-            let footer = sources.isEmpty ? "" : "\n\nSources\n" + sources.map { "• \($0.title ?? $0.domain): \($0.url)" }.joined(separator: "\n")
-            let body = CapMarkdown.plain(result.text) + footer
-            guard let source = try? createSource(fromText: body, title: "From the web: \(result.topic)", course: course) else {
-                return fail(String(localized: "The note was empty."))
-            }
+            guard let source = saveResearchNote(result, course: course) else { return fail(String(localized: "The note was empty.")) }
             made = [source.id]
             step.payload = .research({ var r = result; r.savedSourceID = source.id; return r }())
         case .none, .lookup, .practice, .open:

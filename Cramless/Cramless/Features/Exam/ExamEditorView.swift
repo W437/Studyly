@@ -1,16 +1,26 @@
 import SwiftUI
 
 /// New exam or edit one: its name, course, date, what's on it (topics or the whole course), its format and notes,
-/// the readiness target (70–95%), and Delete.
+/// the readiness target (70–95%), and Delete. "Snap the syllabus" reads a photo or a PDF and fills all of that in (`SyllabusFlowView`), for
+/// the person to check before Add or Save.
+///
+/// Harness: `CRAMLESS_ROUTE=syllabus[:new|edit]` opens it on the flow (`edit`, the default: the Bio midterm). `CRAMLESS_SYLLABUS=pick|reading|proposal|offline|applied|error:<kind>`
+/// holds a state, from a sample syllabus (`SyllabusSample`): `proposal`, what Cloud AI reads (the mock relay's reply); `offline`, what this iPhone's
+/// rules read; `applied`, the editor once "Looks right" has filled it; `error:unreadable|nothing|nodate|notopics`.
 struct ExamEditorView: View {
     let courseID: UUID?
     let examID: UUID?
+    /// Opens straight on the syllabus flow.
+    var opensSyllabus = false
 
     @Environment(AppModel.self) private var app
     @Environment(\.dismiss) private var dismiss
     @State private var draft = ExamDraft(date: .now)
     @State private var loaded = false
     @State private var confirmDelete = false
+    @State private var showsSyllabus = false
+    /// The flow's opening state (DEBUG).
+    @State private var syllabusHold: String?
 
     var body: some View {
         let courses = app.courses
@@ -36,6 +46,7 @@ struct ExamEditorView: View {
                         Picker("Course", selection: Binding(get: { draft.courseID }, set: { id in
                             draft.courseID = id
                             draft.scope = []
+                            draft.newTopics = []
                             draft.wholeCourse = true
                         })) {
                             ForEach(courses) { course in
@@ -58,11 +69,12 @@ struct ExamEditorView: View {
                 .listRowBackground(CLColor.surface)
 
                 Section {
+                    syllabusRow
                     Toggle("The whole course", isOn: $draft.wholeCourse.animation(CLMotion.settle))
                         .clFont(.body)
                         .tint(CLColor.tangerine)
                     if !draft.wholeCourse {
-                        if topics.isEmpty {
+                        if topics.isEmpty, draft.newTopics.isEmpty {
                             Text("This course has no topics yet.").clFont(.subheadline).foregroundStyle(CLColor.ink2)
                         }
                         ForEach(topics) { topic in
@@ -83,11 +95,31 @@ struct ExamEditorView: View {
                             .buttonStyle(.plain)
                             .accessibilityAddTraits(draft.scope.contains(topic.id) ? [.isSelected] : [])
                         }
+                        ForEach(draft.newTopics, id: \.self) { name in
+                            Button {
+                                CLHaptics.select()
+                                draft.newTopics.removeAll { $0 == name }
+                            } label: {
+                                HStack(spacing: 8) {
+                                    Text(verbatim: name).clFont(.body).foregroundStyle(CLColor.ink)
+                                    CLPill(text: SyllabusCopy.noNotes, tone: .tangerine)
+                                    Spacer()
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .font(.system(size: 20, weight: .semibold))
+                                        .foregroundStyle(CLColor.tangerineInk)
+                                }
+                                .frame(minHeight: CLMetrics.minHitTarget)
+                                .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityAddTraits(.isSelected)
+                            .accessibilityHint(Text("Takes it off this exam"))
+                        }
                     }
                 } header: {
                     Text("What's on it")
                 } footer: {
-                    Text(draft.wholeCourse ? "Readiness covers every topic in the course." : "Readiness covers only the topics you tick.")
+                    Text(whatsOnItFooter)
                 }
                 .listRowBackground(CLColor.surface)
 
@@ -201,8 +233,93 @@ struct ExamEditorView: View {
                 draft = .new(courseID: courseID ?? courses.first?.id, now: app.now, calendar: app.calendar)
             }
             loaded = true
+            if opensSyllabus { showsSyllabus = true }
+            #if DEBUG
+            if let hold = TestHarness.once("CRAMLESS_SYLLABUS") {
+                if hold == "applied" {
+                    applySample()
+                } else {
+                    syllabusHold = hold
+                    showsSyllabus = true
+                }
+            }
+            #endif
+        }
+        // A cover of its own: the router's would close this sheet, and the draft with it.
+        .fullScreenCover(isPresented: $showsSyllabus) {
+            SyllabusFlowView(base: draft, courseName: course?.name ?? draft.newCourseName.clTrimmed, topics: topics.map { ($0.id, $0.name) },
+                             hold: syllabusHold) { proposal in
+                proposal.apply(to: &draft, courseName: course?.name ?? draft.newCourseName.clTrimmed, calendar: app.calendar)
+                showsSyllabus = false
+            } onClose: {
+                showsSyllabus = false
+            }
+            .environment(app)
         }
     }
+
+    /// "What does it cover?": the way to fill this in from a photo, until a syllabus has.
+    @ViewBuilder
+    private var syllabusRow: some View {
+        if !draft.fromSyllabus {
+            VStack(alignment: .leading, spacing: 6) {
+                Text(SyllabusCopy.question).clFont(.bodyEmphasis).foregroundStyle(CLColor.ink)
+                Text(SyllabusCopy.pitch)
+                    .clFont(.subheadline)
+                    .foregroundStyle(CLColor.ink2)
+                    .fixedSize(horizontal: false, vertical: true)
+                CaptureChips {
+                    Button {
+                        CLHaptics.tap()
+                        showsSyllabus = true
+                    } label: {
+                        HStack(spacing: 8) {
+                            Image(systemName: "camera").accessibilityHidden(true)
+                            Text(SyllabusCopy.snap)
+                        }
+                    }
+                    .buttonStyle(.cl(.dark, size: .medium, fullWidth: false))
+                    if draft.wholeCourse {
+                        Button(SyllabusCopy.pickTopics) {
+                            CLHaptics.select()
+                            withAnimation(CLMotion.settle) { draft.wholeCourse = false }
+                        }
+                        .buttonStyle(.cl(.soft, size: .medium, fullWidth: false))
+                    }
+                }
+                .padding(.top, 6)
+            }
+            .padding(.vertical, 4)
+        }
+    }
+
+    private var whatsOnItFooter: LocalizedStringResource {
+        if draft.fromSyllabus { return SyllabusCopy.filledNote }
+        return draft.wholeCourse ? "Readiness covers every topic in the course." : "Readiness covers only the topics you tick."
+    }
+
+    #if DEBUG
+    /// `CRAMLESS_SYLLABUS=applied`: the sample syllabus, as "Looks right" leaves the draft.
+    private func applySample() {
+        let course = app.course(draft.courseID)
+        let names = (course?.liveTopics ?? []).map { ($0.id, $0.name) }
+        let exams = (try? RelayFixtures.load(SyllabusResponse.self, "syllabus").exams) ?? []
+        let ids = SyllabusProposal.requestIDs(for: names)
+        let matched = exams.map { exam -> SyllabusExam in
+            var e = exam
+            e.topics = exam.topics.map { topic in
+                var t = topic
+                t.topicId = ids.first { $0.value.name.lowercased() == topic.name.lowercased() }?.key
+                return t
+            }
+            return e
+        }
+        if let proposal = SyllabusProposal.make(exams: matched, examTitle: draft.title, topicIDs: ids, base: draft, pageText: SyllabusSample.text,
+                                                origin: .cloud, now: app.now, calendar: app.calendar) {
+            proposal.apply(to: &draft, courseName: course?.name ?? "", calendar: app.calendar)
+        }
+    }
+    #endif
 
     private var whenFooter: String {
         let days = app.calendar.dayDistance(from: app.now, to: draft.date)

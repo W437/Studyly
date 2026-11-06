@@ -689,3 +689,45 @@ Deno.test("a spent OpenAI balance on a JSON route: 503, 'unavailable', a Retry-A
     assertEquals(mock.requests.length, 1, "a spent balance is not asked again");
   });
 });
+
+Deno.test("syllabus and exam-mention ask the real API's way: strict schemas, and a null where the page says nothing", async () => {
+  await withMock(async (mock, r) => {
+    // The strict form has every property, the ones left out as null: read back, they are simply absent.
+    const midterm = {
+      title: "Midterm",
+      date: "2026-11-20",
+      time: null,
+      dateQuote: "November 20",
+      topics: [{ name: "Meiosis", topicId: null, lineIds: ["p0.l8"] }],
+      format: { multipleChoice: true, shortAnswer: null, essay: null, questionCount: null, minutes: 90, notes: null },
+      formatQuote: null,
+    };
+    mock.answer(replyJsonResponse({ exams: [midterm] }));
+    const syllabus = await (await r.ai("syllabus", { body: fixtureJson("requests/syllabus") })).json();
+    assertEquals(syllabus.exams[0].format, { multipleChoice: true, minutes: 90 });
+    assertEquals(syllabus.exams[0].topics[0], { name: "Meiosis", lineIds: ["p0.l8"] });
+    assertEquals(syllabus.exams[0].date, "2026-11-20");
+    assert(!("time" in syllabus.exams[0]));
+
+    mock.answer(replyJsonResponse({
+      mentions: [{
+        id: "m1",
+        isExam: true,
+        title: "Midterm",
+        date: "2026-11-20",
+        time: null,
+        scopePhrase: null,
+        topics: [],
+      }],
+    }));
+    const mention = await (await r.ai("exam-mention", { body: fixtureJson("requests/exam-mention") })).json();
+    assertEquals(mention.mentions, [{ id: "m1", isExam: true, title: "Midterm", date: "2026-11-20", topics: [] }]);
+
+    for (const sent of mock.requests) {
+      assertEquals(sent.body.model, TERRA);
+      assertEquals(sent.body.reasoning.effort, "low");
+      assertEquals(sent.body.store, false);
+    }
+    assertEquals(mock.requests[0].body.max_output_tokens, 4_000);
+  });
+});

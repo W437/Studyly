@@ -155,7 +155,7 @@ struct CaptureFlowView: View {
         run?.discard()
         switch request.input {
         case .images, .sample:
-            app.router.present(.scanner(courseID: request.courseID, isOnboarding: request.isOnboarding))
+            app.router.present(.scanner(courseID: request.courseID, isOnboarding: request.isOnboarding, topicID: request.topicID))
         case .pdf:
             reopen(.capture(courseID: request.courseID))
         case .text:

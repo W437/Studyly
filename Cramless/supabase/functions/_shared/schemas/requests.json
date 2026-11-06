@@ -402,6 +402,53 @@
       },
       "required": ["minor", "topic"]
     },
+    "SyllabusRequest": {
+      "type": "object",
+      "properties": {
+        "course": { "type": "string", "maxLength": 200 },
+        "examTitle": { "type": "string", "maxLength": 200 },
+        "today": { "type": "string", "format": "date" },
+        "topics": {
+          "type": "array",
+          "maxItems": 60,
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "$ref": "#/$defs/AnchorId" },
+              "name": { "type": "string", "minLength": 1, "maxLength": 120 }
+            },
+            "required": ["id", "name"]
+          }
+        },
+        "pages": { "type": "array", "minItems": 1, "maxItems": 6, "items": { "$ref": "#/$defs/PageInput" } }
+      },
+      "required": ["course", "today", "topics", "pages"]
+    },
+    "ExamMentionRequest": {
+      "type": "object",
+      "properties": {
+        "course": { "type": "string", "maxLength": 200 },
+        "title": { "$ref": "#/$defs/ShortText" },
+        "recordedDay": { "type": "string", "format": "date" },
+        "language": { "type": "string", "maxLength": 20 },
+        "topics": { "type": "array", "maxItems": 30, "items": { "type": "string", "maxLength": 120 } },
+        "mentions": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 5,
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "$ref": "#/$defs/Id" },
+              "text": { "type": "string", "minLength": 1, "maxLength": 2000 },
+              "candidates": { "type": "array", "minItems": 1, "maxItems": 4, "items": { "type": "string", "format": "date" } }
+            },
+            "required": ["id", "text", "candidates"]
+          }
+        }
+      },
+      "required": ["course", "title", "recordedDay", "topics", "mentions"]
+    },
     "Empty": {
       "type": "object",
       "properties": {}

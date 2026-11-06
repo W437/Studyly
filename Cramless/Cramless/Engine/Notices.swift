@@ -33,12 +33,16 @@ enum NoticeKind: String, Codable, CaseIterable, Sendable {
     case welcomeBack
     /// A mock exam is due for an exam 2 to 7 days away (`MockSuggestion`).
     case mockOffer
+    /// Topics of an exam within 28 days with no notes yet (`ExamGaps`).
+    case gap
+    /// An exam date heard in a lecture, not in the plan yet (`ExamDateFinder`).
+    case lectureDate
 
     // Reserved for cards still to come, so the settings and the ledger can already name them.
-    case gap, lectureDate, busyDay, tooEasy, teachBack, sameIdea
+    case busyDay, tooEasy, teachBack, sameIdea
 
     /// The kinds that deal cards in this build, in the order Settings lists their switches.
-    static let live: [NoticeKind] = [.mixUp, .lookAlike, .fading, .welcomeBack, .mockOffer]
+    static let live: [NoticeKind] = [.mixUp, .lookAlike, .fading, .welcomeBack, .mockOffer, .gap, .lectureDate]
         + [.tooEasy]
 }
 
@@ -211,8 +215,23 @@ struct NoticeInputs: Sendable {
     var cloudLessons = false
     /// The exams a mock is due for.
     var mockOffers: [NoticeMockOffer] = []
+    /// The exams with topics that have no notes.
+    var gaps: [ExamGap] = []
+    /// Exam dates heard in recent lectures that aren't in the plan.
+    var heardDates: [NoticeHeardDate] = []
     /// Questions that have become too easy, the strongest first (`Ladder`).
     var tooEasy: [NoticeTooEasy] = []
+}
+
+/// An exam date heard in a lecture, for its card: the date, and the words the student can check it against.
+struct NoticeHeardDate: Equatable, Sendable {
+    var sourceID: UUID
+    var lectureTitle: String
+    var mentionID: String
+    /// As the lecturer said it.
+    var quote: String
+    var date: Date
+    var title: String
 }
 
 /// A question that has become too easy, and the harder way to ask its idea.
@@ -242,6 +261,8 @@ struct Notice: Identifiable, Equatable, Sendable {
         /// `best`: the person's best streak, in days; 0 in Quiet mode, where the card doesn't name it.
         case welcomeBack(best: Int)
         case mockOffer(NoticeMockOffer)
+        case gap(ExamGap)
+        case lectureDate(NoticeHeardDate)
         case tooEasy(NoticeTooEasy)
     }
 
@@ -255,7 +276,7 @@ struct Notice: Identifiable, Equatable, Sendable {
     }
 
     /// Stable for what it is about: `mix-<confusion>`, `pair-<hash of the two questions>`, `fade-<exam>-<day>`, `back-<last day studied>`, `mock-<exam>`,
-    /// `easy-<question>`.
+    /// `gap-<exam>`, `heard-<lecture>-<mention>`, `easy-<question>`.
     var id: String
     var kind: NoticeKind
     var rank: Double
@@ -324,6 +345,10 @@ struct NoticeEngine: Sendable {
         static func lookAlike(similarity: Double, linked: Bool, daysLeft: Int) -> Double {
             300 + 100 * similarity + (linked ? 50 : 0) - 10 * Double(daysLeft)
         }
+        /// Topics that can't count toward readiness at all: more pressing the closer the exam.
+        static func gap(daysLeft: Int) -> Double { 480 - 10 * Double(daysLeft) }
+        /// An exam the plan doesn't know about matters more than anything inside the plan. Below "welcome back" and a bad fade.
+        static let lectureDate = 650.0
     }
 
     var inputs: NoticeInputs
@@ -337,7 +362,7 @@ struct NoticeEngine: Sendable {
     func candidates() -> [Notice] {
         let calendar = inputs.calendar, now = inputs.now
         guard !inputs.exams.contains(where: { $0.date > now && calendar.dayDistance(from: now, to: $0.date) == 1 }) else { return [] }
-        let cards = mixUpCards() + lookAlikeCards() + fadingCards() + welcomeBackCards() + mockOfferCards()
+        let cards = mixUpCards() + lookAlikeCards() + fadingCards() + welcomeBackCards() + mockOfferCards() + gapCards() + lectureDateCards()
             + tooEasyCards()
         return cards.filter { inputs.settings.allows($0.kind) }
             .sorted { $0.rank != $1.rank ? $0.rank > $1.rank : $0.id < $1.id }
@@ -505,6 +530,32 @@ struct NoticeEngine: Sendable {
     }
 
     static func mockOfferID(_ examID: UUID) -> String { "mock-\(examID.uuidString)" }
+
+    // MARK: Gaps
+
+    /// One card per kind means the nearest exam's gaps come up first. Sent as a notification in the exam's week.
+    private func gapCards() -> [Notice] {
+        inputs.gaps.filter { !$0.topics.isEmpty && ExamGaps.noticeDays.contains($0.daysLeft) }.map { gap in
+            Notice(id: Self.gapID(gap.examID), kind: .gap, rank: Rank.gap(daysLeft: gap.daysLeft), examID: gap.examID, examDate: gap.examDate,
+                   examTitle: gap.examTitle, evidence: .gap(gap), cost: .free, notifiable: true)
+        }
+    }
+
+    static func gapID(_ examID: UUID) -> String { "gap-\(examID.uuidString)" }
+
+    // MARK: Dates heard in a lecture
+
+    /// A date that may be wrong isn't worth a notification, and it has no exam yet to be in the week of.
+    private func lectureDateCards() -> [Notice] {
+        inputs.heardDates.filter { $0.date > inputs.now }.map { heard in
+            Notice(id: Self.heardID(sourceID: heard.sourceID, mentionID: heard.mentionID), kind: .lectureDate, rank: Rank.lectureDate,
+                   evidence: .lectureDate(heard), cost: .free)
+        }
+    }
+
+    static func heardID(sourceID: UUID, mentionID: String) -> String { "heard-\(sourceID.uuidString)-\(mentionID)" }
+
+    // MARK: Questions that have become too easy
 
     /// One idea at a time, the strongest. Never a notification: there's no hurry in it. It writes a draft, which the card says it spends.
     private func tooEasyCards() -> [Notice] {

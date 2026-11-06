@@ -404,12 +404,38 @@ extension AIRouter {
             return AssistantToolRun(step: step, output: AnyJSON.result(["error": .string(message)]).jsonString)
         }
         guard app.settings.assistantWeb else { return failed(String(localized: "Web research is off in Settings.")) }
-        guard !topic.isEmpty, let transport else { return failed(String(localized: "Say what to research.")) }
-        var result = ResearchResult(topic: topic)
-        step.payload = .research(result)
+        guard !topic.isEmpty, transport != nil else { return failed(String(localized: "Say what to research.")) }
         update(step)
-        let request = ResearchRequest(minor: app.settings.isMinor, topic: topic,
-                                      focus: call.arguments["focus"]?.string?.clTrimmed.clNonEmpty, course: course?.name).fitted()
+        let run = await research(topic: topic, focus: call.arguments["focus"]?.string?.clTrimmed.clNonEmpty, course: course?.name) { progress in
+            step.payload = .research(progress)
+            update(step)
+        }
+        let result: ResearchResult
+        switch run {
+        case .done(let finished): result = finished
+        case .failed(let message, let needsPro): return failed(message, needsPro: needsPro)
+        }
+        step.status = .proposed
+        step.title = topic
+        step.payload = .research(result)
+        // Never saved on its own, whatever "Let Cap do it" says: a page's words are not the student's, so the student decides.
+        let out: [String: AnyJSON] = ["status": .string("researched"), "sources": .number(Double(result.cited.count)),
+                                        "note": .string("The student sees the cited summary and can save it as a note.")]
+        return AssistantToolRun(step: step, output: AnyJSON.result(out).jsonString)
+    }
+
+    /// How a run of web research ended.
+    enum ResearchRun: Equatable, Sendable {
+        case done(ResearchResult)
+        case failed(message: String, needsPro: Bool)
+    }
+
+    /// Runs web research on trusted study sites, reporting each step of it: shared by Ask Cap's tool and "Fill the gap". Nothing is saved here. The relay
+    /// refuses it for a free plan (`needsPro`) and for anyone under 18.
+    func research(topic: String, focus: String?, course: String?, update: @escaping @MainActor (ResearchResult) -> Void) async -> ResearchRun {
+        guard let transport else { return .failed(message: String(localized: "Say what to research."), needsPro: false) }
+        var result = ResearchResult(topic: topic)
+        let request = ResearchRequest(minor: app?.settings.isMinor ?? false, topic: topic, focus: focus, course: course).fitted()
         do {
             for try await event in transport.research(request) {
                 switch event {
@@ -433,33 +459,26 @@ extension AIRouter {
                 case .failure(let code, let message):
                     throw RelayError.from(code: code, message: message, quota: nil)
                 }
-                step.payload = .research(result)
-                update(step)
+                update(result)
             }
         } catch {
             switch HTTPRelayTransport.map(error) {
             case .entitlementRequired:
-                return failed(String(localized: "Web research is part of Capling Pro."), needsPro: true)
+                return .failed(message: String(localized: "Web research is part of Capling Pro."), needsPro: true)
             case .quotaExceeded:
-                return failed(String(localized: "That's all the web research for today. It resets at midnight."))
+                return .failed(message: String(localized: "That's all the web research for today. It resets at midnight."), needsPro: false)
             case .offline:
-                return failed(String(localized: "You're offline, so Cap can't look it up."))
+                return .failed(message: String(localized: "You're offline, so Cap can't look it up."), needsPro: false)
             case .cancelled:
-                return failed(String(localized: "Stopped."))
+                return .failed(message: String(localized: "Stopped."), needsPro: false)
             case .upstream(let message) where message.contains("couldn't find anything"):
-                return failed(message)
+                return .failed(message: message, needsPro: false)
             default:
-                return failed(String(localized: "Cap couldn't reach the web right now. Try again in a moment."))
+                return .failed(message: String(localized: "Cap couldn't reach the web right now. Try again in a moment."), needsPro: false)
             }
         }
-        guard !result.text.clTrimmed.isEmpty else { return failed(String(localized: "Nothing came back for that.")) }
+        guard !result.text.clTrimmed.isEmpty else { return .failed(message: String(localized: "Nothing came back for that."), needsPro: false) }
         result.phase = .done
-        step.status = .proposed
-        step.title = topic
-        step.payload = .research(result)
-        // Never saved on its own, whatever "Let Cap do it" says: a page's words are not the student's, so the student decides.
-        let out: [String: AnyJSON] = ["status": .string("researched"), "sources": .number(Double(result.cited.count)),
-                                        "note": .string("The student sees the cited summary and can save it as a note.")]
-        return AssistantToolRun(step: step, output: AnyJSON.result(out).jsonString)
+        return .done(result)
     }
 }

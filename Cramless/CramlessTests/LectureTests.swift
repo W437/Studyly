@@ -478,6 +478,261 @@ extension FetchDescriptorFactory {
     static var allSources: FetchDescriptor<Source> { FetchDescriptor<Source>() }
 }
 
+/// An exam date heard in class: what the rules accept, how it stands against the plan, what the student's tap does, and the questions flagged moments point at.
+@MainActor
+final class ExamDateFinderTests: XCTestCase {
+    let cal = EngineTest.calendar()
+    /// A Monday, when it was recorded.
+    lazy var recorded = EngineTest.date(2026, 11, 2, 10, in: cal)
+    lazy var now = EngineTest.date(2026, 11, 3, 18, in: cal)
+
+    private func segment(_ id: String, _ start: Double, _ text: String) -> TranscriptSegment {
+        TranscriptSegment(id: id, start: start, end: start + 10, text: text)
+    }
+
+    private func find(_ texts: [String]) -> [ExamMention] {
+        ExamDateFinder.find(in: texts.enumerated().map { segment("s\($0.offset)", Double($0.offset) * 11, $0.element) }, recordedAt: recorded, calendar: cal)
+    }
+
+    func testADateBesideAnExamWordIsHeard() throws {
+        let found = find(["Anaphase is the easy one.", "So the midterm is on November 20th at 10:00, and it covers weeks one to seven. Now, telophase."])
+        let mention = try XCTUnwrap(found.first)
+        XCTAssertEqual(found.count, 1)
+        XCTAssertEqual(mention.day, "2026-11-20")
+        XCTAssertEqual(mention.word, "Midterm")
+        XCTAssertEqual(mention.segmentID, "s1")
+        XCTAssertEqual(mention.time, 11)
+        XCTAssertEqual(mention.id, "s1-2026-11-20")
+        XCTAssertEqual(mention.clock, "10:00")
+        XCTAssertEqual(mention.quote, "So the midterm is on November 20th at 10:00, and it covers weeks one to seven.", "only the sentence")
+        XCTAssertEqual(mention.candidates, ["2026-11-20"])
+    }
+
+    func testADateWithNoExamNearIsNot() {
+        XCTAssertTrue(find(["Darwin sailed on December 27th."]).isEmpty)
+        XCTAssertTrue(find(["Your final paper is due on December 4th."]).isEmpty)
+        let far = "The exam, as you will have heard from everyone who took this class last year when they came and told you all about it, " +
+            "was really quite hard, and that was the year we went to the museum on December 4th."
+        XCTAssertTrue(find([far]).isEmpty, "too far from the word")
+    }
+
+    func testOnlyAheadAndWithin200Days() {
+        XCTAssertTrue(find(["The midterm was on October 30th."]).isEmpty, "gone by, and next year's is too far off")
+        XCTAssertTrue(find(["The quiz is today."]).isEmpty, "the day itself isn't ahead")
+        XCTAssertTrue(find(["The exam is on May 1st, 2028."]).isEmpty, "over 200 days off")
+        XCTAssertFalse(find(["The quiz is on Friday."]).isEmpty)
+        XCTAssertEqual(find(["The quiz is on Friday."]).first?.day, "2026-11-06")
+    }
+
+    func testASentenceAcrossTwoSegments() throws {
+        let joined = find(["Remember the midterm will be", "on November 20th, in this room."])
+        XCTAssertEqual(joined.first?.word, "Midterm")
+        XCTAssertEqual(joined.first?.segmentID, "s1")
+        XCTAssertEqual(joined.first?.quote, "Remember the midterm will be on November 20th, in this room.")
+        let after = find(["On November 20th,", "we have the midterm."])
+        XCTAssertEqual(after.first?.word, "Midterm")
+        // A long silence between them breaks the sentence.
+        let apart = ExamDateFinder.find(in: [segment("a", 0, "That's the midterm."), segment("b", 300, "On November 20th we go to the museum.")], recordedAt: recorded, calendar: cal)
+        XCTAssertTrue(apart.isEmpty)
+    }
+
+    func testEachDayOnce() {
+        let found = find(["The midterm is on November 20th.", "Again: the midterm, November 20th.", "The final is on December 14th."])
+        XCTAssertEqual(found.map(\.day), ["2026-11-20", "2026-12-14"])
+        XCTAssertEqual(found.map(\.word), ["Midterm", "Final"])
+    }
+
+    // MARK: How it stands against the plan
+
+    private func mention(_ word: String = "Midterm", day: String = "2026-11-20") -> ExamMention {
+        ExamMention(id: "s1-\(day)", segmentID: "s1", time: 10, quote: "The \(word) is soon.", day: day, clock: nil, word: word, candidates: [day])
+    }
+
+    private func exam(_ title: String, day: Int) -> ExamSnapshot {
+        ExamSnapshot(courseID: UUID(), title: title, date: EngineTest.date(2026, 11, day, 9, in: cal))
+    }
+
+    func testNewKnownAndMoved() {
+        XCTAssertEqual(ExamHeardMatch.classify(mention(), exams: [], now: now, calendar: cal), .new)
+        let same = exam("Bio Quiz", day: 20)
+        XCTAssertEqual(ExamHeardMatch.classify(mention(), exams: [same], now: now, calendar: cal), .known(examID: same.id, title: "Bio Quiz"), "any exam on that day")
+        let midterm = exam("Bio 101 Midterm", day: 29)
+        XCTAssertEqual(ExamHeardMatch.classify(mention(), exams: [midterm], now: now, calendar: cal),
+                       .moved(examID: midterm.id, title: "Bio 101 Midterm", currentDate: midterm.date))
+        XCTAssertEqual(ExamHeardMatch.classify(mention("Quiz"), exams: [midterm], now: now, calendar: cal), .new, "a different exam")
+        XCTAssertEqual(ExamHeardMatch.classify(mention("Exam"), exams: [midterm], now: now, calendar: cal),
+                       .moved(examID: midterm.id, title: "Bio 101 Midterm", currentDate: midterm.date), "\"the exam\", with one ahead")
+        XCTAssertEqual(ExamHeardMatch.classify(mention("Exam"), exams: [midterm, exam("Quiz", day: 25)], now: now, calendar: cal), .new, "with two it could be either")
+        XCTAssertEqual(ExamHeardMatch.classify(mention(), exams: [exam("Midterm", day: 1)], now: now, calendar: cal), .new, "one already gone by")
+    }
+
+    func testTheWords() {
+        XCTAssertEqual(ExamHeardCopy.added(days: 14), "Exam added, 14 days away")
+        XCTAssertEqual(ExamHeardCopy.added(days: 1), "Exam added, 1 day away")
+        XCTAssertEqual(ExamHeardCopy.moved(title: "Bio 101 Midterm", current: "Nov 29", heard: "Nov 20"), "Your Bio 101 Midterm is set for Nov 29. Cap heard Nov 20.")
+        XCTAssertEqual(ExamHeardCopy.use("Nov 20"), "Use Nov 20")
+    }
+
+    // MARK: The student's tap
+
+    private func makeLecture(_ line: String, mode: AppConfig.AIMode = .mock, consent: Bool = true) throws -> (AppModel, Course, Source) {
+        FileStore.rootOverride = FileManager.default.temporaryDirectory.appending(path: "heard-\(UUID().uuidString)", directoryHint: .isDirectory)
+        addTeardownBlock { @MainActor in FileStore.rootOverride = nil }
+        let app = AITestSupport.makeApp(mode: mode, consent: consent)
+        app.calendar = cal
+        let frozen = now
+        app.clock = { frozen }
+        let course = try XCTUnwrap(app.createCourse(name: "Bio 101", color: .sky, symbol: "leaf"))
+        let source = Source(course: course, kind: .lecture, title: "Lecture 6", status: .ready, now: recorded)
+        source.segments = [segment("s1", 10, line)]
+        app.context.insert(source)
+        course.sources.append(source)
+        app.save()
+        return (app, course, source)
+    }
+
+    func testAddingMakesAWholeCourseExamAndUndoBringsTheCardBack() async throws {
+        let (app, course, source) = try makeLecture("So the midterm is on November 20th at 10:00.")
+        let heard = try XCTUnwrap(app.examHeard(in: source))
+        XCTAssertEqual(heard.match, .new)
+        XCTAssertTrue(course.liveExams.isEmpty, "nothing is added on its own")
+        let check = await app.checkExamHeard(heard)
+        XCTAssertFalse(check.doubted)
+        let exam = try XCTUnwrap(app.addExam(from: heard, check: check))
+        XCTAssertEqual(exam.title, "Bio 101 Midterm")
+        XCTAssertEqual(exam.date, EngineTest.date(2026, 11, 20, 10, in: cal))
+        XCTAssertTrue(exam.scope.isEmpty, "the whole course")
+        XCTAssertNil(app.examHeard(in: source), "dealt with")
+        app.undoExamHeard(heard, examID: exam.id)
+        XCTAssertTrue(course.liveExams.isEmpty)
+        XCTAssertNotNil(app.examHeard(in: source))
+    }
+
+    func testTheCheckRunsOnlyOnTheTapAndIsAsked() async throws {
+        let (app, _, source) = try makeLecture("So the midterm is on November 20th.")
+        let spy = SyllabusSpy()
+        app.ai.transportOverride = spy
+        let heard = try XCTUnwrap(app.examHeard(in: source))
+        _ = app.noticeHeardDates()
+        XCTAssertTrue(spy.mentionRequests.isEmpty, "finding a date and showing it spend nothing")
+        _ = await app.checkExamHeard(heard)
+        let sent = try XCTUnwrap(spy.mentionRequests.first)
+        XCTAssertEqual(spy.mentionRequests.count, 1)
+        XCTAssertEqual(sent.recordedDay, "2026-11-02")
+        XCTAssertEqual(sent.mentions.first?.candidates, ["2026-11-20"])
+        XCTAssertEqual(sent.mentions.first?.text, "So the midterm is on November 20th.")
+    }
+
+    func testTheCheckCanDoubtAndCorrectButTheStudentDecides() async throws {
+        let (app, course, source) = try makeLecture("So the midterm is on November 20th.")
+        let spy = SyllabusSpy()
+        app.ai.transportOverride = spy
+        let heard = try XCTUnwrap(app.examHeard(in: source))
+        spy.mentionVerdict = ExamMentionVerdict(id: heard.mention.id, isExam: false, topics: [])
+        let doubted = await app.checkExamHeard(heard)
+        XCTAssertTrue(doubted.doubted)
+        XCTAssertTrue(course.liveExams.isEmpty)
+        XCTAssertNotNil(app.addExam(from: heard), "\"Add it anyway\"")
+
+        let (other, _, again) = try makeLecture("So the midterm is on November 20th.")
+        other.ai.transportOverride = spy
+        let second = try XCTUnwrap(other.examHeard(in: again))
+        spy.mentionVerdict = ExamMentionVerdict(id: second.mention.id, isExam: true, title: "Midterm 1", date: "2026-11-20", time: "14:30", topics: [])
+        let corrected = await other.checkExamHeard(second)
+        XCTAssertEqual(corrected.title, "Midterm 1")
+        let exam = try XCTUnwrap(other.addExam(from: second, check: corrected))
+        XCTAssertEqual(exam.title, "Bio 101 Midterm 1")
+        XCTAssertEqual(exam.date, EngineTest.date(2026, 11, 20, 14, 30, in: cal))
+
+        spy.mentionVerdict = ExamMentionVerdict(id: second.mention.id, isExam: true, date: "2020-01-01", topics: [])
+        let past = await other.checkExamHeard(second)
+        XCTAssertNil(past.date, "a date gone by, however it got here, is not used")
+    }
+
+    func testWithNoConsentTheRulesStand() async throws {
+        let (app, _, source) = try makeLecture("So the midterm is on November 20th.", mode: .relay, consent: false)
+        let spy = SyllabusSpy()
+        app.ai.transportOverride = spy
+        let heard = try XCTUnwrap(app.examHeard(in: source))
+        let check = await app.checkExamHeard(heard)
+        XCTAssertEqual(check, AppModel.ExamHeardCheck())
+        XCTAssertTrue(spy.mentionRequests.isEmpty)
+        XCTAssertEqual(app.addExam(from: heard, check: check)?.title, "Bio 101 Midterm")
+    }
+
+    func testUsingAHeardDateMovesTheExamAndKeepsItsHour() throws {
+        let (app, course, source) = try makeLecture("So the midterm is on November 20th.")
+        let exam = try XCTUnwrap(app.createExam(ExamDraft(title: "Bio 101 Midterm", courseID: course.id, date: EngineTest.date(2026, 11, 29, 15, in: cal))))
+        let heard = try XCTUnwrap(app.examHeard(in: source))
+        XCTAssertEqual(heard.match, .moved(examID: exam.id, title: "Bio 101 Midterm", currentDate: EngineTest.date(2026, 11, 29, 15, in: cal)))
+        XCTAssertTrue(app.noticeHeardDates().isEmpty, "only an exam the plan doesn't know is Cap's news")
+        app.useHeardDate(heard)
+        XCTAssertEqual(exam.date, EngineTest.date(2026, 11, 20, 15, in: cal))
+        XCTAssertNil(app.examHeard(in: source))
+    }
+
+    func testNotNowIsRememberedAndAnOldLectureIsNotBroughtUp() throws {
+        let (app, _, source) = try makeLecture("The quiz is on November 20th.")
+        XCTAssertEqual(app.noticeHeardDates().map(\.title), ["Quiz"])
+        let heard = try XCTUnwrap(app.examHeard(in: source))
+        app.dismissExamHeard(heard)
+        XCTAssertNil(app.examHeard(in: source))
+        XCTAssertTrue(app.noticeHeardDates().isEmpty)
+
+        let (old, _, lecture) = try makeLecture("The quiz is on November 20th.")
+        lecture.createdAt = EngineTest.date(2026, 10, 1, 10, in: cal)
+        old.save()
+        XCTAssertTrue(old.noticeHeardDates().isEmpty, "only lectures from the last two weeks")
+    }
+
+    func testTheFoundDatesAreKeptBesideTheLectureUntilTheTranscriptChanges() throws {
+        let (app, _, source) = try makeLecture("The quiz is on November 20th.")
+        XCTAssertEqual(app.examMentions(of: source).map(\.day), ["2026-11-20"])
+        XCTAssertTrue(FileManager.default.fileExists(atPath: FileStore.url(for: ExamMentionFile.path(source.id)).path))
+        source.segments += [segment("s2", 30, "And the final is on December 14th.")]
+        XCTAssertEqual(app.examMentions(of: source).map(\.day), ["2026-11-20", "2026-12-14"])
+    }
+
+    // MARK: Flagged questions
+
+    func testWhatAFlagPointsAt() {
+        let segments = [segment("s1", 0, "One."), segment("s2", 100, "Two."), segment("s3", 200, "Three."), segment("s4", 300, "Four.")]
+        let anchors = ExamFlagAnchors(flags: [ExamFlag(id: "f1", time: 105, reason: .phrase, text: "")], segments: segments)
+        let ref = { (ids: [String], start: Double?) in SourceRef(sourceID: UUID(), pageIndex: nil, anchorIDs: ids, start: start, end: nil, label: "") }
+        XCTAssertTrue(anchors.covers(ref(["s2"], nil)), "the flagged segment")
+        XCTAssertTrue(anchors.covers(ref(["s3"], nil)), "and the next")
+        XCTAssertFalse(anchors.covers(ref(["s4"], nil)))
+        XCTAssertFalse(anchors.covers(ref(["s1"], nil)))
+        XCTAssertTrue(anchors.covers(ref([], 150)), "starting within a minute of it")
+        XCTAssertFalse(anchors.covers(ref([], 170)))
+        XCTAssertFalse(anchors.covers(ref([], 100)), "before it")
+        XCTAssertFalse(anchors.covers(nil))
+    }
+
+    func testAQuestionFromAFlaggedMomentIsMarkedInItsSnapshot() throws {
+        let (app, course, source) = try makeLecture("Anaphase will be on the exam.")
+        source.flags = [ExamFlag(id: "f1", time: 10, reason: .phrase, text: "")]
+        let flagged = StudyItem(course: course, topicID: nil, kind: .flashcard, status: .active, origin: .cloud, prompt: "Anaphase?", answer: "Pulled apart.",
+                                sourceRef: SourceRef(sourceID: source.id, pageIndex: nil, anchorIDs: ["s1"], start: 10, label: "Lecture 6"), now: now)
+        let other = StudyItem(course: course, topicID: nil, kind: .flashcard, status: .active, origin: .cloud, prompt: "Other?", answer: "Other.",
+                              sourceRef: SourceRef(sourceID: source.id, pageIndex: nil, anchorIDs: ["s9"], start: 900, label: "Lecture 6"), now: now)
+        app.context.insert(flagged)
+        app.context.insert(other)
+        course.items += [flagged, other]
+        app.touch(source)
+        app.save()
+        let snapshots = app.itemSnapshots()
+        XCTAssertEqual(snapshots.first { $0.id == flagged.id }?.examFlagged, true)
+        XCTAssertEqual(snapshots.first { $0.id == other.id }?.examFlagged, false)
+        XCTAssertEqual(app.examFlaggedItemIDs(), [flagged.id])
+    }
+
+    func testOldSettingsDecodeWithNothingHandled() throws {
+        let settings = try JSONDecoder.cramless.decode(AppSettings.self, from: Data("{}".utf8))
+        XCTAssertTrue(settings.heardDatesHandled.isEmpty)
+    }
+}
+
 /// The engine choice for a course with its own words (measured with scripts/speech_live/run.sh).
 final class LectureVocabularyTests: XCTestCase {
     private struct Probe: SpeechProbe {

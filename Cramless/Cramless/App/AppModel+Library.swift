@@ -113,9 +113,10 @@ extension AppModel {
             target = createCourse(name: draft.newCourseName, color: .sky, symbol: CourseGuess.symbol(for: draft.newCourseName))
         }
         guard let course = target, course.deletedAt == nil else { return nil }
+        let newScope = makeNewTopics(draft, in: course)
         let liveTopics = Set(course.liveTopics.map(\.id))
         let exam = Exam(course: course, title: draft.resolvedTitle(courseName: course.name), date: draft.date,
-                        scope: draft.scopeIDs.filter(liveTopics.contains), format: draft.cleanFormat,
+                        scope: scope(of: draft, adding: newScope, live: liveTopics), format: draft.cleanFormat,
                         targetReadiness: draft.clampedTarget, now: now)
         context.insert(exam)
         course.exams.append(exam)
@@ -132,6 +133,7 @@ extension AppModel {
         if let target, target.id != exam.course?.id {
             exam.course = target
         }
+        let newScope = exam.course.map { makeNewTopics(draft, in: $0) } ?? []
         let liveTopics = Set(exam.course?.liveTopics.map(\.id) ?? [])
         exam.title = draft.resolvedTitle(courseName: exam.course?.name ?? "")
         if exam.date != draft.date {
@@ -141,11 +143,23 @@ extension AppModel {
                 exam.coverageAtExam = nil
             }
         }
-        exam.scope = draft.scopeIDs.filter(liveTopics.contains)
+        exam.scope = scope(of: draft, adding: newScope, live: liveTopics)
         exam.format = draft.cleanFormat
         exam.targetReadiness = draft.clampedTarget
         touch(exam)
         save()
+    }
+
+    /// The topics a syllabus named that the course doesn't have: made here (one with the same name is reused), with no questions yet. Their ids,
+    /// for the exam's scope.
+    private func makeNewTopics(_ draft: ExamDraft, in course: Course) -> [UUID] {
+        draft.newTopics.compactMap { ItemFactory.topic(named: $0, in: course, now: now)?.id }
+    }
+
+    /// What the exam covers as stored: empty for the whole course (a new topic joins by being the course's), else the ticked topics and the new ones.
+    private func scope(of draft: ExamDraft, adding new: [UUID], live: Set<UUID>) -> [UUID] {
+        guard !draft.wholeCourse else { return [] }
+        return Array(Set(draft.scopeIDs + new)).filter(live.contains).sorted { $0.uuidString < $1.uuidString }
     }
 
     func deleteExam(_ id: UUID) {
@@ -345,7 +359,8 @@ extension AppModel {
     /// - `empty`: the exam covers only a topic with no material, so there is nothing to study for it yet;
     /// - `mocked`: a mock of the exam was taken three days ago, ten questions, three in four right;
     /// - `fewItems`: all but five of the exam's mock questions are suspended, so a mock asks for more;
-    /// - `bright`: every studied question was reviewed an hour ago, so nothing is fading.
+    /// - `bright`: every studied question was reviewed an hour ago, so nothing is fading;
+    /// - `gap`: the exam's course has two topics with no questions, and one with a draft waiting for review.
     func applyHarnessScenario(_ scenario: String, examID: UUID?) {
         let exam = exam(examID)
         func clear(daysAgo: Int) {
@@ -408,6 +423,19 @@ extension AppModel {
             context.insert(quiz)
             bio.exams.append(quiz)
             touch(quiz)
+        case "gap":
+            guard let exam, let course = exam.course else { return }
+            for name in ["Genetics basics", "Cell signaling"] { _ = ItemFactory.topic(named: name, in: course, now: now) }
+            let used = Set(course.activeItems.compactMap(\.topicID))
+            if let waiting = course.liveTopics.first(where: { $0.name == "DNA replication" && !used.contains($0.id) }), let source = course.liveSources.first {
+                let draft = StudyItem(course: course, topicID: waiting.id, kind: .recall, status: .draft, origin: .cloud,
+                                      prompt: "What happens in \(waiting.name)?", answer: "A draft waiting for review.",
+                                      sourceRef: SourceRef(sourceID: source.id, pageIndex: nil, label: source.title), now: now)
+                context.insert(draft)
+                course.items.append(draft)
+                touch(draft)
+            }
+            touch(exam)
         case "empty":
             guard let exam, let course = exam.course else { return }
             let used = Set(course.activeItems.compactMap(\.topicID))

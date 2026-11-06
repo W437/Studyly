@@ -83,7 +83,7 @@ owner's Squad subscription is active; otherwise `free`.
   back. A refused request (validation, quota) costs nothing. One exception for the model routes: a failure the provider
   **billed** (a reply that could not be read, a search stream that was cut off) or a client that walked away (499) keeps
   the quota, so errors cannot be farmed for free model time.
-- `check`, `confusions` and `cards-from-chat` share an internal meter (`extras`: 120 a day on free, 800 paid) that the app
+- `check`, `confusions`, `cards-from-chat`, `syllabus` and `exam-mention` share an internal meter (`extras`: 120 a day on free, 800 paid) that the app
   never shows; Squad code attempts are capped at 10 a day.
 - **The day's cost cap** sits under every meter, on every plan: once a person's model calls since their local midnight have cost the
   cap (10¢; the `DAILY_COST_CAP_USD` secret, `0` = off), each AI route answers `quota_exceeded` (429, `quota.meters` empty,
@@ -388,6 +388,33 @@ Request `TranscribeImageRequest`: `image` (base64 JPEG; PNG is detected too), `p
 `lines` [`{id, text}`] in reading order, ids `p<page>.c<n>` assigned by the relay. Cloud lines have no geometry:
 they can be cited and searched, never boxed on the page. Meter: `scans` (one page of the open scan). Effort low.
 
+### `POST ai/syllabus` → `SyllabusResponse`
+
+Request `SyllabusRequest`: `course`, `examTitle?`, `today` (yyyy-MM-dd, the student's local day), `topics` (at most 60: `{id, name}`, ids the app
+makes up, `t1`, `t2`, …, in the order it sends them), `pages` (1 to 6 `PageInput` of read text; a page's `image` is never passed on: the photo stays on
+the phone). A request whose pages hold no text is `bad_request`. Body limit 512 KB.
+
+Reply: `model`, `exams` (0 to 4) [`{title, date?, time?, dateQuote?, topics, format, formatQuote?}`]: `date` is yyyy-MM-dd, `time` HH:mm, `dateQuote` the
+date as the page writes it; `topics` [`{name, topicId?, lineIds}`]; `format` `{multipleChoice?, shortAnswer?, essay?, questionCount?, minutes?, notes?}`, each
+only when the page says it. Cleaning: a `topicId` the request didn't have is removed (the topic stays, as a new one), so is a line id; a date that isn't a real day from `today` on
+goes with its time and quote; names are unique within an exam; `questionCount` 1–500, `minutes` 1–600; an exam left with no topics and no date is dropped. Meter:
+`extras` (free for everyone, about 1¢): it aims the free mocks and the gap cards, so a syllabus never spends a free scan. Effort low, 4,000 tokens at most.
+
+The app checks again what it can see for itself (`AIRouter+Syllabus`): a date counts only if its quote is on the page and it falls within 400 days. An older relay answers 404, and the
+app keeps the proposal its offline rules made (`LocalSyllabus`).
+
+### `POST ai/exam-mention` → `ExamMentionResponse`
+
+One look at the sentences an exam date was heard in, sent only after the student pressed "Add the exam". Request `ExamMentionRequest`: `course`, `title` (the
+lecture's), `recordedDay` (yyyy-MM-dd), `language?`, `topics` (at most 30 of the course's topic names), `mentions` (1 to 5 `{id, text, candidates}`: the sentence, and 1 to 4 days the
+phone's date detector read from it). Body limit 64 KB.
+
+Reply: `model`, `mentions` [`{id, isExam, title?, date?, time?, scopePhrase?, topics}`], at most one per mention. Cleaning: an id the request didn't have goes; `date` must be one of
+that mention's `candidates`, or it goes; `topics` only names from the request, in its spelling; with `isExam` false everything else goes. Meter: `extras` (under 1¢). Effort low.
+
+The rules on the phone (`ExamDateFinder`) decide without it when there is no consent, no network or an older relay. Whatever comes back, the exam covers the whole course in this version and
+`scopePhrase` is only shown; it is added only by the student's tap.
+
 ### `GET ai/quota` → `QuotaStatus`
 
 `plan` and `meters` [`{key, used, limit, period}`] for `scans`, `grades`, `tutor`, `lectures`, in that order.
@@ -461,6 +488,8 @@ real backend without a model key.
 | `transcribe-image` | `transcribe-image.json` | 1.5 s |
 | `assistant` | `assistant-*.json` by what was asked, then by the tool called last, events at the script's `delayMs` | per event |
 | `research` | `research-mitosis.json` (`research-error.json` when the topic holds `#fail`) | per event |
+| `syllabus` | `syllabus.json` | 1.8 s |
+| `exam-mention` | `exam-mention.json` | 0.9 s |
 
 The JSON replies are the fixture files' bytes. The output cleaning of real mode (anchor filtering) doesn't apply:
 the fixtures are the reference answers. A request header `X-Cramless-Fixture: <name>` picks another fixture of the

@@ -86,12 +86,14 @@ struct CaptureRequest: Hashable, Sendable, Identifiable {
     /// when the person asked (`AppModel.restRequest`), so writing the set again with Cloud AI, from the review, uses the same part
     /// (`input` is not used). The source is never thrown away with its drafts.
     var rest: Coverage.Rest? = nil
+    /// The topic this capture is for (filling a gap): its questions all go there, and the generator's own names make no new topics.
+    var topicID: UUID? = nil
     /// The source a rest adds questions to.
     var restOf: UUID? { rest?.sourceID }
 
     /// The request that adds questions for the rest of a source, from the part decided.
-    static func rest(_ plan: Coverage.Rest, in courseID: UUID?) -> CaptureRequest {
-        CaptureRequest(input: .text(title: "", body: ""), courseID: courseID, rest: plan)
+    static func rest(_ plan: Coverage.Rest, in courseID: UUID?, topicID: UUID? = nil) -> CaptureRequest {
+        CaptureRequest(input: .text(title: "", body: ""), courseID: courseID, rest: plan, topicID: topicID)
     }
 }
 
@@ -103,6 +105,8 @@ enum AppSheet: Identifiable, Hashable, Sendable {
     case editCourse(UUID)
     case newExam(courseID: UUID?)
     case editExam(UUID)
+    /// The editor of this exam, opening straight on "Snap the syllabus" ("Set from your syllabus" on the exam page).
+    case syllabus(examID: UUID)
     case logGrade(examID: UUID)
     case editItem(UUID)
     case newItem(courseID: UUID?)
@@ -133,6 +137,8 @@ enum AppSheet: Identifiable, Hashable, Sendable {
     case streakMonth
     /// The reviews coming due and the brightest topics, over the sky.
     case skyMemory
+    /// "Fill the gap": how Cap can help with an exam's topics that have no notes. `topicID` nil: whichever the person picks.
+    case fillGap(examID: UUID, topicID: UUID?)
     /// "Looks wrong?": what's off with a question. `given`: what the student answered, if they did.
     case looksWrong(itemID: UUID, given: String)
     /// "Yes, harder": a harder question for this one.
@@ -145,7 +151,8 @@ enum AppCover: Identifiable, Hashable, Sendable {
     case session(SessionRequest)
     /// A timed practice exam for one exam.
     case mockExam(examID: UUID)
-    case scanner(courseID: UUID?, isOnboarding: Bool)
+    /// `topicID`: the topic these pages are for.
+    case scanner(courseID: UUID?, isOnboarding: Bool, topicID: UUID? = nil)
     case captureFlow(CaptureRequest)
     case record(courseID: UUID?)
     case onboarding(page: Int?)
