@@ -20,7 +20,7 @@ struct ExamEditorView: View {
         NavigationStack {
             Form {
                 Section("Name") {
-                    TextField(course.map { "\($0.name) Midterm" } ?? "Midterm", text: $draft.title)
+                    TextField(course.map { "\($0.name) Midterm" } ?? (draft.newCourseName.clTrimmed.isEmpty ? "Midterm" : "\(draft.newCourseName.clTrimmed) Midterm"), text: $draft.title)
                         .clFont(.body)
                         .textInputAutocapitalization(.words)
                 }
@@ -28,7 +28,10 @@ struct ExamEditorView: View {
 
                 Section("Course") {
                     if courses.isEmpty {
-                        Text("Add a course first, then its exams.").clFont(.subheadline).foregroundStyle(CLColor.ink2)
+                        // No course yet: name it here, and it is made with the exam.
+                        TextField("Course name, like Bio 101", text: $draft.newCourseName)
+                            .clFont(.body)
+                            .textInputAutocapitalization(.words)
                     } else {
                         Picker("Course", selection: Binding(get: { draft.courseID }, set: { id in
                             draft.courseID = id

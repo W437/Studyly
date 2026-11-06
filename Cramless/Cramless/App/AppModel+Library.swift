@@ -107,7 +107,12 @@ extension AppModel {
     /// A new exam from the editor. Nil when the draft has no live course.
     @discardableResult
     func createExam(_ draft: ExamDraft) -> Exam? {
-        guard let course = course(draft.courseID), course.deletedAt == nil else { return nil }
+        var target = course(draft.courseID)
+        // No course picked and a name typed (the editor asks when there are no courses): the course is made with the exam.
+        if target == nil, !draft.newCourseName.clTrimmed.isEmpty {
+            target = createCourse(name: draft.newCourseName, color: .sky, symbol: CourseGuess.symbol(for: draft.newCourseName))
+        }
+        guard let course = target, course.deletedAt == nil else { return nil }
         let liveTopics = Set(course.liveTopics.map(\.id))
         let exam = Exam(course: course, title: draft.resolvedTitle(courseName: course.name), date: draft.date,
                         scope: draft.scopeIDs.filter(liveTopics.contains), format: draft.cleanFormat,

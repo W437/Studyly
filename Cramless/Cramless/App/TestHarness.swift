@@ -144,6 +144,10 @@ enum TestHarness {
         case "badge": if let id = arg.flatMap(Badge.init(rawValue:)) { r.present(.badge(id)) }
         // The memory sky; `CRAMLESS_SKY=…` (see `SkyDebug`) sets its state.
         case "sky": r.push(.sky, on: .progress)
+        // Today's "Why these?", the sky as a list ("Study something else"), and today's quests up close.
+        case "todayWhy": r.tab = .today; r.present(.todayReasons)
+        case "skyList": r.push(.skyList, on: .today)
+        case "quests": r.tab = .today; r.present(.quests)
         case "chat":
             r.tab = .ask
             if let t = app.fetch(FetchDescriptorFactory.latestThread).first { r.push(.chat(t.id), on: .ask) }

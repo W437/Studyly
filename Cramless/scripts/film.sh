@@ -22,7 +22,8 @@
 set -eu
 udid=${1:?udid}; out=${2:?out dir}; name=${3:?name}; secs=${4:?seconds}; shift 4
 cd "$(dirname "$0")/.."
-bundle=com.loopware.Capling
+# FILM_BUNDLE films another install of the app (a copy with its own bundle id on a simulator other sessions share).
+bundle=${FILM_BUNDLE:-com.loopware.Capling}
 palette=marimba
 envs=(SIMCTL_CHILD_CRAMLESS_UITEST=1 SIMCTL_CHILD_CRAMLESS_FILM_SYNC=1)
 for kv in "$@"; do

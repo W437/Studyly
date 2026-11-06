@@ -4,7 +4,6 @@
     "" : {
       "shouldTranslate" : false
     },
-    " · soon" : {},
     "%" : {},
     "%@" : {
       "shouldTranslate" : false
@@ -31,12 +30,55 @@
         }
       }
     },
+    "%@ can wait" : {},
+    "%@ can wait until after %@." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ can wait until after %2$@."
+          }
+        }
+      }
+    },
     "%@ evening" : {},
     "%@ exam" : {},
     "%@ for 30 days of Pro. Doesn't renew." : {},
     "%@ from this page" : {},
     "%@ goal" : {},
     "%@ goes back to the free plan at once and their seat opens for someone else. Everything they've studied stays theirs." : {},
+    "%@ has %lld questions so far" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ has %#@questions@ so far"
+          },
+          "substitutions" : {
+            "questions" : {
+              "argNum" : 2,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg question"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg questions"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "%@ in about %@" : {
       "localizations" : {
         "en" : {
@@ -58,6 +100,16 @@
         }
       }
     },
+    "%@ is the weakest: %@ ready" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ is the weakest: %2$@ ready"
+          }
+        }
+      }
+    },
     "%@ is tomorrow at %@. Sleep is part of studying." : {
       "localizations" : {
         "en" : {
@@ -68,7 +120,6 @@
         }
       }
     },
-    "%@ is tomorrow. 10 minutes on your weak spots, then sleep. That's the whole plan tonight." : {},
     "%@ is tomorrow. Sleep is part of studying." : {},
     "%@ left your Squad. A seat is open." : {},
     "%@ lights at %lld" : {
@@ -83,16 +134,7 @@
     },
     "%@ made from it" : {},
     "%@ questions" : {},
-    "%@ ready, %@ this week" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$@ ready, %2$@ this week"
-          }
-        }
-      }
-    },
+    "%@ ready now" : {},
     "%@ saved.%@" : {
       "localizations" : {
         "en" : {
@@ -107,6 +149,7 @@
     "%@ studied" : {},
     "%@ this week" : {},
     "%@ to review" : {},
+    "%@ today" : {},
     "%@ waiting for you" : {},
     "%@ · %@" : {
       "localizations" : {
@@ -114,16 +157,6 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "%1$@ · %2$@"
-          }
-        }
-      }
-    },
-    "%@ · %@ ready" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$@ · %2$@ ready"
           }
         }
       }
@@ -223,6 +256,16 @@
         }
       }
     },
+    "%@: %@ ready" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@: %2$@ ready"
+          }
+        }
+      }
+    },
     "%lld" : {},
     "%lld answered" : {},
     "%lld bright" : {},
@@ -249,7 +292,28 @@
       }
     },
     "%lld correct" : {},
-    "%lld days" : {},
+    "%lld days" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld day"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld days"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "%lld days in a row" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -266,6 +330,28 @@
                 "stringUnit" : {
                   "state" : "translated",
                   "value" : "%lld days in a row"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld days to go" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld day to go"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld days to go"
                 }
               }
             }
@@ -331,6 +417,38 @@
     },
     "%lld in a row" : {},
     "%lld min a day" : {},
+    "%lld min · %lld answers" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld min · %#@answers@"
+          },
+          "substitutions" : {
+            "answers" : {
+              "argNum" : 2,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg answer"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg answers"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "%lld minutes" : {
       "localizations" : {
         "en" : {
@@ -375,6 +493,28 @@
         }
       }
     },
+    "%lld minutes planned" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld minute planned"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld minutes planned"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "%lld minutes tonight and you're done." : {
       "localizations" : {
         "en" : {
@@ -398,6 +538,7 @@
       }
     },
     "%lld minutes, %lld answers. Back tomorrow. Your streak is safe." : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -449,6 +590,95 @@
         }
       }
     },
+    "%lld months" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld month"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld months"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld more" : {},
+    "%lld new questions" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld new question"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld new questions"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld new questions, so it's all in before the exam." : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld new question, so it's all in before the exam."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld new questions, so it's all in before the exam."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld new questions." : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld new question."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld new questions."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "%lld not yet lit" : {},
     "%lld of %lld" : {
       "localizations" : {
@@ -491,11 +721,44 @@
       }
     },
     "%lld of %lld minutes done" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "%1$lld of %#@minutes@ done"
+          },
+          "substitutions" : {
+            "minutes" : {
+              "argNum" : 2,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg minute"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg minutes"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld of %lld minutes done." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld of %#@minutes@ done."
           },
           "substitutions" : {
             "minutes" : {
@@ -560,6 +823,38 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "%1$lld of %2$lld quests this week"
+          }
+        }
+      }
+    },
+    "%lld of %lld quests today" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld of %#@quests@ today"
+          },
+          "substitutions" : {
+            "quests" : {
+              "argNum" : 2,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg quest"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg quests"
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -668,6 +963,28 @@
         }
       }
     },
+    "%lld of today's questions are on it." : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld of today's questions is on it."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld of today's questions are on it."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "%lld pages" : {
       "localizations" : {
         "en" : {
@@ -720,6 +1037,17 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "%1$lld percent ready for the %2$@"
+          }
+        }
+      }
+    },
+    "%lld percent ready now" : {},
+    "%lld percent ready now, about %lld percent after today, projected" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld percent ready now, about %2$lld percent after today, projected"
           }
         }
       }
@@ -778,6 +1106,28 @@
         }
       }
     },
+    "%lld questions are due" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld question is due"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld questions are due"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "%lld questions fading" : {
       "localizations" : {
         "en" : {
@@ -793,6 +1143,80 @@
                 "stringUnit" : {
                   "state" : "translated",
                   "value" : "%lld questions fading"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld questions you're about to forget, and %lld new ones." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%#@due@ you're about to forget, and %#@new@."
+          },
+          "substitutions" : {
+            "due" : {
+              "argNum" : 1,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg question"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg questions"
+                    }
+                  }
+                }
+              }
+            },
+            "new" : {
+              "argNum" : 2,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg new one"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg new ones"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld questions you're about to forget." : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld question you're about to forget."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld questions you're about to forget."
                 }
               }
             }
@@ -839,6 +1263,28 @@
                 "stringUnit" : {
                   "state" : "translated",
                   "value" : "%lld stars"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld stars dimming" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld star dimming"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld stars dimming"
                 }
               }
             }
@@ -910,6 +1356,8 @@
     "1 freeze saved" : {},
     "1,000 answers." : {},
     "1-day streak" : {},
+    "10 minutes on %@, then sleep. That's the whole plan tonight." : {},
+    "10 minutes on your weak spots, then sleep. That's the whole plan tonight." : {},
     "100 days in a row." : {},
     "2 of 3 · Almost" : {},
     "22 minutes tonight and you're done. Your streak is safe." : {},
@@ -924,6 +1372,9 @@
     "A blanket full of stars." : {},
     "A code works once, for one friend. Share it as a link, or read it out." : {},
     "A cozy end to a good day." : {},
+    "A few %@ questions are in too" : {},
+    "A few at a time, so it's all in before the exam." : {},
+    "A few at a time, so they stick." : {},
     "A file" : {},
     "A friend's Squad gives you every Pro feature, on their plan." : {},
     "A gentle nudge: that one." : {},
@@ -951,6 +1402,7 @@
     "A projection from your recall so far, not a promise." : {},
     "A run climbing, an almost, five in a row, a miss, a save, the finish" : {},
     "A session" : {},
+    "A short review of what you know." : {},
     "A short study, then a nap." : {},
     "A soft landing. Try again." : {},
     "A spark" : {},
@@ -1084,7 +1536,6 @@
     "Accounts aren't set up in this build. Everything you study stays on this iPhone." : {},
     "Add" : {},
     "Add a choice" : {},
-    "Add a course first, then its exams." : {},
     "Add a date" : {},
     "Add a few sentences first" : {},
     "Add a key idea" : {},
@@ -1100,6 +1551,7 @@
     "Add one and Capling plans backwards from its date, and shows how ready you are, day by day." : {},
     "Add one and Capling tracks how ready you are, day by day." : {},
     "Add questions for the rest" : {},
+    "Add the date and every day's plan aims at it." : {},
     "Add the worked chat" : {},
     "Add to" : {},
     "Add your first material" : {},
@@ -1287,6 +1739,7 @@
     "Back again" : {},
     "Back in 5 days" : {},
     "Back to my session" : {},
+    "Back tomorrow. Your streak is safe." : {},
     "Badges" : {},
     "Base" : {},
     "Based on %lld questions so far." : {
@@ -1393,6 +1846,7 @@
     "Cap asks a guiding question before it explains. Just explain is one tap away in any chat." : {},
     "Cap asks a question before it explains." : {},
     "Cap asks first" : {},
+    "Cap brings it up tomorrow" : {},
     "Cap couldn't do that one." : {},
     "Cap couldn't find that exam." : {},
     "Cap couldn't make usable cards from that. Try asking again." : {},
@@ -1408,6 +1862,7 @@
     "Cap fits each day's session to this. Near an exam, the plan may ask for a few minutes more." : {},
     "Cap is adding a note" : {},
     "Cap is making cards from your chat" : {},
+    "Cap is quiet tonight." : {},
     "Cap is reading your notes" : {},
     "Cap is working: %@" : {},
     "Cap is writing a note about what it made" : {},
@@ -1439,6 +1894,7 @@
     "Cap may look things up on trusted study sites when you ask." : {},
     "Cap moves" : {},
     "Cap moves on screen." : {},
+    "Cap noticed" : {},
     "Cap shows these and waits for you." : {},
     "Cap speaks when you tap him." : {},
     "Cap stays quiet when you tap him." : {},
@@ -1491,7 +1947,6 @@
     "Cards make good pillows." : {},
     "Cards make me smarter, slowly." : {},
     "Careful, that's a big one." : {},
-    "Catch up · %lld min" : {},
     "Cells · Mitosis" : {},
     "Change how this answer counts" : {},
     "Change the day or time" : {},
@@ -1574,6 +2029,7 @@
     "Counts as %@" : {},
     "Course" : {},
     "Course name" : {},
+    "Course name, like Bio 101" : {},
     "Course: %@" : {},
     "Courses" : {},
     "Courses, notes, cards, reviews, exams, chats and settings" : {},
@@ -1623,6 +2079,7 @@
     "Discard recording" : {},
     "Don't wake the capybara." : {},
     "Done" : {},
+    "Done for today" : {},
     "Done today" : {},
     "Double-checking…" : {},
     "Double-tap if you had none of the key ideas" : {},
@@ -1652,6 +2109,7 @@
     "Email address" : {},
     "Ember" : {},
     "Essay" : {},
+    "Eve" : {},
     "Even I forget things." : {},
     "Even a tiny session counts." : {},
     "Even brains need breaks." : {},
@@ -1677,12 +2135,14 @@
     "Everything stays on this iPhone" : {},
     "Everything you study stays on this iPhone. With an account, a copy is kept in it, so a new iPhone picks up where you left off." : {},
     "Everything you've studied stays on this iPhone. Sync stops until you sign in again." : {},
+    "Exam" : {},
     "Exam %@" : {},
     "Exam Pass" : {},
     "Exam Pass for %@" : {},
     "Exam countdowns" : {},
     "Exam date" : {},
     "Exam day %@" : {},
+    "Exam: %@" : {},
     "Example reminder: %lld minutes tonight and you're done." : {
       "localizations" : {
         "en" : {
@@ -1731,8 +2191,8 @@
     "Five more minutes…" : {},
     "Five right answers in a row" : {},
     "Fix a mix-up" : {},
-    "Fix it now" : {},
     "Fix it now · 2 min" : {},
+    "Fix it · 2 min" : {},
     "Fixed" : {},
     "Flash! Did I get it?" : {},
     "Flashcard" : {},
@@ -1742,6 +2202,7 @@
     "Follows your iPhone" : {},
     "Fonts" : {},
     "Food for thought." : {},
+    "For %@" : {},
     "For accounts under 18 Cap always asks first. You decide what is added." : {},
     "For handwriting, math and diagrams. Photos of the pages you scan go along with their text. You can change this later." : {},
     "For handwriting, math and diagrams. Photos of the pages you scan go with their text. Needs Cloud AI." : {},
@@ -1803,11 +2264,17 @@
     "Gold" : {},
     "Gold star, well deserved." : {},
     "Golden hour, golden brain." : {},
+    "Good afternoon" : {},
     "Good afternoon!" : {},
+    "Good afternoon, %@" : {},
     "Good audio, good notes." : {},
     "Good effort adds up." : {},
+    "Good evening" : {},
+    "Good evening, %@" : {},
     "Good evening." : {},
     "Good instincts. Keep them." : {},
+    "Good morning" : {},
+    "Good morning, %@" : {},
     "Good morning, scholar." : {},
     "Good night" : {},
     "Good questions make good answers." : {},
@@ -1815,6 +2282,7 @@
     "Good to have you here." : {},
     "Goodnight, goodnight." : {},
     "Goodnight, little cards." : {},
+    "Got it" : {},
     "Got it. Got it. Got it." : {},
     "Got the whole spread." : {},
     "Grade again" : {},
@@ -1934,6 +2402,8 @@
     "Is it bedtime?" : {},
     "Is this a game? I love it." : {},
     "Is this thing on?" : {},
+    "It covers %@." : {},
+    "It covers all of %@." : {},
     "It has no questions." : {},
     "It leaves your sessions and readiness for good." : {},
     "It may have been removed on another device." : {},
@@ -1960,6 +2430,8 @@
     },
     "Its cards became the questions below." : {},
     "Its deck was deleted or changed." : {},
+    "Its exam is %@ away." : {},
+    "Its exam is further off, so it gets a smaller share of today." : {},
     "Its pages are removed from this iPhone. Kept questions lose their link to the page." : {},
     "Its plan goes. The questions and progress in %@ stay." : {},
     "Its plan goes. Your questions and progress stay in %@." : {},
@@ -2151,17 +2623,6 @@
     "New note" : {},
     "New question" : {},
     "New topic" : {},
-    "Next exam" : {},
-    "Next exam: %@, %@, %@ left" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "Next exam: %1$@, %2$@, %3$@ left"
-          }
-        }
-      }
-    },
     "Next review %@" : {},
     "Next: %lld days" : {},
     "Nice pull. Sky refreshed." : {},
@@ -2310,12 +2771,13 @@
     "Opens Capling on today's study session." : {},
     "Opens Help, with a way to write to Loopware" : {},
     "Opens Loopware's support page" : {},
+    "Opens every topic, each with Practice" : {},
+    "Opens it" : {},
     "Opens the App Store's own page. Cancelling takes two taps and keeps %@ until the end of the period you paid for." : {},
     "Opens the Capling lecture recorder." : {},
     "Opens the Capling scanner to turn pages of notes into questions." : {},
     "Opens the lecture at this moment" : {},
     "Opens the lecture notes" : {},
-    "Opens the mix-up" : {},
     "Opens the page" : {},
     "Opens the page in Safari" : {},
     "Opens the page this question came from" : {},
@@ -2326,12 +2788,12 @@
     "Opens your account" : {},
     "Opens your memory sky" : {},
     "Opens your streak" : {},
+    "Opens your streak and the month" : {},
     "Option %lld" : {},
     "Optional. Shown after you answer." : {},
     "Options" : {},
     "Or type another name" : {},
     "Oranges are my study snack." : {},
-    "Other exams" : {},
     "Owner" : {},
     "Pace yourself, scholar." : {},
     "Page" : {},
@@ -2415,11 +2877,11 @@
         }
       }
     },
-    "Practice 5 minutes" : {},
     "Practice it again" : {},
     "Practice session" : {},
     "Practice this topic" : {},
     "Practice · %lld min" : {},
+    "Practice · 5 min" : {},
     "Practise for %@" : {},
     "Practise for your exam" : {},
     "Practises this topic" : {},
@@ -2511,6 +2973,7 @@
     "Readiness" : {},
     "Readiness covers every topic in the course." : {},
     "Readiness covers only the topics you tick." : {},
+    "Readiness is based on them. Add more material and it gets surer." : {},
     "Readiness on the day" : {},
     "Readiness target" : {},
     "Readiness, the last two weeks and the plan to exam day" : {},
@@ -2608,6 +3071,7 @@
     "Say it to yourself, then tap to check" : {},
     "Say something smart." : {},
     "Say what to research." : {},
+    "Says why today's questions were picked" : {},
     "Scan a page" : {},
     "Scan a page from class and Capling turns it into questions. Every one becomes a star." : {},
     "Scan a page, add a PDF or record a lecture, and today's session builds itself." : {},
@@ -2638,7 +3102,6 @@
     "See that card? Yep." : {},
     "See the plans" : {},
     "See the sky" : {},
-    "See who's studying today" : {},
     "Seed the demo world" : {},
     "Selected" : {},
     "Send" : {},
@@ -2800,6 +3263,7 @@
     "Starting" : {},
     "Starting your note" : {},
     "Steady this week" : {},
+    "Steady today" : {},
     "Steam is a great view." : {},
     "Still hearing: %@" : {},
     "Still learning, still good." : {},
@@ -2850,6 +3314,29 @@
     },
     "Study before noon" : {},
     "Study buddy, reporting for duty." : {},
+    "Study for %lld minutes" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Study for %lld minute"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Study for %lld minutes"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "Study something else" : {},
     "Study today to make it %lld." : {},
     "Study today to start a new streak." : {},
     "Study · %lld min" : {},
@@ -2942,6 +3429,7 @@
     "The format shapes the projected grade: multiple choice leaves room for a good guess." : {},
     "The labels come from the page, so they stay as they were read." : {},
     "The labels come from the text on your page, so they stay as they are." : {},
+    "The night before %@" : {},
     "The note came out empty. Try asking again." : {},
     "The note was empty." : {},
     "The offline rules can't make good notes from this lecture." : {},
@@ -2956,10 +3444,57 @@
     "The sky says hello." : {},
     "The stars are out. Look!" : {},
     "The transcript isn't ready yet" : {},
+    "The weakest topics for this exam, plus %lld new questions." : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "The weakest topics for this exam, plus %lld new question."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "The weakest topics for this exam, plus %lld new questions."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "The weakest topics for this exam, plus %lld questions you're about to forget." : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "The weakest topics for this exam, plus %lld question you're about to forget."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "The weakest topics for this exam, plus %lld questions you're about to forget."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "The weakest topics for this exam." : {},
     "The whole course" : {},
     "The whole session is for this exam." : {},
     "The words in [brackets] are the blanks." : {},
     "Their code" : {},
+    "Their exams are %@ away." : {},
+    "Their exams are further off, so they get a smaller share of today." : {},
     "Theme" : {},
     "Then about %lld min a day until %@" : {
       "localizations" : {
@@ -3014,16 +3549,19 @@
     "Title, like Chapter 3 notes" : {},
     "Today" : {},
     "Today %@" : {},
+    "Today · %@" : {},
     "Today · %lld min" : {},
     "Today · done" : {},
     "Today · nothing due" : {},
     "Today's event" : {},
+    "Today's questions" : {},
     "Today's quests" : {},
     "Today's session is done. This one is extra." : {},
     "Today's session is for your other exams." : {},
     "Today's session is in." : {},
     "Today: a tiny bit. Perfect." : {},
     "Tomorrow" : {},
+    "Tomorrow · %@" : {},
     "Tomorrow's brain says thanks." : {},
     "Tomorrow-us will be ready." : {},
     "Tonight · %lld min" : {},
@@ -3031,6 +3569,8 @@
     "Tonight · about %lld min" : {},
     "Tonight's weak spots take you to about %@ by tomorrow morning." : {},
     "Tonight's weak spots take you to about %@ by tomorrow." : {},
+    "Tonight, 10 minutes" : {},
+    "Tonight: weak spots only" : {},
     "Too cozy to move." : {},
     "Topic" : {},
     "Topic name" : {},
@@ -3099,7 +3639,9 @@
     "Web research is off in Settings." : {},
     "Web research is part of Capling Pro." : {},
     "Webbed feet. Excellent swimmer." : {},
+    "Welcome" : {},
     "Welcome back" : {},
+    "Welcome, %@" : {},
     "What Cap can do" : {},
     "What Capling sends" : {},
     "What happens after mitosis in the cell?" : {},
@@ -3111,6 +3653,7 @@
     "What's sent, and to whom" : {},
     "Whatever happens, I'm here." : {},
     "When" : {},
+    "When is your next exam?" : {},
     "Which class is this for?" : {},
     "Whoa, easy there!" : {},
     "Why do cells divide by mitosis?" : {},
@@ -3118,6 +3661,7 @@
     "Why it's right (optional)" : {},
     "Why it's right, in a sentence or two" : {},
     "Why it's wrong (optional)" : {},
+    "Why these?" : {},
     "Why? Always why." : {},
     "With Pro" : {},
     "Woohoo!" : {},
@@ -3195,6 +3739,7 @@
     },
     "You'll go back to the free plan. Everything you've studied stays on your iPhone and in your account." : {},
     "You'll go back to the free plan. Everything you've studied stays." : {},
+    "You're about to forget them, so they come back now." : {},
     "You're all caught up. New questions show up here as you add material." : {},
     "You're doing great, you know." : {},
     "You're my favourite human." : {},
@@ -3267,6 +3812,7 @@
     "Your memory sky is empty. Add class material and every question you study becomes a star." : {},
     "Your name" : {},
     "Your notes and answers are never used to train AI models." : {},
+    "Your other exams can wait until after %@." : {},
     "Your page stays on this iPhone unless you turn on Cloud AI." : {},
     "Your path to %@" : {},
     "Your plan" : {},
@@ -3285,17 +3831,66 @@
     "Your turn" : {},
     "Your weakest topic" : {},
     "Your weakest topic." : {},
+    "Your weakest topics, plus %lld new questions." : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Your weakest topics, plus %lld new question."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Your weakest topics, plus %lld new questions."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "Your weakest topics, plus %lld questions you're about to forget." : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Your weakest topics, plus %lld question you're about to forget."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Your weakest topics, plus %lld questions you're about to forget."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "Your weakest topics." : {},
     "Zoomable" : {},
     "Zzzoom." : {},
     "Zzz… oh! Hi." : {},
+    "about %@ after today" : {},
     "and %lld more" : {},
     "by “Let Cap do it”" : {},
     "capl" : {},
     "card from %@" : {},
     "cards from %@" : {},
+    "covered by a freeze" : {},
     "day" : {},
     "day streak" : {},
     "days" : {},
+    "done" : {},
+    "down %lld points this week" : {},
     "for %lld days, one time. Doesn't renew." : {
       "localizations" : {
         "en" : {
@@ -3318,13 +3913,71 @@
         }
       }
     },
+    "in %lld days" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "in %lld day"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "in %lld days"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "min" : {},
     "ng" : {},
+    "not studied" : {},
     "p. %@" : {},
     "ready" : {},
     "rest" : {},
+    "steady this week" : {},
+    "studied" : {},
+    "the night before %@, %lld minutes" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "the night before %1$@, %#@minutes@"
+          },
+          "substitutions" : {
+            "minutes" : {
+              "argNum" : 2,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg minute"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg minutes"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "them" : {},
     "today" : {},
+    "up %lld points this week" : {},
     "|" : {},
     "·" : {},
     "ı" : {},
