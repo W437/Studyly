@@ -4,7 +4,8 @@
 // and an in-memory store) with the real OpenAI provider. It asks for questions from the sample page, checks them
 // against the page, grades three answers and asks the tutor two questions (streamed with citations), all on GPT 6.1
 // Terra, printing what the app would show and a verdict per check. It spends a few cents and stores nothing. The key is
-// read from the environment only and never written anywhere. `LIVE_ONLY=generate,check,grade,tutor,lookalike` runs some of them.
+// read from the environment only and never written anywhere. `LIVE_ONLY=generate,check,grade,tutor,lookalike,syllabus,exam-mention` runs
+// some of them.
 //
 // Use it after changing a prompt in _shared/prompts/ (then `deno task bundle`), and once before launch.
 
@@ -21,7 +22,9 @@ if (!key) {
 // OPENAI_BASE_URL points it at the mock server instead (`deno task mock-openai`), for a dry run of this script.
 const baseURL = Deno.env.get("OPENAI_BASE_URL") || undefined;
 const only = new Set(
-  (Deno.env.get("LIVE_ONLY") ?? "generate,check,grade,tutor,lookalike").split(",").map((p) => p.trim()),
+  (Deno.env.get("LIVE_ONLY") ?? "generate,check,grade,tutor,lookalike,syllabus,exam-mention").split(",").map((p) =>
+    p.trim()
+  ),
 );
 const t = rig({
   env: { OPENAI_API_KEY: key, DAILY_COST_CAP_USD: "0" }, // many requests as one person: no daily cost cap
@@ -181,6 +184,83 @@ if (only.has("lookalike")) {
     !/you (got|missed|swapped|mixed)/i.test(`${lesson?.explanation} ${lesson?.lesson}`),
     "never says the student got it wrong",
   );
+}
+
+// 5. A syllabus: what the midterm covers, its date and its format, from the request fixture's page.
+if (only.has("syllabus")) {
+  console.log("\n== syllabus");
+  const request = fixtureJson("requests/syllabus");
+  const lines = new Set<string>(request.pages[0].lines.map((l: { id: string }) => l.id));
+  const text = request.pages[0].lines.map((l: { text: string }) => l.text).join("\n");
+  const reply = await post("syllabus", request);
+  // deno-lint-ignore no-explicit-any
+  const exams: any[] = reply?.exams ?? [];
+  for (const exam of exams) {
+    console.log(`  ${exam.title} · ${exam.date ?? "no date"} ${exam.time ?? ""} · “${exam.dateQuote ?? ""}”`);
+    console.log(`    format ${JSON.stringify(exam.format)} · “${exam.formatQuote ?? ""}”`);
+    // deno-lint-ignore no-explicit-any
+    for (const t of exam.topics as any[]) console.log(`    ${t.topicId ?? "new"}: ${t.name} (${t.lineIds.join(",")})`);
+  }
+  const midterm = exams.find((e) => /midterm/i.test(e.title));
+  verdict(exams.length === 2, `two exams on the page (${exams.length})`);
+  verdict(midterm?.date === "2026-11-20", "the midterm's date");
+  verdict(midterm?.time === "10:00", "the midterm's time");
+  verdict(
+    typeof midterm?.dateQuote === "string" && text.includes(midterm.dateQuote),
+    "the date's quote is on the page, word for word",
+  );
+  // deno-lint-ignore no-explicit-any
+  const names = (midterm?.topics ?? []).map((t: any) => t.name.toLowerCase());
+  verdict(
+    ["meiosis", "genetics basics", "phases of mitosis", "cytokinesis"].every((n) => names.includes(n)),
+    "the midterm's four topics",
+  );
+  // deno-lint-ignore no-explicit-any
+  const byName = new Map((midterm?.topics ?? []).map((t: any) => [t.name.toLowerCase(), t]));
+  // deno-lint-ignore no-explicit-any
+  verdict((byName.get("phases of mitosis") as any)?.topicId === "t1", "a topic the course has gets its id");
+  // deno-lint-ignore no-explicit-any
+  verdict((byName.get("meiosis") as any)?.topicId === undefined, "a new topic has none");
+  verdict(!/week/i.test(names.join(" ")), "week numbers are left out of the names");
+  // deno-lint-ignore no-explicit-any
+  verdict((midterm?.topics ?? []).every((t: any) => t.lineIds.every((l: string) => lines.has(l))), "line ids are real");
+  verdict(midterm?.format?.questionCount === 40 && midterm?.format?.minutes === 90, "40 questions in 90 minutes");
+  verdict(
+    midterm?.format?.multipleChoice === true && midterm?.format?.shortAnswer === true,
+    "multiple choice and short answers",
+  );
+  const empty = await post("syllabus", {
+    ...request,
+    pages: [{ page: 0, label: "1", lines: [{ id: "p0.l0", text: "Homework 3 is due Friday, November 20." }] }],
+  });
+  verdict(empty?.exams?.length === 0, "a page with only homework has no exams");
+}
+
+// 6. A date heard in a lecture: one sentence that announces an exam, one that doesn't.
+if (only.has("exam-mention")) {
+  console.log("\n== exam-mention");
+  const request = fixtureJson("requests/exam-mention");
+  const reply = await post("exam-mention", {
+    ...request,
+    mentions: [
+      ...request.mentions,
+      {
+        id: "m2",
+        text: "Your final paper for this class is due on December 4th, not the exam, the paper.",
+        candidates: ["2026-12-04"],
+      },
+    ],
+  });
+  // deno-lint-ignore no-explicit-any
+  const verdicts: any[] = reply?.mentions ?? [];
+  for (const v of verdicts) console.log(`  ${v.id}: ${JSON.stringify(v)}`);
+  const announced = verdicts.find((v) => v.id === "m1");
+  const paper = verdicts.find((v) => v.id === "m2");
+  verdict(announced?.isExam === true, "the midterm is an exam");
+  verdict(announced?.date === "2026-11-20", "with its date");
+  verdict(/midterm/i.test(announced?.title ?? ""), "and its name");
+  verdict(/week/i.test(announced?.scopePhrase ?? ""), "and what the lecturer said it covers");
+  verdict(paper?.isExam === false, "a paper's deadline is not an exam");
 }
 
 // Cost, from the relay's own log lines.

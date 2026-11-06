@@ -369,6 +369,75 @@
       "required": ["deleted"],
       "additionalProperties": false
     },
+    "SyllabusTopic": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "topicId": { "type": "string" },
+        "lineIds": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["name", "lineIds"],
+      "additionalProperties": false
+    },
+    "SyllabusFormat": {
+      "type": "object",
+      "properties": {
+        "multipleChoice": { "type": "boolean" },
+        "shortAnswer": { "type": "boolean" },
+        "essay": { "type": "boolean" },
+        "questionCount": { "type": "integer" },
+        "minutes": { "type": "integer" },
+        "notes": { "type": "string" }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "SyllabusExam": {
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "date": { "type": "string" },
+        "time": { "type": "string" },
+        "dateQuote": { "type": "string" },
+        "topics": { "type": "array", "items": { "$ref": "#/$defs/SyllabusTopic" } },
+        "format": { "$ref": "#/$defs/SyllabusFormat" },
+        "formatQuote": { "type": "string" }
+      },
+      "required": ["title", "topics", "format"],
+      "additionalProperties": false
+    },
+    "SyllabusResponse": {
+      "type": "object",
+      "properties": {
+        "model": { "type": "string" },
+        "exams": { "type": "array", "items": { "$ref": "#/$defs/SyllabusExam" } }
+      },
+      "required": ["model", "exams"],
+      "additionalProperties": false
+    },
+    "ExamMentionVerdict": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "isExam": { "type": "boolean" },
+        "title": { "type": "string" },
+        "date": { "type": "string" },
+        "time": { "type": "string" },
+        "scopePhrase": { "type": "string" },
+        "topics": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["id", "isExam", "topics"],
+      "additionalProperties": false
+    },
+    "ExamMentionResponse": {
+      "type": "object",
+      "properties": {
+        "model": { "type": "string" },
+        "mentions": { "type": "array", "items": { "$ref": "#/$defs/ExamMentionVerdict" } }
+      },
+      "required": ["model", "mentions"],
+      "additionalProperties": false
+    },
     "RelayErrorBody": {
       "type": "object",
       "properties": {

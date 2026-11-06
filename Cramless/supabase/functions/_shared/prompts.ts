@@ -6,12 +6,14 @@ import type {
   AssistantRequest,
   CardsFromChatRequest,
   ConfusionsRequest,
+  ExamMentionRequest,
   GeneratedItem,
   GenerateRequest,
   GradeRequest,
   LectureRequest,
   PageInput,
   ResearchRequest,
+  SyllabusRequest,
   TranscribeImageRequest,
   TutorRequest,
 } from "./contract.ts";
@@ -19,7 +21,16 @@ import { PROMPTS } from "./generated.ts";
 import type { ContentBlock, Message } from "./provider.ts";
 import { DENIED_SOURCES } from "./research_sources.ts";
 
-export type Task = "generate" | "check" | "grade" | "confusions" | "lecture" | "cards" | "transcribe";
+export type Task =
+  | "generate"
+  | "check"
+  | "grade"
+  | "confusions"
+  | "lecture"
+  | "cards"
+  | "transcribe"
+  | "syllabus"
+  | "exam-mention";
 
 function prompt(name: string): string {
   const text = PROMPTS[name];
@@ -255,6 +266,48 @@ export function transcribeContent(req: TranscribeImageRequest): ContentBlock[] {
     imageBlock(req.image),
     { type: "text", text: `Page index ${req.page}, labelled "${attr(req.label)}". Transcribe it.` },
   ];
+}
+
+/** A syllabus as numbered lines, then what the reader needs to know about the course. Topic names are the student's own, so each is one
+ * plain line. */
+export function syllabusContent(req: SyllabusRequest): ContentBlock[] {
+  const topics = req.topics.map((t) => `${t.id}: ${oneLine(t.name)}`).join("\n");
+  return [
+    ...pagesContent(req.pages),
+    {
+      type: "text",
+      text: [
+        `Course: ${oneLine(req.course, 200)}`,
+        ...(req.examTitle?.trim() ? [`The exam being set up: ${oneLine(req.examTitle, 200)}`] : []),
+        `Today: ${req.today}`,
+        "",
+        `<course_topics>\n${topics}\n</course_topics>`,
+        "",
+        "Read what this page says about the exams.",
+      ].join("\n"),
+    },
+  ];
+}
+
+/** The sentences a date was heard in, each with the days the phone read from it. */
+export function examMentionContent(req: ExamMentionRequest): ContentBlock[] {
+  const mentions = req.mentions.map((m) =>
+    `<mention id="${attr(m.id)}" candidates="${m.candidates.map(attr).join(", ")}">${m.text}</mention>`
+  ).join("\n");
+  return [{
+    type: "text",
+    text: [
+      `Course: ${oneLine(req.course, 200)}`,
+      `Lecture: ${oneLine(req.title, 200)}`,
+      `Recorded on: ${req.recordedDay}`,
+      ...(req.language?.trim() ? [`Language: ${oneLine(req.language, 20)}`] : []),
+      `Course topics: ${req.topics.map((t) => oneLine(t)).filter((t) => t).join("; ") || "(none)"}`,
+      "",
+      mentions,
+      "",
+      "Answer once per mention.",
+    ].join("\n"),
+  }];
 }
 
 /** A source's text in sentence-sized blocks, so a quote can be located in the passage. */

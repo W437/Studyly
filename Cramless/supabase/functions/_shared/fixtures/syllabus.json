@@ -1,0 +1,35 @@
+{
+  "model": "mock",
+  "exams": [
+    {
+      "title": "Midterm",
+      "date": "2026-11-20",
+      "time": "10:00",
+      "dateQuote": "Friday, November 20, 10:00 AM",
+      "topics": [
+        { "name": "Phases of mitosis", "topicId": "t1", "lineIds": ["p0.l6"] },
+        { "name": "Cytokinesis", "topicId": "t2", "lineIds": ["p0.l7"] },
+        { "name": "Meiosis", "lineIds": ["p0.l8"] },
+        { "name": "Genetics basics", "lineIds": ["p0.l9"] }
+      ],
+      "format": {
+        "multipleChoice": true,
+        "shortAnswer": true,
+        "essay": false,
+        "questionCount": 40,
+        "minutes": 90,
+        "notes": "One page of notes allowed"
+      },
+      "formatQuote": "40 questions: 30 multiple choice and 10 short answers, 90 minutes."
+    },
+    {
+      "title": "Final exam",
+      "date": "2026-12-14",
+      "dateQuote": "December 14",
+      "topics": [
+        { "name": "Everything from the term", "lineIds": ["p0.l13"] }
+      ],
+      "format": {}
+    }
+  ]
+}

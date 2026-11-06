@@ -1,0 +1,14 @@
+{
+  "model": "mock",
+  "mentions": [
+    {
+      "id": "m1",
+      "isExam": true,
+      "title": "Midterm",
+      "date": "2026-11-20",
+      "time": "10:00",
+      "scopePhrase": "weeks one to seven",
+      "topics": []
+    }
+  ]
+}

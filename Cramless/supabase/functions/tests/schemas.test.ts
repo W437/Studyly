@@ -51,6 +51,10 @@ export const FIXTURE_TYPES: Record<string, string> = {
   "tutor-error": "TutorScript",
   "tutor-explain": "TutorScript",
   "tutor-hints": "TutorScript",
+  syllabus: "SyllabusResponse",
+  "exam-mention": "ExamMentionResponse",
+  "requests/syllabus": "SyllabusRequest",
+  "requests/exam-mention": "ExamMentionRequest",
   "requests/assistant": "AssistantRequest",
   "requests/generate": "GenerateRequest",
   "requests/grade": "GradeRequest",
@@ -167,6 +171,12 @@ const SWIFT_TO_SCHEMA: Record<string, string> = {
   Choice: "Choice",
   ClozeSpec: "ClozeSpec",
   Section: "LectureSection",
+  SyllabusTopic: "SyllabusTopic",
+  SyllabusFormat: "SyllabusFormat",
+  SyllabusExam: "SyllabusExam",
+  SyllabusResponse: "SyllabusResponse",
+  ExamMentionVerdict: "ExamMentionVerdict",
+  ExamMentionResponse: "ExamMentionResponse",
 };
 
 const SWIFT_REQUESTS = [
@@ -183,6 +193,8 @@ const SWIFT_REQUESTS = [
   "EntitlementRequest",
   "SquadRedeemRequest",
   "SquadRemoveRequest",
+  "SyllabusRequest",
+  "ExamMentionRequest",
 ];
 
 Deno.test("contract.json has the Swift reply types' fields, and their optionality", async () => {
@@ -239,6 +251,8 @@ const PROVIDER_TYPES = [
   "LectureResponse",
   "CardsFromChatResponse",
   "TranscribeImageResponse",
+  "SyllabusResponse",
+  "ExamMentionResponse",
 ];
 const UNSUPPORTED = [
   "minLength",

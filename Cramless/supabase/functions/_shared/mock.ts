@@ -15,6 +15,8 @@ export const MOCK_LATENCY_MS: Record<string, number> = {
   lecture: 2500,
   "cards-from-chat": 1200,
   "transcribe-image": 1500,
+  syllabus: 1800,
+  "exam-mention": 900,
 };
 
 /** The fixture a route replies with by default. */
@@ -25,6 +27,8 @@ export const MOCK_FIXTURE: Record<string, string> = {
   lecture: "lecture",
   "cards-from-chat": "cards-from-chat",
   "transcribe-image": "transcribe-image",
+  syllabus: "syllabus",
+  "exam-mention": "exam-mention",
 };
 
 export function fixtureText(name: string): string {

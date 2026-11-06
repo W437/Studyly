@@ -48,6 +48,8 @@ Deno.test("every route needs a session; a deleted account is refused", async () 
       "lecture",
       "cards-from-chat",
       "transcribe-image",
+      "syllabus",
+      "exam-mention",
     ]
   ) {
     const res = await r.ai(path, { user: null, body: {} });

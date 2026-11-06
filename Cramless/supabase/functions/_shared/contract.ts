@@ -389,6 +389,101 @@ export interface TranscribeImageResponse {
   lines: LineInput[];
 }
 
+// ---- Exams that know their scope: a syllabus scan and a date heard in a lecture ----
+
+export interface SyllabusTopicInput {
+  /** A short id the model passes back (t1, t2, …), in the order the app sent them. */
+  id: string;
+  name: string;
+}
+
+export interface SyllabusRequest {
+  course: string;
+  /** The exam being edited, when it has a name. */
+  examTitle?: string;
+  /** yyyy-MM-dd, the student's local day. */
+  today: string;
+  /** The course's topics: up to 60. */
+  topics: SyllabusTopicInput[];
+  /** Up to 6 pages of read text. Never a photo: a page's `image` is ignored. */
+  pages: PageInput[];
+}
+
+export interface SyllabusTopic {
+  name: string;
+  /** The request's id when it is a topic the course already has. */
+  topicId?: string;
+  lineIds: string[];
+}
+
+export interface SyllabusFormat {
+  multipleChoice?: boolean;
+  shortAnswer?: boolean;
+  essay?: boolean;
+  questionCount?: number;
+  minutes?: number;
+  notes?: string;
+}
+
+export interface SyllabusExam {
+  title: string;
+  /** yyyy-MM-dd. */
+  date?: string;
+  /** HH:mm, 24 hours. */
+  time?: string;
+  /** The words on the page the date was read from. The app shows the date only if it finds them there. */
+  dateQuote?: string;
+  topics: SyllabusTopic[];
+  format: SyllabusFormat;
+  formatQuote?: string;
+}
+
+export interface SyllabusResponse {
+  model: string;
+  /** Up to 4. */
+  exams: SyllabusExam[];
+}
+
+export interface ExamMentionInput {
+  id: string;
+  /** The sentence as it was transcribed. */
+  text: string;
+  /** yyyy-MM-dd: the days the app's date detector read from it. */
+  candidates: string[];
+}
+
+export interface ExamMentionRequest {
+  course: string;
+  title: string;
+  /** yyyy-MM-dd: the day of the recording, which relative dates are counted from. */
+  recordedDay: string;
+  language?: string;
+  /** The course's topic names: up to 30. */
+  topics: string[];
+  /** Up to 5. */
+  mentions: ExamMentionInput[];
+}
+
+export interface ExamMentionVerdict {
+  id: string;
+  /** The lecturer is announcing when an exam is, not talking about a date in passing. */
+  isExam: boolean;
+  title?: string;
+  /** yyyy-MM-dd, one of the mention's candidates. */
+  date?: string;
+  /** HH:mm, 24 hours. */
+  time?: string;
+  /** What the lecturer said the exam covers, in their words ("weeks one to seven"). */
+  scopePhrase?: string;
+  /** Names from the request's topics. */
+  topics: string[];
+}
+
+export interface ExamMentionResponse {
+  model: string;
+  mentions: ExamMentionVerdict[];
+}
+
 export type MeterKey = "scans" | "grades" | "tutor" | "lectures";
 export type Period = "day" | "week";
 

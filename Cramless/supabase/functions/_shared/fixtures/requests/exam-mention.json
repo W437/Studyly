@@ -1,0 +1,14 @@
+{
+  "course": "Bio 101",
+  "title": "Lecture 6: The phases of mitosis",
+  "recordedDay": "2026-11-02",
+  "language": "en",
+  "topics": ["Phases of mitosis", "Cytokinesis"],
+  "mentions": [
+    {
+      "id": "m1",
+      "text": "So the midterm is on November 20th at ten, and it covers weeks one to seven.",
+      "candidates": ["2026-11-20"]
+    }
+  ]
+}

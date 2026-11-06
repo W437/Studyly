@@ -1,7 +1,7 @@
 // The `ai` function: the relay the app's HTTP transport calls. One function, routed by path:
 //   POST /ai/generate, /ai/check, /ai/grade, /ai/tutor (server-sent events), /ai/confusions, /ai/lecture,
 //        /ai/cards-from-chat, /ai/transcribe-image, /ai/assistant (server-sent events: Ask Cap with tools),
-//        /ai/research (server-sent events: web research, Pro)
+//        /ai/research (server-sent events: web research, Pro), /ai/syllabus, /ai/exam-mention
 //   GET  /ai/quota
 // Every route checks the caller's Supabase session (anonymous users allowed), resolves their plan (an active
 // entitlement or Squad membership), validates the body, meters the free quotas (scans, grades, tutor, lectures;
@@ -21,6 +21,8 @@ import type {
   CheckResponse,
   ConfusionsRequest,
   ConfusionsResponse,
+  ExamMentionRequest,
+  ExamMentionResponse,
   GenerateRequest,
   GenerateResponse,
   GradeRequest,
@@ -30,6 +32,8 @@ import type {
   LectureResponse,
   ResearchRequest,
   ResearchScript,
+  SyllabusRequest,
+  SyllabusResponse,
   TranscribeImageRequest,
   TranscribeImageResponse,
   TutorRequest,
@@ -92,11 +96,13 @@ import {
   checkContent,
   checkSystem,
   confusionsContent,
+  examMentionContent,
   generateContent,
   gradeContent,
   lectureContent,
   researchInput,
   researchSystem,
+  syllabusContent,
   systemFor,
   transcribeContent,
   tutorMessages,
@@ -104,6 +110,7 @@ import {
 } from "../_shared/prompts.ts";
 import { providerSchema, requireSourceBudget, requireValid } from "../_shared/schemas.ts";
 import { EventStream, type TutorEventData } from "../_shared/sse.ts";
+import { sanitizeExamMentions, sanitizeSyllabus, textOnly } from "../_shared/syllabus.ts";
 import type { ScanKind, UserContext } from "../_shared/store.ts";
 import type { Caller } from "../_shared/auth.ts";
 
@@ -118,6 +125,8 @@ type RouteName =
   | "transcribe-image"
   | "assistant"
   | "research"
+  | "syllabus"
+  | "exam-mention"
   | "quota";
 
 const KB = 1024;
@@ -134,6 +143,8 @@ const ROUTES: Record<RouteName, { method: "GET" | "POST"; schema?: string; maxBy
   "transcribe-image": { method: "POST", schema: "TranscribeImageRequest", maxBytes: 12 * MB },
   assistant: { method: "POST", schema: "AssistantRequest", maxBytes: 2 * MB },
   research: { method: "POST", schema: "ResearchRequest", maxBytes: 16 * KB },
+  syllabus: { method: "POST", schema: "SyllabusRequest", maxBytes: 512 * KB },
+  "exam-mention": { method: "POST", schema: "ExamMentionRequest", maxBytes: 64 * KB },
   quota: { method: "GET", maxBytes: 0 },
 };
 
@@ -573,6 +584,58 @@ async function transcribeImage(c: Ctx, body: TranscribeImageRequest): Promise<Re
       };
     },
   );
+}
+
+// ---- An exam's scope: reading a syllabus, checking a date heard in a lecture ----
+
+/** What a syllabus says about its exams. Free for everyone on the hidden `extras` meter (about 1¢, a couple per course per term): it aims
+ * the free mocks and the gap cards. Text only: the photo stays on the phone. */
+async function syllabus(c: Ctx, body: SyllabusRequest): Promise<Response> {
+  if (body.pages.every((p) => p.lines.length === 0)) throw badRequest("These pages have no text yet.");
+  return await jsonRoute<SyllabusResponse>(c, { meter: "extras" }, () => "syllabus", async () => {
+    c.meta.model = TERRA;
+    const res = call(
+      c,
+      await c.deps.provider.json<Omit<SyllabusResponse, "model">>({
+        model: TERRA,
+        effort: "low",
+        maxTokens: 4_000,
+        system: systemFor("syllabus"),
+        content: syllabusContent({ ...body, pages: textOnly(body.pages) }),
+        schema: providerSchema("SyllabusResponse"),
+        signal: c.req.signal,
+      }),
+    );
+    return {
+      body: { model: res.model, exams: sanitizeSyllabus(res.value.exams, body) },
+      model: res.model,
+      usage: res.usage,
+    };
+  });
+}
+
+/** One look at the sentences a date was heard in, only after the student tapped to add the exam. On the hidden `extras` meter (under 1¢). */
+async function examMention(c: Ctx, body: ExamMentionRequest): Promise<Response> {
+  return await jsonRoute<ExamMentionResponse>(c, { meter: "extras" }, () => "exam-mention", async () => {
+    c.meta.model = TERRA;
+    const res = call(
+      c,
+      await c.deps.provider.json<Omit<ExamMentionResponse, "model">>({
+        model: TERRA,
+        effort: "low",
+        maxTokens: 2_000,
+        system: systemFor("exam-mention"),
+        content: examMentionContent(body),
+        schema: providerSchema("ExamMentionResponse"),
+        signal: c.req.signal,
+      }),
+    );
+    return {
+      body: { model: res.model, mentions: sanitizeExamMentions(res.value.mentions, body) },
+      model: res.model,
+      usage: res.usage,
+    };
+  });
 }
 
 // ---- The tutor (server-sent events) ----
@@ -1072,6 +1135,10 @@ async function handle(req: Request, deps: Deps, name: string, meta: Meta, starte
       return await assistant(c, body as AssistantRequest);
     case "research":
       return await research(c, body as ResearchRequest);
+    case "syllabus":
+      return await syllabus(c, body as SyllabusRequest);
+    case "exam-mention":
+      return await examMention(c, body as ExamMentionRequest);
   }
   throw notFound();
 }
