@@ -130,7 +130,9 @@ final class TodayRenderTests: XCTestCase {
             for scheme in [ColorScheme.light, .dark] {
                 try render(card, width: width, name: "notice", scheme: scheme)
                 try render(quiet, width: width, name: "quiet", scheme: scheme)
-                try render(TodayExamsRow(exams: exams, onOpen: { _ in }, onSeeAll: {}), width: width, name: "exams", scheme: scheme)
+                // The row scrolls sideways (which an image renderer draws empty), so its tiles are drawn side by side here.
+                let tiles = HStack(alignment: .top, spacing: 12) { ForEach(exams) { TodayExamTile(exam: $0, onOpen: {}) } }
+                try render(tiles, width: width, name: "exams", scheme: scheme)
                 try render(TodayAddExamCard(onAdd: {}), width: width, name: "addExam", scheme: scheme)
             }
             try render(card, width: width, name: "notice", scheme: .light, size: .accessibility3)

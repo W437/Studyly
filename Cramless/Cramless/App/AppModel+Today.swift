@@ -54,8 +54,9 @@ extension AppModel {
             input.due = summary.reviews
             input.new = summary.newItems
         }
-        input.others = focus.otherExamIDs.compactMap { id in
-            guard let other = exams.first(where: { $0.id == id }) else { return nil }
+        // Every other upcoming exam: the ones with none of today's minutes wait, the ones with a smaller share are "in too".
+        input.others = exams.filter { $0.id != focus.examID }.compactMap { other in
+            let id = other.id
             let courseName = other.courseID.flatMap { self.course($0) }?.name ?? ""
             return TodayReasons.Other(name: courseName.isEmpty ? other.title : courseName,
                                       daysLeft: calendar.dayDistance(from: now, to: other.date),

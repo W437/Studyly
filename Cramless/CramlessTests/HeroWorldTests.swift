@@ -81,8 +81,9 @@ final class HeroWorldGeometryTests: XCTestCase {
 
     func testTheSkyAspectBeforeMeasuringIsAPhonesBand() {
         XCTAssertEqual(TodaySnapshot.skyAspect, phone.skyAspect, "the default for a screen that isn't measured yet is a phone's")
-        let wide = HeroWorldGeometry.bandSkyAspect(width: 402, topInset: 62, compact: true)
-        XCTAssertLessThan(wide, phone.skyAspect, "the compact band's sky is lower still")
+        let compact = HeroWorldGeometry.bandSkyAspect(width: 402, topInset: 62, compact: true)
+        XCTAssertNotEqual(compact, phone.skyAspect, "the compact band's sky is laid out for its own shape")
+        XCTAssertLessThan(compact, 0.5, "and is still wide and low")
     }
 
     func testHeroCameraMayStartFurtherInThanTheFullScreen() {

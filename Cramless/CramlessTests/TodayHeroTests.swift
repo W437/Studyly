@@ -232,7 +232,9 @@ final class TodayHeroContentTests: XCTestCase {
                     XCTAssertTrue(CapPose.drawn.contains(c.cap.pose), "\(hero)")
                     for words in [c.title, c.reason] {
                         XCTAssertFalse(words.localizedCaseInsensitiveContains(" cards"), "\(hero): questions, not cards")
-                        XCTAssertFalse(words.contains(", then "), "\(hero): the session interleaves; no 'then' between topics")
+                        // "then sleep" on the eve is the plan for the night; between topics there is never a "then".
+                        XCTAssertFalse(words.replacingOccurrences(of: ", then sleep", with: "").contains(" then "),
+                                       "\(hero): the session interleaves; no 'then' between topics")
                     }
                     if let rings = c.rings {
                         XCTAssertGreaterThanOrEqual(rings.after ?? rings.now, rings.now, "\(hero): a forecast never goes down")

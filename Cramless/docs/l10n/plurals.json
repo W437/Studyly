@@ -114,16 +114,6 @@
       }
     }
   },
-  "%lld of %lld minutes done": {
-    "value": "%1$lld of %#@minutes@ done",
-    "substitutions": {
-      "minutes": {
-        "argNum": 2,
-        "one": "%arg minute",
-        "other": "%arg minutes"
-      }
-    }
-  },
   "%lld reviews piled up.": {
     "one": "%lld review piled up.",
     "other": "%lld reviews piled up."
@@ -143,21 +133,6 @@
       }
     }
   },
-  "%lld minutes, %lld answers. Back tomorrow. Your streak is safe.": {
-    "value": "%#@minutes@, %#@answers@. Back tomorrow. Your streak is safe.",
-    "substitutions": {
-      "minutes": {
-        "argNum": 1,
-        "one": "%arg minute",
-        "other": "%arg minutes"
-      },
-      "answers": {
-        "argNum": 2,
-        "one": "%arg answer",
-        "other": "%arg answers"
-      }
-    }
-  },
   "%lld free AI scans left this week": {
     "one": "%lld free AI scan left this week",
     "other": "%lld free AI scans left this week"
@@ -169,5 +144,142 @@
   "Cap kept %lld lectures that were cut off.": {
     "one": "Cap kept %lld lecture that was cut off.",
     "other": "Cap kept %lld lectures that were cut off."
+  },
+  "%lld stars dimming": {
+    "one": "%lld star dimming",
+    "other": "%lld stars dimming"
+  },
+  "in %lld days": {
+    "one": "in %lld day",
+    "other": "in %lld days"
+  },
+  "%lld days": {
+    "one": "%lld day",
+    "other": "%lld days"
+  },
+  "%lld months": {
+    "one": "%lld month",
+    "other": "%lld months"
+  },
+  "The weakest topics for this exam, plus %lld questions you're about to forget.": {
+    "one": "The weakest topics for this exam, plus %lld question you're about to forget.",
+    "other": "The weakest topics for this exam, plus %lld questions you're about to forget."
+  },
+  "Your weakest topics, plus %lld questions you're about to forget.": {
+    "one": "Your weakest topics, plus %lld question you're about to forget.",
+    "other": "Your weakest topics, plus %lld questions you're about to forget."
+  },
+  "The weakest topics for this exam, plus %lld new questions.": {
+    "one": "The weakest topics for this exam, plus %lld new question.",
+    "other": "The weakest topics for this exam, plus %lld new questions."
+  },
+  "Your weakest topics, plus %lld new questions.": {
+    "one": "Your weakest topics, plus %lld new question.",
+    "other": "Your weakest topics, plus %lld new questions."
+  },
+  "%lld questions you're about to forget, and %lld new ones.": {
+    "value": "%#@due@ you're about to forget, and %#@new@.",
+    "substitutions": {
+      "due": {
+        "argNum": 1,
+        "one": "%arg question",
+        "other": "%arg questions"
+      },
+      "new": {
+        "argNum": 2,
+        "one": "%arg new one",
+        "other": "%arg new ones"
+      }
+    }
+  },
+  "%lld questions you're about to forget.": {
+    "one": "%lld question you're about to forget.",
+    "other": "%lld questions you're about to forget."
+  },
+  "%lld new questions, so it's all in before the exam.": {
+    "one": "%lld new question, so it's all in before the exam.",
+    "other": "%lld new questions, so it's all in before the exam."
+  },
+  "%lld new questions.": {
+    "one": "%lld new question.",
+    "other": "%lld new questions."
+  },
+  "%lld of %lld minutes done.": {
+    "value": "%1$lld of %#@minutes@ done.",
+    "substitutions": {
+      "minutes": {
+        "argNum": 2,
+        "one": "%arg minute",
+        "other": "%arg minutes"
+      }
+    }
+  },
+  "Based on %lld questions so far.": {
+    "one": "Based on %lld question so far.",
+    "other": "Based on %lld questions so far."
+  },
+  "%lld min · %lld answers": {
+    "value": "%1$lld min · %#@answers@",
+    "substitutions": {
+      "answers": {
+        "argNum": 2,
+        "one": "%arg answer",
+        "other": "%arg answers"
+      }
+    }
+  },
+  "%lld days to go": {
+    "one": "%lld day to go",
+    "other": "%lld days to go"
+  },
+  "%lld minutes planned": {
+    "one": "%lld minute planned",
+    "other": "%lld minutes planned"
+  },
+  "%lld of %lld quests today": {
+    "value": "%1$lld of %#@quests@ today",
+    "substitutions": {
+      "quests": {
+        "argNum": 2,
+        "one": "%arg quest",
+        "other": "%arg quests"
+      }
+    }
+  },
+  "Study for %lld minutes": {
+    "one": "Study for %lld minute",
+    "other": "Study for %lld minutes"
+  },
+  "%lld of today's questions are on it.": {
+    "one": "%lld of today's questions is on it.",
+    "other": "%lld of today's questions are on it."
+  },
+  "%lld questions are due": {
+    "one": "%lld question is due",
+    "other": "%lld questions are due"
+  },
+  "%lld new questions": {
+    "one": "%lld new question",
+    "other": "%lld new questions"
+  },
+  "%@ has %lld questions so far": {
+    "value": "%1$@ has %#@questions@ so far",
+    "substitutions": {
+      "questions": {
+        "argNum": 2,
+        "one": "%arg question",
+        "other": "%arg questions"
+      }
+    }
+  },
+  "the night before %@, %lld minutes": {
+    "value": "the night before %1$@, %#@minutes@",
+    "substitutions": {
+      "minutes": {
+        "argNum": 2,
+        "one": "%arg minute",
+        "other": "%arg minutes"
+      }
+    }
   }
 }

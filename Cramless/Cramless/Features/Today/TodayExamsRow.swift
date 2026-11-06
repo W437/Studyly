@@ -34,7 +34,19 @@ struct TodayExamsRow: View {
     }
 
     private func tile(_ exam: TodayExam, wide: Bool) -> some View {
-        Button { onOpen(exam.id) } label: {
+        TodayExamTile(exam: exam, wide: wide) { onOpen(exam.id) }
+    }
+}
+
+/// One exam in Today's row: its readiness ring, its name, when it is (rose within three days), and this week's change.
+struct TodayExamTile: View {
+    let exam: TodayExam
+    /// A full-width row (the large text sizes) rather than a 150 pt tile.
+    var wide = false
+    var onOpen: () -> Void
+
+    var body: some View {
+        Button(action: onOpen) {
             VStack(alignment: .leading, spacing: 8) {
                 ReadinessRing(value: exam.readiness, size: 46, lineWidth: 6)
                 Text(verbatim: exam.title)
@@ -49,7 +61,7 @@ struct TodayExamsRow: View {
                     .fontWeight(exam.daysLeft <= 3 ? .semibold : .regular)
                     .lineLimit(wide ? nil : 1)
                     .minimumScaleFactor(0.85)
-                deltaPill(exam)
+                deltaPill
             }
             .frame(width: wide ? nil : 150, alignment: .leading)
             .frame(maxWidth: wide ? .infinity : nil, alignment: .leading)
@@ -58,12 +70,12 @@ struct TodayExamsRow: View {
         .buttonStyle(.pressable)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text(verbatim: "\(exam.title), \(exam.when)"))
-        .accessibilityValue(Text(verbatim: "\(CLFormat.percent(exam.readiness)) \(String(localized: "ready")), \(deltaWords(exam))"))
+        .accessibilityValue(Text(verbatim: "\(CLFormat.percent(exam.readiness)) \(String(localized: "ready")), \(deltaWords)"))
         .accessibilityAddTraits(.isButton)
     }
 
     /// "+15% this week" with an arrow up, "−3% this week" with an arrow down, "Steady this week": words and a shape, not colour alone.
-    private func deltaPill(_ exam: TodayExam) -> some View {
+    private var deltaPill: some View {
         let points = Int((exam.delta * 100).rounded())
         return Group {
             if points > 0 {
@@ -76,7 +88,7 @@ struct TodayExamsRow: View {
         }
     }
 
-    private func deltaWords(_ exam: TodayExam) -> String {
+    private var deltaWords: String {
         let points = Int((exam.delta * 100).rounded())
         return points == 0 ? String(localized: "steady this week")
             : points > 0 ? String(localized: "up \(points) points this week") : String(localized: "down \(-points) points this week")

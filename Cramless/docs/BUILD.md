@@ -1416,6 +1416,39 @@ trust rules and the screens are in `docs/assistant.md`, the wire format in `docs
   Declined or unanswered, the band stays unknown and the level fallback applies as before (no level: adult rules). Skipped in the harness,
   in tests and on the simulator, which has no answer: **a device check**.
 
+### Stage 1: the new Today, plan first (2026-11-06, lane `s1-today`)
+
+- **The band** (`TodaySkyHero`, `HeroWorld`, `HeroWorldGeometry.band(width:topInset:compact:)`): 188 pt under the status bar on every
+  phone, Cap 96 pt on the shore, a strip of lake that mirrors nothing (`reflects`), the dusk's glow and the top scrim shortened
+  (`glowReach`, `scrimReach`). The welcome builds its own geometry and keeps `style: .world` (its numbers are tested unchanged).
+  Greeting by the hour (`TodayCopy.greeting`), streak pill, avatar, "17 stars dimming" (plural key). A tap anywhere opens the full sky:
+  `HeroFocusCard`, `HeroFocusPlacement`, the band's camera moves and constellation hit-testing are gone (the full sky keeps its card and
+  Practice). The band draws at the screen's rate while anything moves (it was capped at 30 a second: a tilt or a shooting star stepped
+  on a 120 Hz screen) and stops when nothing does.
+- **The day card** (`TodayDayCard` from `TodayHeroContent.make(snapshot)`): `TodaySnapshot` gains `focus` (the `SessionFocus` exam with
+  its topics and `readinessAfter` over today's built session, never below now), `sessionTopics`, `eveTopics`/`eveOthers`, `doneExam`
+  (`AppModel.todayDoneExamID()`: the exam today's last finished session counted toward), `practice` (the topic with the lowest mean
+  recall), `strip`, `notices`, `greeting`, `firstDay`; `TodayExam` gains `when`, `itemsInScope`, `deltaToday`. The snapshot reads
+  `todayPlan()` once. Every state of the plan's table, with "Study · N min" also on catch-up days and "Practice <topic> · 5 min" when all
+  is lit. "Why these?" is `AppSheet.todayReasons` (`TodayReasonsSheet`, pure `TodayReasons.make` over `AppModel.todayReasonsInput()`);
+  "Study something else" pushes `Route.skyList` (`SkyScreen(startsAsList: true)`). The projection ring is `ReadinessRing(style:
+  .projection)` (dashed; the default `.solid` is unchanged).
+- **Your plan** (`TodayPlanCard`, pure `TodayPlanStrip.make` over `examPlans()` and the day records): two days back, today, four ahead;
+  never red. Quests are one line opening `AppSheet.quests` (`TodayQuestsSheet`, the same `TodayQuestsCard`). "Calendar" opens the streak
+  page, whose month now marks each upcoming exam (mortarboard) and its eve (moon), with a legend, and goes one month ahead.
+- **Cap noticed** (`CapNotice` in `Engine/CapNotice.swift`, `App/AppModel+Notices.swift`: `todayNotices()`, `snoozeNotice(_:)`,
+  `perform(_:)`): today's open mix-ups, most missed first, at most three, as cards with "1 of N", "Fix it · 2 min" and Later (the old
+  snooze store, so Stage 2's ledger can import it). Stage 2's engine replaces the adapter and keeps the type. On the eve the slot is
+  `TodayQuietLine`.
+- **Exams** (`TodayExamsRow`; `TodayAddExamCard` with material and no exam): "See all" pops Progress to its root and selects it. The exam
+  editor asks for a course name when there is no course (`ExamDraft.newCourseName`; `createExam` makes the course).
+- **Removed:** `TodayExamCard`, `TodayOtherExams`, `TodayCapNote`, `TodayQuickAdd`, `TodayHeroActions`, the Squad row, `HeroFocusCard`,
+  `HeroFocusPlacement` (and its tests), `HeroWorldGeometry.make`/`bandShare`/`bandLimits`, the old hero lines' plural keys.
+- **Hooks:** `CRAMLESS_TODAY=partway|split|noExam` (new; `done` fills the done card's exam), `CRAMLESS_TODAY_NOTICES`,
+  `CRAMLESS_TODAY_WHY`, `CRAMLESS_TODAY_QUESTS`, `CRAMLESS_TODAY_LATER`, routes `todayWhy`, `quests`, `skyList`; `CRAMLESS_HERO` keeps only
+  `x…y…` taps; `CRAMLESS_CANVAS=375x667` applies to Today. Scripts: `films_hero.sh` (no constellation taps; a Reduce Motion film),
+  `j_game.py` (opens the quests sheet), `j_study.py` (the exams row's tile), `j_sky.py` (the band's pill).
+
 ## App Store Connect (2026-11-01)
 
 The Capling record on the Loopware team (app 6828649543) is filled in by `scripts/asc/`. Every command is re-runnable and has

@@ -50,8 +50,30 @@
       "localizations" : {
         "en" : {
           "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$@ has %2$lld questions so far"
+            "state" : "translated",
+            "value" : "%1$@ has %#@questions@ so far"
+          },
+          "substitutions" : {
+            "questions" : {
+              "argNum" : 2,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg question"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg questions"
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -271,7 +293,28 @@
       }
     },
     "%lld correct" : {},
-    "%lld days" : {},
+    "%lld days" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld day"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld days"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "%lld days in a row" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -295,7 +338,28 @@
         }
       }
     },
-    "%lld days to go" : {},
+    "%lld days to go" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld day to go"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld days to go"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "%lld days, %@" : {
       "localizations" : {
         "en" : {
@@ -358,8 +422,30 @@
       "localizations" : {
         "en" : {
           "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$lld min · %2$lld answers"
+            "state" : "translated",
+            "value" : "%1$lld min · %#@answers@"
+          },
+          "substitutions" : {
+            "answers" : {
+              "argNum" : 2,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg answer"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg answers"
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -408,7 +494,28 @@
         }
       }
     },
-    "%lld minutes planned" : {},
+    "%lld minutes planned" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld minute planned"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld minutes planned"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "%lld minutes tonight and you're done." : {
       "localizations" : {
         "en" : {
@@ -484,11 +591,95 @@
         }
       }
     },
-    "%lld months" : {},
+    "%lld months" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld month"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld months"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "%lld more" : {},
-    "%lld new questions" : {},
-    "%lld new questions, so it's all in before the exam." : {},
-    "%lld new questions." : {},
+    "%lld new questions" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld new question"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld new questions"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld new questions, so it's all in before the exam." : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld new question, so it's all in before the exam."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld new questions, so it's all in before the exam."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld new questions." : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld new question."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld new questions."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "%lld not yet lit" : {},
     "%lld of %@ have material" : {
       "localizations" : {
@@ -577,8 +768,30 @@
       "localizations" : {
         "en" : {
           "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$lld of %2$lld minutes done."
+            "state" : "translated",
+            "value" : "%1$lld of %#@minutes@ done."
+          },
+          "substitutions" : {
+            "minutes" : {
+              "argNum" : 2,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg minute"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg minutes"
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -629,8 +842,30 @@
       "localizations" : {
         "en" : {
           "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$lld of %2$lld quests today"
+            "state" : "translated",
+            "value" : "%1$lld of %#@quests@ today"
+          },
+          "substitutions" : {
+            "quests" : {
+              "argNum" : 2,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg quest"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg quests"
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -739,7 +974,28 @@
         }
       }
     },
-    "%lld of today's questions are on it." : {},
+    "%lld of today's questions are on it." : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld of today's questions is on it."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld of today's questions are on it."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "%lld pages" : {
       "localizations" : {
         "en" : {
@@ -796,18 +1052,102 @@
         }
       }
     },
-    "%lld questions are due" : {},
-    "%lld questions you're about to forget, and %lld new ones." : {
+    "%lld questions are due" : {
       "localizations" : {
         "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$lld questions you're about to forget, and %2$lld new ones."
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld question is due"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld questions are due"
+                }
+              }
+            }
           }
         }
       }
     },
-    "%lld questions you're about to forget." : {},
+    "%lld questions you're about to forget, and %lld new ones." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%#@due@ you're about to forget, and %#@new@."
+          },
+          "substitutions" : {
+            "due" : {
+              "argNum" : 1,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg question"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg questions"
+                    }
+                  }
+                }
+              }
+            },
+            "new" : {
+              "argNum" : 2,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg new one"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg new ones"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld questions you're about to forget." : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld question you're about to forget."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld questions you're about to forget."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "%lld reviews piled up." : {
       "localizations" : {
         "en" : {
@@ -854,7 +1194,28 @@
         }
       }
     },
-    "%lld stars dimming" : {},
+    "%lld stars dimming" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld star dimming"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld stars dimming"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "%lld streak freeze%@ saved" : {
       "localizations" : {
         "en" : {
@@ -1207,7 +1568,28 @@
     "Back tomorrow. Your streak is safe." : {},
     "Badges" : {},
     "Base" : {},
-    "Based on %lld questions so far." : {},
+    "Based on %lld questions so far." : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Based on %lld question so far."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Based on %lld questions so far."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "Be kind to your brain today." : {},
     "Be proud. I am." : {},
     "Behold: a card." : {},
@@ -1893,6 +2275,7 @@
     "Its cards became the questions below." : {},
     "Its deck was deleted or changed." : {},
     "Its exam is %@ away." : {},
+    "Its exam is further off, so it gets a smaller share of today." : {},
     "Its pages are removed from this iPhone. Kept questions lose their link to the page." : {},
     "Its plan goes. The questions and progress in %@ stay." : {},
     "Its plan goes. Your questions and progress stay in %@." : {},
@@ -2211,10 +2594,10 @@
     "Open your memory sky" : {},
     "OpenDyslexic for questions, answers, notes and chats. Headlines and numbers keep their faces." : {},
     "Opens Capling on today's study session." : {},
-    "Opens every topic, each with Practice" : {},
-    "Opens it" : {},
     "Opens Help, with a way to write to Loopware" : {},
     "Opens Loopware's support page" : {},
+    "Opens every topic, each with Practice" : {},
+    "Opens it" : {},
     "Opens the App Store's own page. Cancelling takes two taps and keeps %@ until the end of the period you paid for." : {},
     "Opens the Capling lecture recorder." : {},
     "Opens the Capling scanner to turn pages of notes into questions." : {},
@@ -2690,7 +3073,28 @@
     },
     "Study before noon" : {},
     "Study buddy, reporting for duty." : {},
-    "Study for %lld minutes" : {},
+    "Study for %lld minutes" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Study for %lld minute"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Study for %lld minutes"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "Study something else" : {},
     "Study today to make it %lld." : {},
     "Study today to start a new streak." : {},
@@ -2795,13 +3199,56 @@
     "The sky says hello." : {},
     "The stars are out. Look!" : {},
     "The transcript isn't ready yet" : {},
-    "The weakest topics for this exam, plus %lld new questions." : {},
-    "The weakest topics for this exam, plus %lld questions you're about to forget." : {},
+    "The weakest topics for this exam, plus %lld new questions." : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "The weakest topics for this exam, plus %lld new question."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "The weakest topics for this exam, plus %lld new questions."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "The weakest topics for this exam, plus %lld questions you're about to forget." : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "The weakest topics for this exam, plus %lld question you're about to forget."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "The weakest topics for this exam, plus %lld questions you're about to forget."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "The weakest topics for this exam." : {},
     "The whole course" : {},
     "The words in [brackets] are the blanks." : {},
     "Their code" : {},
     "Their exams are %@ away." : {},
+    "Their exams are further off, so they get a smaller share of today." : {},
     "Theme" : {},
     "There are no silly questions." : {},
     "There is nothing to practise in %@ yet." : {},
@@ -2811,7 +3258,6 @@
     "These questions aren't in your library any more." : {},
     "These questions keep tripping you up." : {},
     "They join your sessions once you approve them." : {},
-    "They're due today, and waiting would make them harder." : {},
     "Thinking is half the work." : {},
     "Thinking… thinking…" : {},
     "This beanbag is my home." : {},
@@ -3094,8 +3540,50 @@
     "Your sky is waiting" : {},
     "Your streak, quests and the sky" : {},
     "Your turn" : {},
-    "Your weakest topics, plus %lld new questions." : {},
-    "Your weakest topics, plus %lld questions you're about to forget." : {},
+    "Your weakest topics, plus %lld new questions." : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Your weakest topics, plus %lld new question."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Your weakest topics, plus %lld new questions."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "Your weakest topics, plus %lld questions you're about to forget." : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Your weakest topics, plus %lld question you're about to forget."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Your weakest topics, plus %lld questions you're about to forget."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "Your weakest topics." : {},
     "Zoomable" : {},
     "Zzzoom." : {},
@@ -3135,7 +3623,28 @@
         }
       }
     },
-    "in %lld days" : {},
+    "in %lld days" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "in %lld day"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "in %lld days"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "min" : {},
     "ng" : {},
     "not studied" : {},
@@ -3148,8 +3657,30 @@
       "localizations" : {
         "en" : {
           "stringUnit" : {
-            "state" : "new",
-            "value" : "the night before %1$@, %2$lld minutes"
+            "state" : "translated",
+            "value" : "the night before %1$@, %#@minutes@"
+          },
+          "substitutions" : {
+            "minutes" : {
+              "argNum" : 2,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg minute"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg minutes"
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       }

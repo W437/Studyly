@@ -15,7 +15,7 @@ enum TodayReasons {
         /// Its course's name ("Bio 101"), or its own title with no course.
         var name: String
         var daysLeft: Int
-        /// Some of today's questions are for it (fewer than a tenth of the session).
+        /// Some of today's questions are for it (a smaller share than the exam the session is for).
         var inToday: Bool
     }
 
@@ -78,7 +78,8 @@ enum TodayReasons {
         if !included.isEmpty {
             rows.append(Row(id: "alsoIn", symbol: "plus.circle",
                             title: String(localized: "A few \(included.formatted(.list(type: .and))) questions are in too"),
-                            detail: String(localized: "They're due today, and waiting would make them harder.")))
+                            detail: included.count == 1 ? String(localized: "Its exam is further off, so it gets a smaller share of today.")
+                                : String(localized: "Their exams are further off, so they get a smaller share of today.")))
         }
         if let exam = input.examTitle, input.scopeCount > 0, input.scopeCount < TodayCopy.fewQuestions {
             rows.append(Row(id: "few", symbol: "info.circle", title: String(localized: "\(exam) has \(input.scopeCount) questions so far"),
