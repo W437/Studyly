@@ -4,6 +4,8 @@ import OSLog
 /// Where a link goes. Pure values: `DeepLinks.parse` builds them, `DeepLinks.perform` applies them to the router.
 enum DeepLink: Equatable, Sendable {
     case tab(AppTab)
+    /// One chat with Cap (a question answered later).
+    case chat(UUID)
     /// Today, with this one of Cap's cards first (a "Cap noticed" notification).
     case notice(String)
     case streak
@@ -71,7 +73,9 @@ enum DeepLinks {
                 return .notice(id)
             }
             return .tab(.today)
-        case "ask": return .tab(.ask)
+        case "ask":
+            if path.first?.lowercased() == "chat", path.count > 1, let id = UUID(uuidString: path[1]) { return .chat(id) }
+            return .tab(.ask)
         case "progress": return .tab(.progress)
         case "library": return .tab(.library)
         case "streak": return .streak
@@ -134,6 +138,11 @@ enum DeepLinks {
             router.dismissSheet()
             router.popToRoot(tab)
             router.tab = tab
+        case .chat(let id):
+            router.dismissSheet()
+            router.popToRoot(.ask)
+            router.tab = .ask
+            if let thread = app.thread(id), thread.modelContext != nil { router.push(.chat(id), on: .ask) }
         case .notice(let id):
             router.dismissSheet()
             router.popToRoot(.today)

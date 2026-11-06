@@ -55,6 +55,7 @@ struct RootView: View {
             guard !started else { return }
             started = true
             await app.start()
+            Task { await app.answerLaterOnLaunch() }
             #if DEBUG
             try? await Task.sleep(for: .milliseconds(350))
             TestHarness.applyRoute(to: app)
@@ -70,10 +71,13 @@ struct RootView: View {
         }
         .onOpenURL { url in DeepLinks.handle(url, app: app) }
         .onChange(of: scenePhase) { _, phase in
+            guard started else { return }
+            if phase == .background { app.answerLaterOnBackground() }
             // A new day may have started while the app was away: apply streak freezes, refresh what's shown.
-            guard phase == .active, started else { return }
+            guard phase == .active else { return }
             app.applyDailyRollover()
             if app.sideEffectsEnabled { app.widgets.refresh() }
+            app.answerLaterOnActive()
         }
     }
 

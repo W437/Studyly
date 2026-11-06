@@ -113,6 +113,93 @@ final class OCRTests: CaptureTestCase {
         XCTAssertEqual(page.label, "1")
     }
 
+    // MARK: A problem from a photo
+
+    private func stagedProblem(_ lines: [String]) throws -> String {
+        let image = Render.textImage(lines)
+        return try XCTUnwrap(PageImageStore.stage(imageData: [Render.jpeg(image)]).first)
+    }
+
+    func testAPrintedProblemIsReadAndItsPhotoIsGone() async throws {
+        let path = try stagedProblem(["Problem 3.", "A cell with 46 chromosomes goes through mitosis.", "How many chromosomes does each daughter cell have?"])
+        XCTAssertTrue(FileManager.default.fileExists(atPath: FileStore.url(for: path).path))
+        let reading = await SnapReader.read(stagedAt: path, preferredLanguages: ["en-US"])
+        XCTAssertTrue(reading.hasWords)
+        XCTAssertTrue(reading.text.contains("46 chromosomes"), reading.text)
+        XCTAssertTrue(reading.text.contains("daughter cell"), reading.text)
+        XCTAssertNil(reading.issue)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: FileStore.url(for: path).path), "the photo stays on this iPhone only for the reading")
+        let folder = (path as NSString).deletingLastPathComponent
+        XCTAssertFalse(FileManager.default.fileExists(atPath: FileStore.url(for: folder).path), "nor does its folder")
+    }
+
+    func testASheetInEnglishIsReadOnAnIPhoneSetToAnotherLanguage() async throws {
+        let lines = ["Problem 3.", "A cell with 46 chromosomes goes through mitosis.", "How many chromosomes does each daughter cell have?"]
+        // Read with Chinese first, printed English scores under the gate and the page keeps nothing (measured at 0.3 to 0.5).
+        let image = try XCTUnwrap(Render.textImage(lines).cgImage)
+        let gated = try await TextRecognizer.read(image, pageIndex: 0, preferredLanguages: ["zh-Hant-TW"])
+        print("OCR snap: zh-Hant first, confidence \(gated.read.confidence), lines \(gated.lines.count)")
+        let reading = await SnapReader.read(stagedAt: try stagedProblem(lines), preferredLanguages: ["zh-Hant-TW"])
+        XCTAssertTrue(reading.text.contains("46 chromosomes"), reading.text)
+    }
+
+    func testABlankPhotoHasNoWordsAndIsGoneToo() async throws {
+        let path = try stagedProblem([])
+        let reading = await SnapReader.read(stagedAt: path, preferredLanguages: ["en-US"])
+        XCTAssertFalse(reading.hasWords)
+        XCTAssertEqual(reading.issue, .noText)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: FileStore.url(for: path).path))
+    }
+
+    func testAPhotoThatCantBeOpenedIsUnreadable() async throws {
+        let path = try FileStore.write(Data("not an image".utf8), folder: "\(PageImageStore.stagingFolder)/bad", name: "page-0.jpg")
+        let reading = await SnapReader.read(stagedAt: path)
+        XCTAssertFalse(reading.hasWords)
+        XCTAssertEqual(reading.issue, .unreadable)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: FileStore.url(for: path).path))
+    }
+
+    func testAMathPageKeepsItsWordsAndSaysSo() {
+        let page = CapturedPage(pageIndex: 0, label: "1", lines: [TextLine(id: "p0.l0", text: "Solve 2x² + 3x = 5", box: nil)], read: PageRead(engine: .vision, issue: .mathLike))
+        let reading = SnapReader.reading(from: page)
+        XCTAssertEqual(reading.text, "Solve 2x² + 3x = 5")
+        XCTAssertEqual(reading.issue, .mathLike)
+        XCTAssertTrue(reading.hasWords)
+    }
+
+    func testLinesBrokenByThePageRunOnAndPartsKeepTheirOwn() {
+        XCTAssertEqual(SnapReader.flowing(["Homework 3", "Problem 4. A cell with 46 chromosomes goes through",
+                                           "mitosis. How many chromosomes does each daughter", "cell have?"]),
+                       "Homework 3\nProblem 4. A cell with 46 chromosomes goes through mitosis. How many chromosomes does each daughter cell have?")
+        XCTAssertEqual(SnapReader.flowing(["1. Name the phases of mitosis in the order they happen", "2. Say what happens in the last of them, in a sentence"]),
+                       "1. Name the phases of mitosis in the order they happen\n2. Say what happens in the last of them, in a sentence")
+        XCTAssertEqual(SnapReader.flowing(["Solve for x and show every step of your working", "2x + 3 = 11"]),
+                       "Solve for x and show every step of your working\n2x + 3 = 11")
+        XCTAssertEqual(SnapReader.flowing(["What is it?"]), "What is it?")
+        XCTAssertEqual(SnapReader.flowing([]), "")
+    }
+
+    func testOneLineOfNotationIsEnoughForTheNoteOnAProblem() {
+        func reading(_ lines: [String]) -> SnapReader.Reading {
+            let textLines = lines.enumerated().map { TextLine(id: "p0.l\($0.offset)", text: $0.element, box: nil) }
+            return SnapReader.reading(from: CapturedPage(pageIndex: 0, label: "1", lines: textLines, read: PageRead(engine: .vision)))
+        }
+        XCTAssertEqual(reading(["Solve for x:", "2x + 3 = 11"]).issue, .mathLike)
+        XCTAssertNil(reading(["Problem 3.", "A cell with 46 chromosomes goes through mitosis."]).issue, "a number is not notation")
+    }
+
+    func testAWholePageReadByMistakeIsCut() {
+        let line = TextLine(id: "p0.l0", text: String(repeating: "word ", count: 2_000), box: nil)
+        let page = CapturedPage(pageIndex: 0, label: "1", lines: [line], read: PageRead(engine: .vision))
+        XCTAssertLessThanOrEqual(SnapReader.reading(from: page).text.count, SnapReader.maxCharacters)
+    }
+
+    func testDiscardingLeavesEverythingButStagedPages() throws {
+        let kept = try FileStore.write(Data([1]), folder: "sources/x", name: "page-0.jpg")
+        PageImageStore.discardStaged([kept])
+        XCTAssertTrue(FileManager.default.fileExists(atPath: FileStore.url(for: kept).path))
+    }
+
     // MARK: The gate, pure
 
     private func raw(_ text: String, x: Double = 0.1, y: Double, w: Double = 0.6, h: Double = 0.02, confidence: Double = 1) -> RawLine {

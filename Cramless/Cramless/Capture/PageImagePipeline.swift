@@ -180,6 +180,14 @@ enum PageImageStore {
         }
     }
 
+    /// Deletes staged pages that won't be kept (a problem read off a photo), and their folders once empty.
+    static func discardStaged(_ paths: [String]) {
+        for path in paths where path.hasPrefix(stagingFolder + "/") {
+            try? FileManager.default.removeItem(at: FileStore.url(for: path))
+        }
+        removeEmptyStagingFolders(for: paths)
+    }
+
     private static func removeEmptyStagingFolders(for paths: [String]) {
         let folders = Set(paths.filter { $0.hasPrefix(stagingFolder + "/") }.map { ($0 as NSString).deletingLastPathComponent })
         for folder in folders {

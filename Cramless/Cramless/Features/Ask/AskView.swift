@@ -6,7 +6,8 @@ import SwiftUI
 /// Harness (DEBUG), read once: `CRAMLESS_ASK=demo` opens a worked conversation (bold, a table, citations, a quick
 /// check and its answer); `stream` asks a question and holds Cap's answer mid-way; `asked` asks it and lets it
 /// finish (with `CRAMLESS_CONSENT=0`: the offline answer and the Cloud AI offer); `latest` opens the most recent
-/// chat. `CRAMLESS_AGE=teen` shows an under-18 account (hints first, locked), `CRAMLESS_TUTOR=explain` starts on
+/// chat. `later` asks with no connection (the reply from this iPhone and "Answer it later"), `kept` also presses it, `answered` shows the late
+/// answer in place. `CRAMLESS_AGE=teen` shows an under-18 account (hints first, locked), `CRAMLESS_TUTOR=explain` starts on
 /// Just explain, `CRAMLESS_ASK_MODE=open` opens Cap's style in the composer, and `CRAMLESS_SCROLL=top` starts a long chat at its top
 /// (`AskDemo.applyLaunchState`).
 struct AskView: View {
@@ -20,6 +21,7 @@ struct AskView: View {
         let _ = app.revision
         let thread = app.thread(threadID).flatMap { $0.modelContext != nil ? $0 : nil }
         ChatPane(threadID: $threadID, pendingCourseID: $courseID)
+            .captureDebugCanvas()
             .navigationTitle("Ask Cap")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -72,6 +74,22 @@ struct AskView: View {
             AskStreams.shared.ask("What's the difference between mitosis and cytokinesis?", in: thread, app: app)
         case "latest":
             threadID = app.chatThreads().first?.id
+        case "later", "kept", "answered":
+            // `CRAMLESS_OFFLINE_UNTIL` says when it comes back; without it, the connection stays out until the hook says otherwise.
+            OfflineHarness.forced = true
+            app.setTutorMode(.explain)
+            let thread = app.startChat(courseID: courseID)
+            threadID = thread.id
+            AskStreams.shared.ask("What happens after mitosis?", in: thread, app: app)
+            guard hook != "later" else { return }
+            Task {
+                await AskStreams.shared.waitForAnswer(thread.id)
+                guard let question = thread.sortedMessages.first(where: { $0.role == .user }) else { return }
+                app.keepForLater(questionID: question.id)
+                guard hook == "answered" else { return }
+                OfflineHarness.forced = false
+                await app.answerWaitingQuestions(trigger: .reconnected)
+            }
         default:
             break
         }

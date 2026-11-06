@@ -16,6 +16,11 @@ import Foundation
 //     They have no model to say it either, so they add the app's own sentence about such a line.
 // Under-18 accounts are always on hints first and the relay is told `minor: true`. A cloud answer that breaks off part way
 // keeps what arrived and says so; it never restarts on another tier.
+//
+// A problem from a photo (`TutorInput.fromPhoto`) is on hints first for everyone, its follow-ups too. The cloud's answer is held until it is
+// complete and shows only with at least one citation that is really in the notes; otherwise the app says so in its own words. This iPhone's
+// model is not asked (it often states the answer in hints mode, and a homework problem is where that matters most); the offline tutor's
+// hints stand in.
 
 extension AIRouter {
 
@@ -59,11 +64,13 @@ extension AIRouter {
         // Read after the retrieval wait: who is asking, and how Cap may answer.
         let settings = app?.settings ?? AppSettings()
         let route = route(.tutor, content: asked)
-        let mode = route.forcedTutorMode ?? settings.effectiveTutorMode
+        // Explain my mistake shows the right answer already, so an adult gets the reason, not a hint; under 18 stays on hints first.
+        let mode = route.forcedTutorMode ?? (input.fromPhoto ? .hints : input.context != nil ? .explain : settings.effectiveTutorMode)
         let topic = Self.redirectTopic(course: input.course, hits: hits, retriever: retriever)
         func offline(limit: Bool, ranking: OfflineRanking? = nil) -> LocalTutor.Reply {
             LocalTutor.reply(question: question, mode: mode, hits: hits, context: input.context, terms: terms,
-                             hasMaterial: !retriever.passages.isEmpty, topic: topic, limitReached: limit, ranking: ranking)
+                             hasMaterial: !retriever.passages.isEmpty, topic: topic, limitReached: limit, ranking: ranking,
+                             fromPhoto: input.lastIsPhotoText)
         }
         var local = offline(limit: route.limitReached == .tutor)
         // What the relay is handed. Nothing for a question no model is asked, and nothing for a large material the question
@@ -111,6 +118,7 @@ extension AIRouter {
 
         var fellBack = false
         var cloudFailed = false
+        var cloudFailure: RelayError?
         var limitReached = route.limitReached
         tiers: for tier in route.tiers {
             if Task.isCancelled { return }
@@ -121,15 +129,17 @@ extension AIRouter {
                 cloudRefused = false
                 switch await cloudTutor(input, mode: mode, minor: settings.isMinor, selection: selection, retriever: retriever,
                                         fellBack: fellBack, emit: emit) {
-                case .success: return
+                case .answered: return
                 case .limit(let key):
                     limitReached = key
                     fellBack = true
                     cloudFailed = false   // not a failure: the free limit, which the suggestion explains; this iPhone's model is tried next
-                case .failed:
+                case .failed(let why):
+                    cloudFailure = why
                     fellBack = true
                 }
             case .onDevice, .privateCloud:
+                guard !input.fromPhoto else { continue }
                 // Grounded or silent: this iPhone's model has no way to tell that the notes don't cover a question.
                 var window = Array(near.prefix(3))
                 var windowSent = nearSent
@@ -158,7 +168,7 @@ extension AIRouter {
                 if await onDeviceTutor(question, mode: mode, sources: window, sent: windowSent, retriever: retriever,
                                        context: input.context, terms: terms, closest: closest, tier: tier, fellBack: fellBack,
                                        suggestion: limitReached.map(limitSuggestion) ?? route.suggestion, limitReached: limitReached,
-                                       notice: windowNotice, emit: emit) {
+                                       notice: windowNotice, cloudUnreachable: cloudFailure?.isUnreachable ?? false, emit: emit) {
                     return
                 }
                 fellBack = true
@@ -200,12 +210,15 @@ extension AIRouter {
         // A question the keywords couldn't place is still worth the cloud's second look, so the offer (consent, or the paywall
         // when the free limit is what stopped it) goes with "not covered" too, when there is something to hand the cloud; not
         // with a decline, small talk or a redirect.
-        let suggestion = route.suggestion ?? limitReached.map(limitSuggestion)
+        var offer = route.suggestion
+        if input.fromPhoto, case .allowCloud = offer { offer = .allowCloud(feature: AIJob.snapFeature) }
+        let suggestion = offer ?? limitReached.map(limitSuggestion)
         let offersMore = local.kind == .answer || (local.kind == .notCovered && (!selection.isEmpty || limitReached != nil))
         emit(.finished(TutorOutcome(text: text, citations: citations, origin: .rules, model: LocalGrader.model, mode: mode,
                                     grounded: local.grounded,
-                                    note: cloudFailed && local.asksAModel ? failureNote(refused: cloudRefused) : nil,
-                                    suggestion: offersMore ? suggestion : nil, limitReached: limitReached, fellBack: fellBack)))
+                                    note: cloudFailed && local.asksAModel ? failureNote(refused: cloudRefused, failure: cloudFailure) : nil,
+                                    suggestion: offersMore ? suggestion : nil, limitReached: limitReached, fellBack: fellBack,
+                                    cloudUnreachable: local.asksAModel && (cloudFailure?.isUnreachable ?? false))))
     }
 
     /// What an everyday question is pointed back to: the course, else the name of the nearest source, else the first.
@@ -216,11 +229,33 @@ extension AIRouter {
     }
 
     /// What the note under an offline answer says when the cloud was tried and didn't answer: the relay's refusal for the day (a paid
-    /// plan's fair use, or the day's cost cap, which every plan has) or, otherwise, that it couldn't be reached.
-    private func failureNote(refused: Bool) -> String {
-        refused
-            ? AIFreeLimits.costCapTutorNote
-            : "Cloud AI couldn't be reached, so Cap answered from your notes on this iPhone."
+    /// plan's fair use, or the day's cost cap, which every plan has), no connection, or that it couldn't be reached.
+    private func failureNote(refused: Bool, failure: RelayError?) -> String {
+        if refused { return AIFreeLimits.costCapTutorNote }
+        if failure == .offline { return String(localized: "You're offline, so Cap answered from your notes on this iPhone.") }
+        return "Cloud AI couldn't be reached, so Cap answered from your notes on this iPhone."
+    }
+
+    /// Cap's answer from the cloud and nowhere else, for a question kept for later: nil when it can't be had now (Cloud AI not allowed, a limit, no
+    /// connection, a server error, an answer cut off), instead of the offline fallback. The question goes on waiting.
+    func cloudTutorReply(_ input: TutorInput) async -> TutorOutcome? {
+        let settings = app?.settings ?? AppSettings()
+        let question = input.messages.last { $0.role == .user }?.text ?? ""
+        let route = AIRouting.route(routeContext(.tutor, content: question))
+        guard route.usesCloud, cloudStillAllowed() else { return nil }
+        let material = input.material
+        let retriever = await Task.detached(priority: .userInitiated) { LocalRetriever(material: material) }.value
+        let retrieval = Self.retrieve(retriever, messages: input.messages, context: input.context, limit: 4)
+        let selection = TutorSelection.select(retriever: retriever, searchText: retrieval.searchText, titleText: retrieval.studentText,
+                                              earlier: retrieval.earlier)
+        guard !selection.isEmpty else { return nil }
+        let mode = route.forcedTutorMode ?? (input.fromPhoto ? .hints : settings.effectiveTutorMode)
+        var outcome: TutorOutcome?
+        let result = await cloudTutor(input, mode: mode, minor: settings.isMinor, selection: selection, retriever: retriever, fellBack: false) { update in
+            if case .finished(let finished) = update { outcome = finished }
+        }
+        guard case .answered = result, let outcome, !outcome.interrupted else { return nil }
+        return outcome
     }
 
     /// The passages for a chat's last question. A follow-up ("why?", "and in plants?") carries few topic words of its own:
@@ -263,9 +298,16 @@ extension AIRouter {
 
     // MARK: Cloud
 
+    /// What the cloud tier came to: an answer (shown as it came), a free limit, or a failure, with why when the relay said.
+    private enum CloudResult {
+        case answered
+        case limit(QuotaMeter.Key)
+        case failed(RelayError?)
+    }
+
     /// What one pass at the relay came to: an answer or a failure, or the relay turning the request down for its size.
     private enum CloudStep {
-        case finished(Attempt<Void>)
+        case finished(CloudResult)
         /// `bad_request` before anything arrived, for a request with more passages than a relay that doesn't yet take the new
         /// limit allows: ask again with fewer.
         case tooManySources
@@ -273,24 +315,25 @@ extension AIRouter {
 
     private func cloudTutor(_ input: TutorInput, mode: TutorMode, minor: Bool, selection: TutorSelection.Selection,
                             retriever: LocalRetriever, fellBack: Bool,
-                            emit: @MainActor (TutorUpdate) -> Void) async -> Attempt<Void> {
-        guard cloudStillAllowed(), let transport else { return .failed }
+                            emit: @MainActor (TutorUpdate) -> Void) async -> CloudResult {
+        guard cloudStillAllowed(), let transport else { return .failed(nil) }
         let materials = TutorMaterial.listing(input.material)
         var chosen = selection
         for _ in 0..<2 {
             // Within the relay's limits (code points): one source with a long name must not make every answer fail.
             let request = TutorRequest(mode: mode, minor: minor, course: input.course, messages: Array(input.messages.suffix(8)),
                                        sources: chosen.sources, context: input.context,
-                                       materials: materials.isEmpty ? nil : materials).fitted()
+                                       materials: materials.isEmpty ? nil : materials,
+                                       fromPhoto: input.fromPhoto ? true : nil).fitted()
             switch await streamTutor(request, to: transport, sent: chosen.sent, retriever: retriever, mode: mode, fellBack: fellBack,
-                                     emit: emit) {
+                                     holdsForCitation: input.fromPhoto, emit: emit) {
             case .finished(let attempt):
                 return attempt
             case .tooManySources:
                 chosen = chosen.reduced(to: TutorSelection.legacyTutorLimit)
             }
         }
-        return .failed
+        return .failed(nil)
     }
 
     /// The relay turned a request down for holding more passages than it takes ("The request isn't valid: /sources has more than
@@ -301,7 +344,7 @@ extension AIRouter {
     }
 
     private func streamTutor(_ request: TutorRequest, to transport: any RelayTransport, sent: [String: LocalRetriever.Passage],
-                             retriever: LocalRetriever, mode: TutorMode, fellBack: Bool,
+                             retriever: LocalRetriever, mode: TutorMode, fellBack: Bool, holdsForCitation: Bool,
                              emit: @MainActor (TutorUpdate) -> Void) async -> CloudStep {
         var text = ""
         var citations: [Citation] = []
@@ -310,6 +353,8 @@ extension AIRouter {
         func start() {
             if !started { emit(.started(origin: .cloud)); started = true }
         }
+        // A held answer: nothing has reached the student until it is complete and has passed `showHeld`.
+        var heldText = false
         func finish(interrupted: Bool, note: String?) {
             emit(.finished(TutorOutcome(text: text, citations: citations, origin: .cloud, model: model, mode: mode,
                                         grounded: !citations.isEmpty, interrupted: interrupted, note: note, fellBack: fellBack)))
@@ -320,7 +365,7 @@ extension AIRouter {
                 return .tooManySources
             }
             if let key = absorbQuotaError(error, meter: .tutor) { return .finished(.limit(key)) }
-            return .finished(.failed)
+            return .finished(.failed(error))
         }
         do {
             for try await event in transport.tutor(request) {
@@ -328,42 +373,74 @@ extension AIRouter {
                 case .start(let m):
                     model = m
                 case .delta(let piece):
-                    start()
                     text += piece
-                    emit(.text(piece))
+                    if holdsForCitation {
+                        heldText = true
+                    } else {
+                        start()
+                        emit(.text(piece))
+                    }
                 case .citation(let sourceID, let label, let quote):
                     if let citation = Self.citation(sourceID: sourceID, label: label, quote: quote, sent: sent,
                                                     retriever: retriever, index: citations.count) {
-                        start()
                         citations.append(citation)
-                        emit(.citation(citation))
+                        if !holdsForCitation {
+                            start()
+                            emit(.citation(citation))
+                        }
                     }
                 case .done(let m):
                     if !m.isEmpty { model = m }
-                    guard started else { return .finished(.failed) }
+                    if holdsForCitation {
+                        guard heldText else { return .finished(.failed(nil)) }
+                        recordCloudUse(.tutor)
+                        await showHeld(text: text, citations: citations, model: model, mode: mode, isFirstTurn: request.isFirstTurn,
+                                       fellBack: fellBack, emit: emit)
+                        return .finished(.answered)
+                    }
+                    guard started else { return .finished(.failed(nil)) }
                     recordCloudUse(.tutor)
                     finish(interrupted: false, note: nil)
-                    return .finished(.success(()))
+                    return .finished(.answered)
                 case .failure(let code, let message):
                     let error = RelayError.from(code: code, message: message, quota: nil)
                     guard started else { return beforeAnyText(error) }
                     finish(interrupted: true, note: "Cap lost the connection part way. This is what arrived.")
-                    return .finished(.success(()))
+                    return .finished(.answered)
                 }
             }
-            guard started else { return .finished(.failed) }
+            // The stream ended with no word of "done": the connection went.
+            guard started else { return .finished(.failed(.upstream("The answer stopped before it started."))) }
             finish(interrupted: true, note: "Cap lost the connection part way. This is what arrived.")
-            return .finished(.success(()))
+            return .finished(.answered)
         } catch {
             let relay = HTTPRelayTransport.map(error)
             if relay == .cancelled {
                 if started { finish(interrupted: true, note: nil) }
-                return .finished(.success(()))
+                return .finished(.answered)
             }
             guard started else { return beforeAnyText(relay) }
             finish(interrupted: true, note: "Cap lost the connection part way. This is what arrived.")
-            return .finished(.success(()))
+            return .finished(.answered)
         }
+    }
+
+    /// A held answer, now complete: it shows, a few words at a time as an answer made at once does, when at least one of its quotes is really
+    /// in the notes and it doesn't say the notes lack the topic. Otherwise the app's own words: the topic isn't in the notes, or, later in a
+    /// chat whose problem was, that this reply can't be pointed to.
+    private func showHeld(text: String, citations: [Citation], model: String, mode: TutorMode, isFirstTurn: Bool, fellBack: Bool,
+                          emit: @MainActor (TutorUpdate) -> Void) async {
+        let verified = !citations.isEmpty && !LocalTutor.isNotCoveredReply(text)
+        let shown = verified ? text : (isFirstTurn ? LocalTutor.snapNotCovered : LocalTutor.snapUnverified)
+        let quotes = verified ? citations : []
+        emit(.started(origin: .cloud))
+        for piece in Self.pieces(of: shown) {
+            if Task.isCancelled { return }
+            emit(.text(piece))
+            await pause()
+        }
+        for citation in quotes { emit(.citation(citation)) }
+        emit(.finished(TutorOutcome(text: shown, citations: quotes, origin: .cloud, model: model, mode: mode, grounded: verified, fellBack: fellBack)))
     }
 
     /// A tier's citation as the app's `Citation`, through the passages sent: the quote must be in the passage the model named,
@@ -386,7 +463,7 @@ extension AIRouter {
     private func onDeviceTutor(_ question: String, mode: TutorMode, sources: [TutorSource], sent: [String: LocalRetriever.Passage],
                                retriever: LocalRetriever, context: TutorContext?, terms: [String: Double], closest: [String], tier: AITier,
                                fellBack: Bool, suggestion: AISuggestion?, limitReached: QuotaMeter.Key?, notice: String?,
-                               emit: @MainActor (TutorUpdate) -> Void) async -> Bool {
+                               cloudUnreachable: Bool, emit: @MainActor (TutorUpdate) -> Void) async -> Bool {
         // Short help only: a long question goes to the offline tutor rather than a cramped prompt.
         guard question.split(whereSeparator: \.isWhitespace).count <= 40, !sources.isEmpty else { return false }
         let call = OnDeviceTutorCall(question: question, mode: mode, passages: sources, context: context)
@@ -413,7 +490,8 @@ extension AIRouter {
             }
         }
         emit(.finished(TutorOutcome(text: text, citations: citations, origin: .onDevice, model: "on-device", mode: mode,
-                                    grounded: !citations.isEmpty, suggestion: suggestion, limitReached: limitReached, fellBack: fellBack)))
+                                    grounded: !citations.isEmpty, suggestion: suggestion, limitReached: limitReached, fellBack: fellBack,
+                                    cloudUnreachable: cloudUnreachable)))
         return true
     }
 }

@@ -197,13 +197,15 @@ private struct StackedTable: View {
 /// The person's message, on the right.
 struct UserBubble: View {
     let text: String
+    /// Said before the words to VoiceOver, instead of "You".
+    var spokenPrefix: LocalizedStringResource? = nil
 
     var body: some View {
         Text(text)
             .clFont(.body)
             .foregroundStyle(CLColor.onFill)
             .fixedSize(horizontal: false, vertical: true)
-            .accessibilityLabel(Text("You: \(text)"))
+            .accessibilityLabel(spokenPrefix.map { Text("\(Text($0)): \(text)") } ?? Text("You: \(text)"))
             .padding(.horizontal, 15)
             .padding(.vertical, 11)
             .background(CLColor.tangerine, in: UnevenRoundedRectangle(topLeadingRadius: 22, bottomLeadingRadius: 22,
@@ -318,6 +320,9 @@ struct OriginNote: View {
         .accessibilityElement(children: .combine)
     }
 
+    /// An answer that waited for the connection.
+    static var lateAnswer: (text: String, icon: String) { (String(localized: "Answered when you were back online"), "wifi") }
+
     /// The honest line for an answer's origin; nil for the cloud (the default) and for answers that quote nothing.
     static func line(origin: ItemOrigin?, note: String?, quotesNotes: Bool) -> (text: String, icon: String)? {
         if let note, !note.isEmpty { return (note, "info.circle") }
@@ -338,6 +343,8 @@ struct QuickCheckCard: View {
     let isActive: Bool
     /// The person's reply, once there is one.
     let answered: String?
+    /// False where the screen's own title already says it (step 3 of Explain my mistake).
+    var showsLabel = true
     let onAnswer: (String) -> Void
 
     @State private var typed = ""
@@ -345,10 +352,12 @@ struct QuickCheckCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Label(check.isLabelled ? "Quick check" : "Your turn",
-                  systemImage: check.isLabelled ? "checkmark.circle" : "lightbulb")
-                .clFont(.eyebrow)
-                .foregroundStyle(check.isLabelled ? CLColor.tangerineInk : CLColor.skyInk)
+            if showsLabel {
+                Label(check.isLabelled ? "Quick check" : "Your turn",
+                      systemImage: check.isLabelled ? "checkmark.circle" : "lightbulb")
+                    .clFont(.eyebrow)
+                    .foregroundStyle(check.isLabelled ? CLColor.tangerineInk : CLColor.skyInk)
+            }
             Text(CapMarkdown.inline(check.question))
                 .clFont(.body)
                 .foregroundStyle(CLColor.ink)
@@ -497,6 +506,43 @@ struct AISuggestionCard: View {
     }
 }
 
+/// Under a reply made on this iPhone because Cloud AI couldn't be reached: the offer to have Cap answer it properly once it can, or that it will. The tutor
+/// only; up to three wait, each for a week at most (`AnswerLater`).
+struct AnswerLaterCard: View {
+    enum State: Equatable {
+        case offer
+        /// Three questions are waiting already.
+        case full
+        case saved
+    }
+
+    let state: State
+    let onKeep: () -> Void
+
+    var body: some View {
+        switch state {
+        case .offer:
+            HStack(alignment: .top, spacing: 12) {
+                CLIconBadge(systemImage: "clock.arrow.circlepath", tint: .sky, size: 32)
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Want the full answer when you're back online?")
+                        .clFont(.subheadline)
+                        .foregroundStyle(CLColor.ink)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Button("Answer it later", action: onKeep)
+                        .buttonStyle(.cl(.soft, size: .small, fullWidth: false))
+                }
+            }
+            .clCard(padding: 14, radius: 22, flat: true)
+            .accessibilityElement(children: .contain)
+        case .full:
+            OriginNote(text: String(localized: "Cap is already keeping 3 questions for later."), systemImage: "clock")
+        case .saved:
+            OriginNote(text: String(localized: "Saved. I'll answer when you're online."), systemImage: "clock.arrow.circlepath")
+        }
+    }
+}
+
 // MARK: - Composer
 
 /// The ground under the composer: the screen's own colour with a hairline on top, down to the bottom edge, so the conversation
@@ -560,6 +606,7 @@ struct ChatComposer: View {
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.pressable)
+                .disabled(isAnswering)
                 .padding(.leading, 3)
                 .padding(.bottom, 3)
                 .accessibilityLabel("Snap a problem")
@@ -619,8 +666,8 @@ struct ChatComposer: View {
 
 // MARK: - Cap's style
 
-/// "Hints first" or "Just explain", in the composer: a tap opens the two with a line on each. Locked on hints first for under-18 accounts,
-/// with the reason.
+/// "Hints first" or "Just explain", in the composer: a tap opens the two with a line on each. Locked on hints first for under-18 accounts
+/// and in a chat about a problem from a photo, with the reason.
 ///
 /// DEBUG: `CRAMLESS_ASK_MODE=open` opens it as the chat appears.
 struct TutorModePill: View {
@@ -629,9 +676,17 @@ struct TutorModePill: View {
     @Environment(AppModel.self) private var app
     @State private var open = false
 
+    /// Why this chat stays on hints first, when it does.
+    private var lockReason: LocalizedStringResource? {
+        if app.settings.isMinor { return "Hints first stays on for accounts under 18, so Cap helps you work it out." }
+        if thread?.isFromPhoto == true { return "A problem from a photo always starts with hints." }
+        return nil
+    }
+
     var body: some View {
-        let locked = app.settings.isMinor
-        let mode = app.settings.effectiveTutorMode
+        let reason = lockReason
+        let locked = reason != nil
+        let mode = locked ? TutorMode.hints : app.settings.effectiveTutorMode
         Button {
             CLHaptics.tap()
             open = true
@@ -654,13 +709,13 @@ struct TutorModePill: View {
         .buttonStyle(.plain)
         .accessibilityLabel("Cap's style")
         .accessibilityValue(mode == .hints ? Text("Hints first") : Text("Just explain"))
-        .accessibilityHint(locked ? Text("Hints first stays on for accounts under 18.") : Text("Choose how Cap answers"))
+        .accessibilityHint(reason.map { Text($0) } ?? Text("Choose how Cap answers"))
         .popover(isPresented: $open, arrowEdge: .bottom) {
             VStack(alignment: .leading, spacing: 4) {
                 row(.hints, title: "Hints first", detail: "Cap asks you a question back", selected: mode == .hints, locked: false)
                 row(.explain, title: "Just explain", detail: "Straight to the answer", selected: mode == .explain, locked: locked)
-                if locked {
-                    Label("Hints first stays on for accounts under 18, so Cap helps you work it out.", systemImage: "lock.fill")
+                if let reason {
+                    Label { Text(reason) } icon: { Image(systemName: "lock.fill") }
                         .clFont(.caption)
                         .foregroundStyle(CLColor.ink2)
                         .fixedSize(horizontal: false, vertical: true)
@@ -711,7 +766,7 @@ struct TutorModePill: View {
 
     private func choose(_ value: TutorMode) {
         open = false
-        guard value != app.settings.effectiveTutorMode, !(app.settings.isMinor && value == .explain) else { return }
+        guard value != app.settings.effectiveTutorMode, lockReason == nil || value == .hints else { return }
         CLHaptics.select()
         app.setTutorMode(value, in: thread)
     }

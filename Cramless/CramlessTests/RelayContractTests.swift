@@ -58,6 +58,38 @@ final class RelayContractTests: XCTestCase {
         XCTAssertEqual(TutorSelection.legacyTutorLimit, 12)
     }
 
+    func testTheTutorRequestAddsFromPhotoAsAnOptionalFieldLeftOutOfAnOrdinaryRequest() throws {
+        var request = try fixtureRequest(TutorRequest.self, "tutor")
+        XCTAssertNil(request.fromPhoto, "a request from before the field decodes")
+        let before = try XCTUnwrap(try JSONSerialization.jsonObject(with: JSONEncoder.cramless.encode(request)) as? [String: Any])
+        XCTAssertNil(before["fromPhoto"], "an ordinary request's bytes are as they were (the prompt cache, an older relay)")
+        request.fromPhoto = true
+        let after = try XCTUnwrap(try JSONSerialization.jsonObject(with: JSONEncoder.cramless.encode(request)) as? [String: Any])
+        XCTAssertEqual(after["fromPhoto"] as? Bool, true)
+        XCTAssertEqual(try JSONDecoder.cramless.decode(TutorRequest.self, from: JSONEncoder.cramless.encode(request)), request)
+        XCTAssertEqual(request.fitted().fromPhoto, true, "fitting to the relay's limits keeps it")
+        XCTAssertTrue(request.isFirstTurn)
+        request.messages += [TutorMessage(role: .assistant, text: "Which line?"), TutorMessage(role: .user, text: "this one")]
+        XCTAssertFalse(request.isFirstTurn)
+    }
+
+    @MainActor
+    func testTheNewTutorScriptsDecodeAndThePhotosCiteTheNotes() throws {
+        for name in ["tutor-mistake", "tutor-photo", "tutor-photo-uncited"] {
+            let script = try RelayFixtures.load(TutorScript.self, name)
+            XCTAssertTrue(script.events.allSatisfy { $0.tutorEvent != nil }, name)
+            XCTAssertEqual(script.events.first?.event, "start", name)
+            XCTAssertEqual(script.events.last?.event, "done", name)
+        }
+        let photo = try RelayFixtures.load(TutorScript.self, "tutor-photo")
+        let notes = AITestSupport.sampleLines.map(\.text).joined(separator: " ")
+        for event in photo.events where event.event == "citation" {
+            XCTAssertNotNil(HighlightMark.locate(event.data.quote ?? "", in: notes), "the script quotes the sample page")
+        }
+        let uncited = try RelayFixtures.load(TutorScript.self, "tutor-photo-uncited")
+        XCTAssertFalse(uncited.events.contains { $0.event == "citation" })
+    }
+
     func testTheCheckRequestsNewFieldsAreOptionalAndLeftOutWhenAbsent() throws {
         let plain = CheckRequest(pages: [], items: [])
         let json = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder.cramless.encode(plain)) as? [String: Any])

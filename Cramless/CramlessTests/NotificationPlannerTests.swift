@@ -311,6 +311,28 @@ final class NotificationPlannerTests: XCTestCase {
                        ["capling.daily.2026-10-01", p[0].id], "even with notifications off, trial requests stay")
     }
 
+    // MARK: A question answered later
+
+    func testAnAnsweredNotificationIsLeftAloneByAReschedule() {
+        let p = plan()
+        let answer = "\(NotificationPlanner.answerPrefix)\(UUID().uuidString)"
+        XCTAssertTrue(answer.hasPrefix(NotificationPlanner.prefix))
+        XCTAssertEqual(NotificationPlanner.staleIdentifiers(pending: [answer, "capling.daily.2026-10-01"], planned: p), ["capling.daily.2026-10-01"])
+        XCTAssertEqual(NotificationPlanner.staleIdentifiers(pending: [answer], planned: []), [], "even with notifications off")
+    }
+
+    func testAnAnsweredNotificationNamesTheChatOrCountsThem() throws {
+        XCTAssertNil(NotificationPlanner.answered([]))
+        let one = UUID()
+        let single = try XCTUnwrap(NotificationPlanner.answered([(one, "Mitosis vs meiosis")]))
+        XCTAssertEqual(single.id, "capling.answer.\(one.uuidString)")
+        XCTAssertEqual(single.body, "Cap answered “Mitosis vs meiosis”")
+        XCTAssertEqual(single.url, CramlessLink.chat(one))
+        let two = try XCTUnwrap(NotificationPlanner.answered([(one, "A"), (UUID(), "B")]))
+        XCTAssertEqual(two.body, "Cap answered 2 of your questions")
+        XCTAssertEqual(two.url, CramlessLink.ask)
+    }
+
     // MARK: One session from a milestone
 
     func testTheDayOneSessionMakesAMilestoneSaysSo() {
