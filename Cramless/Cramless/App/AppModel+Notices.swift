@@ -37,7 +37,9 @@ extension AppModel {
     /// A mix-up as one of Cap's cards.
     static func notice(for note: ConfusionNote) -> CapNotice {
         CapNotice(id: "\(CapNotice.Kind.mixUp.rawValue):\(note.id.uuidString)", kind: .mixUp,
-                  title: SessionCopy.mixUpLine(note.name), detail: SessionCopy.missLine(note),
+                  // The fix's length holds together on one line ("2-minute" never breaks at its hyphen).
+                  title: SessionCopy.mixUpLine(note.name),
+                  detail: SessionCopy.missLine(note).replacingOccurrences(of: "2-minute", with: "2\u{2011}minute"),
                   action: CapNotice.Action(title: String(localized: "Fix it · 2 min"), systemImage: "wand.and.stars",
                                            run: .fixMixUp(confusionID: note.id)),
                   link: .confusion(note.id))

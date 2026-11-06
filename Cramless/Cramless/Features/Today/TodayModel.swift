@@ -269,9 +269,8 @@ struct TodaySnapshot: Equatable, Sendable {
             snapshot.summary.plannedMinutes = max(5, snapshot.summary.minutesGoal - 6)
             snapshot.hero = .session
         case "split":
-            // A session spread over several exams: no one exam to name.
-            snapshot.sessionTopics = Array((snapshot.focus?.topics ?? snapshot.sessionTopics).prefix(1))
-                + snapshot.exams.dropFirst().prefix(1).map(\.courseName)
+            // A session spread over several exams: no one exam to name, its topics from every course.
+            snapshot.sessionTopics = topicNames(of: app.todayBuiltSession(), names: app.topicNames())
             snapshot.focus = nil
             snapshot.hero = .session
         case "noExam":
@@ -298,6 +297,16 @@ struct TodaySnapshot: Equatable, Sendable {
                 let built = app.buildSession(SessionRequest(kind: .examEve, examID: id))
                 snapshot.eveTopics = topicNames(of: built, names: app.topicNames())
                 snapshot.eveOthers = otherCourses(snapshot.exams, besides: snapshot.exams[0])
+                // The week as the eve's: tonight's moon, tomorrow's exam.
+                for i in snapshot.strip.indices {
+                    switch snapshot.strip[i].offset {
+                    case 0: snapshot.strip[i].mark = .eve(minutes: SessionBuilder.examEveMinutes); snapshot.strip[i].examTitles = [first.title]
+                    case 1: snapshot.strip[i].mark = .exam(count: 1); snapshot.strip[i].examTitles = [first.title]
+                    default:
+                        if case .exam = snapshot.strip[i].mark { snapshot.strip[i].mark = .minutes(snapshot.summary.minutesGoal) }
+                        if case .eve = snapshot.strip[i].mark { snapshot.strip[i].mark = .minutes(snapshot.summary.minutesGoal) }
+                    }
+                }
             }
             snapshot.quests = QuestsToday()
         case "done":

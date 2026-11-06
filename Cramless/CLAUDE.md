@@ -174,7 +174,8 @@ sleep 4; xcrun simctl io <udid> screenshot shot.png
     "Why these?" and the quests sheet, `CRAMLESS_TODAY_LATER=<ms>` presses Cap's "Later", each that long after launch;
     `CRAMLESS_TODAY_SCROLL=1` scrolls down to the exams row and back (for a film); `CRAMLESS_TODAY_OPEN=<ms>` opens the sky that
     long after launch, as a tap on the band would; `CRAMLESS_CANVAS=375x667` draws Today at an iPhone SE's size (there is no SE
-    simulator for iOS 27; no status-bar inset). Routes `todayWhy`, `quests` (the sheets) and `skyList` (the sky as a list,
+    simulator for iOS 27; no status-bar inset); `CRAMLESS_TODAY_TYPE=xxxl|ax1…ax5` draws Today at that text size without changing
+    the simulator's own setting (others may share it). Routes `todayWhy`, `quests` (the sheets) and `skyList` (the sky as a list,
     "Study something else"); `streak` shows the month with exams and eves marked.
   - Sessions:
     - `CRAMLESS_SESSION_STATE=ownwords|graded|mcq(-answered)|cloze(-answered)|diagram(-filled|-answered)|flashcard|flipped|summary|exameve-summary|fix-summary`

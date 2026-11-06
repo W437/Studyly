@@ -1445,7 +1445,7 @@ trust rules and the screens are in `docs/assistant.md`, the wire format in `docs
 - **Removed:** `TodayExamCard`, `TodayOtherExams`, `TodayCapNote`, `TodayQuickAdd`, `TodayHeroActions`, the Squad row, `HeroFocusCard`,
   `HeroFocusPlacement` (and its tests), `HeroWorldGeometry.make`/`bandShare`/`bandLimits`, the old hero lines' plural keys.
 - **Hooks:** `CRAMLESS_TODAY=partway|split|noExam` (new; `done` fills the done card's exam), `CRAMLESS_TODAY_NOTICES`,
-  `CRAMLESS_TODAY_WHY`, `CRAMLESS_TODAY_QUESTS`, `CRAMLESS_TODAY_LATER`, routes `todayWhy`, `quests`, `skyList`; `CRAMLESS_HERO` keeps only
+  `CRAMLESS_TODAY_WHY`, `CRAMLESS_TODAY_QUESTS`, `CRAMLESS_TODAY_LATER`, `CRAMLESS_TODAY_TYPE`, routes `todayWhy`, `quests`, `skyList`; `CRAMLESS_HERO` keeps only
   `x…y…` taps; `CRAMLESS_CANVAS=375x667` applies to Today. Scripts: `films_hero.sh` (no constellation taps; a Reduce Motion film),
   `j_game.py` (opens the quests sheet), `j_study.py` (the exams row's tile), `j_sky.py` (the band's pill).
 

@@ -9,7 +9,8 @@ import SwiftUI
 /// `CRAMLESS_TODAY_NOTICES=0|1|2|3` deals that many of Cap's cards; `CRAMLESS_TODAY_WHY=<ms>`, `CRAMLESS_TODAY_QUESTS=<ms>` open "Why
 /// these?" and the quests that long after launch, and `CRAMLESS_TODAY_LATER=<ms>` presses Cap's "Later"; `CRAMLESS_TODAY_SCROLL=1`
 /// scrolls down to the exams and back, to film it; `CRAMLESS_SKY_TOUR=<ms>` shows each sky behind the stars in turn;
-/// `CRAMLESS_TODAY_OPEN=<ms>` opens the sky that long after launch, as a tap on the band would; `CRAMLESS_HERO_PULL=2500:96:500`
+/// `CRAMLESS_TODAY_OPEN=<ms>` opens the sky that long after launch, as a tap on the band would; `CRAMLESS_TODAY_TYPE=ax3` draws
+/// Today at that text size; `CRAMLESS_HERO_PULL=2500:96:500`
 /// pulls the page down 96 points at 2.5 s, holds it 0.5 s and lets go (the readings a finger gives it; the page itself doesn't
 /// move), to film the refresh; `CRAMLESS_CANVAS=375x667` draws the page at an iPhone SE's size; and
 /// `CRAMLESS_STEP=firstSession|readiness|plan` opens an onboarding step of this lane over Today (with `CRAMLESS_SEED=0` it first
@@ -30,6 +31,8 @@ struct TodayView: View {
     /// Cap's cards put off with "Later" since the page was drawn (stored for tomorrow by `snoozeNotice`; kept here so the next one
     /// shows at once).
     @State private var laterIDs: Set<String> = []
+    /// The band has scrolled up out of sight: the status bar gets the page's colour behind it, so cards don't run under the clock.
+    @State private var pastBand = false
     #if DEBUG
     @State private var debugStep: OnboardingDebugStep?
     #endif
@@ -45,7 +48,20 @@ struct TodayView: View {
 
     /// Where everything in the band sits on this screen, and so what shape its sky is laid out for.
     private func heroGeometry(_ geo: GeometryProxy) -> HeroWorldGeometry {
-        HeroWorldGeometry.band(width: geo.size.width, topInset: geo.safeAreaInsets.top, compact: typeSize.isAccessibilitySize)
+        HeroWorldGeometry.band(width: geo.size.width, topInset: geo.safeAreaInsets.top, compact: textSize.isAccessibilitySize)
+    }
+
+    /// The text size Today is drawn at: the person's, or in DEBUG `CRAMLESS_TODAY_TYPE=xxxl|ax1…ax5` (to look at the largest sizes
+    /// without changing a shared simulator's setting).
+    private var textSize: DynamicTypeSize {
+        #if DEBUG
+        if let raw = TestHarness.value("CRAMLESS_TODAY_TYPE") {
+            let sizes: [String: DynamicTypeSize] = ["xxxl": .xxxLarge, "ax1": .accessibility1, "ax2": .accessibility2,
+                                                    "ax3": .accessibility3, "ax4": .accessibility4, "ax5": .accessibility5]
+            if let size = sizes[raw] { return size }
+        }
+        #endif
+        return typeSize
     }
 
     var body: some View {
@@ -84,6 +100,23 @@ struct TodayView: View {
                 .onScrollPhaseChange { _, phase in
                     pull.finger(dragging: phase == .interacting)
                 }
+                // Only the crossing is reported, so this costs nothing while scrolling.
+                .onScrollGeometryChange(for: Bool.self) { geometry in
+                    geometry.contentOffset.y + geometry.contentInsets.top > hero.height - hero.topInset
+                } action: { _, past in
+                    withAnimation(CLMotion.fade) { pastBand = past }
+                }
+                .overlay(alignment: .top) {
+                    LinearGradient(stops: [.init(color: CLColor.background, location: 0),
+                                           .init(color: CLColor.background, location: 0.7),
+                                           .init(color: CLColor.background.opacity(0), location: 1)],
+                                   startPoint: .top, endPoint: .bottom)
+                        .frame(height: hero.topInset + 14)
+                        .ignoresSafeArea(edges: .top)
+                        .opacity(pastBand ? 1 : 0)
+                        .allowsHitTesting(false)
+                        .accessibilityHidden(true)
+                }
                 #if DEBUG
                 .task { await runScrollHook(proxy) }
                 .task { await runPullHook() }
@@ -97,6 +130,7 @@ struct TodayView: View {
             }
         }
         .background(CLColor.background.ignoresSafeArea())
+        .dynamicTypeSize(textSize)
         .captureDebugCanvas()
         .toolbar(.hidden, for: .navigationBar)
         .onAppear { pull.work = { await refreshToday() } }

@@ -308,7 +308,8 @@ private struct CalendarLegend: View {
     var showsExams = false
 
     var body: some View {
-        ReflowStack(spacing: 14) {
+        // Wraps onto a second line rather than squeezing a word (six keys don't fit one line on a phone).
+        CLFlow(spacing: 14, lineSpacing: 8) {
             key(CLColor.tangerine, "Studied")
             key(CLColor.sky, "Frozen")
             HStack(spacing: 5) {
