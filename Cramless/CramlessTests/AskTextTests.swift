@@ -7,6 +7,112 @@ import XCTest
 @MainActor
 final class AskTextTests: XCTestCase {
 
+    // MARK: The mistake in three steps
+
+    private let threeParts = """
+    You're right that the cell divides. The one thing off: mitosis doesn't make sex cells.
+
+    During mitosis the DNA is copied and separated, so each new cell matches the parent.
+
+    Quick check: how many daughter cells does one round of mitosis make: 2, 4 or 8?
+    """
+
+    func testThreePartsAreThreeSteps() throws {
+        let steps = MistakeSteps.split(threeParts)
+        XCTAssertEqual(steps.what, "You're right that the cell divides. The one thing off: mitosis doesn't make sex cells.")
+        XCTAssertEqual(steps.why, "During mitosis the DNA is copied and separated, so each new cell matches the parent.")
+        let check = try XCTUnwrap(steps.check)
+        XCTAssertEqual(check.question, "How many daughter cells does one round of mitosis make?")
+        XCTAssertEqual(check.options, ["2", "4", "8"])
+        XCTAssertEqual(check.lead, "", "the card shows only the question")
+        XCTAssertEqual(steps.pages, [.what, .why, .check])
+        XCTAssertEqual(steps.total, 3)
+    }
+
+    func testTheRelaysOwnScriptSplitsInThree() throws {
+        let script = try RelayFixtures.load(TutorScript.self, "tutor-mistake")
+        let text = script.events.compactMap { $0.data.text }.joined()
+        let steps = MistakeSteps.split(text)
+        XCTAssertEqual(steps.pages, [.what, .why, .check])
+        XCTAssertEqual(steps.check?.options, ["2", "4", "8"])
+    }
+
+    func testPagesUnlockAsTheStreamReachesThem() {
+        XCTAssertEqual(MistakeSteps.split("", streaming: true).pages, [.what])
+        let first = MistakeSteps.split("You're right that", streaming: true)
+        XCTAssertEqual(first.what, "You're right that")
+        XCTAssertEqual(first.pages, [.what])
+        XCTAssertEqual(first.total, 3, "the sheet says three while it can't know better")
+        let second = MistakeSteps.split("One.\n\nDuring mito", streaming: true)
+        XCTAssertEqual(second.why, "During mito")
+        XCTAssertEqual(second.pages, [.what, .why])
+        let third = MistakeSteps.split("One.\n\nTwo.\n\nQuick check: how many", streaming: true)
+        XCTAssertEqual(third.pages, [.what, .why, .check])
+        XCTAssertNil(third.check, "not a question yet")
+        XCTAssertEqual(third.checkDraft, "Quick check: how many")
+        let done = MistakeSteps.split("One.\n\nTwo.\n\nQuick check: how many?", streaming: true)
+        XCTAssertEqual(done.check?.question, "How many?")
+    }
+
+    func testTwoPartsSplitAndAMissingCheckAsksThemToSayItBack() throws {
+        let noCheck = MistakeSteps.split("You had the first half.\n\nThe notes add the second half.")
+        XCTAssertEqual(noCheck.what, "You had the first half.")
+        XCTAssertEqual(noCheck.why, "The notes add the second half.")
+        XCTAssertEqual(noCheck.check, MistakeSteps.sayItBack)
+        XCTAssertEqual(noCheck.pages, [.what, .why, .check])
+
+        let noWhy = MistakeSteps.split("You had the first half.\n\nWhat does the page add?")
+        XCTAssertEqual(noWhy.what, "You had the first half.")
+        XCTAssertEqual(noWhy.why, "")
+        XCTAssertEqual(noWhy.check?.question, "What does the page add?")
+        XCTAssertEqual(noWhy.pages, [.what, .check])
+        XCTAssertEqual(noWhy.total, 2)
+    }
+
+    func testOneParagraphBreaksAfterItsFirstSentence() {
+        let steps = MistakeSteps.split("You had the first half. The second half is the division of the cytoplasm. Which comes first?")
+        XCTAssertEqual(steps.what, "You had the first half.")
+        XCTAssertEqual(steps.why, "The second half is the division of the cytoplasm.")
+        XCTAssertEqual(steps.check?.question, "Which comes first?")
+    }
+
+    func testAListStaysWhole() {
+        let list = "These are the phases:\n- Prophase\n- Metaphase"
+        let steps = MistakeSteps.split(list)
+        XCTAssertEqual(steps.what, list)
+        XCTAssertEqual(steps.why, "")
+    }
+
+    func testAHintThatIsOnlyAQuestionHasOnlyTheCheck() {
+        let steps = MistakeSteps.split("Which line of your page talks about the cytoplasm?")
+        XCTAssertEqual(steps.what, "")
+        XCTAssertEqual(steps.check?.question, "Which line of your page talks about the cytoplasm?")
+        XCTAssertEqual(steps.pages, [.what, .check])
+    }
+
+    func testTheOfflineExplanationAndHintFit() {
+        let explain = MistakeSteps.split("You wrote “Sex cells”, but the answer is “Two cells”. Your notes say:\n\nMitosis makes two identical cells.")
+        XCTAssertEqual(explain.what, "You wrote “Sex cells”, but the answer is “Two cells”.")
+        XCTAssertEqual(explain.why, "Your notes say:\n\nMitosis makes two identical cells.")
+        XCTAssertEqual(explain.check, MistakeSteps.sayItBack)
+
+        let hint = MistakeSteps.split("You wrote “Sex cells. Or not”. Have another look: Textbook p. 87 says: “Mitosis makes two ____ cells.” What goes in the gap?")
+        XCTAssertEqual(hint.what, "You wrote “Sex cells. Or not”.")
+        XCTAssertEqual(hint.why, "")
+        XCTAssertEqual(hint.check?.question, "Textbook p. 87 says: “Mitosis makes two ____ cells.” What goes in the gap?")
+        XCTAssertEqual(hint.pages, [.what, .check])
+    }
+
+    func testNotCoveredAndADeclineAreOnePage() {
+        for text in [LocalTutor.notCovered, "I couldn't find that in what you've added.", TutorPolicy.cheatRefusal] {
+            let steps = MistakeSteps.split(text)
+            XCTAssertEqual(steps.what, text)
+            XCTAssertEqual(steps.pages, [.what])
+            XCTAssertEqual(steps.total, 1)
+            XCTAssertNil(steps.check)
+        }
+    }
+
     // MARK: Starters
 
     func testStartersComeFromTheMaterialAndAreCovered() {

@@ -263,7 +263,8 @@ extension AppModel {
     /// Adds the cards the person kept in Make cards to a course, through `ItemFactory`. They go straight into the
     /// course (the person approved each one) and link back to the cited page or lecture moment they rest on, if any.
     @discardableResult
-    func addCardsFromChat(_ cards: [GeneratedItem], origin: ItemOrigin, to courseID: UUID, from thread: ChatThread?) -> [StudyItem] {
+    func addCardsFromChat(_ cards: [GeneratedItem], origin: ItemOrigin, to courseID: UUID, from thread: ChatThread?,
+                          linkThreshold: Double = 0.4) -> [StudyItem] {
         guard let course = liveCourse(courseID) else { return [] }
         let citations = (thread?.modelContext != nil ? thread?.sortedMessages.flatMap(\.citations) : nil) ?? []
         var made: [StudyItem] = []
@@ -274,7 +275,7 @@ extension AppModel {
             card.anchors = []
             var source: Source?
             var page: SourcePage?
-            if let cited = Self.bestCitation(for: card, in: citations), let first = cited.first,
+            if let cited = Self.bestCitation(for: card, in: citations, threshold: linkThreshold), let first = cited.first,
                let id = first.sourceID, let found = self.source(id), found.deletedAt == nil {
                 source = found
                 if let index = first.pageIndex, let p = found.pages.first(where: { $0.pageIndex == index }) {
@@ -301,6 +302,16 @@ extension AppModel {
         guard !made.isEmpty else { return [] }
         save()
         return made
+    }
+
+    /// "Make this a card" in Explain my mistake: the card the student kept, in the course and topic of the question they got wrong, linked
+    /// to the page the explanation cited. A chat this short cites only what the card is about, so it takes a smaller share of shared words.
+    @discardableResult
+    func addMistakeCard(_ card: GeneratedItem, origin: ItemOrigin, itemID: UUID, from thread: ChatThread?) -> StudyItem? {
+        guard let item = item(itemID), item.modelContext != nil, let courseID = item.course?.id else { return nil }
+        var card = card
+        if let topic = item.course?.liveTopics.first(where: { $0.id == item.topicID }) { card.topic = topic.name }
+        return addCardsFromChat([card], origin: origin, to: courseID, from: thread, linkThreshold: 0.1).first
     }
 
     // MARK: Starters
