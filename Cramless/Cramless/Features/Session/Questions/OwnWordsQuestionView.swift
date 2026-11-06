@@ -19,8 +19,13 @@ import UIKit
 /// guess is never what gets recorded. The router lets the model go after `SelfCheck.modelWait`, and the answer is then the person's to
 /// mark (or, where the rules can be trusted, final).
 ///
+/// What is typed is kept as a draft (`AnswerDrafts`): saved after a 400 ms pause and whenever the app leaves the screen, put back
+/// into the empty editor the next time the question comes up ("Kept from before"), and cleared once the answer is recorded, so a
+/// call, another app or iOS closing Capling loses nothing.
+///
 /// DEBUG: `CRAMLESS_SESSION_ANSWER=<text>` submits that answer as soon as the question shows (the session's
-/// `CRAMLESS_SESSION_STATE=graded` supplies one of its own).
+/// `CRAMLESS_SESSION_STATE=graded` supplies one of its own). `CRAMLESS_SESSION_DRAFT=<text>` (with `ownwords`) keeps those words
+/// as the question's draft first.
 struct OwnWordsQuestionView: View {
     let runner: SessionRunner
     let entry: SessionEntry
@@ -32,9 +37,14 @@ struct OwnWordsQuestionView: View {
 
     @Environment(AppModel.self) private var app
     @Environment(\.clReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var scenePhase
     @FocusState private var editorFocused: Bool
 
     @State private var text = ""
+    /// The editor opened with words kept from before.
+    @State private var restoredDraft = false
+    @State private var lookedForDraft = false
+    @State private var draftTask: Task<Void, Never>?
     @State private var submitted: String?
     @State private var grade: GradeOutcome?
     @State private var saved = false
@@ -84,6 +94,13 @@ struct OwnWordsQuestionView: View {
                             .transition(.opacity)
                     } else {
                         VStack(alignment: .leading, spacing: 8) {
+                            if restoredDraft {
+                                Label("Kept from before", systemImage: "clock.arrow.circlepath")
+                                    .clFont(.footnoteEmphasis)
+                                    .foregroundStyle(CLColor.ink3)
+                                    .padding(.horizontal, 4)
+                                    .transition(.opacity)
+                            }
                             editor
                             // Once the day's free Cloud AI checks run low: a quiet count, never a nudge.
                             if let line = SessionCopy.freeChecksLeft(app.ai.freeCloudUsesLeft(for: .grade)) {
@@ -114,7 +131,24 @@ struct OwnWordsQuestionView: View {
         .sessionFooter(feedback: panel, primary: { footer }, secondary: { secondary })
         .onChange(of: text) { _, new in
             guard submitted == nil else { return }
-            runner.hasUnsavedAnswer = !new.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            let typed = !new.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            runner.hasUnsavedAnswer = typed
+            runner.isTypingAnswer = typed
+            if !typed { restoredDraft = false }
+            scheduleDraft()
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase != .active { keepDraftNow() }
+        }
+        .onAppear {
+            // Words kept from before go back into the empty editor, before the first frame (once: a sheet coming and going
+            // re-runs this).
+            guard !lookedForDraft else { return }
+            lookedForDraft = true
+            if autoAnswer == nil, text.isEmpty, let draft = app.answerDraft(for: item.id) {
+                text = draft
+                restoredDraft = true
+            }
         }
         .task {
             app.readAloud(question: item)
@@ -159,7 +193,28 @@ struct OwnWordsQuestionView: View {
         .onDisappear {
             gradeTask?.cancel()
             revealTask?.cancel()
+            keepDraftNow()
         }
+    }
+
+    // MARK: Keeping what's typed
+
+    /// Saves the draft after a 400 ms pause in typing.
+    private func scheduleDraft() {
+        draftTask?.cancel()
+        draftTask = Task { @MainActor in
+            do { try await Task.sleep(for: .milliseconds(400)) } catch { return }
+            keepDraftNow()
+        }
+    }
+
+    /// Saves the draft now (leaving the screen, the app going to the background). Never once the answer is recorded: its
+    /// draft has gone for good.
+    private func keepDraftNow() {
+        draftTask?.cancel()
+        draftTask = nil
+        guard !runner.hasRecorded(entry.id) else { return }
+        app.keepAnswerDraft(text, for: item.id)
     }
 
     // MARK: Answering
@@ -521,6 +576,9 @@ struct OwnWordsQuestionView: View {
     private func submit() {
         guard submitted == nil else { return }
         let answer = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        // Kept until the answer is recorded: a close before Continue still has the words.
+        keepDraftNow()
+        runner.isTypingAnswer = false
         durationMs = runner.elapsedMs()
         editorFocused = false
         CLHaptics.commit()

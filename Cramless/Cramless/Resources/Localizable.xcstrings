@@ -286,6 +286,28 @@
     },
     "%lld days." : {},
     "%lld dim" : {},
+    "%lld free AI scans left this week" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld free AI scan left this week"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld free AI scans left this week"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "%lld freezes saved" : {
       "localizations" : {
         "en" : {
@@ -848,6 +870,7 @@
     "A nudge at the right time" : {},
     "A nudge at your time, when there's something to study" : {},
     "A perfect time for a few cards." : {},
+    "A plan and readiness for every exam" : {},
     "A plan! I love a plan." : {},
     "A run climbing, an almost, five in a row, a miss, a save, the finish" : {},
     "A session" : {},
@@ -869,6 +892,29 @@
     "A year. Cap would like to say thank you." : {},
     "AI and privacy" : {},
     "AI data deleted" : {},
+    "AI notes for %lld lecture left this week" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "AI notes for %lld lecture left this week"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "AI notes for %lld lectures left this week"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "AI scans, PDFs and lecture notes, no weekly limit" : {},
     "About" : {},
     "About 10 minutes on what you're shakiest on. Then stop: sleep does the rest." : {},
     "Accessibility" : {},
@@ -955,6 +1001,7 @@
     "All topics" : {},
     "All tucked in. Nicely done." : {},
     "All up to date." : {},
+    "Allow Cloud AI" : {},
     "Allow notifications" : {},
     "Allow page photos" : {},
     "Almost counts for something." : {},
@@ -968,6 +1015,7 @@
     "Also send page photos" : {},
     "Always ask first for accounts under 18." : {},
     "Always asks first" : {},
+    "Always free" : {},
     "Always free, no limits" : {},
     "Always on for accounts under 18, so Cap helps you work it out." : {},
     "And %lld more. Add a word to narrow it down." : {},
@@ -1169,6 +1217,30 @@
     "Cap is reading your notes" : {},
     "Cap is working: %@" : {},
     "Cap is writing a note about what it made" : {},
+    "Cap keeps what you typed for next time. Everything before it is saved." : {},
+    "Cap kept %lld lectures that were cut off." : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Cap kept %lld lecture that was cut off."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Cap kept %lld lectures that were cut off."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "Cap kept your lecture up to %@." : {},
     "Cap lost the connection part way. This is what arrived." : {},
     "Cap may look things up on trusted study sites when you ask." : {},
     "Cap moves" : {},
@@ -1205,6 +1277,7 @@
     "Cap will bring it up tomorrow" : {},
     "Cap won't bring it up again" : {},
     "Cap won't look anything up online." : {},
+    "Cap's answers and drafts, no daily limit" : {},
     "Cap's own words" : {},
     "Cap's own words, not from your notes" : {},
     "Cap's style" : {},
@@ -1388,9 +1461,11 @@
     "Dusk" : {},
     "Dyslexia-friendly font" : {},
     "Each day" : {},
+    "Each friend keeps their own account and notes" : {},
     "Each friend studies with their own account and their own notes. A seat can be given to someone else at any time." : {},
     "Each question is read as it appears, in your iPhone's Spoken Content voice." : {},
     "Each star is a thing you learned." : {},
+    "Each week 3 AI scans and notes for 1 lecture; each day 20 graded answers and 10 questions for Cap" : {},
     "Earned" : {},
     "Earned %@" : {},
     "Edit" : {},
@@ -1408,6 +1483,7 @@
     "Even brains need breaks." : {},
     "Even the dim ones are yours." : {},
     "Every Pro feature, on %@'s plan. Your studying, notes and progress are your own." : {},
+    "Every answer graded by Cloud AI" : {},
     "Every box has a label. Tap a box to change it." : {},
     "Every control is labelled; Cap's answers are read with their sources." : {},
     "Every course, card, review, lecture, exam and chat on this iPhone, and your settings. You'll be signed out here, and onboarding starts again. This can't be undone; export first if you want a copy." : {},
@@ -1419,6 +1495,7 @@
     "Every sound and haptic, on each palette" : {},
     "Every square counts." : {},
     "Every star is something you know." : {},
+    "Everyone gets every Pro feature" : {},
     "Everyone in your Squad gets every Pro feature." : {},
     "Everyone starts somewhere." : {},
     "Everything as JSON" : {},
@@ -1500,6 +1577,7 @@
     "Format: %@" : {},
     "Found %@" : {},
     "Found it for you." : {},
+    "Free AI scans are used up until Monday. Cap still writes questions on your iPhone." : {},
     "Free limits" : {},
     "Free plan" : {},
     "Free trial" : {},
@@ -1578,6 +1656,7 @@
     "Hehe, that tickles." : {},
     "Hello from a capybara." : {},
     "Hello, hello, hello." : {},
+    "Help" : {},
     "Here's the answer, served." : {},
     "Here's the answer." : {},
     "Heroes wear mortarboards." : {},
@@ -1672,6 +1751,7 @@
     "Interphase\tThe longest part of the cell cycle\nProphase\tChromosomes condense…" : {},
     "Invite a friend" : {},
     "Invite friends" : {},
+    "Invite friends with a link or a code" : {},
     "Invite your squad" : {},
     "Is it bedtime?" : {},
     "Is this a game? I love it." : {},
@@ -1731,6 +1811,7 @@
     "Keeps what Cap has written so far" : {},
     "Kept" : {},
     "Kept for later, with the %@ in your Library" : {},
+    "Kept from before" : {},
     "Key idea" : {},
     "Key ideas" : {},
     "Key terms" : {},
@@ -2030,6 +2111,8 @@
     "Open your memory sky" : {},
     "OpenDyslexic for questions, answers, notes and chats. Headlines and numbers keep their faces." : {},
     "Opens Capling on today's study session." : {},
+    "Opens Help, with a way to write to Loopware" : {},
+    "Opens Loopware's support page" : {},
     "Opens the App Store's own page. Cancelling takes two taps and keeps %@ until the end of the period you paid for." : {},
     "Opens the Capling lecture recorder." : {},
     "Opens the Capling scanner to turn pages of notes into questions." : {},
@@ -2090,6 +2173,7 @@
     "Pick as many as apply" : {},
     "Pick me!" : {},
     "Pick up where you left off" : {},
+    "Picked up where you left off." : {},
     "Planned (debug)" : {},
     "Planning an exam" : {},
     "Plans" : {},
@@ -2177,7 +2261,9 @@
     "Questions are no longer read aloud. The speaker button still reads one on request." : {},
     "Questions are read aloud as they appear in a session." : {},
     "Questions come from this text only, and each one links back to the sentence it came from." : {},
+    "Questions, a bug, or a charge you didn't expect? Write to us. A real person reads every message." : {},
     "Questions, checks of fill-ins and choices, and Cap's answers from your notes, with no network and no AI. They never count against a limit. Answers in your own words you mark yourself, unless an AI is there to check them." : {},
+    "Questions? Ask a real person" : {},
     "Quick check" : {},
     "Quick question…" : {},
     "Quiet hours" : {},
@@ -2186,6 +2272,7 @@
     "Quietly beaming." : {},
     "Quiz me" : {},
     "Quiz me on " : {},
+    "Quizlet and Anki imports" : {},
     "Quizlet export" : {},
     "Raise your paw if you wonder." : {},
     "Reached" : {},
@@ -2273,7 +2360,9 @@
     "Resume" : {},
     "Review" : {},
     "Review %@" : {},
+    "Reviews and flashcards, as many as you like" : {},
     "Reviews due, next 7 days" : {},
+    "Reviews, cards you make and imports are always free." : {},
     "Right answer" : {},
     "Right here, friend." : {},
     "Right on the money." : {},
@@ -2307,9 +2396,13 @@
     "Searching…" : {},
     "Seats live in your account, so invites can't be made here." : {},
     "Section" : {},
-    "Sections with their times, the moments flagged for the exam, key terms and questions, %@." : {},
+    "Sections with their times, the moments flagged for the exam, key terms and questions, on your iPhone." : {},
+    "Sections with their times, the moments flagged for the exam, key terms and questions, on your iPhone. This week's AI lecture notes are used. Transcripts still work." : {},
+    "Sections with their times, the moments flagged for the exam, key terms and questions, with Cloud AI, using this week's free AI notes." : {},
+    "Sections with their times, the moments flagged for the exam, key terms and questions, with Cloud AI." : {},
     "See Capling Pro" : {},
     "See Exam Pass" : {},
+    "See Pro" : {},
     "See Pro and Squad" : {},
     "See Squad" : {},
     "See all" : {},
@@ -2632,6 +2725,7 @@
     "This source is gone" : {},
     "This week" : {},
     "This week lit a new sky" : {},
+    "This week's AI lecture notes are used. Transcripts still work." : {},
     "This week's plan" : {},
     "Three days in a row. A habit is starting." : {},
     "Three friends get Pro free. You'll see when they study." : {},
@@ -2695,6 +2789,7 @@
     "Use another address or send a new code" : {},
     "Use it" : {},
     "Use this page anyway" : {},
+    "Version" : {},
     "Version %@" : {},
     "Very proud. Very capybara." : {},
     "VoiceOver" : {},
@@ -2713,6 +2808,7 @@
     "We've got time." : {},
     "Weak" : {},
     "Web research" : {},
+    "Web research from trusted sites" : {},
     "Web research is off in Settings." : {},
     "Web research is part of Capling Pro." : {},
     "Webbed feet. Excellent swimmer." : {},
@@ -2735,6 +2831,7 @@
     "Why it's right, in a sentence or two" : {},
     "Why it's wrong (optional)" : {},
     "Why? Always why." : {},
+    "With Pro" : {},
     "Woohoo!" : {},
     "Working" : {},
     "Working on it" : {},
@@ -2742,6 +2839,7 @@
     "Write a note" : {},
     "Write a question" : {},
     "Write me a note on " : {},
+    "Write to a real person" : {},
     "Writing a note" : {},
     "Writing flashcards" : {},
     "Writing questions" : {},
@@ -2873,6 +2971,7 @@
     "Your set goes there, and your plan is built for it." : {},
     "Your sky is %@" : {},
     "Your sky is waiting" : {},
+    "Your streak, quests and the sky" : {},
     "Your turn" : {},
     "Zoomable" : {},
     "Zzzoom." : {},

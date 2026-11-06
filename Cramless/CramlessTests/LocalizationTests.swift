@@ -19,6 +19,9 @@ final class LocalizationTests: XCTestCase {
         XCTAssertEqual(String(localized: "\(1) freezes saved"), "1 freeze saved")
         XCTAssertEqual(String(localized: "\(2) of \(4) seats"), "2 of 4 seats")
         XCTAssertEqual(String(localized: "\(1) of \(1) seats"), "1 of 1 seat", "the plural follows the second number")
+        XCTAssertEqual(String(localized: "\(1) free AI scans left this week"), "1 free AI scan left this week")
+        XCTAssertEqual(String(localized: "AI notes for \(2) lecture left this week"), "AI notes for 2 lectures left this week")
+        XCTAssertEqual(String(localized: "Cap kept \(3) lectures that were cut off."), "Cap kept 3 lectures that were cut off.")
     }
 
     func testVerbatimTextIsShownAsItIs() {

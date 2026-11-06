@@ -197,7 +197,7 @@ final class AppModel {
         if config.isHarness, TestHarness.skipsOnboarding { settings.onboardingCompleted = true }
         #endif
         applyDailyRollover()
-        await recoverInterruptedLectures()
+        announceRecoveredLectures(await recoverInterruptedLectures())
         guard sideEffectsEnabled else { return }
         await purchases.start()
         await account.start()

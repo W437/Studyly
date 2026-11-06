@@ -75,6 +75,8 @@ final class SessionRunner: Identifiable {
     private(set) var questionShownAt = Date()
     /// The current question has an answer that isn't recorded yet: typed, picked or graded.
     var hasUnsavedAnswer = false
+    /// Words are being typed on the current question (kept as a draft if the person leaves).
+    @ObservationIgnored var isTypingAnswer = false
     /// The latest save ("Saved it."), for the sky's flare over the session.
     private(set) var saveFlare: SaveFlare?
     @ObservationIgnored private var saveCount = 0
@@ -84,17 +86,50 @@ final class SessionRunner: Identifiable {
     @ObservationIgnored private let topicNames: [UUID: String]
     /// Distinct items in the session when it started (the Live Activity's total).
     @ObservationIgnored private var activityTotal = 0
+    /// Picking up a session iOS closed: its open `StudySession`, and the seconds it had been on screen before.
+    @ObservationIgnored private var resumedSession: StudySession?
+    @ObservationIgnored private var priorWallSeconds = 0.0
+    /// The app clock when this runner started (what the checkpoint's wall time counts from).
+    @ObservationIgnored private var clockStart: Date?
+    /// This runner picked up a session that was cut off ("Picked up where you left off.").
+    let resumed: Bool
 
-    init(app: AppModel, request: SessionRequest, options: Options = Options()) {
+    /// `resuming`: a checkpoint of a session iOS closed today (`AppModel.resumableCheckpoint(for:)`). The session goes on in the same
+    /// `StudySession` with the minutes it had left, the question that was on screen first; the time the app was closed isn't
+    /// counted. A checkpoint whose session is gone or finished is ignored.
+    init(app: AppModel, request: SessionRequest, options: Options = Options(), resuming checkpoint: SessionCheckpoint? = nil) {
         self.app = app
         self.request = request
         self.options = options
-        let built = app.buildSession(request)
+        var built: BuiltSession
+        if let checkpoint, let session = app.studySession(checkpoint.sessionID), session.endedAt == nil {
+            var rest = request
+            rest.minutes = checkpoint.remainingMinutes(activeSeconds: session.activeSeconds)
+            built = app.buildSession(rest)
+            if let current = checkpoint.currentItemID { Self.putFirst(current, in: &built, app: app) }
+            resumedSession = session
+            priorWallSeconds = checkpoint.wallSeconds
+            resumed = !built.isEmpty
+        } else {
+            built = app.buildSession(request)
+            resumed = false
+        }
         self.built = built
         self.queue = SessionQueue(built)
         self.phase = built.isEmpty ? .empty : .ready
         self.streakBefore = app.streak()
         self.topicNames = app.topicNames()
+    }
+
+    /// The question that was on screen when the session was cut off comes first: moved up if the rebuilt session has it, else
+    /// added (it is still active and in a live course).
+    private static func putFirst(_ itemID: UUID, in built: inout BuiltSession, app: AppModel) {
+        if let index = built.entries.firstIndex(where: { $0.itemID == itemID }) {
+            built.entries.insert(built.entries.remove(at: index), at: 0)
+        } else if let item = app.item(itemID), item.deletedAt == nil, item.status == .active, item.course?.deletedAt == nil {
+            built.entries.insert(SessionEntry(itemID: item.id, reason: .due, kind: item.kind, topicID: item.topicID,
+                                              courseID: item.course?.id, estimatedSeconds: item.kind.typicalSeconds), at: 0)
+        }
     }
 
     // MARK: Reading
@@ -193,10 +228,16 @@ final class SessionRunner: Identifiable {
 
     // MARK: Running
 
-    /// Starts the StudySession (readiness before) and the Live Activity. Idempotent.
+    /// Starts the StudySession (readiness before) and the Live Activity, or carries on the one that was cut off. Idempotent.
     func start() {
         guard phase == .ready else { return }
-        session = app.startSession(built)
+        if let resumedSession, resumedSession.modelContext != nil, resumedSession.endedAt == nil {
+            session = resumedSession
+            StudyRuntime.setLoad(app.currentDueLoad(), for: resumedSession.id)
+        } else {
+            session = app.startSession(built)
+        }
+        clockStart = app.now
         startedAt = Date()
         questionShownAt = Date()
         phase = .question
@@ -205,6 +246,7 @@ final class SessionRunner: Identifiable {
             app.liveActivities.startSession(title: SessionCopy.title(for: request.kind), total: activityTotal,
                                             plannedMinutes: built.plannedMinutes)
         }
+        keepCheckpoint()
     }
 
     /// The current question was graded (not yet committed).
@@ -229,6 +271,8 @@ final class SessionRunner: Identifiable {
         outcomes[entry.id] = outcome
         provisional = nil
         hasUnsavedAnswer = false
+        // Recorded: what was typed for it is no longer a draft.
+        app.clearAnswerDraft(for: entry.itemID)
         if options.liveActivity {
             let next = queue.upcoming.first
             app.liveActivities.update(answered: min(distinctAnswered, max(activityTotal, 1)), correct: rightFirstTime,
@@ -247,18 +291,44 @@ final class SessionRunner: Identifiable {
         }
         provisional = nil
         hasUnsavedAnswer = false
+        isTypingAnswer = false
         questionShownAt = Date()
-        if queue.isFinished { finish() }
+        if queue.isFinished { finish() } else { keepCheckpoint() }
     }
 
-    /// Ends the session (idempotent): the engine's summary, the Live Activity's last word.
+    /// Ends the session (idempotent): the engine's summary, the Live Activity's last word. Nothing is left to pick up.
     func finish() {
         guard phase != .finished else { return }
         let wasEmpty = phase == .empty
         phase = .finished
-        if let session { summary = app.finishSession(session) }
+        if let session {
+            app.clearSessionCheckpoint(sessionID: session.id)
+            // A session picked up after a close counts the time it was on screen, never the gap.
+            let wallStart = resumedSession == nil ? nil : app.now.addingTimeInterval(-wallSeconds)
+            summary = app.finishSession(session, wallStart: wallStart)
+        }
         if options.liveActivity, !wasEmpty { app.liveActivities.end() }
     }
+
+    // MARK: Picking up after a close
+
+    /// Seconds this session has been on screen: before a close it was picked up from, and since this runner started (app clock).
+    var wallSeconds: Double {
+        priorWallSeconds + max(0, clockStart.map { app.now.timeIntervalSince($0) } ?? 0)
+    }
+
+    /// Where the session stands, written at the start and at each question (and when the app leaves the screen), for a session
+    /// kind that can pick up again (`SessionCheckpoint.resumableKinds`).
+    func keepCheckpoint() {
+        guard phase == .question, let session, SessionCheckpoint.resumableKinds.contains(request.kind) else { return }
+        app.keepSessionCheckpoint(SessionCheckpoint(
+            sessionID: session.id, kindRaw: request.kind.rawValue, courseID: request.courseID, examID: session.examID,
+            dayKey: app.calendar.dayKey(for: session.startedAt), plannedSeconds: session.plannedSeconds,
+            currentItemID: queue.current?.itemID, wallSeconds: wallSeconds, savedAt: app.now))
+    }
+
+    /// Whether this entry's answer is recorded.
+    func hasRecorded(_ entryID: String) -> Bool { outcomes[entryID] != nil }
 
     /// The person left early: everything answered stays recorded.
     func close() { finish() }

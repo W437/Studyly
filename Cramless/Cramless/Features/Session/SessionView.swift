@@ -2,14 +2,19 @@ import SwiftUI
 
 /// A study session, full screen: a top bar (close, progress segments coloured by result, the time), one question
 /// at a time in its own format, then the summary. Answers are recorded as the person commits each one, so closing
-/// only asks first when the question on screen has an answer that isn't saved yet.
+/// only asks first when the question on screen has an answer that isn't saved yet (and an answer being typed is kept as a
+/// draft for next time). A daily, catch-up or eve session that iOS closed picks up the same day where it stood
+/// (`SessionCheckpoint`).
 ///
 /// DEBUG hooks (read once, see `SessionDebug`): `CRAMLESS_SESSION_STATE`, `CRAMLESS_SESSION_ANSWER`,
-/// `CRAMLESS_SESSION_PICK`.
+/// `CRAMLESS_SESSION_PICK`, `CRAMLESS_SESSION_DRAFT=<text>` (with `ownwords`: the first question has those words kept from
+/// before), `CRAMLESS_SESSION_RESUME=1` (a session of this kind was cut off earlier today after three answers, with words typed
+/// on an own-words question: it picks up).
 struct SessionView: View {
     let request: SessionRequest
 
     @Environment(AppModel.self) private var app
+    @Environment(\.scenePhase) private var scenePhase
     @State private var runner: SessionRunner?
     @State private var confirmLeave = false
     #if DEBUG
@@ -30,12 +35,24 @@ struct SessionView: View {
             runner?.close()
             app.stopReadingAloud()
         }
+        // Leaving the screen (a call, another app) may be the last moment before iOS closes the app.
+        .onChange(of: scenePhase) { _, phase in
+            if phase != .active { runner?.keepCheckpoint() }
+        }
         .confirmationDialog("Leave this question?", isPresented: $confirmLeave, titleVisibility: .visible) {
             Button("Leave", role: .destructive, action: leave)
             Button("Keep going", role: .cancel) {}
         } message: {
-            Text("Your answer to this one isn't saved yet. Everything before it is.")
+            Text(leaveMessage)
         }
+    }
+
+    /// Words typed on the question are kept for next time; anything else unsaved (a pick, a grade) isn't.
+    private var leaveMessage: LocalizedStringResource {
+        if let runner, runner.isTypingAnswer || runner.current.map({ app.answerDraft(for: $0.itemID) != nil }) == true {
+            return "Cap keeps what you typed for next time. Everything before it is saved."
+        }
+        return "Your answer to this one isn't saved yet. Everything before it is."
     }
 
     @ViewBuilder
@@ -79,9 +96,14 @@ struct SessionView: View {
 
     // MARK: Running
 
-    /// Starts `request` (the first session, a fix from the summary, or a bonus round).
+    /// Starts `request` (the first session, a fix from the summary, or a bonus round). The day's own session picks up where it
+    /// stood when iOS closed the app earlier today.
     private func begin(_ request: SessionRequest) {
-        let next = SessionRunner(app: app, request: request)
+        #if DEBUG
+        if runner == nil, TestHarness.once("CRAMLESS_SESSION_RESUME") == "1" { app.debugCutOffSession(request) }
+        #endif
+        let checkpoint = runner == nil ? app.resumableCheckpoint(for: request) : nil
+        let next = SessionRunner(app: app, request: request, resuming: checkpoint)
         #if DEBUG
         debug.prepare(next, app: app)
         #endif
@@ -178,8 +200,10 @@ struct SessionTopBar: View {
         .dynamicTypeSize(...DynamicTypeSize.accessibility2)
     }
 
-    /// For a session that isn't the daily one: what it is ("2-minute fix · Anaphase vs telophase").
+    /// For a session that isn't the daily one: what it is ("2-minute fix · Anaphase vs telophase"). A session picked up after a
+    /// close says so until the first answer.
     private var contextLine: String? {
+        if runner.resumed, runner.answers.isEmpty { return String(localized: "Picked up where you left off.") }
         switch runner.kind {
         case .daily, .quickCheck: return nil
         case .fix:
@@ -491,6 +515,9 @@ struct SessionDebug {
         switch state {
         case "ownwords":
             runner.debugFront(kinds: [.recall, .apply], preferring: "why do cells divide")
+            if let draft = TestHarness.once("CRAMLESS_SESSION_DRAFT"), let first = runner.queue.current {
+                app.keepAnswerDraft(draft, for: first.itemID)
+            }
         case "graded":
             runner.debugFront(kinds: [.recall, .apply], preferring: "why do cells divide")
         case "mcq", "mcq-answered", "mcq-saved":

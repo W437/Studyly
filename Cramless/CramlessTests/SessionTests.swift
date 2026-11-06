@@ -528,4 +528,114 @@ final class SessionTests: XCTestCase {
         XCTAssertEqual(Set(today), Set(texts.indices))
         XCTAssertEqual(today.last, 2)
     }
+
+    // MARK: Nothing lost mid-answer
+
+    func testDraftsAreKeptAWeekAtMostThirtyAndBlankRemovesOne() {
+        let t0 = clock.now
+        var drafts = AnswerDrafts()
+        let a = UUID()
+        drafts.keep("Mitosis makes two", for: a, now: t0)
+        XCTAssertEqual(drafts.draft(for: a, now: t0.addingTimeInterval(6 * 86_400))?.text, "Mitosis makes two")
+        XCTAssertNil(drafts.draft(for: a, now: t0.addingTimeInterval(7 * 86_400 + 1)), "a week old: gone")
+        drafts.keep("  ", for: a, now: t0)
+        XCTAssertNil(drafts.draft(for: a, now: t0), "blank text removes the draft")
+        let ids = (0..<35).map { _ in UUID() }
+        for (i, id) in ids.enumerated() { drafts.keep("answer \(i)", for: id, now: t0.addingTimeInterval(Double(i))) }
+        XCTAssertEqual(drafts.drafts.count, AnswerDrafts.limit)
+        XCTAssertNil(drafts.draft(for: ids[0], now: t0.addingTimeInterval(40)), "the oldest go first")
+        XCTAssertNotNil(drafts.draft(for: ids[34], now: t0.addingTimeInterval(40)))
+        drafts.keep("late", for: UUID(), now: t0.addingTimeInterval(8 * 86_400))
+        XCTAssertEqual(drafts.drafts.count, 1, "expired drafts go when another is kept")
+    }
+
+    func testADraftComesBackUntilTheAnswerIsRecorded() throws {
+        let course = makeCourse()
+        for i in 0..<3 { makeItem(in: course, kind: .recall, prompt: "Why \(i)?") }
+        app.save()
+        let runner = SessionRunner(app: app, request: SessionRequest(kind: .daily))
+        runner.start()
+        let entry = try XCTUnwrap(runner.current)
+        app.keepAnswerDraft("Because the cell", for: entry.itemID)
+        XCTAssertEqual(app.answerDraft(for: entry.itemID), "Because the cell")
+        XCTAssertEqual(app.defaults.data(forKey: AnswerDrafts.defaultsKey).map { _ in true }, true, "kept in \(AnswerDrafts.defaultsKey)")
+        clock.advance(3 * 86_400)
+        XCTAssertEqual(app.answerDraft(for: entry.itemID), "Because the cell", "still there three days on")
+        runner.record(rating: .good, score: 1, answer: "Because the cell grows", gradedBy: "rules", durationMs: 9000, outcome: .right)
+        XCTAssertNil(app.answerDraft(for: entry.itemID), "recorded: the draft is gone")
+        app.keepAnswerDraft("Another", for: entry.itemID)
+        clock.advance(7 * 86_400 + 60)
+        XCTAssertNil(app.answerDraft(for: entry.itemID), "a week later it has expired")
+    }
+
+    func testASessionIOSClosedPicksUpTheSameDayWithoutCountingTheGap() throws {
+        let course = makeCourse()
+        for i in 0..<12 { makeItem(in: course, prompt: "Card \(i)") }
+        app.save()
+        let first = SessionRunner(app: app, request: SessionRequest(kind: .daily), options: .init(liveActivity: false))
+        first.start()
+        for _ in 0..<2 {
+            first.record(rating: .good, score: -1, answer: nil, gradedBy: "person", durationMs: 5000, outcome: .right)
+            clock.advance(30)
+            first.advance()
+        }
+        let sessionID = try XCTUnwrap(first.sessionID)
+        let onScreen = try XCTUnwrap(first.current?.itemID)
+        app.keepAnswerDraft("half typed", for: onScreen)
+        let saved = try XCTUnwrap(app.sessionCheckpoint())
+        XCTAssertEqual(saved.sessionID, sessionID)
+        XCTAssertEqual(saved.currentItemID, onScreen)
+        XCTAssertEqual(saved.wallSeconds, 60, accuracy: 0.001)
+        // iOS closes the app here: nothing finishes. Three hours later, the same evening, Study again.
+        clock.advance(3 * 3600)
+
+        XCTAssertNil(app.resumableCheckpoint(for: SessionRequest(kind: .practice)), "a practice round starts again")
+        let checkpoint = try XCTUnwrap(app.resumableCheckpoint(for: SessionRequest(kind: .daily)))
+        let second = SessionRunner(app: app, request: SessionRequest(kind: .daily), options: .init(liveActivity: false),
+                                   resuming: checkpoint)
+        XCTAssertTrue(second.resumed)
+        XCTAssertEqual(second.current?.itemID, onScreen, "the question that was on screen comes first")
+        second.start()
+        XCTAssertEqual(second.sessionID, sessionID, "the same StudySession goes on")
+        second.record(rating: .good, score: -1, answer: nil, gradedBy: "person", durationMs: 5000, outcome: .right)
+        clock.advance(30)
+        second.close()
+
+        let summary = try XCTUnwrap(second.summary)
+        XCTAssertEqual(summary.sessionID, sessionID)
+        XCTAssertEqual(summary.answers, 3, "the answers from before the close count in the same session")
+        XCTAssertEqual(app.fetch(FetchDescriptor<StudySession>()).count, 1)
+        let session = try XCTUnwrap(app.studySession(sessionID))
+        XCTAssertEqual(session.activeSeconds, 90, accuracy: 0.5, "60 s before the close and 30 s after; the 3 hours between don't count")
+        XCTAssertEqual(app.dayRecordSnapshot(for: clock.now)?.studySeconds ?? 0, 90, accuracy: 0.5)
+        XCTAssertNil(app.sessionCheckpoint(), "finished: nothing left to pick up")
+        XCTAssertNil(app.answerDraft(for: onScreen), "its answer was recorded")
+    }
+
+    func testOnlyTodaysOpenSessionIsPickedUp() throws {
+        let course = makeCourse()
+        for i in 0..<8 { makeItem(in: course, prompt: "Card \(i)") }
+        app.save()
+        let left = SessionRunner(app: app, request: SessionRequest(kind: .daily), options: .init(liveActivity: false))
+        left.start()
+        left.record(rating: .good, score: -1, answer: nil, gradedBy: "person", durationMs: 5000, outcome: .right)
+        left.advance()
+        XCTAssertNotNil(app.sessionCheckpoint())
+        left.close()
+        XCTAssertNil(app.sessionCheckpoint(), "leaving clears it")
+        XCTAssertNil(app.resumableCheckpoint(for: SessionRequest(kind: .daily)))
+
+        let closed = SessionRunner(app: app, request: SessionRequest(kind: .daily), options: .init(liveActivity: false))
+        closed.start()
+        closed.record(rating: .good, score: -1, answer: nil, gradedBy: "person", durationMs: 5000, outcome: .right)
+        closed.advance()
+        clock.advance(86_400)
+        XCTAssertNil(app.resumableCheckpoint(for: SessionRequest(kind: .daily)), "yesterday's session isn't picked up")
+        XCTAssertNil(app.sessionCheckpoint(), "and its checkpoint is cleared")
+
+        let practice = SessionRunner(app: app, request: SessionRequest(kind: .practice), options: .init(liveActivity: false))
+        practice.start()
+        XCTAssertNil(app.sessionCheckpoint(), "a practice round keeps none")
+    }
 }
+

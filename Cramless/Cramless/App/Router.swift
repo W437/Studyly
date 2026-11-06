@@ -133,6 +133,13 @@ enum AppCover: Identifiable, Hashable, Sendable {
     var id: String { String(describing: self) }
 }
 
+/// What a toast's button opens.
+enum ToastAction: Hashable, Sendable {
+    /// A screen pushed on a tab, which becomes the selected one.
+    case push(Route, AppTab)
+    case present(AppSheet)
+}
+
 @MainActor
 @Observable
 final class Router {
@@ -177,6 +184,27 @@ final class Router {
 
     func toast(_ message: LocalizedStringResource, systemImage: String = "checkmark.circle.fill", tone: Toast.Tone = .success) {
         toast = Toast(message: message, systemImage: systemImage, tone: tone)
+    }
+
+    /// A toast with a button ("Open"): stays a little longer, and its button runs `action`.
+    func toast(_ message: LocalizedStringResource, systemImage: String = "checkmark.circle.fill", tone: Toast.Tone = .success,
+               actionTitle: LocalizedStringResource, action: ToastAction, duration: Double = 6) {
+        toast = Toast(message: message, systemImage: systemImage, tone: tone, actionTitle: actionTitle, action: action,
+                      duration: duration)
+    }
+
+    /// The toast's button was pressed: the toast goes, and what it offered opens (a pushed screen over any cover, or a sheet).
+    func runToastAction() {
+        guard let action = toast?.action else { return }
+        toast = nil
+        switch action {
+        case .push(let route, let tab):
+            sheet = nil
+            cover = nil
+            push(route, on: tab)
+        case .present(let sheet):
+            present(sheet)
+        }
     }
 
     /// Binding for a tab's navigation path.

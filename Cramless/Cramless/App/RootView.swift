@@ -85,7 +85,10 @@ private struct ToastHost: View {
     var body: some View {
         ZStack {
             if let toast = app.router.toast {
-                ToastView(toast: toast)
+                ToastView(toast: toast, onAction: toast.action == nil ? nil : {
+                    CLHaptics.tap()
+                    withAnimation(CLMotion.exit) { app.router.runToastAction() }
+                })
                     .transition(.move(edge: .top).combined(with: .opacity))
                     .padding(.top, 6)
                     .task(id: toast.id) {

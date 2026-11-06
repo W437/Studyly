@@ -87,6 +87,19 @@ enum TestHarness {
         apply(route: parts[0], arg: parts.count > 1 ? parts[1] : nil, app: app)
     }
 
+    /// Toasts that launch raises, on demand. `CRAMLESS_LECTURE_RECOVERED=2480`: a lecture cut off by a crash and kept up to 41:20 (the
+    /// demo world's lecture stands in for it); `=2480,3100` two of them.
+    static func applyLaunchToasts(to app: AppModel) {
+        guard let raw = once("CRAMLESS_LECTURE_RECOVERED") else { return }
+        let lectures = app.courses.flatMap(\.liveSources).filter { $0.kind == .lecture }
+        let recovered = raw.split(separator: ",").compactMap { Double($0.trimmingCharacters(in: .whitespaces)) }
+            .enumerated().map { index, seconds in
+                RecoveredLecture(id: lectures.indices.contains(index) ? lectures[index].id : (lectures.first?.id ?? UUID()),
+                                 duration: seconds)
+            }
+        app.announceRecoveredLectures(recovered)
+    }
+
     static func apply(route: String, arg: String?, app: AppModel) {
         let r = app.router
         let firstExam = app.upcomingExams().first
