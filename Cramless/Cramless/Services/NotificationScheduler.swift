@@ -60,6 +60,29 @@ final class NotificationScheduler {
                                   notices: app.noticePings())
     }
 
+    // MARK: A question answered later
+
+    /// Says that questions kept for later were answered while the app was away: at once, quietly (`.passive`: into Notification Center, no sound, no
+    /// lighting up), and only if notifications are allowed. It is never asked for here: a student who said no just finds the answer in the chat.
+    func postAnswered(_ chats: [(id: UUID, title: String)]) {
+        guard let note = NotificationPlanner.answered(chats) else { return }
+        Task { @MainActor in
+            let center = UNUserNotificationCenter.current()
+            let settings = await center.notificationSettings()
+            guard [.authorized, .provisional, .ephemeral].contains(settings.authorizationStatus) else { return }
+            let content = UNMutableNotificationContent()
+            content.body = note.body
+            content.threadIdentifier = "capling.answer"
+            content.userInfo = ["url": note.url.absoluteString]
+            content.interruptionLevel = .passive
+            do {
+                try await center.add(UNNotificationRequest(identifier: note.id, content: content, trigger: nil))
+            } catch {
+                Self.log.notice("answer notification not sent: \(error.localizedDescription, privacy: .public)")
+            }
+        }
+    }
+
     // MARK: Applying
 
     private static func apply(_ plan: [NotificationPlanner.Planned], calendar: Calendar) async {

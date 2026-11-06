@@ -44,6 +44,10 @@ final class AppModel {
     @ObservationIgnored lazy var notifications = NotificationScheduler(app: self)
     @ObservationIgnored lazy var widgets = WidgetSync(app: self)
     @ObservationIgnored lazy var liveActivities = LiveActivityController(app: self)
+    /// Says when the connection comes back, while a question waits to be answered (`AppModel+AnswerLater.swift`).
+    @ObservationIgnored lazy var connectivity = Connectivity()
+    /// A round of answering kept questions is under way.
+    @ObservationIgnored var answeringLater = false
 
     // MARK: The memory sky (`AppModel+Sky.swift`)
 

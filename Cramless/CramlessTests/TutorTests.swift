@@ -454,6 +454,65 @@ final class TutorTests: XCTestCase {
         XCTAssertFalse(backend.requests.contains { $0.kind == .pick }, "the model cannot say that the notes do not cover a question, so the search's gate stays")
     }
 
+    // MARK: Who couldn't be reached
+
+    func testOfflineIsToldFromAServerFailureAndAFreeLimitAndARefusalAreNeither() async throws {
+        func outcome(_ transport: any RelayTransport) async -> TutorOutcome? {
+            let app = AITestSupport.makeApp(mode: .relay, consent: true)
+            app.settings.tutorMode = .explain
+            app.ai.transportOverride = transport
+            return await collect(app, input("What happens in anaphase?")).outcome
+        }
+        let offline = await outcome(ScriptedTutorTransport([], error: URLError(.notConnectedToInternet)))
+        XCTAssertEqual(offline?.origin, .rules)
+        XCTAssertEqual(offline?.cloudUnreachable, true)
+        XCTAssertEqual(offline?.note, "You're offline, so Cap answered from your notes on this iPhone.")
+
+        let timeout = await outcome(ScriptedTutorTransport([], error: URLError(.timedOut)))
+        XCTAssertEqual(timeout?.cloudUnreachable, true)
+        XCTAssertEqual(timeout?.note, "Cloud AI couldn't be reached, so Cap answered from your notes on this iPhone.")
+
+        let server = await outcome(ScriptedTutorTransport([.failure(code: "upstream", message: "Try again.")]))
+        XCTAssertEqual(server?.cloudUnreachable, true)
+        XCTAssertEqual(server?.note, "Cloud AI couldn't be reached, so Cap answered from your notes on this iPhone.")
+
+        let limit = await outcome(ScriptedTutorTransport([], error: MockRelayTransport.quotaError()))
+        XCTAssertEqual(limit?.cloudUnreachable, false)
+        XCTAssertNotNil(limit?.limitReached)
+
+        let refusal = await outcome(ScriptedTutorTransport([.failure(code: "upstream", message: "Cap can't help with that one. Try asking about your notes.")]))
+        XCTAssertEqual(refusal?.cloudUnreachable, false)
+
+        let turnedDown = await outcome(ScriptedTutorTransport([.failure(code: "bad_request", message: "No.")]))
+        XCTAssertEqual(turnedDown?.cloudUnreachable, false)
+    }
+
+    func testAnAnswerThatArrivesIsNeverCalledUnreachable() async throws {
+        let app = AITestSupport.makeApp(mode: .relay, consent: true)
+        app.ai.transportOverride = RecordingTransport()
+        let outcome = await collect(app, input("What happens in anaphase?")).outcome
+        XCTAssertEqual(outcome?.origin, .cloud)
+        XCTAssertEqual(outcome?.cloudUnreachable, false)
+        // Cut off part way: it keeps what arrived, as ever; there is a reply to read.
+        app.ai.transportOverride = ScriptedTutorTransport([.start(model: "t"), .delta("Sister chromatids")], error: URLError(.networkConnectionLost))
+        let cut = await collect(app, input("What happens in anaphase?")).outcome
+        XCTAssertEqual(cut?.interrupted, true)
+        XCTAssertEqual(cut?.cloudUnreachable, false)
+    }
+
+    func testTheCloudOnlyReplyIsNilInsteadOfTheOfflineFallback() async throws {
+        let app = AITestSupport.makeApp(mode: .relay, consent: true)
+        app.ai.transportOverride = ScriptedTutorTransport([], error: URLError(.notConnectedToInternet))
+        let offline = await app.ai.cloudTutorReply(input("What happens in anaphase?"))
+        XCTAssertNil(offline)
+        app.ai.transportOverride = RecordingTransport()
+        let answered = await app.ai.cloudTutorReply(input("What happens in anaphase?"))
+        XCTAssertEqual(answered?.origin, .cloud)
+        app.settings.cloudConsentVersion = 0
+        let refused = await app.ai.cloudTutorReply(input("What happens in anaphase?"))
+        XCTAssertNil(refused)
+    }
+
     // MARK: Limits of the relay
 
     func testASourceWithAVeryLongNameDoesNotMakeEveryCloudAnswerFail() async throws {
@@ -1515,6 +1574,28 @@ final class TutorHonestyTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(r.quotes.count, 2)
         let passages = LocalRetriever(material: AITestSupport.material).passages.map(\.text)
         for quote in r.quotes { XCTAssertTrue(passages.contains { $0.contains(quote.text) }, quote.text) }
+    }
+
+    func testAProblemFromAPhotoIsReadAsAProblem() {
+        // A formula has no words for the small-talk check, and a header is no request to do the work.
+        let found = hits("What happens in anaphase?", in: AITestSupport.material)
+        let snapped = LocalTutor.reply(question: "What happens in anaphase?", mode: .hints, hits: found.1, context: nil,
+                                       terms: found.2, hasMaterial: true, fromPhoto: true)
+        XCTAssertEqual(snapped.kind, .answer)
+        XCTAssertTrue(snapped.grounded)
+        let order = LocalTutor.reply(question: "Do my homework: problems 1 to 10.", mode: .hints, hits: [], context: nil, hasMaterial: true, fromPhoto: true)
+        XCTAssertEqual(order.kind, .notCovered, "no request to refuse, and nothing in the notes for it")
+        let formula = LocalTutor.reply(question: "∫ x² dx", mode: .hints, hits: [], context: nil, hasMaterial: true, fromPhoto: true)
+        XCTAssertEqual(formula.kind, .notCovered)
+        XCTAssertFalse(formula.grounded)
+        let typed = LocalTutor.reply(question: "Do my homework: problems 1 to 10.", mode: .hints, hits: [], context: nil, hasMaterial: true)
+        XCTAssertEqual(typed.text, TutorPolicy.cheatRefusal, "typed, it is still declined")
+    }
+
+    func testTheNotCoveredLineOfAPhotoCountsAsNotCovered() {
+        XCTAssertTrue(LocalTutor.isNotCoveredReply(LocalTutor.snapNotCovered))
+        XCTAssertTrue(LocalTutor.isNotCoveredReply("I couldn't find this topic in what you've added."))
+        XCTAssertFalse(LocalTutor.isNotCoveredReply(LocalTutor.snapUnverified))
     }
 
     func testAPracticeRequestKeepsTheClosingCheck() {

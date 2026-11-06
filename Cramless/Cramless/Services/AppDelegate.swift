@@ -1,14 +1,16 @@
 import UIKit
 import UserNotifications
 
-/// The app delegate, for the two things that must be in place before launch finishes: the notification delegate
-/// (so a tap on a notification that launched the app isn't lost) and the bridge that routes App Intent links
-/// (Control Center, Siri) into the app. Attached in `CramlessApp` with `@UIApplicationDelegateAdaptor`.
+/// The app delegate, for the three things that must be in place before launch finishes: the notification delegate
+/// (so a tap on a notification that launched the app isn't lost), the bridge that routes App Intent links
+/// (Control Center, Siri) into the app, and the background refresh that answers questions kept for later. Attached in
+/// `CramlessApp` with `@UIApplicationDelegateAdaptor`.
 final class CramlessAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
     func application(_ application: UIApplication,
                      didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
         UNUserNotificationCenter.current().delegate = self
         DeepLinks.installIntentBridge()
+        AnswerLaterTask.register()
         return true
     }
 

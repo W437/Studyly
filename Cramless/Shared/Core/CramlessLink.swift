@@ -4,6 +4,7 @@ import Foundation
 /// them in `DeepLinks` (Cramless/App/DeepLinks.swift); `DeepLinkTests` checks that every link built here parses.
 ///
 ///     capling://today | ask | progress | library | streak
+///     capling://ask/chat/<uuid>          (one chat)
 ///     capling://today?notice=<id>        (one of Cap's cards first: `Notice.linkID`)
 ///     capling://session[?kind=<SessionKind>&exam=<uuid>&confusion=<uuid>&course=<uuid>]
 ///     capling://scan[?course=<uuid>]     capling://record[?course=<uuid>]
@@ -46,6 +47,11 @@ enum CramlessLink {
     /// Settings, or one page of it by its raw value ("notifications", "subscription").
     static func settings(page: String? = nil) -> URL {
         URL(string: "capling://settings" + (page.map { "/\($0)" } ?? "")) ?? today
+    }
+
+    /// One chat with Cap, in the Ask tab.
+    static func chat(_ id: UUID) -> URL {
+        URL(string: "capling://ask/chat/\(id.uuidString)") ?? ask
     }
 
     /// The new-exam sheet.

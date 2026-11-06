@@ -92,7 +92,7 @@ DERIVED=build-x scripts/xc.sh build                   # another derived-data fol
     `TEST_RUNNER_CRAMLESS_ASSISTANT_RELAY_URL=http://127.0.0.1:54990 SIM_ID=… scripts/xcq.sh test -only-testing:CramlessTests/AssistantWireTests`:
     the app's real HTTP client against the relay's code in MOCK mode (opt-in; skipped without the address).
   - `supabase/functions/tools/tutor_bakeoff/run.ts` (flags and the key file in `docs/BUILD.md` ▸ Ask Cap on OpenAI): Ask Cap's
-    tutor on OpenAI models, 33 questions; `report.ts DIR` scores a run.
+    tutor on OpenAI models, 33 questions and a dozen problems from a photo (`--groups problem,mistake`); `report.ts DIR` scores a run.
   - `scripts/device_isolated.sh <udid>`: installs on a phone with the wildcard profile, no capabilities.
   - `scripts/device_demo.sh <udid>`: opens that build in demo mode on the Ask tab (the seeded world, the mock relay's scripted
     replies, sounds, the phone's real haptics). Needed because the assistant only runs through a relay, and a build with no Supabase
@@ -175,7 +175,7 @@ sleep 4; xcrun simctl io <udid> screenshot shot.png
     `CRAMLESS_TODAY_NOTICES=0|1|2|3` deals that many of Cap's cards (stand-ins); `CRAMLESS_TODAY_WHY=<ms>`, `CRAMLESS_TODAY_QUESTS=<ms>` open
     "Why these?" and the quests sheet, `CRAMLESS_TODAY_LATER=<ms>` presses Cap's "Later", `CRAMLESS_NOTICE_TAP=<ms>` his card's button, each that long after launch;
     `CRAMLESS_TODAY_SCROLL=1` scrolls down to the exams row and back (for a film), `=notice` to Cap's card, where it stays; `CRAMLESS_TODAY_OPEN=<ms>` opens the sky that
-    long after launch, as a tap on the band would; `CRAMLESS_CANVAS=375x667` draws Today at an iPhone SE's size (there is no SE
+    long after launch, as a tap on the band would; `CRAMLESS_CANVAS=375x667` draws Today (also the Ask screen and the Explain sheet) at an iPhone SE's size (there is no SE
     simulator for iOS 27; no status-bar inset); `CRAMLESS_TODAY_TYPE=xxxl|ax1…ax5` draws Today at that text size without changing
     the simulator's own setting (others may share it). Routes `todayWhy`, `quests` (the sheets) and `skyList` (the sky as a list,
     "Study something else"); `streak` shows the month with exams and eves marked.
@@ -224,7 +224,10 @@ sleep 4; xcrun simctl io <udid> screenshot shot.png
     with no exam), `CRAMLESS_COURSE_TAB=topics|sources|questions` on that tab, `CRAMLESS_COURSE_FILTER=attention|suspended|<kind>|topic:<n>` with Questions filtered, `CRAMLESS_SCROLL=tabs` with the tabs at the top; `CRAMLESS_ROUTE=exam:<n>` the nth upcoming exam, and `CRAMLESS_EXAM_SKIP=1` opens it with "What if I skip …?" on.
     The exam page's numbers are pinned with `CRAMLESS_NOW=2026-11-06T14:00:00-05:00` (the Chem quiz on Sunday at 10:00).
   - Ask, Settings and Squad: `CRAMLESS_ASK`, `CRAMLESS_ASK_MODE=open` (Cap's style open in the composer), `CRAMLESS_CHAT`, `CRAMLESS_AGE`, `CRAMLESS_TUTOR`, `CRAMLESS_CARDS`,
-    `CRAMLESS_EXPLAIN`, `CRAMLESS_SYNC`, `CRAMLESS_NOTIFY`, `CRAMLESS_SQUAD`, `CRAMLESS_ACCOUNT=apple|email`.
+    `CRAMLESS_SYNC`, `CRAMLESS_NOTIFY`, `CRAMLESS_SQUAD`, `CRAMLESS_ACCOUNT=apple|email`.
+  - Explain my mistake: `CRAMLESS_ROUTE=explain`, `CRAMLESS_EXPLAIN_STEP=1|2|3` (that step, once the answer has reached it), `CRAMLESS_EXPLAIN=card|added|followup` (step 3 with "Make this a card" drafted, or added, or the follow-up composer open). `CRAMLESS_MOCK_LATENCY` slows the reply, to see the pages unlock.
+  - Snap a problem (with `CRAMLESS_ROUTE=ask`): `CRAMLESS_SNAP=confirm|mathlike|unreadable` opens "Check the problem" in that state, `asked` sends a problem (the reply with its citation), `notcovered` one the notes don't hold (the app's own line), `CRAMLESS_SNAP_TEXT=<words>` sets the words.
+  - Answered later (with `CRAMLESS_ROUTE=ask`): `CRAMLESS_OFFLINE=1` makes the mock relay's tutor and assistant fail as `URLError.notConnectedToInternet`, `CRAMLESS_OFFLINE_UNTIL=<ms>` only for that long after launch, and then the app acts on the connection coming back (a real press of "Answer it later" before that shows the answer arrive); `CRAMLESS_ASK=later` asks with no connection, `kept` also presses "Answer it later", `answered` shows the late answer in place.
   - Ask Cap's assistant (`docs/assistant.md`): `CRAMLESS_ROUTE=ask CRAMLESS_ASSISTANT=cards|quiz|note|exam|practice|research|multi|answer|limit|error`
     asks Cap in a Bio 101 chat and plays the mock relay's script at its live pace (`AskDemo.assistant`). `CRAMLESS_ASSISTANT_FREEZE=<n>` holds the
     reply after n updates (a card half way through its work), `_AUTO=cards,notes,exams` switches on "Let Cap do it", `_SEND=<text>` asks

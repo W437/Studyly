@@ -177,7 +177,8 @@
           },
           "required": ["itemPrompt", "expected", "given"]
         },
-        "materials": { "$ref": "#/$defs/Materials" }
+        "materials": { "$ref": "#/$defs/Materials" },
+        "fromPhoto": { "type": "boolean" }
       },
       "required": ["mode", "minor", "messages", "sources"]
     },

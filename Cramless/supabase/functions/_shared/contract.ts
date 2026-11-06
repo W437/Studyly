@@ -173,6 +173,9 @@ export interface TutorRequest {
   context?: TutorContext;
   /** What the student has added, as the app names it ("Cardiac cycle (6 pages)"): up to 20, each at most 120 characters. */
   materials?: string[];
+  /** The chat is about a problem snapped with the camera: the words read off the photo on the phone (the photo is never sent).
+   * Always hints first, walked through from the notes, never the final answer. */
+  fromPhoto?: boolean;
 }
 
 export interface TutorScriptEvent {

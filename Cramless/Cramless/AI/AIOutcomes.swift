@@ -455,6 +455,11 @@ struct TutorInput: Hashable, Sendable {
     var material: [TutorMaterial]
     /// Set when the chat starts from a wrong answer ("Explain my mistake").
     var context: TutorContext?
+    /// The chat is about a problem the student snapped: hints first for everyone, its follow-ups too, and a cloud answer shows only with a
+    /// verified citation (`AIRouter.runTutor`).
+    var fromPhoto = false
+    /// The last question is the photo's own words, not a request the student typed: a header like "Homework 3" is not one Cap declines.
+    var lastIsPhotoText = false
 }
 
 enum TutorUpdate: Equatable, Sendable {
@@ -479,6 +484,9 @@ struct TutorOutcome: Equatable, Sendable {
     var suggestion: AISuggestion?
     var limitReached: QuotaMeter.Key?
     var fellBack: Bool = false
+    /// The cloud was asked and couldn't be reached (offline, a timeout, a server error, before any words came), so a device tier answered. It would
+    /// have answered otherwise: a free limit, a refusal or Cloud AI being off is not this. What "Answer it later" is offered on.
+    var cloudUnreachable: Bool = false
 }
 
 // MARK: - Confusions, lectures, cards, transcription

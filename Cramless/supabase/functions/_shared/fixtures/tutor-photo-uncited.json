@@ -1,0 +1,39 @@
+{
+  "events": [
+    {
+      "event": "start",
+      "delayMs": 650,
+      "data": {
+        "model": "mock"
+      }
+    },
+    {
+      "event": "delta",
+      "delayMs": 55,
+      "data": {
+        "text": "I couldn't find "
+      }
+    },
+    {
+      "event": "delta",
+      "delayMs": 55,
+      "data": {
+        "text": "this topic in "
+      }
+    },
+    {
+      "event": "delta",
+      "delayMs": 55,
+      "data": {
+        "text": "what you've added."
+      }
+    },
+    {
+      "event": "done",
+      "delayMs": 40,
+      "data": {
+        "model": "mock"
+      }
+    }
+  ]
+}

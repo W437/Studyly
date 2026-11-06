@@ -547,6 +547,9 @@ final class ChatThread {
     }
 
     var sortedMessages: [ChatMessage] { messages.sorted { $0.createdAt < $1.createdAt } }
+
+    /// The chat holds a problem the student snapped: Cap stays on hints in it, and the assistant stays out of it.
+    var isFromPhoto: Bool { messages.contains { $0.fromPhoto } }
 }
 
 @Model
@@ -564,9 +567,17 @@ final class ChatMessage {
     /// What Cap's assistant did in this reply (`AssistantStep`s), kept so a draft can still be added, changed or taken back.
     /// Chats stay on this iPhone, so this never syncs.
     var actionsData: Data?
+    /// On a question: its words were read off a photo the student snapped (the photo itself is gone). A chat that holds one stays on
+    /// hints (`ChatThread.isFromPhoto`).
+    var fromPhoto: Bool = false
+    /// On a question Cap keeps for later (`AppModel+AnswerLater`): when the student asked for that. Nil again once it is answered or dropped.
+    var waitingSince: Date?
+    /// On an answer that came later: the question it answers.
+    var answersQuestionID: UUID?
 
     init(id: UUID = ModelID.make(), thread: ChatThread?, role: ChatRole, text: String, citations: [Citation] = [],
-         origin: String? = nil, contextItemID: UUID? = nil, steps: [AssistantStep] = [], now: Date = .now) {
+         origin: String? = nil, contextItemID: UUID? = nil, steps: [AssistantStep] = [], fromPhoto: Bool = false,
+         answersQuestionID: UUID? = nil, now: Date = .now) {
         self.id = id
         self.thread = thread
         self.roleRaw = role.rawValue
@@ -576,6 +587,8 @@ final class ChatMessage {
         self.contextItemID = contextItemID
         self.createdAt = now
         self.actionsData = steps.isEmpty ? nil : encodeBlob(steps)
+        self.fromPhoto = fromPhoto
+        self.answersQuestionID = answersQuestionID
     }
 
     var role: ChatRole { ChatRole(rawValue: roleRaw) ?? .assistant }
