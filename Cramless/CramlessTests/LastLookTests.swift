@@ -298,6 +298,28 @@ final class LastLookAppModelTests: AskTestCase {
         XCTAssertNil(app.defaults.data(forKey: LastLookStore.defaultsKey))
     }
 
+    func testAChipIsThereOnlyWhenItOpensSomething() throws {
+        let app = app()
+        let (exam, items) = world(app)
+        let course = try XCTUnwrap(items[0].course)
+        let deck = Source(course: course, kind: .quizlet, title: "Unit 3 terms", status: .ready, now: app.now)
+        app.context.insert(deck)
+        course.sources.append(deck)
+        let notes = Source(course: course, kind: .text, title: "Week 5", status: .ready, now: app.now)
+        app.context.insert(notes)
+        course.sources.append(notes)
+        let page = SourcePage(source: notes, pageIndex: 0, label: "p. 1", text: "", lines: [])
+        app.context.insert(page)
+        notes.pages.append(page)
+        items[0].sourceRef = SourceRef(sourceID: deck.id, pageIndex: nil, label: deck.title)
+        items[1].sourceRef = SourceRef(sourceID: notes.id, pageIndex: 0, label: "p. 1")
+        app.save()
+
+        let ideas = try XCTUnwrap(app.lastLook(for: exam.id)).ideas
+        XCTAssertNil(try XCTUnwrap(ideas.first { $0.id == items[0].id }).ref, "a deck's card has no page")
+        XCTAssertEqual(ideas.first { $0.id == items[1].id }?.ref?.label, "p. 1")
+    }
+
     func testNothingStudiedNothingToLookAt() {
         let app = app()
         let bio = makeBio(app)

@@ -21,10 +21,16 @@ extension AppModel {
             let kept = exams.compactMap { store.packs[$0.id]?.sentences[id] }.first
             let sentence = kept.flatMap { $0.prompt == model.prompt && $0.answer == model.answer ? $0.sentence : nil }
             ideas.append(LastLookIdea(id: id, topic: model.topicID.flatMap { names[$0] }, question: words.question, answer: words.answer,
-                                      sentence: sentence, ref: model.sourceRef))
+                                      sentence: sentence, ref: model.sourceRef.flatMap { opens($0) ? $0 : nil }))
         }
         guard !ideas.isEmpty else { return nil }
         return LastLook(examID: examID, ideas: ideas)
+    }
+
+    /// A chip has to lead somewhere: an imported deck's card has no page to open, and a deleted source has nothing.
+    private func opens(_ ref: SourceRef) -> Bool {
+        guard let source = source(ref.sourceID), source.deletedAt == nil else { return false }
+        return ref.start != nil || source.kind == .lecture || !source.pages.isEmpty
     }
 
     /// How many ideas the look for this exam holds (Today asks, without reading their words).
