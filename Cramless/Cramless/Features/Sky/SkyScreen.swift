@@ -110,6 +110,7 @@ struct SkyScreen: View {
                         Spacer(minLength: 0)
                         if let i = focus, scene.layout.constellations.indices.contains(i) {
                             SkyFocusCard(scene: scene, index: i, onRelight: { relightConstellation(i) },
+                                         onTeach: teachAction(scene.layout.constellations[i]),
                                          onOpenCourse: { openCourse(scene.layout.constellations[i].courseID) },
                                          onClose: { withAnimation(CLMotion.settle) { focus = nil } })
                                 .padding(.horizontal, CLSpace.gutter)
@@ -167,6 +168,15 @@ struct SkyScreen: View {
     }
 
     // MARK: Actions
+
+    /// Teach Cap, for a topic's constellation with enough stars to explain (a course's loose stars have no topic to teach).
+    private func teachAction(_ constellation: SkyLayout.Constellation) -> (() -> Void)? {
+        guard let topicID = constellation.topicID, constellation.stars.count >= TeachPlanner.minIdeas else { return nil }
+        return {
+            CLHaptics.tap()
+            app.router.present(.teach(topicID: topicID))
+        }
+    }
 
     private func relightConstellation(_ index: Int) {
         guard let scene, scene.layout.constellations.indices.contains(index) else { return }
@@ -321,6 +331,8 @@ private struct SkyFocusCard: View {
     let scene: SkyScene
     let index: Int
     var onRelight: () -> Void
+    /// Teach Cap: a topic with enough questions to explain. Nil: not offered.
+    var onTeach: (() -> Void)? = nil
     var onOpenCourse: () -> Void
     var onClose: () -> Void
 
@@ -350,13 +362,24 @@ private struct SkyFocusCard: View {
                     .lineLimit(2).multilineTextAlignment(.center)
             }
             .buttonStyle(.cl(.primary))
-            Button("Open course", action: onOpenCourse)
-                .buttonStyle(.cl(.white, size: .medium))
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 8) { secondary }
+                VStack(spacing: 8) { secondary }
+            }
         }
         .padding(18)
         .glassEffect(.regular, in: RoundedRectangle(cornerRadius: CLRadius.card, style: .continuous))
         .environment(\.colorScheme, .dark)
         .accessibilityElement(children: .contain)
+    }
+
+    @ViewBuilder private var secondary: some View {
+        if let onTeach {
+            Button(action: onTeach) { Text(TeachCopy.title).lineLimit(1) }
+                .buttonStyle(.cl(.white, size: .medium))
+        }
+        Button(action: onOpenCourse) { Text("Open course").lineLimit(1) }
+            .buttonStyle(.cl(.white, size: .medium))
     }
 }
 

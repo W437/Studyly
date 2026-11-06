@@ -37,16 +37,18 @@ enum NoticeKind: String, Codable, CaseIterable, Sendable {
     case gap
     /// An exam date heard in a lecture, not in the plan yet (`ExamDateFinder`).
     case lectureDate
+    /// A topic well remembered, a week or more before its exam: "Can you teach it?" (`TeachPlanner`).
+    case teachBack
 
     /// A long day in the calendar this week, before an exam (`BusyDayFinder`). First the question of whether Cap may look.
     case busyDay
 
     // Reserved for cards still to come, so the settings and the ledger can already name them.
-    case tooEasy, teachBack, sameIdea
+    case tooEasy, sameIdea
 
     /// The kinds that deal cards in this build, in the order Settings lists their switches.
     static let live: [NoticeKind] = [.mixUp, .lookAlike, .fading, .welcomeBack, .mockOffer, .gap, .lectureDate]
-        + [.tooEasy]
+        + [.tooEasy, .teachBack]
         + [.busyDay]
 }
 
@@ -117,6 +119,8 @@ struct NoticeLedger: Codable, Equatable, Sendable {
     var confirming: String?
     /// The card a notification opened: it shows first today.
     var front: String?
+    /// When each topic (its id) was last explained to Cap: he doesn't offer it again for 14 days (`TeachPlanner`).
+    var taught: [String: Date] = [:]
 
     init() {}
 
@@ -131,6 +135,7 @@ struct NoticeLedger: Codable, Equatable, Sendable {
         boosts = try c.decodeIfPresent([PlanBoost].self, forKey: .boosts) ?? []
         confirming = try c.decodeIfPresent(String.self, forKey: .confirming)
         front = try c.decodeIfPresent(String.self, forKey: .front)
+        taught = try c.decodeIfPresent([String: Date].self, forKey: .taught) ?? [:]
     }
 
     /// How long a record is kept, in days.
@@ -156,6 +161,7 @@ struct NoticeLedger: Codable, Equatable, Sendable {
         let cutoff = calendar.adding(days: -Self.keptDays, to: now)
         next.pinged = pinged.filter { $0.value >= cutoff }
         next.boosts = boosts.filter { (calendar.dayNumber(forKey: $0.dayKey) ?? 0) >= today }
+        next.taught = taught.filter { $0.value >= cutoff }
         return next
     }
 
@@ -231,6 +237,8 @@ struct NoticeInputs: Sendable {
     var calendarAccess = CalendarAccess.denied
     /// What it says is taken in the days ahead.
     var busyBlocks: [BusyBlock] = []
+    /// Topics strong enough to teach, the best remembered first (`TeachPlanner.offers`).
+    var teachOffers: [NoticeTeachBack] = []
 }
 
 /// An exam date heard in a lecture, for its card: the date, and the words the student can check it against.
@@ -277,6 +285,7 @@ struct Notice: Identifiable, Equatable, Sendable {
         /// May Cap look at the calendar?
         case busyAsk
         case busyDay(BusyMove)
+        case teachBack(NoticeTeachBack)
     }
 
     /// What pressing its button costs, as the card says it.
@@ -360,6 +369,8 @@ struct NoticeEngine: Sendable {
         static func mockOffer(daysLeft: Int) -> Double { 450 - 10 * Double(daysLeft) }
         /// Nothing is at risk, so it waits behind what needs help: above only a mix-up on a finished exam.
         static let tooEasy = 150.0
+        /// An extra for a topic that's going well: behind a question that has become too easy.
+        static let teachBack = 140.0
         static func lookAlike(similarity: Double, linked: Bool, daysLeft: Int) -> Double {
             300 + 100 * similarity + (linked ? 50 : 0) - 10 * Double(daysLeft)
         }
@@ -385,7 +396,7 @@ struct NoticeEngine: Sendable {
         let calendar = inputs.calendar, now = inputs.now
         guard !inputs.exams.contains(where: { $0.date > now && calendar.dayDistance(from: now, to: $0.date) == 1 }) else { return [] }
         let cards = mixUpCards() + lookAlikeCards() + fadingCards() + welcomeBackCards() + mockOfferCards() + gapCards() + lectureDateCards()
-            + tooEasyCards()
+            + tooEasyCards() + teachBackCards()
             + busyDayCards()
         return cards.filter { inputs.settings.allows($0.kind) }
             .sorted { $0.rank != $1.rank ? $0.rank > $1.rank : $0.id < $1.id }
@@ -611,4 +622,13 @@ struct NoticeEngine: Sendable {
             return [Notice(id: move.noticeID, kind: .busyDay, rank: Rank.busyDay(daysAway: move.busy.offset), evidence: .busyDay(move))]
         }
     }
+
+    /// One topic at a time, the best remembered. Never a notification. It costs what any own-words answer costs, which the card says is nothing.
+    private func teachBackCards() -> [Notice] {
+        inputs.teachOffers.prefix(1).map { offer in
+            Notice(id: Self.teachID(offer.topicID), kind: .teachBack, rank: Rank.teachBack, evidence: .teachBack(offer), cost: .free)
+        }
+    }
+
+    static func teachID(_ topicID: UUID) -> String { "teach-\(topicID.uuidString)" }
 }

@@ -22,6 +22,10 @@ struct CramlessShortcuts: AppShortcutsProvider {
             "Record a lecture with \(.applicationName)",
             "Record my lecture in \(.applicationName)",
         ], shortTitle: "Record a lecture", systemImageName: "mic")
+        AppShortcut(intent: StudyOutLoudIntent(), phrases: [
+            "Study out loud with \(.applicationName)",
+            "Quiz me out loud in \(.applicationName)",
+        ], shortTitle: "Study out loud", systemImageName: "waveform")
     }
 
     static let shortcutTileColor: ShortcutTileColor = .tangerine

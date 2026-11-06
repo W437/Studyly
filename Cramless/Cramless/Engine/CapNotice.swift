@@ -32,6 +32,8 @@ struct CapNotice: Identifiable, Equatable, Sendable {
             case askCalendar
             /// "Move them": takes minutes off a long day and gives them to the days around it.
             case moveBusyDay(BusyMove)
+            /// "Teach Cap": explain this topic to him.
+            case teach(topicID: UUID)
         }
 
         /// "Fix it · 2 min".

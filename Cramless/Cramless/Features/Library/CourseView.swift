@@ -263,6 +263,11 @@ struct CourseView: View {
                     app.router.present(.session(SessionRequest(kind: .practice, courseID: course.id, topicID: topic.id)))
                 }
             }
+            if topic.questionCount >= TeachPlanner.minIdeas {
+                Button("Teach Cap", systemImage: "person.wave.2") {
+                    app.router.present(.teach(topicID: topic.id))
+                }
+            }
             Button("Rename", systemImage: "pencil") { topicName = topic.name; topicEditor = TopicEditor(topicID: topic.id) }
             Button("Delete topic", systemImage: "trash", role: .destructive) { topicToDelete = topic }
         }

@@ -28,6 +28,17 @@ owner reviews this wording before release.
 
 **Update, 2026-11-06 (for Launch).** "Snap a problem" in Ask Cap sends the words of a problem to OpenAI, as any other question; the photo itself is read on the iPhone and deleted, and never leaves it. The camera's purpose string now also says "or a problem you're stuck on". The policy paragraph below gets one sentence, and App Privacy needs no new data type (the words are "other user content", like any question). "Answer it later" sends a question the student kept, once there is a connection, in the same request as any other; it can happen in the background and it adds no data. Consent stays at version 3: a typed question and a snapped one are the same kind of data. The owner reviews this wording at Launch.
 
+**Update, 2026-11-06 (for Launch): Study out loud and Teach Cap.** Exactly what happens to a spoken answer, from the code:
+
+- The voice: the microphone runs only during a session (`Lecture/SpokenAnswerListener.swift`). No audio is written to a file or sent anywhere; between turns the buffers are dropped, and during a turn they go to Apple's speech model on the iPhone and are gone.
+- The words stay on the iPhone, with one exception: an answer in the student's own words, and what they say to Teach Cap, go to OpenAI through Capling's server to be graded, as a typed answer does, when Cloud AI is on and within the allowance. So "spoken answers stay on the phone" is only true with Cloud AI off. A letter, a fill-in, a flashcard's "got it" and the commands ("repeat", "skip") are read on the iPhone and never sent.
+- Nothing said is kept: the review log gets the rating and the score, with no words in it, so nothing said is synced either. A multiple choice logs the option's own text, which is the question's and not the student's words. (A typed answer's words are stored and do sync, so the two are different on purpose.)
+- The screens' words changed to match: the consent sheet and Settings ▸ AI and privacy now say "answers you type or say … (the words, never your voice)", and the microphone and speech purpose strings name spoken answers. Consent stays at version 3: nothing has shipped, and it is the same kind of data as a typed answer.
+- App Privacy: no audio data is collected, so no new type; the words are "other user content", like a typed answer.
+- For the policy paragraph below, one sentence: "When you answer out loud, your iPhone turns your voice into words. Your voice isn't recorded or sent, and if Cloud AI is on, only the words of an answer in your own words go to it to be graded."
+
+The owner reviews this wording at Launch.
+
 ## 1. The privacy policy: a section for Ask Cap
 
 > ### Ask Cap, our study assistant

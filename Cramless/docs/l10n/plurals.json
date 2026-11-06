@@ -449,6 +449,20 @@
     "one": "Exam added, %lld day away",
     "other": "Exam added, %lld days away"
   },
+  "%lld of %lld ideas": {
+    "value": "%1$lld of %#@ideas@",
+    "substitutions": {
+      "ideas": {
+        "argNum": 2,
+        "one": "%arg idea",
+        "other": "%arg ideas"
+      }
+    }
+  },
+  "about %lld minutes": {
+    "one": "about %lld minute",
+    "other": "about %lld minutes"
+  },
   "%lld fill-ins": {
     "one": "%lld fill-in",
     "other": "%lld fill-ins"

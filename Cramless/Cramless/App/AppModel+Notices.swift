@@ -85,6 +85,12 @@ extension AppModel {
 
     // MARK: Changes
 
+    /// A topic was just explained to Cap: he doesn't bring it up again for a while.
+    func noteTopicTaught(_ topicID: UUID) {
+        updateLedger { $0.taught[topicID.uuidString] = now }
+        save()
+    }
+
     /// "Later": the card waits until tomorrow.
     func snoozeNotice(_ id: String) {
         updateLedger { ledger in
@@ -162,6 +168,10 @@ extension AppModel {
             return nil
         case .moveBusyDay(let move):
             applyBusyMove(move)
+            return nil
+        case .teach(let topicID):
+            markNoticeActed(NoticeEngine.teachID(topicID))
+            router.present(.teach(topicID: topicID))
             return nil
         }
         if let request { router.present(.session(request)) }
@@ -467,6 +477,7 @@ extension AppModel {
         }
         inputs.calendarAccess = settings.notices.allows(.busyDay) ? busyCalendar.access : .denied
         inputs.busyBlocks = noticeCache.busyBlocks
+        inputs.teachOffers = teachOffers(items: items, exams: exams)
         return inputs
     }
 

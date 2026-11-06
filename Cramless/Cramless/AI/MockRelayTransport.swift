@@ -67,7 +67,26 @@ struct MockRelayTransport: RelayTransport {
     func grade(_ request: GradeRequest) async throws -> GradeResponse {
         try await pause(Latency.grade)
         try magic([request.response])
-        return try load(GradeResponse.self, Self.gradeFixture(for: request))
+        return Self.naming(request, in: try load(GradeResponse.self, Self.gradeFixture(for: request)))
+    }
+
+    /// The canned grades name the sample's ideas ("k1"). A subject with ideas of its own (Teach Cap's "t1"…) gets them back under its own ids, by the same
+    /// test that picked the fixture, as the real relay would answer.
+    static func naming(_ request: GradeRequest, in canned: GradeResponse) -> GradeResponse {
+        let ids = Set(request.keyIdeas.map(\.id))
+        guard !ids.isEmpty, !canned.hits.contains(where: { ids.contains($0.ideaId) }), !canned.missing.contains(where: ids.contains) else { return canned }
+        let said = request.response.lowercased()
+        var response = canned
+        response.hits = []
+        response.missing = []
+        for idea in request.keyIdeas {
+            if let term = (idea.terms + [idea.label]).first(where: { !$0.isEmpty && said.contains($0.lowercased()) }) {
+                response.hits.append(.init(ideaId: idea.id, quote: term))
+            } else {
+                response.missing.append(idea.id)
+            }
+        }
+        return response
     }
 
     /// The canned grade for a request, as the relay's MOCK mode picks it: a key idea counts when one of its terms or

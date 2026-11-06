@@ -268,6 +268,13 @@ enum TestHarness {
         case "consent": r.present(.consent(arg == "photos" ? .photos : .cloudAI(feature: "Write questions from your pages")))
         case "squadRedeem": r.present(.squadRedeem(code: arg))
         case "record": r.present(.record(courseID: firstCourse?.id))
+        // Study out loud (`OutLoudDebug`: `CRAMLESS_OUTLOUD`, `CRAMLESS_OUTLOUD_SCRIPT`).
+        case "outLoud": r.present(.outLoud(app.outLoudRequest(), startsAtOnce: OutLoudDebug.startsAtOnce))
+        // Teach Cap on the nth topic with enough to ask (`TeachDebug`: `CRAMLESS_TEACH_SCRIPT`, `CRAMLESS_TEACH_STATE`).
+        case "teach":
+            let topics = app.courses.flatMap(\.liveTopics).filter { app.teachPlan(topicID: $0.id) != nil }
+            let index = Int(arg ?? "") ?? 0
+            if topics.indices.contains(index) { r.present(.teach(topicID: topics[index].id)) }
         case "onboarding":
             app.settings.onboardingCompleted = false
             r.present(.onboarding(page: arg.flatMap(Int.init)))

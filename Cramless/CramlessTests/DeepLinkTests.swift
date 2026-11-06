@@ -116,6 +116,7 @@ final class DeepLinkTests: XCTestCase {
                        .session(kind: .practice, examID: nil, confusionID: nil, courseID: id))
         XCTAssertEqual(DeepLinks.parse(CramlessLink.scan), .scan(courseID: nil))
         XCTAssertEqual(DeepLinks.parse(CramlessLink.record), .record(courseID: nil))
+        XCTAssertEqual(DeepLinks.parse(CramlessLink.outLoud), .outLoud)
         XCTAssertEqual(DeepLinks.parse(CramlessLink.exam(id)), .exam(id))
         XCTAssertEqual(DeepLinks.parse(CramlessLink.newExam), .newExam)
         XCTAssertEqual(DeepLinks.parse(CramlessLink.settings(page: SettingsPage.subscription.rawValue)),

@@ -34,6 +34,35 @@ final class EngineSessionBuilderTests: XCTestCase {
         return items
     }
 
+    func testASessionOfOnlySomeKinds() {
+        let items = world()
+        let plain = builder().build(SessionSpec(kind: .daily), items: items, topicNames: names)
+        XCTAssertTrue(Set(plain.entries.map(\.kind)).contains(.mcq))
+        let spoken = builder().build(SessionSpec(kind: .daily, kinds: [.flashcard, .recall]), items: items, topicNames: names)
+        XCTAssertFalse(spoken.entries.isEmpty)
+        XCTAssertEqual(Set(spoken.entries.map(\.kind)), [.flashcard, .recall])
+        XCTAssertEqual(builder().build(SessionSpec(kind: .practice, kinds: []), items: items, topicNames: names).entries, [])
+    }
+
+    func testSpokenQuestionsTakeLonger() {
+        let items = world()
+        let plain = builder().build(SessionSpec(kind: .daily), items: items, topicNames: names)
+        var spoken = builder()
+        spoken.costsSpoken = true
+        let out = spoken.build(SessionSpec(kind: .daily), items: items, topicNames: names)
+        XCTAssertLessThan(out.entries.count, plain.entries.count, "the same minutes hold fewer")
+        XCTAssertEqual(out.entries.first.map { $0.estimatedSeconds >= OutLoudPolicy.spokenSeconds($0.kind) }, true)
+        XCTAssertLessThanOrEqual(out.plannedSeconds, 15 * 60 + OutLoudPolicy.spokenSeconds(.apply) * 2)
+    }
+
+    func testASessionLeavesOutWhatItIsToldTo() {
+        let items = world()
+        let plain = builder().build(SessionSpec(kind: .daily), items: items, topicNames: names)
+        let first = plain.entries[0].itemID
+        let without = builder().build(SessionSpec(kind: .daily, excludedItemIDs: [first]), items: items, topicNames: names)
+        XCTAssertFalse(without.entries.contains { $0.itemID == first })
+    }
+
     func testFocusQuestionsComeFirstAndNothingChangesWithoutThem() {
         let items = world()
         let plain = builder().build(SessionSpec(kind: .daily), items: items, topicNames: names)

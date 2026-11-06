@@ -65,6 +65,8 @@ struct SessionRequest: Hashable, Sendable, Identifiable {
     var topicID: UUID? = nil
     /// A mock's size (with `kind: .mock`). Nil: what the exam's format says.
     var questionCount: Int? = nil
+    /// Study out loud: only questions that can be asked and answered with the voice (`OutLoudPolicy`).
+    var spokenOnly = false
 }
 
 struct CaptureRequest: Hashable, Sendable, Identifiable {
@@ -158,6 +160,10 @@ enum AppCover: Identifiable, Hashable, Sendable {
     case captureFlow(CaptureRequest)
     case record(courseID: UUID?)
     case onboarding(page: Int?)
+    /// Study out loud. `startsAtOnce`: the person already said to (Siri), so it opens listening rather than on its intro.
+    case outLoud(SessionRequest, startsAtOnce: Bool = false)
+    /// Explaining a topic to Cap.
+    case teach(topicID: UUID)
 
     var id: String { String(describing: self) }
 }

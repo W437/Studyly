@@ -104,9 +104,9 @@
 	<key>NSCameraUsageDescription</key>
 	<string>Capling uses the camera to scan pages of your textbooks, handouts and notes into questions, or a problem you're stuck on.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Capling records the lectures you choose to record and turns them into notes on this iPhone.</string>
+	<string>Capling records the lectures you choose to record and turns them into notes on this iPhone. It also listens when you answer questions out loud or explain a topic to Cap, and keeps no audio of that.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
-	<string>Capling transcribes your lecture recordings on this iPhone, so you can search them and study from them.</string>
+	<string>Capling transcribes your lecture recordings on this iPhone, so you can search them and study from them, and turns your spoken answers into words on this iPhone.</string>
 	<key>NSSupportsLiveActivities</key>
 	<true/>
 	<key>UIBackgroundModes</key>

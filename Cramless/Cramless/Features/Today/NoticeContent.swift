@@ -59,6 +59,10 @@ enum NoticeContent {
             return CapNotice(id: notice.id, kind: .busyDay, title: busyTitle(move, calendar: calendar), detail: busyDetail(move, now: now, calendar: calendar),
                              action: .init(title: String(localized: "Move them"), systemImage: "calendar.badge.clock", run: .moveBusyDay(move)),
                              cost: costLine(notice.cost))
+        case .teachBack(let offer):
+            return CapNotice(id: notice.id, kind: .teachBack, title: TeachCopy.noticeTitle(offer.topicName), detail: TeachCopy.noticeLine,
+                             action: .init(title: TeachCopy.noticeAction, systemImage: "person.wave.2", run: .teach(topicID: offer.topicID)),
+                             cost: costLine(notice.cost))
         }
     }
 
@@ -214,7 +218,7 @@ enum NoticeContent {
             return String(localized: "Still mixing up \(SessionCopy.mixUpPair(note.name))? A 2-minute fix is ready.")
         case .gap(let gap):
             return String(localized: "Some topics on your \(gap.examTitle) have no notes yet. Cap can help you fill them in.")
-        case .welcomeBack, .mockOffer, .lectureDate, .tooEasy, .busyAsk, .busyDay:
+        case .welcomeBack, .mockOffer, .lectureDate, .tooEasy, .teachBack, .busyAsk, .busyDay:
             return nil
         }
     }
