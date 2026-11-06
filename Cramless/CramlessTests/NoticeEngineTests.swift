@@ -820,7 +820,7 @@ final class NoticeEngineTests: XCTestCase {
             $0.lookAlikes = base.lookAlikes
             $0.ledger.pinged[card.linkID] = self.now.addingTimeInterval(3600)
         })
-        XCTAssertEqual(Set(planned.map(\.linkID)), [card.linkID], "planned for later today: it can be planned again")
+        XCTAssertEqual(Set(planned.map(\.notice.linkID)), [card.linkID], "planned for later today: it can be planned again")
     }
 
     func testPingWordsHaveNoCounts() {
