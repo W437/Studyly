@@ -100,6 +100,47 @@ enum LibraryFormat {
         }
     }
 
+    // MARK: Exam chips
+
+    /// What a chip needs of an exam. `readiness`: for one still to come.
+    struct ChipExam: Equatable, Sendable {
+        var id: UUID
+        var title: String
+        var date: Date
+        var readiness: Double?
+        var result: Double?
+    }
+
+    /// One exam on the course page.
+    struct ExamChip: Equatable, Sendable, Identifiable {
+        enum State: Equatable, Sendable { case upcoming, logGrade, graded }
+        var id: UUID
+        var text: String
+        var state: State
+    }
+
+    /// How many past exams with a grade keep a chip.
+    static let gradedChips = 2
+
+    /// The course's exams as chips: those to come, soonest first ("Midterm · Nov 29 · 53% ready"); those waiting for a grade, the newest first
+    /// ("Quiz · log your grade"); the latest grades ("Quiz · you got 91%").
+    static func examChips(_ exams: [ChipExam], courseName: String, now: Date, calendar: Calendar) -> [ExamChip] {
+        func short(_ exam: ChipExam) -> String { shortExamTitle(exam.title, courseName: courseName) }
+        let upcoming = exams.filter { $0.date > now }.sorted { $0.date < $1.date }.map { exam -> ExamChip in
+            let ready = exam.readiness.map { String(localized: "\(CLFormat.percent($0)) ready") }
+            let text = [short(exam), shortDate(exam.date, calendar: calendar), ready].compactMap { $0 }.joined(separator: " · ")
+            return ExamChip(id: exam.id, text: text, state: .upcoming)
+        }
+        let past = exams.filter { $0.date <= now }.sorted { $0.date > $1.date }
+        let waiting = past.filter { $0.result == nil }.map {
+            ExamChip(id: $0.id, text: "\(short($0)) · \(String(localized: "log your grade"))", state: .logGrade)
+        }
+        let graded = past.filter { $0.result != nil }.prefix(gradedChips).map {
+            ExamChip(id: $0.id, text: "\(short($0)) · \(String(localized: "you got \(CLFormat.percent($0.result ?? 0))"))", state: .graded)
+        }
+        return upcoming + waiting + graded
+    }
+
     /// The topic list's note under a course's ring: "Ready for the Midterm, Nov 29."
     static func topicsFootnote(examTitle: String, courseName: String, date: Date, calendar: Calendar) -> String {
         String(localized: "Ready for the \(shortExamTitle(examTitle, courseName: courseName)), \(shortDate(date, calendar: calendar)).")

@@ -343,7 +343,8 @@ extension AppModel {
     /// - `crowded`: a Bio 101 quiz on two topics in three days, so the days ahead are shared by more exams;
     /// - `empty`: the exam covers only a topic with no material, so there is nothing to study for it yet;
     /// - `mocked`: a mock of the exam was taken three days ago, ten questions, three in four right;
-    /// - `fewItems`: all but five of the exam's mock questions are suspended, so a mock asks for more.
+    /// - `fewItems`: all but five of the exam's mock questions are suspended, so a mock asks for more;
+    /// - `bright`: every studied question was reviewed an hour ago, so nothing is fading.
     func applyHarnessScenario(_ scenario: String, examID: UUID?) {
         let exam = exam(examID)
         func clear(daysAgo: Int) {
@@ -428,6 +429,15 @@ extension AppModel {
                                          after: snapshot.memory, elapsedDays: 0, scheduledDays: 0))
                 session.itemCount += 1
             }
+        case "bright":
+            for snapshot in itemSnapshots() where snapshot.isStudied {
+                guard let item = item(snapshot.id) else { continue }
+                var memory = item.memory
+                memory.lastReview = now.addingTimeInterval(-3600)
+                memory.due = calendar.adding(days: 30, to: now)
+                item.memory = memory
+                touch(item)
+            }
         case "fewItems":
             guard let exam else { return }
             for snapshot in mockEligibleItems(for: exam).dropFirst(5) {
@@ -480,3 +490,45 @@ extension AppModel {
     }
 }
 #endif
+
+// MARK: - Recent
+
+extension AppModel {
+    private static let openedKey = "capling.library.opened"
+    /// Opens kept: more than "Recent" could ever show.
+    private static let openedKept = 20
+
+    /// A source was opened on this iPhone. Kept in the defaults, not in settings or the store: it only steers "Recent", and a settings
+    /// change would refresh the widgets.
+    func noteOpened(sourceID: UUID, at date: Date? = nil) {
+        var opens = libraryOpens()
+        opens[sourceID.uuidString] = (date ?? now).timeIntervalSince1970
+        if opens.count > Self.openedKept {
+            let kept = opens.sorted { $0.value > $1.value }.prefix(Self.openedKept)
+            opens = Dictionary(uniqueKeysWithValues: kept.map { ($0.key, $0.value) })
+        }
+        defaults.set(opens, forKey: Self.openedKey)
+    }
+
+    private func libraryOpens() -> [String: Double] {
+        defaults.dictionary(forKey: Self.openedKey) as? [String: Double] ?? [:]
+    }
+
+    /// "Recent" on the Library: questions waiting for review first, then what was opened or added lately (`LibraryRecent`).
+    func libraryRecent() -> [LibraryRecent.Row] {
+        let opens = libraryOpens()
+        var candidates: [LibraryRecent.Candidate] = []
+        for course in courses {
+            var drafts: [UUID: Int] = [:]
+            for item in course.liveItems where item.status == .draft {
+                if let id = item.sourceRef?.sourceID { drafts[id, default: 0] += 1 }
+            }
+            for source in course.liveSources {
+                candidates.append(LibraryRecent.Candidate(
+                    id: source.id, title: source.title, kind: source.kind, color: course.color, drafts: drafts[source.id] ?? 0,
+                    openedAt: opens[source.id.uuidString].map(Date.init(timeIntervalSince1970:)), addedAt: source.createdAt))
+            }
+        }
+        return LibraryRecent.rows(candidates, now: now, calendar: calendar)
+    }
+}

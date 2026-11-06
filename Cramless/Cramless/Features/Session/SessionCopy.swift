@@ -13,11 +13,14 @@ enum SessionCopy {
         case .catchUp: "Catch-up session"
         case .examEve: "Exam eve"
         case .fix: "2-minute fix"
-        case .practice: "Bonus round"
+        case .practice: "Practice"
         case .quickCheck: "Quick check"
         case .mock: "Mock exam"
         }
     }
+
+    /// The Live Activity's and the context line's name for a session limited to one course: "Study · Bio 101".
+    static func studyCourse(_ name: String) -> String { String(localized: "Study · \(name)") }
 
     // MARK: Intervals
 
