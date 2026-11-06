@@ -336,7 +336,12 @@ extension AppModel {
     /// - `repair`: yesterday wasn't studied and no freeze was held (a day earlier broke the run), so the streak
     ///   offers a repair;
     /// - `thin`: the exam's course has a long reading (about 5,800 words) with 16 well-remembered questions on its first stretch,
-    ///   so its questions cover about a sixth of that reading and the exam says so.
+    ///   so its questions cover about a sixth of that reading and the exam says so;
+    /// - `calibrated`: two past exams in the exam's course (Chem 110 without one), 62% and 78% ready on the day, logged at 70% and
+    ///   84%: projections are calibrated, so the letter grade shows;
+    /// - `ontrack`: the exam's goal is 60%, so the plan reaches it;
+    /// - `crowded`: a Bio 101 quiz on two topics in three days, so the days ahead are shared by more exams;
+    /// - `empty`: the exam covers only a topic with no material, so there is nothing to study for it yet.
     func applyHarnessScenario(_ scenario: String, examID: UUID?) {
         let exam = exam(examID)
         func clear(daysAgo: Int) {
@@ -373,6 +378,40 @@ extension AppModel {
         case "thin":
             guard let course = exam?.course else { return }
             addThinReading(to: course)
+        case "calibrated":
+            guard let course = exam?.course ?? courses.first(where: { $0.name == "Chem 110" }) ?? courses.first else { return }
+            for (weeks, ready, got) in [(9, 0.62, 0.70), (5, 0.78, 0.84)] {
+                let past = Exam(course: course, title: "\(course.name) Quiz \(weeks == 9 ? 1 : 2)",
+                                date: calendar.adding(days: -7 * weeks, to: calendar.startOfDay(for: now)).addingTimeInterval(10 * 3600),
+                                now: calendar.adding(days: -7 * weeks - 14, to: now))
+                past.readinessAtExam = ready
+                past.resultScore = got
+                past.resultLoggedAt = calendar.adding(days: -7 * weeks + 3, to: now)
+                context.insert(past)
+                course.exams.append(past)
+                touch(past)
+            }
+        case "ontrack":
+            guard let exam else { return }
+            exam.targetReadiness = 0.6
+            touch(exam)
+        case "crowded":
+            guard let bio = courses.first(where: { $0.name == "Bio 101" }) else { return }
+            let counts = Dictionary(grouping: bio.activeItems.compactMap(\.topicID), by: { $0 }).mapValues(\.count)
+            let topics = bio.liveTopics.filter { (counts[$0.id] ?? 0) > 0 }.prefix(2).map(\.id)
+            let quiz = Exam(course: bio, title: "Bio 101 Quiz", date: calendar.adding(days: 3, to: calendar.startOfDay(for: now))
+                .addingTimeInterval(9 * 3600), scope: Array(topics), targetReadiness: 0.8, now: now)
+            context.insert(quiz)
+            bio.exams.append(quiz)
+            touch(quiz)
+        case "empty":
+            guard let exam, let course = exam.course else { return }
+            let used = Set(course.activeItems.compactMap(\.topicID))
+            let gap = course.liveTopics.first { !used.contains($0.id) }
+                ?? ItemFactory.topic(named: "Chapter 9", in: course, now: now)
+            guard let gap else { return }
+            exam.scope = [gap.id]
+            touch(exam)
         default:
             return
         }

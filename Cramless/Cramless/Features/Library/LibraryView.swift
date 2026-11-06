@@ -1,7 +1,10 @@
 import SwiftUI
 
-/// The Library tab: every course with its next exam, mastery and counts; search across questions, sources and
-/// lectures; and the ways to bring material in. With no courses yet, Cap invites a sample page.
+/// The Library tab: every course with its next exam, that exam's readiness (or "Add a date") and counts; search across
+/// questions, sources and lectures; and the ways to bring material in. With no courses yet, Cap invites a sample page.
+///
+/// Harness: `CRAMLESS_ROUTE=library` (Spanish II has no exam); `CRAMLESS_SCENARIO=past` first moves the soonest exam three days back,
+/// so its course has only a past exam.
 struct LibraryView: View {
     @Environment(AppModel.self) private var app
     @State private var query = ""
@@ -29,9 +32,16 @@ struct LibraryView: View {
                                 LibraryCourseCard(model: course)
                             }
                             .buttonStyle(.pressable)
+                            .addDateOverlay(courseName: course.name) { app.router.present(.newExam(courseID: course.id)) }
                             .contextMenu { menu(for: course) }
                         }
                     }
+                    Text("The ring is how ready you are for each course's next exam.")
+                        .clFont(.footnote)
+                        .foregroundStyle(CLColor.ink3)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.top, 10)
+                        .padding(.horizontal, 4)
                     BringYourStuff()
                 }
             }
@@ -50,6 +60,7 @@ struct LibraryView: View {
         .searchable(text: $query, isPresented: $searching, prompt: Text("Search questions, sources and lectures"))
         #if DEBUG
         .task {
+            app.applyHarnessScenarioOnce(examID: app.upcomingExams().first?.id)
             // Harness: `CRAMLESS_SEARCH=<words>` opens the Library already searching.
             if let words = TestHarness.once("CRAMLESS_SEARCH") {
                 searching = true

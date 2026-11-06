@@ -225,12 +225,25 @@ extension AppModel {
 
     // MARK: Courses
 
-    /// Mean current recall over a course's studied items, 0…1.
-    func mastery(of course: Course) -> Double {
-        ReadinessEngine(fsrs: fsrs, calendar: calendar, now: now).mastery(of: itemSnapshots(in: course))
+    /// A course's one number: readiness for its next exam (`nextExam(of:)`), the exam page's ring. Nil when no exam is to come.
+    func courseReadiness(_ course: Course) -> (exam: Exam, value: Double)? {
+        guard let exam = nextExam(of: course.id) else { return nil }
+        return (exam, readinessValue(of: ExamSnapshot(exam)))
     }
 
-    /// Current recall per topic of a course, in topic order (nil: a topic with no material yet).
+    /// A course's topics in topic order, each with its active questions: what the course page lists, with or without an exam.
+    func courseTopics(_ course: Course) -> [LibraryFormat.CourseTopic] {
+        var counts: [UUID: Int] = [:]
+        for item in course.items where item.deletedAt == nil && item.status == .active {
+            if let topic = item.topicID { counts[topic, default: 0] += 1 }
+        }
+        return topicSnapshots(in: course)
+            .sorted { $0.sortOrder != $1.sortOrder ? $0.sortOrder < $1.sortOrder : $0.name < $1.name }
+            .map { LibraryFormat.CourseTopic(id: $0.id, name: $0.name, questionCount: counts[$0.id] ?? 0) }
+    }
+
+    /// Current recall per topic of a course, in topic order (nil: a topic with no material yet). Internal: Ask Cap and Teach Cap read
+    /// it to pick a weak topic; no screen shows it as a number (each exam's readiness is the only learning percentage).
     func topicMastery(course: Course) -> [TopicReadiness] {
         ReadinessEngine(fsrs: fsrs, calendar: calendar, now: now)
             .topicMastery(courseID: course.id, items: itemSnapshots(in: course), topics: topicSnapshots(in: course))

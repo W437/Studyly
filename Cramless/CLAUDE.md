@@ -191,14 +191,18 @@ sleep 4; xcrun simctl io <udid> screenshot shot.png
       fading memory and answers it right: a save, with the sky's flare.
     - `CRAMLESS_SUMMARY_SKY=<ms>` opens the memory sky that long after a summary's choreography, as a tap on its
       "See the sky" strip would (films follow a real session into the sky it relit).
-  - Onboarding steps: `CRAMLESS_STEP=firstSession|readiness|plan` (with `CRAMLESS_SEED=0`);
+  - Onboarding steps: `CRAMLESS_STEP=firstSession|readiness|plan` (with `CRAMLESS_SEED=0`; `CRAMLESS_STEP_NODATE=1` for a person
+    who gave no exam date: the readiness step then shows no number);
     `CRAMLESS_FIRSTSET=choose|processing|review` (with `CRAMLESS_ROUTE=scanner`).
   - Capture: `CRAMLESS_CAPTURE_PHASE=reading|ideas|writing|checking|done|review|error:<kind>`,
     `CRAMLESS_CAPTURE_INPUT=photo|text`, `CRAMLESS_REVIEW_EDIT|UNTICK|SCROLL|PEEK|APPROVE|ALLOW`,
     `CRAMLESS_RECORD_FLAG|PAUSE|STOP`, `CRAMLESS_NOTES_FOCUS`, `CRAMLESS_IMPORT`, `CRAMLESS_PASTE_TEXT`,
     `CRAMLESS_CANVAS=375x667` (SE size).
-  - Library and exams: `CRAMLESS_SCENARIO=eve|past|graded|missed|repair`, `CRAMLESS_SCROLL=<section>`,
-    `CRAMLESS_SEARCH=<words>`, `CRAMLESS_GRADE=<n>`.
+  - Library and exams: `CRAMLESS_SCENARIO=eve|past|graded|missed|repair|thin|calibrated|ontrack|crowded|empty` (each documented in
+    `AppModel.applyHarnessScenario`; `calibrated` logs two past grades so the letter shows), `CRAMLESS_SCROLL=<section>`,
+    `CRAMLESS_SEARCH=<words>`, `CRAMLESS_GRADE=<n>`. `CRAMLESS_ROUTE=course:<n>` opens the nth course (`course:3` is Spanish II,
+    with no exam); `CRAMLESS_ROUTE=exam:<n>` the nth upcoming exam, and `CRAMLESS_EXAM_SKIP=1` opens it with "What if I skip …?" on.
+    The exam page's numbers are pinned with `CRAMLESS_NOW=2026-11-06T14:00:00-05:00` (the Chem quiz on Sunday at 10:00).
   - Ask, Settings and Squad: `CRAMLESS_ASK`, `CRAMLESS_CHAT`, `CRAMLESS_AGE`, `CRAMLESS_TUTOR`, `CRAMLESS_CARDS`,
     `CRAMLESS_EXPLAIN`, `CRAMLESS_SYNC`, `CRAMLESS_NOTIFY`, `CRAMLESS_SQUAD`, `CRAMLESS_ACCOUNT=apple|email`.
   - Ask Cap's assistant (`docs/assistant.md`): `CRAMLESS_ROUTE=ask CRAMLESS_ASSISTANT=cards|quiz|note|exam|practice|research|multi|answer|limit|error`

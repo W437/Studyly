@@ -102,20 +102,35 @@ final class ProgressPresentationTests: XCTestCase {
         XCTAssertEqual(ProgressPresentation.weekdaySymbols(calendar: calendar()), ["S", "M", "T", "W", "T", "F", "S"])
     }
 
-    func testStrongestAndWeakestNeverOverlapAndSkipUnstudiedTopics() {
-        func topic(_ name: String, _ value: Double, items: Int = 4) -> ProgressPresentation.TopicEntry {
-            ProgressPresentation.TopicEntry(id: UUID(), name: name, courseID: UUID(), courseName: "Bio", color: .sky,
-                                            value: value, itemCount: items)
-        }
-        let all = [topic("A", 0.95), topic("B", 0.42), topic("C", 0.81), topic("D", 0), topic("E", 0.66), topic("F", 0.3),
-                   topic("G", 0.9), topic("H", 0.55, items: 0)]
-        let (strongest, weakest) = ProgressPresentation.topicExtremes(all, count: 3)
-        XCTAssertEqual(strongest.map(\.name), ["A", "G", "C"])
-        XCTAssertEqual(weakest.map(\.name), ["F", "B", "E"], "weakest first, never one of the strongest, never unstudied")
+    private func light(_ name: String, dim: Int, bright: Int = 4, lit: Int? = nil, recall: Double? = 0.8,
+                       readiness: Double? = nil) -> ProgressPresentation.TopicLight {
+        ProgressPresentation.TopicLight(id: UUID(), name: name, courseID: UUID(), courseName: "Bio", color: .sky, index: 0,
+                                        dimCount: dim, brightCount: bright, litCount: lit ?? (dim + bright), meanRecall: recall,
+                                        readiness: readiness)
+    }
 
-        let few = ProgressPresentation.topicExtremes([topic("X", 0.7), topic("Y", 0.4), topic("Z", 0.9)], count: 3)
-        XCTAssertEqual(few.strongest.map(\.name), ["Z", "X"])
-        XCTAssertEqual(few.weakest.map(\.name), ["Y"])
-        XCTAssertTrue(ProgressPresentation.topicExtremes([], count: 3).strongest.isEmpty)
+    /// Fading is the sky's dim line (questions under 0.7 recall), ordered by readiness for the course's next exam: the weakest topic
+    /// on an exam first; topics on no exam after, most fading first. The rows show counts, never a percentage.
+    func testFadingPutsTheWeakestForTheNextExamFirst() {
+        let topics = [light("Off exam, 5 dim", dim: 5), light("Strong", dim: 1, readiness: 0.82), light("Weak", dim: 1, readiness: 0.31),
+                      light("Middling", dim: 3, readiness: 0.55), light("Nothing fading", dim: 0, readiness: 0.1),
+                      light("Off exam, 2 dim", dim: 2)]
+        XCTAssertEqual(ProgressPresentation.fading(topics, count: 3).map(\.name), ["Weak", "Middling", "Strong"])
+        XCTAssertEqual(ProgressPresentation.fading(topics, count: 10).map(\.name),
+                       ["Weak", "Middling", "Strong", "Off exam, 5 dim", "Off exam, 2 dim"], "a topic with nothing fading never shows")
+        XCTAssertTrue(ProgressPresentation.fading([], count: 3).isEmpty)
+        XCTAssertEqual(ProgressPresentation.fadingLine(2), "2 questions fading")
+        XCTAssertEqual(ProgressPresentation.fadingLine(1), "1 question fading")
+    }
+
+    func testBrightestLeavesOutTheFadingAndTheBarelyStudied() {
+        let fading = light("Fading", dim: 3, bright: 9, recall: 0.9)
+        let topics = [fading, light("All bright", dim: 0, bright: 6, recall: 0.92), light("Mostly", dim: 1, bright: 5, recall: 0.95),
+                      light("One star", dim: 0, bright: 1, recall: 0.99), light("All dim", dim: 4, bright: 0, recall: 0.5),
+                      light("Also all bright", dim: 0, bright: 3, recall: 0.97)]
+        let names = ProgressPresentation.brightest(topics, excluding: [fading.id], count: 3).map(\.name)
+        XCTAssertEqual(names, ["Also all bright", "All bright", "Mostly"], "the brightest share first, then recall")
+        XCTAssertFalse(names.contains("One star"), "needs two studied stars")
+        XCTAssertFalse(names.contains("Fading"), "never one of the fading")
     }
 }
