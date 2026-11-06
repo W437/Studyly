@@ -176,7 +176,8 @@
             },
             "required": ["itemId", "topic", "prompt", "expected", "given", "misses"]
           }
-        }
+        },
+        "lookAlike": { "type": "boolean" }
       },
       "required": ["course", "mistakes"]
     },

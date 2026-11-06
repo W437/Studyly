@@ -16,6 +16,7 @@ final class RelayContractTests: XCTestCase {
             XCTAssertTrue(script.events.allSatisfy { $0.tutorEvent != nil }, name)
         }
         XCTAssertNoThrow(try RelayFixtures.load(ConfusionsResponse.self, "confusions"))
+        XCTAssertNoThrow(try RelayFixtures.load(ConfusionsResponse.self, "confusions-lookalike"))
         XCTAssertNoThrow(try RelayFixtures.load(LectureResponse.self, "lecture"))
         XCTAssertNoThrow(try RelayFixtures.load(CardsFromChatResponse.self, "cards-from-chat"))
         XCTAssertNoThrow(try RelayFixtures.load(TranscribeImageResponse.self, "transcribe-image"))
@@ -179,5 +180,16 @@ final class RelayContractTests: XCTestCase {
         XCTAssertEqual(RelayLimits.researchTopic, 200)
         XCTAssertEqual(RelayLimits.researchFocus, 300)
         XCTAssertEqual(RelayLimits.pageLines, 800)
+    }
+
+    /// `lookAlike` is sent only when true, so a request for a mix-up reads as it always did, and an older relay never sees it.
+    func testLookAlikeIsSentOnlyWhenTrue() throws {
+        let mistake = MistakeInput(itemId: "i7", topic: "Phases", prompt: "Which phase?", expected: "Metaphase", given: "", misses: 0)
+        func body(_ request: ConfusionsRequest) throws -> [String: Any] {
+            try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(request)) as? [String: Any])
+        }
+        XCTAssertNil(try body(ConfusionsRequest(course: "Bio", mistakes: [mistake]))["lookAlike"])
+        XCTAssertEqual(try body(ConfusionsRequest(course: "Bio", mistakes: [mistake], lookAlike: true))["lookAlike"] as? Bool, true)
+        XCTAssertEqual(ConfusionsRequest(course: "Bio", mistakes: [mistake], lookAlike: true).fitted().lookAlike, true, "fitting keeps it")
     }
 }

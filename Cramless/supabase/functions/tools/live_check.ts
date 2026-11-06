@@ -4,7 +4,7 @@
 // and an in-memory store) with the real OpenAI provider. It asks for questions from the sample page, checks them
 // against the page, grades three answers and asks the tutor two questions (streamed with citations), all on GPT 6.1
 // Terra, printing what the app would show and a verdict per check. It spends a few cents and stores nothing. The key is
-// read from the environment only and never written anywhere. `LIVE_ONLY=generate,check,grade,tutor` runs some of them.
+// read from the environment only and never written anywhere. `LIVE_ONLY=generate,check,grade,tutor,lookalike` runs some of them.
 //
 // Use it after changing a prompt in _shared/prompts/ (then `deno task bundle`), and once before launch.
 
@@ -20,7 +20,9 @@ if (!key) {
 
 // OPENAI_BASE_URL points it at the mock server instead (`deno task mock-openai`), for a dry run of this script.
 const baseURL = Deno.env.get("OPENAI_BASE_URL") || undefined;
-const only = new Set((Deno.env.get("LIVE_ONLY") ?? "generate,check,grade,tutor").split(",").map((p) => p.trim()));
+const only = new Set(
+  (Deno.env.get("LIVE_ONLY") ?? "generate,check,grade,tutor,lookalike").split(",").map((p) => p.trim()),
+);
 const t = rig({
   env: { OPENAI_API_KEY: key, DAILY_COST_CAP_USD: "0" }, // many requests as one person: no daily cost cap
   provider: new OpenAIAssistantProvider({ apiKey: key, baseURL, maxRetries: 1, timeoutMs: 120_000 }),
@@ -139,6 +141,46 @@ for (const mode of only.has("tutor") ? ["hints", "explain"] : []) {
   for (const c of citations) console.log(`  cites ${c}`);
   verdict(citations.length > 0, "cites the page");
   if (mode === "hints") verdict(text.includes("?"), "hints first asks a question back");
+}
+
+// 4. A look-alike pair: two questions from the sample page the student hasn't mixed up yet.
+if (only.has("lookalike")) {
+  console.log("\n== confusions (look-alike pair)");
+  const reply = await post("confusions", {
+    course: "Bio 101",
+    lookAlike: true,
+    mistakes: [
+      {
+        itemId: "i7",
+        topic: "Phases of mitosis",
+        prompt: "In which phase do chromosomes line up at the equator of the cell?",
+        expected: "Metaphase",
+        given: "",
+        misses: 0,
+      },
+      {
+        itemId: "i10",
+        topic: "Cytokinesis",
+        prompt: "Which phase comes right before cytokinesis?",
+        expected: "Telophase",
+        given: "",
+        misses: 0,
+      },
+    ],
+  });
+  const lesson = reply?.confusions?.[0];
+  if (lesson) {
+    console.log(`  ${lesson.name}\n  ${lesson.lesson}`);
+    // deno-lint-ignore no-explicit-any
+    for (const q of lesson.questions as any[]) console.log(`  [${q.kind}] ${q.prompt} → ${q.answer}`);
+  }
+  verdict(reply?.confusions?.length === 1, "one confusion for the pair");
+  verdict(new Set(lesson?.itemIds ?? []).size === 2, "it covers both questions");
+  verdict((lesson?.questions?.length ?? 0) >= 2, "two or more questions");
+  verdict(
+    !/you (got|missed|swapped|mixed)/i.test(`${lesson?.explanation} ${lesson?.lesson}`),
+    "never says the student got it wrong",
+  );
 }
 
 // Cost, from the relay's own log lines.
