@@ -105,6 +105,7 @@ extension AppModel {
         sync.resetLedger()
         clearSessionKeep()
         clearNoticeLedger()
+        clearLastLooks()
         defaults.removeObject(forKey: AgeCheck.defaultsKey)
         var fresh = AppSettings()
         fresh.installedAt = Date()

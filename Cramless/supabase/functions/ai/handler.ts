@@ -1,7 +1,7 @@
 // The `ai` function: the relay the app's HTTP transport calls. One function, routed by path:
 //   POST /ai/generate, /ai/check, /ai/grade, /ai/tutor (server-sent events), /ai/confusions, /ai/lecture,
 //        /ai/cards-from-chat, /ai/transcribe-image, /ai/assistant (server-sent events: Ask Cap with tools),
-//        /ai/research (server-sent events: web research, Pro), /ai/syllabus, /ai/exam-mention
+//        /ai/research (server-sent events: web research, Pro), /ai/syllabus, /ai/exam-mention, /ai/last-look
 //   GET  /ai/quota
 // Every route checks the caller's Supabase session (anonymous users allowed), resolves their plan (an active
 // entitlement or Squad membership), validates the body, meters the free quotas (scans, grades, tutor, lectures;
@@ -28,6 +28,8 @@ import type {
   GradeRequest,
   GradeResponse,
   ItemKind,
+  LastLookRequest,
+  LastLookResponse,
   LectureRequest,
   LectureResponse,
   ResearchRequest,
@@ -97,6 +99,7 @@ import {
   checkSystem,
   confusionsContent,
   examMentionContent,
+  lastLookContent,
   generateContent,
   generateSystem,
   gradeContent,
@@ -111,7 +114,7 @@ import {
 } from "../_shared/prompts.ts";
 import { providerSchema, requireSourceBudget, requireValid } from "../_shared/schemas.ts";
 import { EventStream, type TutorEventData } from "../_shared/sse.ts";
-import { sanitizeExamMentions, sanitizeSyllabus, textOnly } from "../_shared/syllabus.ts";
+import { sanitizeExamMentions, sanitizeLastLook, sanitizeSyllabus, textOnly } from "../_shared/syllabus.ts";
 import type { ScanKind, UserContext } from "../_shared/store.ts";
 import type { Caller } from "../_shared/auth.ts";
 
@@ -128,6 +131,7 @@ type RouteName =
   | "research"
   | "syllabus"
   | "exam-mention"
+  | "last-look"
   | "quota";
 
 const KB = 1024;
@@ -146,6 +150,7 @@ const ROUTES: Record<RouteName, { method: "GET" | "POST"; schema?: string; maxBy
   research: { method: "POST", schema: "ResearchRequest", maxBytes: 16 * KB },
   syllabus: { method: "POST", schema: "SyllabusRequest", maxBytes: 512 * KB },
   "exam-mention": { method: "POST", schema: "ExamMentionRequest", maxBytes: 64 * KB },
+  "last-look": { method: "POST", schema: "LastLookRequest", maxBytes: 128 * KB },
   quota: { method: "GET", maxBytes: 0 },
 };
 
@@ -698,6 +703,31 @@ async function examMention(c: Ctx, body: ExamMentionRequest): Promise<Response> 
   });
 }
 
+/** The night before an exam: the student's shakiest ideas, one plain sentence each. The app asks ahead of time, so the sentences are on the
+ * phone when the evening comes, and checks each one against the question and its lines. On the hidden `extras` meter (about 0.2¢). */
+async function lastLook(c: Ctx, body: LastLookRequest): Promise<Response> {
+  return await jsonRoute<LastLookResponse>(c, { meter: "extras" }, () => "last-look", async () => {
+    c.meta.model = TERRA;
+    const res = call(
+      c,
+      await c.deps.provider.json<Omit<LastLookResponse, "model">>({
+        model: TERRA,
+        effort: "low",
+        maxTokens: 2_000,
+        system: systemFor("last-look"),
+        content: lastLookContent(body),
+        schema: providerSchema("LastLookResponse"),
+        signal: c.req.signal,
+      }),
+    );
+    return {
+      body: { model: res.model, ideas: sanitizeLastLook(res.value.ideas, body) },
+      model: res.model,
+      usage: res.usage,
+    };
+  });
+}
+
 // ---- The tutor (server-sent events) ----
 
 async function tutor(c: Ctx, body: TutorRequest): Promise<Response> {
@@ -1199,6 +1229,8 @@ async function handle(req: Request, deps: Deps, name: string, meta: Meta, starte
       return await syllabus(c, body as SyllabusRequest);
     case "exam-mention":
       return await examMention(c, body as ExamMentionRequest);
+    case "last-look":
+      return await lastLook(c, body as LastLookRequest);
   }
   throw notFound();
 }

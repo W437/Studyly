@@ -143,6 +143,8 @@ enum AppSheet: Identifiable, Hashable, Sendable {
     case looksWrong(itemID: UUID, given: String)
     /// "Yes, harder": a harder question for this one.
     case ladder(parentID: UUID)
+    /// The last look on an exam's eve: the shakiest ideas, to read once.
+    case lastLook(examID: UUID)
 
     var id: String { String(describing: self) }
 }

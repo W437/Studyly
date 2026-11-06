@@ -557,6 +557,28 @@
         }
       }
     },
+    "%lld ideas" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld idea"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld ideas"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "%lld in a row" : {},
     "%lld left blank. They stay out of your score." : {
       "localizations" : {
@@ -2544,6 +2566,7 @@
     "Cap won't bring it up again" : {},
     "Cap won't bring these up. Turn them on again in Settings." : {},
     "Cap won't look anything up online." : {},
+    "Cap wrote these from your questions and notes." : {},
     "Cap's answers and drafts, no daily limit" : {},
     "Cap's own words" : {},
     "Cap's own words, not from your notes" : {},
@@ -3494,6 +3517,7 @@
     "Nothing that day in this what-if." : {},
     "Nothing to delete: this build never sends anything to Cloud AI." : {},
     "Nothing to drill here" : {},
+    "Nothing to look at tonight" : {},
     "Nothing to mark." : {},
     "Nothing to restore on this Apple Account." : {},
     "Nothing to study for this exam yet. Add material and Capling plans the way there." : {},
@@ -4285,6 +4309,7 @@
     "That's all the drafts for today. They start again at midnight." : {},
     "That's all the web research for today. It resets at midnight." : {},
     "That's enough for tonight" : {},
+    "That's enough for tonight. Sleep is part of studying. Good luck tomorrow." : {},
     "That's enough for tonight. You're about %@ ready for tomorrow morning." : {},
     "That's enough for tonight. You're about %@ ready for tomorrow." : {},
     "That's enough." : {},
@@ -4787,7 +4812,7 @@
         }
       }
     },
-    "You went over your weak spots. Sleep is when today's studying sticks." : {},
+    "You went over your weak spots." : {},
     "You were %@ ready on the day." : {},
     "You were 80% ready on the morning of an exam." : {},
     "You were right. Cap fixed the question." : {},
@@ -4882,11 +4907,35 @@
     "Your data stays. Finishing onboarding brings you back here." : {},
     "Your exam" : {},
     "Your first set" : {},
+    "Your five shakiest ideas, in plain words" : {},
     "Your grade" : {},
     "Your grade landed within 5 points of your readiness." : {},
     "Your grade, in percent" : {},
     "Your iPhone's AI is off or unavailable, so you mark this one." : {},
     "Your invite code" : {},
+    "Your last look" : {},
+    "Your last look: %lld ideas, no quiz" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Your last look: %lld idea, no quiz"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Your last look: %lld ideas, no quiz"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "Your memory sky" : {},
     "Your memory sky is empty. Add class material and every question you study becomes a star." : {},
     "Your name" : {},
@@ -4903,6 +4952,7 @@
     "Your seat belongs to your account, so it follows you to a new iPhone, and your friend can see who joined." : {},
     "Your session for today shows up here." : {},
     "Your set goes there, and your plan is built for it." : {},
+    "Your shakiest ideas, in plain words" : {},
     "Your sky is %@" : {},
     "Your sky is waiting" : {},
     "Your stars waited for you. 5 minutes today is a good start." : {},
@@ -4961,6 +5011,28 @@
     "Zzzoom." : {},
     "Zzz… oh! Hi." : {},
     "about %@ after today" : {},
+    "about %lld minutes" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "about %lld minute"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "about %lld minutes"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "added %lld days ago" : {},
     "added today" : {},
     "added yesterday" : {},
@@ -5024,6 +5096,7 @@
     "log your grade" : {},
     "min" : {},
     "ng" : {},
+    "no quiz" : {},
     "not studied" : {},
     "nothing planned" : {},
     "on %@" : {},

@@ -50,6 +50,7 @@ struct RootView: View {
             started = true
             await app.start()
             Task { await app.answerLaterOnLaunch() }
+            if app.sideEffectsEnabled { Task(priority: .utility) { await app.prepareLastLooks() } }
             #if DEBUG
             try? await Task.sleep(for: .milliseconds(350))
             TestHarness.applyRoute(to: app)
@@ -72,6 +73,7 @@ struct RootView: View {
             app.applyDailyRollover()
             if app.sideEffectsEnabled { app.widgets.refresh() }
             Task { await app.runPendingRechecks() }
+            if app.sideEffectsEnabled { Task(priority: .utility) { await app.prepareLastLooks() } }
             app.answerLaterOnActive()
         }
     }
@@ -268,6 +270,7 @@ struct SheetDestination: View {
         case .fillGap(let examID, let topicID): FillGapSheet(examID: examID, topicID: topicID)
         case .looksWrong(let id, let given): LooksWrongSheet(itemID: id, given: given)
         case .ladder(let id): LadderSheet(parentID: id)
+        case .lastLook(let id): LastLookView(examID: id)
         }
     }
 }

@@ -49,7 +49,7 @@ Every failure is JSON with an HTTP status:
 Messages are short, safe to show and never contain the person's material.
 
 **One quiet retry.** The JSON routes (`generate`, `check`, `grade`, `lecture`, `cards-from-chat`, `confusions`,
-`transcribe-image`, `quota`) are tried once more after a `503` or a `504`, or a connection that dropped before any answer, because a
+`transcribe-image`, `last-look`, `quota`) are tried once more after a `503` or a `504`, or a connection that dropped before any answer, because a
 gateway or a busy provider recovers and the same request works a moment later (the relay gives a failed request's scan or meter back,
 so a retry doesn't charge a scan twice). A `503` that names a wait (`retryAfter`, in the envelope or the `Retry-After` header) is
 retried after that wait when it is 15 seconds or less, and not at all when it is longer; a `503` that names none, a `504` and a
@@ -83,7 +83,7 @@ owner's Squad subscription is active; otherwise `free`.
   back. A refused request (validation, quota) costs nothing. One exception for the model routes: a failure the provider
   **billed** (a reply that could not be read, a search stream that was cut off) or a client that walked away (499) keeps
   the quota, so errors cannot be farmed for free model time.
-- `check`, `confusions`, `cards-from-chat`, `syllabus` and `exam-mention` share an internal meter (`extras`: 120 a day on free, 800 paid) that the app
+- `check`, `confusions`, `cards-from-chat`, `syllabus`, `exam-mention` and `last-look` share an internal meter (`extras`: 120 a day on free, 800 paid) that the app
   never shows; Squad code attempts are capped at 10 a day.
 - **The day's cost cap** sits under every meter, on every plan: once a person's model calls since their local midnight have cost the
   cap (10¢; the `DAILY_COST_CAP_USD` secret, `0` = off), each AI route answers `quota_exceeded` (429, `quota.meters` empty,
@@ -414,6 +414,18 @@ that mention's `candidates`, or it goes; `topics` only names from the request, i
 
 The rules on the phone (`ExamDateFinder`) decide without it when there is no consent, no network or an older relay. Whatever comes back, the exam covers the whole course in this version and
 `scopePhrase` is only shown; it is added only by the student's tap.
+
+### `POST ai/last-look` → `LastLookResponse`
+
+The student's shakiest ideas in plain words, for the night before an exam (`LastLookEngine`). The app asks ahead of time, from 48 hours before the exam until 18:00 on its eve, so the sentences are on the
+phone when the evening comes and the screen works with no connection. Request `LastLookRequest`: `course`, `examTitle`, `language?`, `ideas` (1 to 8: `{id, topic?, prompt, answer, lines}`, with up to 6 lines of what
+the question came from, each at most 1,000 characters). Body limit 128 KB.
+
+Reply: `model`, `ideas` [`{id, sentence}`], at most one per idea. Cleaning: an id the request didn't have goes, and so does a second sentence for an idea; whitespace is collapsed; an empty sentence or one over 300 characters goes. Meter:
+`extras` (about 0.2¢). Effort low, 2,000 tokens at most.
+
+The app checks every sentence again before keeping it (`LastLookEngine.keeps`): its content words must be in the question, the answer and the lines, and every number and negation in it must be there too. Otherwise that idea shows its question and answer, as it does
+when there is no consent, no connection or an older relay (which answers 404).
 
 ### `GET ai/quota` → `QuotaStatus`
 

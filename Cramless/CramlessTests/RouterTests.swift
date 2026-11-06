@@ -121,6 +121,10 @@ final class RouterTests: XCTestCase {
             ("syllabus: never under 13", context(.syllabus, age: .child), [], nil, nil),
             ("exam mention: cloud only", context(.examMention), [.cloud], nil, nil),
             ("exam mention: no consent", context(.examMention, consent: false), [], .allowCloud(feature: AIJob.examMention.feature), nil),
+            ("last look: cloud only", context(.lastLook), [.cloud], nil, nil),
+            ("last look: no consent", context(.lastLook, consent: false), [], .allowCloud(feature: AIJob.lastLook.feature), nil),
+            ("last look: free for everyone", context(.lastLook, quota: .exhausted), [.cloud], nil, nil),
+            ("last look: never under 13", context(.lastLook, age: .child), [], nil, nil),
         ]
         for (name, ctx, tiers, suggestion, limit) in rows {
             let route = AIRouting.route(ctx)

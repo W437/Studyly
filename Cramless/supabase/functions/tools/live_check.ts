@@ -4,7 +4,7 @@
 // and an in-memory store) with the real OpenAI provider. It asks for questions from the sample page, checks them
 // against the page, grades three answers and asks the tutor two questions (streamed with citations), all on GPT 6.1
 // Terra, printing what the app would show and a verdict per check. It spends a few cents and stores nothing. The key is
-// read from the environment only and never written anywhere. `LIVE_ONLY=generate,check,reports,rung,grade,tutor,mistake,photo,lookalike,syllabus,exam-mention`
+// read from the environment only and never written anywhere. `LIVE_ONLY=generate,check,reports,rung,grade,tutor,mistake,photo,lookalike,syllabus,exam-mention,last-look`
 // runs some of them.
 //
 // Use it after changing a prompt in _shared/prompts/ (then `deno task bundle`), and once before launch.
@@ -22,7 +22,7 @@ if (!key) {
 // OPENAI_BASE_URL points it at the mock server instead (`deno task mock-openai`), for a dry run of this script.
 const baseURL = Deno.env.get("OPENAI_BASE_URL") || undefined;
 const only = new Set(
-  (Deno.env.get("LIVE_ONLY") ?? "generate,check,reports,rung,grade,tutor,mistake,photo,lookalike,syllabus,exam-mention").split(",")
+  (Deno.env.get("LIVE_ONLY") ?? "generate,check,reports,rung,grade,tutor,mistake,photo,lookalike,syllabus,exam-mention,last-look").split(",")
     .map((p) => p.trim()),
 );
 const t = rig({
@@ -396,6 +396,21 @@ if (only.has("exam-mention")) {
   verdict(/midterm/i.test(announced?.title ?? ""), "and its name");
   verdict(/week/i.test(announced?.scopePhrase ?? ""), "and what the lecturer said it covers");
   verdict(paper?.isExam === false, "a paper's deadline is not an exam");
+}
+
+// 7. A last look: a sentence per idea, in the notes' own words, with nothing added.
+if (only.has("last-look")) {
+  console.log("\n== last-look");
+  const request = fixtureJson("requests/last-look");
+  const reply = await post("last-look", request);
+  // deno-lint-ignore no-explicit-any
+  const ideas: any[] = reply?.ideas ?? [];
+  for (const idea of ideas) console.log(`  ${idea.id}: ${idea.sentence}`);
+  verdict(ideas.length === request.ideas.length, "one sentence per idea");
+  verdict(ideas.every((i) => i.sentence.split(/\s+/).length <= 30), "each short enough to read at a glance");
+  verdict(ideas.every((i) => !/remember|the answer is|sleep|exam/i.test(i.sentence)), "no advice, nothing about the exam");
+  verdict(/chromatids/i.test(ideas[0]?.sentence ?? ""), "in the notes' own words");
+  verdict(/four/i.test(ideas[1]?.sentence ?? "") && /half/i.test(ideas[1]?.sentence ?? ""), "keeps the facts");
 }
 
 // Cost, from the relay's own log lines.

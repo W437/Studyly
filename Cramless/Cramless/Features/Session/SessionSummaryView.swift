@@ -46,6 +46,8 @@ struct SessionSummaryView: View {
     @State private var skyLitShown = false
     @State private var flameBounce = 0
     @State private var scroll = ScrollPosition()
+    /// On an eve: what the last look holds, read when the summary opens.
+    @State private var lastLook: LastLook?
     @Environment(\.requestReview) private var requestReview
 
     struct Info {
@@ -88,6 +90,7 @@ struct SessionSummaryView: View {
                 hero
                 if isEve {
                     eveCard
+                    if let lastLook { lastLookCard(lastLook) }
                 } else {
                     stats
                     if hasSkyLine { skyLine }
@@ -617,7 +620,7 @@ struct SessionSummaryView: View {
                         .clFont(.subheadline)
                         .foregroundStyle(CLColor.ink2)
                 }
-                Text("You went over your weak spots. Sleep is when today's studying sticks.")
+                Text("You went over your weak spots.")
                     .clFont(.subheadline)
                     .foregroundStyle(CLColor.ink2)
                     .fixedSize(horizontal: false, vertical: true)
@@ -627,6 +630,39 @@ struct SessionSummaryView: View {
         }
         .clCard()
         .accessibilityElement(children: .combine)
+    }
+
+    /// One more thing the night can hold, if the student wants it: their shakiest ideas, to read once. Good night is still the big button.
+    private func lastLookCard(_ look: LastLook) -> some View {
+        Button {
+            CLHaptics.tap()
+            app.router.present(.lastLook(examID: look.examID))
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "moon.stars.fill")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(CLColor.sunInk)
+                    .frame(width: 40, height: 40)
+                    .background(CLColor.sunSoft, in: Circle())
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(verbatim: LastLookCopy.title)
+                        .clFont(.headline)
+                        .foregroundStyle(CLColor.ink)
+                    Text(verbatim: LastLookCopy.line(ideas: look.ideas.count, minutes: look.minutes))
+                        .clFont(.subheadline)
+                        .foregroundStyle(CLColor.ink2)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                CLChevron()
+            }
+            .clCard()
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.pressable)
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isButton)
     }
 
     // MARK: Footer
@@ -661,6 +697,7 @@ struct SessionSummaryView: View {
         let made = makeInfo()
         decision = decide(made)
         info = made
+        if isEve, let examID = summary.examID { lastLook = app.lastLook(for: examID) }
         let before = summary.readinessBefore
         let after = summary.readinessAfter
         streakShown = summary.streakExtended ? max(0, summary.streak.current - 1) : summary.streak.current

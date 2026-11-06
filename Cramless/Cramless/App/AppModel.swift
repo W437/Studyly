@@ -71,6 +71,8 @@ final class AppModel {
     /// Cap's cards: the ledger and what's worked out once per change (`AppModel+Notices.swift`).
     @ObservationIgnored let noticeCache = NoticeCache()
     @ObservationIgnored let lectureCache = LectureCache()
+    /// The last look's quiet job is under way (`AppModel+LastLook.swift`).
+    @ObservationIgnored var lastLookPreparing = false
     /// Switches the app icon (the system's, or a fake in tests).
     @ObservationIgnored var iconSwitcher: any AppIconSwitching = SystemIconSwitcher()
     #if DEBUG

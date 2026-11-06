@@ -17,6 +17,7 @@ struct MockRelayTransport: RelayTransport {
         static let confusions = 1.2
         static let syllabus = 1.8
         static let examMention = 0.9
+        static let lastLook = 0.9
         static let lecture = 2.0
         static let cardsFromChat = 1.2
         static let transcribeImage = 1.5
@@ -223,6 +224,18 @@ struct MockRelayTransport: RelayTransport {
             out.id = mention.id
             out.date = mention.candidates.first
             return out
+        }
+        return response
+    }
+
+    /// The fixture's model, and for each idea asked about something the app's check is bound to keep: a term says its definition, a question with lines its first line. A question
+    /// with no lines gets no sentence, as a model with nothing to go on would answer.
+    func lastLook(_ request: LastLookRequest) async throws -> LastLookResponse {
+        try await pause(Latency.lastLook)
+        var response = try load(LastLookResponse.self, "last-look")
+        response.ideas = request.ideas.compactMap { idea in
+            if !idea.prompt.contains("?") { return LastLookSentence(id: idea.id, sentence: "\(idea.prompt): \(idea.answer)") }
+            return idea.lines.first.map { LastLookSentence(id: idea.id, sentence: $0) }
         }
         return response
     }

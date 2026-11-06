@@ -281,6 +281,7 @@ struct TodayView: View {
             if let request = action.request { start(request) }
         case .sample: sample()
         case .scan: scan(snap)
+        case .lastLook(let examID): present(.lastLook(examID: examID))
         }
     }
 

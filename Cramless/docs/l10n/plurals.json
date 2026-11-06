@@ -448,5 +448,17 @@
   "Exam added, %lld days away": {
     "one": "Exam added, %lld day away",
     "other": "Exam added, %lld days away"
+  },
+  "%lld ideas": {
+    "one": "%lld idea",
+    "other": "%lld ideas"
+  },
+  "about %lld minutes": {
+    "one": "about %lld minute",
+    "other": "about %lld minutes"
+  },
+  "Your last look: %lld ideas, no quiz": {
+    "one": "Your last look: %lld idea, no quiz",
+    "other": "Your last look: %lld ideas, no quiz"
   }
 }

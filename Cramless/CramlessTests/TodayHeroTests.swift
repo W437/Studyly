@@ -174,6 +174,26 @@ final class TodayHeroContentTests: XCTestCase {
         XCTAssertTrue(c.reason.hasSuffix("Sleep is part of studying."))
     }
 
+    func testOnceTheEveSessionIsDoneTheLastLookIsAQuietButton() throws {
+        var snap = snapshot(.examEveDone(examID))
+        snap.lastLookIdeas = 5
+        let c = TodayHeroContent.make(snap)
+        XCTAssertEqual(c.actions.count, 1)
+        let action = try XCTUnwrap(c.actions.first)
+        XCTAssertEqual(action.kind, .lastLook(examID: examID))
+        XCTAssertEqual(text(action.title), "Your last look")
+        XCTAssertFalse(action.prominent, "Good night is the evening's big moment")
+        XCTAssertEqual(action.spoken.map(text), "Your last look: 5 ideas, no quiz")
+        XCTAssertNil(action.request)
+        // Before tonight's session, and on a night with nothing to review, it isn't offered.
+        var before = snapshot(.examEve(examID))
+        before.lastLookIdeas = 5
+        XCTAssertFalse(TodayHeroContent.make(before).actions.contains { $0.kind == .lastLook(examID: examID) })
+        var rest = snapshot(.examEve(examID), eveHasWork: false)
+        rest.lastLookIdeas = 5
+        XCTAssertTrue(TodayHeroContent.make(rest).actions.isEmpty)
+    }
+
     func testDoneIsBrightTonightWithTheExamItMovedAndAnOptionalExtra() throws {
         var snap = snapshot(.done, summary(done: 15), answers: 24)
         snap.doneExam = TodayDoneExam(title: "Chem 110 Quiz", readiness: 0.52, deltaToday: 0.10, daysLeft: 2)

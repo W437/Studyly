@@ -1,0 +1,13 @@
+{
+  "model": "mock",
+  "ideas": [
+    {
+      "id": "i1",
+      "sentence": "In anaphase the sister chromatids separate and move to opposite poles."
+    },
+    {
+      "id": "i2",
+      "sentence": "Meiosis makes four daughter cells, each with half the chromosomes."
+    }
+  ]
+}

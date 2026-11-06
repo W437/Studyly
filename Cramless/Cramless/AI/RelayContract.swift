@@ -486,6 +486,32 @@ struct ExamMentionResponse: Codable, Hashable, Sendable {
     var mentions: [ExamMentionVerdict]
 }
 
+struct LastLookIdeaInput: Codable, Hashable, Sendable {
+    var id: String
+    var topic: String?
+    var prompt: String
+    var answer: String
+    /// Up to 6 lines of what the question came from.
+    var lines: [String]
+}
+
+struct LastLookRequest: Codable, Hashable, Sendable {
+    var course: String
+    var examTitle: String
+    var language: String?
+    var ideas: [LastLookIdeaInput]
+}
+
+struct LastLookSentence: Codable, Hashable, Sendable {
+    var id: String
+    var sentence: String
+}
+
+struct LastLookResponse: Codable, Hashable, Sendable {
+    var model: String
+    var ideas: [LastLookSentence]
+}
+
 // MARK: - quota and entitlement
 
 struct QuotaMeter: Codable, Hashable, Sendable {
