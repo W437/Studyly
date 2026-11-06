@@ -23,7 +23,7 @@ struct NotificationsPage: View {
                 kind("calendar.badge.clock", .tangerine, "Daily reminder",
                      s.reminderMinutes.map { "At \(QuizContent.timeString(minutes: $0)), when there's something to study" } ?? "Off. Turn it on in Study.")
                 kind("graduationcap", .sky, "Exam countdowns", "A week before an exam, and the evening before")
-                kind("flame", .rose, "Streak", "At 8:30 PM when a streak of 3 days or more isn't done yet")
+                kind("flame", .rose, "Streak", "At \(QuizContent.timeString(minutes: NotificationPlanner.streakMinutes)) when a streak of 3 days or more isn't done yet")
                 kind("bell", .sun, "Free trial", "Two days before a free week ends, so you're never charged by surprise")
                 SettingsToggleRow(title: "Cap noticed", subtitle: "In the week before an exam, one a day at most, instead of that day's reminder.",
                                   isOn: Binding(get: { app.settings.notices.notify }, set: { app.settings.notices.notify = $0 }))

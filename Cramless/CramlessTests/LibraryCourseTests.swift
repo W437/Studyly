@@ -6,6 +6,24 @@ import XCTest
 /// The Library's "Recent" and the course page: exam chips, the course's session and the Questions tab's filters.
 @MainActor
 final class LibraryCourseTests: XCTestCase {
+    /// Questions made in one go share a date, and the store hands them over in no fixed order: the tab reads the same on every launch.
+    func testTheQuestionsTabHasOneOrderWhateverTheStoreSays() {
+        struct Key { var topic: Int; var created: Date; var id: UUID }
+        let date = Date(timeIntervalSince1970: 1_790_000_000)
+        let ids = (0..<6).map { _ in UUID() }
+        let keys = ids.map { Key(topic: 1, created: date, id: $0) } + [Key(topic: 0, created: date.addingTimeInterval(9), id: UUID()),
+                                                                       Key(topic: 1, created: date.addingTimeInterval(-9), id: UUID())]
+        func sorted(_ list: [Key]) -> [UUID] {
+            list.sorted {
+                CourseQuestions.comesBefore(topicA: $0.topic, createdA: $0.created, idA: $0.id, topicB: $1.topic, createdB: $1.created, idB: $1.id)
+            }.map(\.id)
+        }
+        let order = sorted(keys)
+        XCTAssertEqual(order[0], keys[6].id, "the first topic first")
+        XCTAssertEqual(order[1], keys[7].id, "then the oldest")
+        for _ in 0..<5 { XCTAssertEqual(sorted(keys.shuffled()), order) }
+    }
+
     let cal = EngineTest.calendar()
     var clock: TestClock!
     var app: AppModel!

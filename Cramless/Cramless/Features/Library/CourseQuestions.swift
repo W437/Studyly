@@ -33,6 +33,14 @@ enum CourseQuestions {
         var kinds: [ItemKind: Int] = [:]
     }
 
+    /// The tab's order: by topic, then oldest first. Questions made in one go share a date: the id settles it, so the list reads the same
+    /// on every launch (a course's questions come from the store in no fixed order).
+    static func comesBefore(topicA: Int, createdA: Date, idA: UUID, topicB: Int, createdB: Date, idB: UUID) -> Bool {
+        if topicA != topicB { return topicA < topicB }
+        if createdA != createdB { return createdA < createdB }
+        return idA.uuidString < idB.uuidString
+    }
+
     /// What each chip counts, within the chosen topic.
     static func counts(_ rows: [Row], topic: UUID?) -> Counts {
         var counts = Counts()
