@@ -239,7 +239,7 @@ struct ChoiceQuestionView: View {
         let outcome = app.ai.instantGrade(app.gradeSubject(for: item), answer: .choice(index))
         let verdict: SessionRunner.Outcome = outcome.isCorrect ? .right : .wrong
         saved = outcome.isCorrect && runner.wouldSave(item)
-        run = outcome.isCorrect ? runner.combo(adding: .right, kind: item.kind) : 0
+        run = outcome.isCorrect ? runner.shownRun(adding: .right, kind: item.kind) : 0
         CLFeel.play(runner.cues(for: verdict, item: item, answered: index >= 0))
         if saved { runner.flareSave(of: item) }
         withAnimation(CLMotion.snap) {

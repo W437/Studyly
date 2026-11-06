@@ -180,7 +180,8 @@ struct TodayHeroContent: Equatable, Sendable {
                 chip: Chip(text: String(localized: "Done for today"), symbol: "checkmark", tone: .done),
                 when: TodayCopy.doneLine(minutes: summary.minutesDone, answers: snapshot.answersToday),
                 title: String(localized: "Bright tonight"), titleSymbol: "sparkles",
-                reason: String(localized: "Back tomorrow. Your streak is safe."), ringLine: line, actions: [extra])
+                reason: snapshot.quiet ? String(localized: "Back tomorrow.") : String(localized: "Back tomorrow. Your streak is safe."),
+                ringLine: line, actions: [extra])
 
         case .caughtUp:
             let action: Action = snapshot.practice.map { .practice($0) } ?? .extra(.practice, minutes: 5, title: .practiceFiveMinutes, prominent: true)

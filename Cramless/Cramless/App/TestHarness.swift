@@ -50,6 +50,7 @@ enum TestHarness {
         guard app.config.isHarness else { return }
         if let theme = value("CRAMLESS_THEME"), let t = AppSettings.Theme(rawValue: theme) { app.settings.theme = t }
         if value("CRAMLESS_DYSLEXIC") == "1" { app.settings.dyslexicFont = true }
+        if value("CRAMLESS_QUIET") == "1" { app.settings.quietMode = true }
         if app.settings.firstName.isEmpty { app.settings.firstName = "Maya" }
         if value("CRAMLESS_CONSENT") != "0" {
             app.settings.cloudConsentVersion = max(app.settings.cloudConsentVersion, AIConsent.currentVersion)

@@ -2,7 +2,7 @@ import SwiftUI
 
 /// The streak in full: this month's calendar of studied, frozen and repaired days, with each upcoming exam's day and its eve
 /// marked (earlier months and the next one a tap of the arrows away), the repair offer when there is one, and how freezes and
-/// repairs work, in plain words. Today's "Your plan" opens it from "Calendar".
+/// repairs work, in plain words. Today's "Your plan" opens it from "Calendar". In Quiet mode it is only the calendar.
 struct StreakView: View {
     @Environment(AppModel.self) private var app
     @State private var monthOffset = 0
@@ -21,11 +21,14 @@ struct StreakView: View {
         let marks = ExamMarks(app.upcomingExams().filter { $0.course?.deletedAt == nil && $0.date > app.now }
             .map { (title: $0.title, date: $0.date) }, calendar: calendar)
 
+        let quiet = app.settings.quietMode
         ScrollViewReader { proxy in
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                header(streak, run: run)
-                    .padding(.top, 8)
+                if !quiet {
+                    header(streak, run: run)
+                        .padding(.top, 8)
+                }
 
                 VStack(alignment: .leading, spacing: 14) {
                     HStack {
@@ -55,30 +58,32 @@ struct StreakView: View {
                 .clCard()
                 .padding(.top, 20)
 
-                if let day = streak.repairableDay {
-                    RepairOffer(day: day, run: run, dailyMinutes: dailyMinutes, calendar: calendar)
-                        .clCard()
-                        .padding(.top, 16)
+                if !quiet {
+                    if let day = streak.repairableDay {
+                        RepairOffer(day: day, run: run, dailyMinutes: dailyMinutes, calendar: calendar)
+                            .clCard()
+                            .padding(.top, 16)
+                    }
+
+                    CLSectionHeader(title: "Milestones")
+                        .id("milestones")
+                    MilestonesCard(current: streak.current, best: streak.best)
+
+                    CLSectionHeader(title: "How freezes work")
+                        .id("freezes")
+                    Explainer(icon: "snowflake", tint: .sky, lines: [
+                        "Every 7 days in a row you study earns a freeze. You can hold \(StreakEngine.maxFreezes).",
+                        "Miss a single day and a freeze covers it the next morning, so your streak carries on.",
+                        "A freeze never covers two days in a row.",
+                    ])
+
+                    CLSectionHeader(title: "How repairs work")
+                    Explainer(icon: "bandage", tint: .tangerine, lines: [
+                        "Missed a day with no freeze left? You have \(StreakEngine.repairWindow) days to fix it.",
+                        "Study \(CLFormat.minutes(dailyMinutes * 2)) in one day, twice your daily goal, and the missed day counts again.",
+                        "One missed day never undoes a good run. That's the point.",
+                    ])
                 }
-
-                CLSectionHeader(title: "Milestones")
-                    .id("milestones")
-                MilestonesCard(current: streak.current, best: streak.best)
-
-                CLSectionHeader(title: "How freezes work")
-                    .id("freezes")
-                Explainer(icon: "snowflake", tint: .sky, lines: [
-                    "Every 7 days in a row you study earns a freeze. You can hold \(StreakEngine.maxFreezes).",
-                    "Miss a single day and a freeze covers it the next morning, so your streak carries on.",
-                    "A freeze never covers two days in a row.",
-                ])
-
-                CLSectionHeader(title: "How repairs work")
-                Explainer(icon: "bandage", tint: .tangerine, lines: [
-                    "Missed a day with no freeze left? You have \(StreakEngine.repairWindow) days to fix it.",
-                    "Study \(CLFormat.minutes(dailyMinutes * 2)) in one day, twice your daily goal, and the missed day counts again.",
-                    "One missed day never undoes a good run. That's the point.",
-                ])
             }
             .padding(.horizontal, CLSpace.gutter)
             .padding(.bottom, 40)
@@ -86,7 +91,7 @@ struct StreakView: View {
         .harnessScroll(proxy)
         }
         .clScreenBackground()
-        .navigationTitle("Streak")
+        .navigationTitle(quiet ? "Calendar" : "Streak")
         .navigationBarTitleDisplayMode(.inline)
     }
 

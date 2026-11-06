@@ -54,7 +54,7 @@ final class NotificationScheduler {
         NotificationPlanner.Input(now: app.now, reminderMinutes: app.settings.reminderMinutes,
                                   quietStart: app.settings.quietHoursStart, quietEnd: app.settings.quietHoursEnd,
                                   goalMinutes: app.settings.dailyMinutes, today: app.todaySummary(),
-                                  streak: app.streak(), exams: app.notificationExams())
+                                  streak: app.streak(), exams: app.notificationExams(), quiet: app.settings.quietMode)
     }
 
     // MARK: Applying

@@ -33,10 +33,13 @@ struct AccessibilityPage: View {
             }
             SettingsGroup(title: "Feel") {
                 SettingsToggleRow(title: "Sounds",
-                                  subtitle: "Soft notes when you answer and finish. Quiet when your iPhone is on silent.",
-                                  isOn: $app.settings.sounds,
+                                  subtitle: app.settings.quietMode ? "Off while Quiet mode is on"
+                                      : "Soft notes when you answer and finish. Quiet when your iPhone is on silent.",
+                                  isOn: Binding(get: { app.settings.sounds && !app.settings.quietMode },
+                                                set: { app.settings.sounds = $0 }),
                                   hintOn: "Plays soft notes for answers and finished sessions.",
                                   hintOff: "Turns off every sound in Capling.")
+                    .disabled(app.settings.quietMode)
                 SettingsActionRow(icon: "music.note", tint: .mint, title: "Hear an example",
                                   subtitle: "Five right answers in a row") {
                     Self.playExample()

@@ -236,7 +236,7 @@ struct ClozeQuestionView: View {
         let result = app.ai.instantGrade(app.gradeSubject(for: item), answer: .blanks(given))
         let verdict = outcome(result)
         saved = verdict == .right && runner.wouldSave(item)
-        run = verdict == .right ? runner.combo(adding: .right, kind: item.kind) : 0
+        run = verdict == .right ? runner.shownRun(adding: .right, kind: item.kind) : 0
         CLFeel.play(runner.cues(for: verdict, item: item, answered: true))
         if saved { runner.flareSave(of: item) }
         withAnimation(CLMotion.snap) { grade = result }

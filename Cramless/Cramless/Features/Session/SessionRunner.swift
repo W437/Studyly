@@ -279,8 +279,14 @@ final class SessionRunner: Identifiable {
         return ComboRun.length(steps)
     }
 
-    /// The run as it stands, counting the question on screen once it's checked.
+    /// What the panel shows for this answer's run: nothing in Quiet mode, where no run is counted out loud.
+    func shownRun(adding outcome: Outcome, kind: ItemKind) -> Int {
+        app.settings.quietMode ? 0 : combo(adding: outcome, kind: kind)
+    }
+
+    /// The run as it stands, counting the question on screen once it's checked. Quiet mode shows none.
     var liveCombo: Int {
+        guard !app.settings.quietMode else { return 0 }
         guard let provisional, let entry = queue.current else { return combo() }
         return combo(adding: provisional, kind: entry.kind)
     }
@@ -308,7 +314,8 @@ final class SessionRunner: Identifiable {
         switch outcome {
         case .right:
             let run = combo(adding: .right, kind: item.kind)
-            let flourish: [CLCue] = ComboRun.isMilestone(run) ? [.flourish] : []
+            // In Quiet mode no run is counted out loud, so the milestone has no flourish either.
+            let flourish: [CLCue] = ComboRun.isMilestone(run) && !app.settings.quietMode ? [.flourish] : []
             return (wouldSave(item) ? [.saved] : [.right(combo: run)]) + flourish
         case .partial:
             return [.almost]

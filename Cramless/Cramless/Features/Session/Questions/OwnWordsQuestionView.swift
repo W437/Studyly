@@ -473,7 +473,7 @@ struct OwnWordsQuestionView: View {
     private func settleVerdict(_ outcome: GradeOutcome) {
         let verdict = SessionRunner.Outcome(outcome.verdict)
         saved = verdict == .right && runner.wouldSave(item)
-        run = verdict == .right ? runner.combo(adding: .right, kind: item.kind) : 0
+        run = verdict == .right ? runner.shownRun(adding: .right, kind: item.kind) : 0
     }
 
     // MARK: Rating and panel

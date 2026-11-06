@@ -294,7 +294,7 @@ extension AppModel {
         // settled with its own quests, today gets its quests, and a sky that another device's week lit says so.
         baselineBadges()
         if let sky = settleQuests().skyLit {
-            router.toast("A new sky is lit", systemImage: "sparkles", tone: .success)
+            if !settings.quietMode { router.toast("A new sky is lit", systemImage: "sparkles", tone: .success) }
             AppConfig.log.notice("sky lit at rollover: \(sky.rawValue, privacy: .public)")
         }
     }

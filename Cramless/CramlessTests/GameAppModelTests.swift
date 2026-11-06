@@ -584,6 +584,56 @@ final class GameAppModelTests: XCTestCase {
         XCTAssertLessThan(incremental, .milliseconds(60), "a new answer is not a rescan of the log")
     }
 
+    // MARK: Quiet mode
+
+    func testQuietModeSettlesQuestsAndBadgesUnseen() throws {
+        app.settings.quietMode = true
+        let course = makeCourse()
+        let items = (0..<8).map { _ in makeItem(in: course) }
+        app.save()
+        app.ensureQuestPicks()
+        study(Array(items.prefix(5)))
+        let outcome = app.settleGame()
+        XCTAssertEqual(outcome.questsDone, [.finishSession, .learnNew], "they count all the same")
+        XCTAssertEqual(try XCTUnwrap(app.dayRecord(key: "2026-10-22")).questMask, QuestKind.finishSession.bit | QuestKind.learnNew.bit)
+    }
+
+    func testQuietModeIsSilentWithoutTouchingTheSoundsSwitch() {
+        app.settings.sounds = true
+        app.settings.quietMode = true
+        XCTAssertTrue(app.settings.sounds, "turning it off again brings them back")
+        XCTAssertFalse(CLSound.shared.isEnabled)
+        app.settings.quietMode = false
+        XCTAssertTrue(app.settings.sounds)
+    }
+
+    func testTheRunIsNotShownInQuietMode() throws {
+        let course = makeCourse()
+        let made = (0..<4).map { _ in makeItem(in: course, kind: .mcq) }
+        app.save()
+        let runner = SessionRunner(app: app, request: SessionRequest(kind: .practice, itemIDs: made.map(\.id)),
+                                   options: .init(liveActivity: false))
+        runner.start()
+        for _ in 0..<3 {
+            runner.record(rating: .good, score: 1, answer: nil, gradedBy: "rules", durationMs: 2000, outcome: .right)
+            runner.advance()
+        }
+        XCTAssertEqual(runner.liveCombo, 3)
+        XCTAssertEqual(runner.shownRun(adding: .right, kind: .mcq), 4)
+        app.settings.quietMode = true
+        XCTAssertEqual(runner.liveCombo, 0)
+        XCTAssertEqual(runner.shownRun(adding: .right, kind: .mcq), 0)
+    }
+
+    func testTheNewSkyToastStaysAwayInQuietMode() {
+        addDays("ssss", endingDaysAgo: 1)
+        setQuestMasks([1: 0b111, 2: 0b111, 3: 0b111, 4: 0b111])
+        app.settings.quietMode = true
+        app.applyDailyRollover()
+        XCTAssertEqual(app.settings.litWeeks, 1, "the sky is lit all the same")
+        XCTAssertNil(app.router.toast)
+    }
+
     // MARK: Undo
 
     func testQuestsSeeAHeldRatingOnlyOnceItIsRecorded() throws {

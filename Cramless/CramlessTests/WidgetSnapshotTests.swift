@@ -7,6 +7,33 @@ final class WidgetSnapshotTests: XCTestCase {
     private let now = WidgetTestSupport.now
     private var sample: WidgetSnapshot { .sample(now: now, calendar: cal) }
 
+    // MARK: Quiet mode
+
+    func testQuietModeTakesTheFlameOffTheTodayWidgetOnly() {
+        var quiet = sample
+        XCTAssertGreaterThan(quiet.streak.current, 0)
+        XCTAssertEqual(quiet.forTodayWidget, quiet, "nothing changes with Quiet mode off")
+        quiet.quiet = true
+        XCTAssertEqual(quiet.forTodayWidget.streak.current, 0, "the Today widget has no streak to show")
+        XCTAssertEqual(quiet.streak.current, sample.streak.current, "a placed Streak widget reads the snapshot as it is")
+    }
+
+    func testASnapshotFromBeforeQuietModeStillReads() throws {
+        let encoded = try JSONEncoder().encode(sample)
+        var object = try XCTUnwrap(JSONSerialization.jsonObject(with: encoded) as? [String: Any])
+        object["quiet"] = nil
+        let data = try JSONSerialization.data(withJSONObject: object)
+        XCTAssertNil(try JSONDecoder().decode(WidgetSnapshot.self, from: data).quiet)
+    }
+
+    func testTheBuilderWritesQuietModeOnlyWhenItIsOn() {
+        let summary = TodaySummary(minutesGoal: 15)
+        let off = WidgetSnapshotBuilder.make(now: now, summary: summary, streak: StreakState(current: 4), exams: [], courses: [])
+        XCTAssertNil(off.quiet)
+        let on = WidgetSnapshotBuilder.make(now: now, summary: summary, streak: StreakState(current: 4), exams: [], courses: [], quiet: true)
+        XCTAssertEqual(on.quiet, true)
+    }
+
     // MARK: Storage
 
     func testRoundTripsThroughTheStore() throws {
