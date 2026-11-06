@@ -531,9 +531,25 @@ struct ChatComposer: View {
     let onSend: () -> Void
     let onStop: () -> Void
 
+    @Environment(\.dynamicTypeSize) private var typeSize
+
     private var canSend: Bool { !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
 
     var body: some View {
+        // At the accessibility text sizes Cap's style has a line of its own, so the field keeps the width.
+        VStack(alignment: .leading, spacing: 0) {
+            if showsMode, typeSize.isAccessibilitySize {
+                TutorModePill(thread: thread)
+                    .padding(.leading, 12)
+                    .padding(.top, 4)
+            }
+            row
+        }
+        .animation(CLMotion.snap, value: isAnswering)
+        .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: 25, style: .continuous))
+    }
+
+    private var row: some View {
         HStack(alignment: .bottom, spacing: 4) {
             if let onCamera {
                 Button(action: onCamera) {
@@ -564,7 +580,7 @@ struct ChatComposer: View {
                 .padding(.leading, onCamera == nil ? 16 : 2)
                 .padding(.vertical, 12)
                 .accessibilityLabel("Question for Cap")
-            if showsMode {
+            if showsMode, !typeSize.isAccessibilitySize {
                 TutorModePill(thread: thread)
                     .padding(.bottom, 3)
             }
@@ -598,8 +614,6 @@ struct ChatComposer: View {
             .padding(.bottom, 3)
             .transition(.scale.combined(with: .opacity))
         }
-        .animation(CLMotion.snap, value: isAnswering)
-        .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: 25, style: .continuous))
     }
 }
 
@@ -656,6 +670,7 @@ struct TutorModePill: View {
             }
             .padding(8)
             .frame(width: 300)
+            .dynamicTypeSize(...DynamicTypeSize.accessibility1)
             .presentationCompactAdaptation(.popover)
         }
         #if DEBUG

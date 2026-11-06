@@ -192,7 +192,8 @@ sleep 4; xcrun simctl io <udid> screenshot shot.png
       pill until it is pressed; `CRAMLESS_SESSION_UNDO=<ms>` presses Undo that long after it shows.
     - The flashcard swipe: `flashcard-drag` holds the flipped card 60% of the way right; `flashcard-swiped` swipes it (the next one up, the tally at 1 and 0,
       the pill stays); `CRAMLESS_SESSION_SWIPE=rrlhe` plays a session of flashcards only by that pattern (`r` swipe right, `l` swipe left, `h` the Hard
-      tile, `e` the Easy tile), `CRAMLESS_AUTOPLAY_BEAT` ms on each flipped card. Check the swipe itself with a real drag too (the `mobile` tools).
+      tile, `e` the Easy tile, `f` only flips, for a real finger), `CRAMLESS_AUTOPLAY_BEAT` ms on each flipped card. Check the swipe itself with a real drag too
+      (`mobilecli io swipe x1,y1,x2,y2 --duration 700`: a fast one is a flick, which counts from anywhere).
     - `CRAMLESS_SESSION_STATE=flashcard-saved|mcq-saved` makes the first flashcard (or multiple-choice question) a
       fading memory and answers it right: a save, with the sky's flare.
     - `CRAMLESS_SUMMARY_SKY=<ms>` opens the memory sky that long after a summary's choreography, as a tap on its

@@ -361,7 +361,7 @@ struct SessionQuestionHost: View {
     struct Autoplay: Equatable {
         var pattern: [Character]
         var beat: Int
-        /// The pattern is `CRAMLESS_SESSION_SWIPE`'s: `r` swipe right, `l` swipe left, `h` the Hard tile, `e` the Easy tile.
+        /// The pattern is `CRAMLESS_SESSION_SWIPE`'s: `r` swipe right, `l` swipe left, `h` the Hard tile, `e` the Easy tile, `f` flip only.
         var swipes = false
     }
 
@@ -437,6 +437,7 @@ struct SessionQuestionHost: View {
             case "l": auto.swipe = .again
             case "h": auto.rate = .hard
             case "e": auto.rate = .easy
+            case "f": break
             default: auto.swipe = .good
             }
             return auto
@@ -560,7 +561,8 @@ struct SessionEmptyView: View {
 ///   (`milestone-summary` with `CRAMLESS_SCENARIO=streak:29`; `quest-summary` with `CRAMLESS_QUESTS=partial|weekFull`;
 ///   `badge-summary` first forgets the 7-day badge, so the session earns it).
 /// - `CRAMLESS_SESSION_ANSWER=<text>`: the own-words answer to submit (with `graded` or `ownwords`).
-/// - `CRAMLESS_SESSION_SWIPE=rrlhe`: a session of flashcards only, played by that pattern (`CRAMLESS_AUTOPLAY_BEAT` ms on each flipped card).
+/// - `CRAMLESS_SESSION_SWIPE=rrlhe`: a session of flashcards only, played by that pattern (`CRAMLESS_AUTOPLAY_BEAT` ms on each flipped card);
+///   `f` only flips the card, for a real finger to take it from there.
 @MainActor
 struct SessionDebug {
     var state: String?

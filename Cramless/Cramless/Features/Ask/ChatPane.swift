@@ -614,31 +614,23 @@ struct AskEmptyState: View {
     }
 }
 
-/// One row of chips over the composer while the chat is empty: a line that scrolls sideways, or two lines of the first few at the
-/// accessibility text sizes. It keeps its height until the chips are ready.
+/// One row of chips over the composer while the chat is empty, a line that scrolls sideways at every text size (more lines of them would
+/// leave no room for the chat at the largest). It keeps its height until the chips are ready.
 struct AskDockChipRow: View {
     let chips: [AskDockChips.Chip]?
     let onTap: (AskDockChips.Chip) -> Void
 
-    @Environment(\.dynamicTypeSize) private var typeSize
-
     var body: some View {
         Group {
             if let chips {
-                if typeSize.isAccessibilitySize {
-                    CLFlow(spacing: 8, lineSpacing: 0) {
-                        ForEach(chips.prefix(4)) { chip($0) }
+                ScrollView(.horizontal) {
+                    HStack(spacing: 8) {
+                        ForEach(chips) { chip($0) }
                     }
-                } else {
-                    ScrollView(.horizontal) {
-                        HStack(spacing: 8) {
-                            ForEach(chips) { chip($0) }
-                        }
-                        .padding(.horizontal, 4)
-                    }
-                    .scrollIndicators(.hidden)
-                    .scrollClipDisabled()
+                    .padding(.horizontal, 4)
                 }
+                .scrollIndicators(.hidden)
+                .scrollClipDisabled()
             } else {
                 Color.clear.frame(height: CLMetrics.minHitTarget)
             }
