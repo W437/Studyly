@@ -183,7 +183,9 @@ sleep 4; xcrun simctl io <udid> screenshot shot.png
     (`lookalike`: the Bio midterm 9 days out; `fading`: 6 days out with its questions 20 days overdue, and 30 more own-words ones added so a session can't hold them; `back`: 8 days away after a 23-day run; `mock`: the Bio midterm 5 days out); `CRAMLESS_NOTICE_STATE=second|later|done|allLater`
     puts the deck part way through the day (`done`: "Plan updated"). `CRAMLESS_ROUTE=lookAlike` opens the sheet on the best pair, `CRAMLESS_LOOKALIKE=rules|cloud|writing` holds its lesson in that state.
     `CRAMLESS_ROUTE=settings:notifications CRAMLESS_NOTICES=fading` shows the ping in the page's planned list.
+    `CRAMLESS_NOTICES=tooeasy` (or `CRAMLESS_LADDER=offer`): a Bio midterm question has become too easy (`Ladder`). `CRAMLESS_ROUTE=ladder` opens "Yes, harder" on a question, with `CRAMLESS_LADDER=writing|proposal|added` holding that state (`LadderSheet`).
   - Sessions:
+    - `CRAMLESS_LOOKSWRONG=sheet|checking|fixed|stands|retired|queued` with an answered state (`CRAMLESS_SESSION_STATE=mcq-answered CRAMLESS_SESSION_PICK=wrong`) opens "Looks wrong?" over the question, in that state (`LooksWrongSheet`). Wait 9 s or so: the sheet opens 1.6 s after the question.
     - `CRAMLESS_SESSION_STATE=ownwords|graded|mcq(-answered)|cloze(-answered)|diagram(-filled|-answered)|flashcard|flipped|flashcard-rated|last-rated|flashcard-drag|flashcard-swiped|summary|exameve-summary|fix-summary`
     - `CRAMLESS_SESSION_PICK=wrong`, `CRAMLESS_SESSION_ANSWER=<text>`
     - `CRAMLESS_SESSION_AUTOPLAY=rrrrrpwk` answers every question by that pattern (`r` right, `p` partly, `w` wrong,
@@ -314,6 +316,7 @@ sleep 4; xcrun simctl io <udid> screenshot shot.png
   transcription.
 - `Store/` — StoreKit 2. `Sync/` — Supabase auth, REST, sync, Squad, account. `Services/` — notifications, widget
   snapshot, Live Activities, read-aloud.
+- A sheet raised over a cover is the cover's to present (`Router.rootSheet`): from the root it takes the cover's place, and the cover is built anew when it closes. Test a sheet over a session with a real tap: its question and timer must be the same after it closes.
 - `Features/<Area>/` — screens. `DesignSystem/` — tokens and components. `Shared/` — compiled into the widget
   too: palette, readiness ring, snapshot and activity types.
   - `Shared/Core/` is Foundation-only (snapshot, copy, links, `CourseColor`), so the Watch can share it.
