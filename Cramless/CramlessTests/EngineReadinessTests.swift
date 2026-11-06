@@ -342,6 +342,41 @@ final class EnginePlanTests: XCTestCase {
             }
     }
 
+    func testBoostsAddMinutesToTheDaysSessionAndNothingChangesWithoutThem() {
+        let exam = ExamSnapshot(courseID: course, date: cal.adding(days: 10, to: now))
+        let items = world()
+        let plain = builder().plan(for: exam, items: items)
+        var b = builder()
+        b.boosts = [:]
+        b.pinned = [:]
+        XCTAssertEqual(b.plan(for: exam, items: items), plain, "no boosts: the same plan to the byte")
+        b.boosts = [1: 6]
+        let boosted = b.plan(for: exam, items: items)
+        XCTAssertEqual(boosted.days[1].sessionMinutes, max(plain.days[1].minutes, 15 + 6))
+        XCTAssertEqual(boosted.days[2].sessionMinutes, plain.days[2].sessionMinutes)
+    }
+
+    func testPinnedQuestionsAreReviewedOnTheirDayFirst() {
+        let exam = ExamSnapshot(courseID: course, date: cal.adding(days: 10, to: now))
+        // Overdue questions, more than a day holds: they'd spread over three days, and the strongest of them would be last.
+        var items = (0..<120).map { i -> ItemSnapshot in
+            var item = EngineTest.studied(course: course, recall: 0.5 + Double(i) * 0.003, daysAgo: 12, now: now, cal: cal)
+            item.memory.due = cal.adding(days: -5, to: now)
+            return item
+        }
+        let last = items.removeLast()
+        items.append(last)
+        var b = builder()
+        b.capacity = [0: 300, 1: 300, 2: 300]
+        let plain = b.plan(for: exam, items: items)
+        b.pinned = [last.id: 0]
+        let pinned = b.plan(for: exam, items: items)
+        // One review moves to today, and today's day holds the same number: the plan is otherwise the same shape.
+        XCTAssertEqual(pinned.days[0].reviews, plain.days[0].reviews)
+        XCTAssertEqual(pinned.days.count, plain.days.count)
+        XCTAssertNotEqual(pinned.curve.last, plain.curve.last, "and the projection follows what moved")
+    }
+
     func testNewMaterialIsInByThreeDaysBeforeTheExam() {
         let exam = ExamSnapshot(courseID: course, date: cal.adding(days: 20, to: now))
         let plan = builder().plan(for: exam, items: world())

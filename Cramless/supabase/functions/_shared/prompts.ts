@@ -216,7 +216,9 @@ export function confusionsContent(req: ConfusionsRequest): ContentBlock[] {
   return [{
     type: "text",
     text: `Course: ${req.course}\n\n<mistakes>\n${JSON.stringify(req.mistakes, null, 1)}\n</mistakes>\n\n` +
-      "Find the mix-ups and write their fixes.",
+      (req.lookAlike
+        ? "This is a look-alike pair, as described in your instructions: write its one difference."
+        : "Find the mix-ups and write their fixes."),
   }];
 }
 

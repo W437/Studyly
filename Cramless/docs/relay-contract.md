@@ -338,10 +338,15 @@ Meter: `research`. MOCK: `research-mitosis.json`.
 
 ### `POST ai/confusions` → `ConfusionsResponse`
 
-Request `ConfusionsRequest`: `course`, `mistakes` [`{itemId, topic, prompt, expected, given, misses}`]. Reply:
-`model`, `confusions` (0–3) [`{name, explanation, itemIds, lesson, questions}`]: `itemIds` are request item ids
+Request `ConfusionsRequest`: `course`, `mistakes` [`{itemId, topic, prompt, expected, given, misses}`], `lookAlike?`.
+Reply: `model`, `confusions` (0–3) [`{name, explanation, itemIds, lesson, questions}`]: `itemIds` are request item ids
 (others are removed; a confusion without any is dropped); `questions` are generated items without anchors (the
 request has no line ids). Meter: `extras`. Effort low.
+
+`lookAlike: true` (sent only when true) is two questions the student hasn't mixed up yet, found on the phone (`LookAlikeFinder`),
+sent only after "Show me": `mistakes` holds the two with `given` empty and `misses` 0, and the reply is exactly one confusion for both,
+with the one difference, a memory hook if one fits and 2 or 3 questions, in words that never say the student got anything wrong. An older
+relay ignores the field and answers from the mistakes (usually with nothing), and the app keeps its offline lesson.
 
 ### `POST ai/lecture` → `LectureResponse`
 
@@ -435,7 +440,7 @@ real backend without a model key.
 | `check` | `check.json` | 1.5 s |
 | `grade` | `grade-correct`, `grade-partial` or `grade-incorrect`: every key idea named in the answer (a term or the label, case-insensitive) → correct, some → partial, none → incorrect | 0.9 s |
 | `tutor` | `tutor-photo.json` with `fromPhoto`, `tutor-mistake.json` with `context`, else `tutor-hints.json` (or `tutor-explain.json`), events at the script's `delayMs` | per event |
-| `confusions` | `confusions.json` | 1.8 s |
+| `confusions` | `confusions.json` (`confusions-lookalike.json` with `lookAlike: true`) | 1.8 s |
 | `lecture` | `lecture.json` | 2.5 s |
 | `cards-from-chat` | `cards-from-chat.json` | 1.2 s |
 | `transcribe-image` | `transcribe-image.json` | 1.5 s |

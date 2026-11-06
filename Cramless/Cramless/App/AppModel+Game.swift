@@ -356,8 +356,9 @@ extension AppModel {
         facts.answers = count(FetchDescriptor<ReviewLog>())
         facts.repairedDays = count(FetchDescriptor<DayRecord>(predicate: #Predicate { $0.repaired == true }))
         let fixed = ConfusionStatus.fixed.rawValue
+        // A look-alike learned before any mistake (no misses) was never a mix-up: the badges count the ones that were.
         facts.mixUpsFixed = count(FetchDescriptor<Confusion>(predicate: #Predicate {
-            $0.deletedAt == nil && $0.statusRaw == fixed
+            $0.deletedAt == nil && $0.statusRaw == fixed && $0.missCount > 0
         }))
         facts.bestStreak = streak().best
 

@@ -5,6 +5,7 @@ import Foundation
 ///
 ///     capling://today | ask | progress | library | streak
 ///     capling://ask/chat/<uuid>          (one chat)
+///     capling://today?notice=<id>        (one of Cap's cards first: `Notice.linkID`)
 ///     capling://session[?kind=<SessionKind>&exam=<uuid>&confusion=<uuid>&course=<uuid>]
 ///     capling://scan[?course=<uuid>]     capling://record[?course=<uuid>]
 ///     capling://exam/<uuid>              capling://exam/new           capling://squad/<code>
@@ -20,6 +21,15 @@ enum CramlessLink {
     static let session = URL(string: "capling://session")!
     static let scan = URL(string: "capling://scan")!
     static let record = URL(string: "capling://record")!
+
+    /// Today, with one of Cap's cards first.
+    static func today(notice id: String) -> URL {
+        var c = URLComponents()
+        c.scheme = scheme
+        c.host = "today"
+        c.queryItems = [URLQueryItem(name: "notice", value: id)]
+        return c.url ?? today
+    }
 
     /// A session of a given kind (`SessionKind` raw value: "daily", "fix", "examEve", …).
     static func session(kind: String, exam: UUID? = nil, confusion: UUID? = nil, course: UUID? = nil) -> URL {

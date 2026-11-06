@@ -56,6 +56,30 @@ enum LocalConfusions {
         return out
     }
 
+    /// Two look-alikes side by side, before any mistake: each one with what tells it apart, and a two-choice question for each. What the
+    /// sheet shows when Cloud AI isn't asked.
+    static func sideBySide(_ a: LookAlikeSide, _ b: LookAlikeSide) -> ConfusionOut {
+        // A clue is often the question itself, which has its own full stop.
+        func sentence(_ text: String) -> String {
+            let trimmed = Lexicon.trimmedSentence(text)
+            return trimmed.hasSuffix("?") || trimmed.hasSuffix("!") ? trimmed : trimmed + "."
+        }
+        func line(_ side: LookAlikeSide) -> String {
+            "\(Lexicon.capitalizedFirst(side.term)): \(sentence(side.clue))"
+        }
+        func question(_ side: LookAlikeSide, _ other: LookAlikeSide, _ n: Int) -> GeneratedItem {
+            let isOwnPrompt = ConfusionFinder.normalize(side.term) == ConfusionFinder.normalize(side.answer)
+            let prompt = isOwnPrompt ? side.prompt : String(localized: "Which one is this? \(sentence(side.clue))")
+            return GeneratedItem(id: "l\(n)", kind: .mcq, topic: side.topic, prompt: prompt, answer: side.term, explanation: line(side),
+                                 choices: [Choice(text: side.term, correct: true), Choice(text: other.term, correct: false)],
+                                 anchors: [], difficulty: 0.4)
+        }
+        return ConfusionOut(name: ConfusionFinder.joinNames([a.term, b.term]),
+                            explanation: String(localized: "They look alike. One thing tells them apart."),
+                            itemIds: [a.itemID.uuidString, b.itemID.uuidString], lesson: "\(line(a)) \(line(b))",
+                            questions: [question(a, b, 1), question(b, a, 2)])
+    }
+
     private static func same(_ a: String, _ b: String) -> Bool {
         let x = Lexicon.normalizedAnswer(a), y = Lexicon.normalizedAnswer(b)
         return !x.isEmpty && (x == y || LocalGrader.exactMatch(a, accepted: [b]) != .wrong)

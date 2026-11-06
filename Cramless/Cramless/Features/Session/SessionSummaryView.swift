@@ -29,6 +29,8 @@ struct SessionSummaryView: View {
     @State private var streakShown: Int?
     @State private var info: Info?
     @State private var mixUp: MixUp?
+    /// "Fix it now" was pressed and Cloud AI is writing the fix.
+    @State private var writingFix = false
     @State private var mixUpHandled = false
     @State private var fixed = false
     @State private var decision = CelebrationDecision.none
@@ -562,21 +564,34 @@ struct SessionSummaryView: View {
                 }
             }
             HStack(spacing: 8) {
-                Button("Fix it now · 2 min") { fix(offer) }
-                    .buttonStyle(.cl(.dark, size: .medium, fullWidth: false))
+                Button { fix(offer) } label: {
+                    ZStack {
+                        Text("Fix it now · 2 min").opacity(writingFix ? 0 : 1)
+                        if writingFix { ProgressView() }
+                    }
+                }
+                .buttonStyle(.cl(.dark, size: .medium, fullWidth: false))
+                .disabled(writingFix)
                 Button("Not now") { later(offer) }
                     .buttonStyle(.cl(.ghost, size: .medium, fullWidth: false))
+                    .disabled(writingFix)
             }
             .padding(.leading, 56)
         }
         .clCard()
     }
 
+    /// "Fix it now": the tap that lets Cloud AI write the lesson and the fix's questions, when it's allowed; the rules' version otherwise.
     private func fix(_ offer: MixUp) {
         CLHaptics.commit()
-        let confusion = app.adoptConfusion(offer.candidate, explained: offer.explained, origin: offer.origin,
-                                           withFixQuestions: true)
-        if let request = app.prepareFix(confusion.id) { onStart(request) }
+        writingFix = true
+        Task {
+            let (explained, origin) = await app.explainConfusion(offer.candidate)
+            writingFix = false
+            let confusion = app.adoptConfusion(offer.candidate, explained: explained ?? offer.explained, origin: origin,
+                                               withFixQuestions: true)
+            if let request = app.prepareFix(confusion.id) { onStart(request) }
+        }
     }
 
     private func later(_ offer: MixUp) {
@@ -700,8 +715,9 @@ struct SessionSummaryView: View {
         #endif
         // Nothing is asked of the AI once the summary has gone.
         guard !Task.isCancelled else { return }
+        // The rules name the mix-up here; Cloud AI is asked only after "Fix it now".
         if !isEve, !isFix, let candidate = app.confusionCandidate(forSession: summary.sessionID) {
-            let (explained, origin) = await app.explainConfusion(candidate)
+            let (explained, origin) = app.explainByRules(candidate)
             withAnimation(CLMotion.settle) { mixUp = MixUp(candidate: candidate, explained: explained, origin: origin) }
         }
     }

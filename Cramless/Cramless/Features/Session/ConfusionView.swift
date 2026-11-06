@@ -45,7 +45,7 @@ private struct ConfusionDetail: View {
                         .clCard()
                 }
                 if !items.isEmpty {
-                    CLSectionHeader(title: "The questions you mixed up")
+                    CLSectionHeader(title: confusion.missCount == 0 ? "The questions that look alike" : "The questions you mixed up")
                     CLList {
                         ForEach(items, id: \.id) { item in
                             questionRow(item)
@@ -121,6 +121,8 @@ private struct ConfusionDetail: View {
     }
 
     private var missLine: String {
+        // An adopted look-alike: nothing has been missed yet.
+        if confusion.missCount == 0 { return String(localized: "Spotted before any mix-up") }
         let last = confusion.lastSeenAt.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day())
         let times = confusion.missCount == 1 ? "once" : "\(confusion.missCount) times"
         return "Missed \(times) · last on \(last)"

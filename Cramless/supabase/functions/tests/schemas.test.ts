@@ -32,6 +32,7 @@ export const FIXTURE_TYPES: Record<string, string> = {
   "cards-from-chat": "CardsFromChatResponse",
   check: "CheckResponse",
   confusions: "ConfusionsResponse",
+  "confusions-lookalike": "ConfusionsResponse",
   entitlement: "EntitlementResponse",
   "error-quota": "RelayErrorBody",
   generate: "GenerateResponse",

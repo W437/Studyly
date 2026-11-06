@@ -49,6 +49,7 @@ DERIVED=build-x scripts/xc.sh build                   # another derived-data fol
     forms resolve, `docs/l10n/plurals.json` names only keys the app uses).
   - Test files by area (in `CramlessTests/`, without `.swift`; `Ask*`, `Capture*`, `Import*`, `Library*` and `Widget*` stand for the
     files with that prefix):
+    - Cap's cards: `NoticeEngineTests` (deck, kinds, pings, words, the look-alike corpus gate, speed), `NotificationPlannerTests`, `TodayTests`, `StudyAppModelTests`.
     - Today: `TodayHeroTests`, `TodayTests`, `TodayCopyTests`, `TodayReasonsTests`, `TodayPlanStripTests`, `TodayRenderTests` (PNGs of
       every card state in `build/review/s1-today/render/`, and the SE fit), `HeroWorldTests`, `HeroRefreshTests`, `WelcomeSkyTests`. The memory sky: `SkyEngineTests`,
       `SkyViewTests`, `SkyDerivedTests`, `SkyAppModelTests`.
@@ -171,13 +172,17 @@ sleep 4; xcrun simctl io <udid> screenshot shot.png
 - Screen states (each documented beside its view):
   - Today: `CRAMLESS_TODAY=catchup|partway|split|noExam|examEve|twoEves|eveDone|done|caughtUp|noMaterial|empty` (`split`: the session
     serves no one exam, so no chip; `noExam`: no exams at all; `twoEves`: the first two exams share tomorrow; `done` also fills the done card's exam, +10%);
-    `CRAMLESS_TODAY_NOTICES=0|1|2|3` deals that many of Cap's cards; `CRAMLESS_TODAY_WHY=<ms>`, `CRAMLESS_TODAY_QUESTS=<ms>` open
-    "Why these?" and the quests sheet, `CRAMLESS_TODAY_LATER=<ms>` presses Cap's "Later", each that long after launch;
-    `CRAMLESS_TODAY_SCROLL=1` scrolls down to the exams row and back (for a film); `CRAMLESS_TODAY_OPEN=<ms>` opens the sky that
+    `CRAMLESS_TODAY_NOTICES=0|1|2|3` deals that many of Cap's cards (stand-ins); `CRAMLESS_TODAY_WHY=<ms>`, `CRAMLESS_TODAY_QUESTS=<ms>` open
+    "Why these?" and the quests sheet, `CRAMLESS_TODAY_LATER=<ms>` presses Cap's "Later", `CRAMLESS_NOTICE_TAP=<ms>` his card's button, each that long after launch;
+    `CRAMLESS_TODAY_SCROLL=1` scrolls down to the exams row and back (for a film), `=notice` to Cap's card, where it stays; `CRAMLESS_TODAY_OPEN=<ms>` opens the sky that
     long after launch, as a tap on the band would; `CRAMLESS_CANVAS=375x667` draws Today (also the Ask screen and the Explain sheet) at an iPhone SE's size (there is no SE
     simulator for iOS 27; no status-bar inset); `CRAMLESS_TODAY_TYPE=xxxl|ax1…ax5` draws Today at that text size without changing
     the simulator's own setting (others may share it). Routes `todayWhy`, `quests` (the sheets) and `skyList` (the sky as a list,
     "Study something else"); `streak` shows the month with exams and eves marked.
+  - Cap's cards, from the real engine (`App/AppModel+NoticeHarness.swift`): `CRAMLESS_NOTICES=mixup,lookalike,fading,back,mock|all|none` shapes the demo world so those kinds and no others fire
+    (`lookalike`: the Bio midterm 9 days out; `fading`: 6 days out with its questions 20 days overdue, and 30 more own-words ones added so a session can't hold them; `back`: 8 days away after a 23-day run; `mock`: the Bio midterm 5 days out); `CRAMLESS_NOTICE_STATE=second|later|done|allLater`
+    puts the deck part way through the day (`done`: "Plan updated"). `CRAMLESS_ROUTE=lookAlike` opens the sheet on the best pair, `CRAMLESS_LOOKALIKE=rules|cloud|writing` holds its lesson in that state.
+    `CRAMLESS_ROUTE=settings:notifications CRAMLESS_NOTICES=fading` shows the ping in the page's planned list.
   - Sessions:
     - `CRAMLESS_SESSION_STATE=ownwords|graded|mcq(-answered)|cloze(-answered)|diagram(-filled|-answered)|flashcard|flipped|flashcard-rated|last-rated|flashcard-drag|flashcard-swiped|summary|exameve-summary|fix-summary`
     - `CRAMLESS_SESSION_PICK=wrong`, `CRAMLESS_SESSION_ANSWER=<text>`
@@ -371,7 +376,7 @@ sleep 4; xcrun simctl io <udid> screenshot shot.png
   - Today's top is a short sky band (`TodaySkyHero` over `HeroWorld`, `HeroWorldGeometry.band`: the sky, background stars, hills and
     a strip of lake, Cap on the shore; a tap opens the full sky; its pure parts are `HeroWorldModel.swift`; the welcome's taller
     world is the same geometry with `style: .world`); what each day's card says and offers is one pure value, `TodayHeroContent`
-    (copy in `TodayCopy`, "Why these?" in `TodayReasons`, the week in `TodayPlanStrip`, Cap's cards are `CapNotice`). Progress shows pieces of it: an exam's region (`SkyScene.region(of:)`, drawn by
+    (copy in `TodayCopy`, "Why these?" in `TodayReasons`, the week in `TodayPlanStrip`; Cap's cards are dealt by `NoticeEngine` (`Engine/Notices.swift`, its head says how to add a kind), said by `NoticeContent` as `CapNotice`). Progress shows pieces of it: an exam's region (`SkyScene.region(of:)`, drawn by
     `SkyRegionStill`) and a topic's glyph (`SkyScene.glyph(of:)`, `SkyGlyphView`).
   - An exam's region records the constellations it covers (`SkyLayout.Region.covers`); use that, never "is it inside the
     circle", to decide what belongs to an exam.

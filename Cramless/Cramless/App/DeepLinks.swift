@@ -6,6 +6,8 @@ enum DeepLink: Equatable, Sendable {
     case tab(AppTab)
     /// One chat with Cap (a question answered later).
     case chat(UUID)
+    /// Today, with this one of Cap's cards first (a "Cap noticed" notification).
+    case notice(String)
     case streak
     case session(kind: SessionKind, examID: UUID?, confusionID: UUID?, courseID: UUID?)
     case scan(courseID: UUID?)
@@ -65,7 +67,12 @@ enum DeepLinks {
         func uuid(_ key: String) -> UUID? { query[key].flatMap(UUID.init(uuidString:)) }
 
         switch host {
-        case "today": return .tab(.today)
+        case "today":
+            if let id = query["notice"], (1...120).contains(id.count),
+               id.unicodeScalars.allSatisfy(CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-")).contains) {
+                return .notice(id)
+            }
+            return .tab(.today)
         case "ask":
             if path.first?.lowercased() == "chat", path.count > 1, let id = UUID(uuidString: path[1]) { return .chat(id) }
             return .tab(.ask)
@@ -136,6 +143,11 @@ enum DeepLinks {
             router.popToRoot(.ask)
             router.tab = .ask
             if let thread = app.thread(id), thread.modelContext != nil { router.push(.chat(id), on: .ask) }
+        case .notice(let id):
+            router.dismissSheet()
+            router.popToRoot(.today)
+            router.tab = .today
+            app.bringNoticeToFront(id)
         case .streak:
             router.dismissSheet()
             router.popToRoot(.progress)

@@ -28,6 +28,9 @@ final class DeepLinkTests: XCTestCase {
         XCTAssertEqual(parse("capling://library"), .tab(.library))
         XCTAssertEqual(parse("CAPLING://Today"), .tab(.today), "scheme and host ignore case")
         XCTAssertEqual(parse("capling://streak"), .streak)
+        XCTAssertEqual(parse("capling://today?notice=pair-abc123"), .notice("pair-abc123"))
+        XCTAssertEqual(parse("capling://today?notice=fade-00000000-0000-0000-0000-000000000000"), .notice("fade-00000000-0000-0000-0000-000000000000"))
+        XCTAssertEqual(parse("capling://today?notice=has%20space"), .tab(.today), "not an id: Today, as it is")
     }
 
     func testAChatLink() {
@@ -165,6 +168,18 @@ final class DeepLinkTests: XCTestCase {
         app.router.dismissCover()
         DeepLinks.handle(CramlessLink.scan, app: app)
         XCTAssertEqual(app.router.cover, .scanner(courseID: nil, isOnboarding: false))
+    }
+
+    func testANoticeLinkOpensTodayWithThatCardFirst() throws {
+        let clock = TestClock(EngineTest.date(2026, 10, 22, 18))
+        let app = try StudyTestApp.make(clock: clock, calendar: EngineTest.calendar())
+        app.settings.onboardingCompleted = true
+        app.router.tab = .library
+        app.router.present(.newCourse)
+        DeepLinks.handle(CramlessLink.today(notice: "pair-1"), app: app)
+        XCTAssertEqual(app.router.tab, .today)
+        XCTAssertNil(app.router.sheet)
+        XCTAssertEqual(app.noticeLedger.front, "pair-1")
     }
 
     func testAFixLinkNeedsARealConfusion() {

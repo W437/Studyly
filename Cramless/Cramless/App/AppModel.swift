@@ -64,6 +64,8 @@ final class AppModel {
     @ObservationIgnored let coverageCache = CoverageCache()
     /// Every upcoming exam's plan, sharing the daily goal (`AppModel+Insights.swift`), worked out again per revision and hour.
     @ObservationIgnored let examPlanCache = ExamPlanCache()
+    /// Cap's cards: the ledger and what's worked out once per change (`AppModel+Notices.swift`).
+    @ObservationIgnored let noticeCache = NoticeCache()
     /// Switches the app icon (the system's, or a fake in tests).
     @ObservationIgnored var iconSwitcher: any AppIconSwitching = SystemIconSwitcher()
     #if DEBUG
@@ -164,6 +166,7 @@ final class AppModel {
         guard sideEffectsEnabled else { return }
         if settings.reminderMinutes != old.reminderMinutes || settings.quietHoursStart != old.quietHoursStart
             || settings.quietHoursEnd != old.quietHoursEnd || settings.dailyMinutes != old.dailyMinutes
+            || settings.notices != old.notices
             || settings.quietMode != old.quietMode {
             notifications.reschedule()
         }
@@ -201,6 +204,7 @@ final class AppModel {
         if config.seedDemoData { SampleData.seed(into: self) }
         TestHarness.applyLaunchSettings(to: self)
         applyGameHarness()
+        applyNoticeHarness()
         if config.isHarness, TestHarness.skipsOnboarding { settings.onboardingCompleted = true }
         #endif
         applyDailyRollover()
