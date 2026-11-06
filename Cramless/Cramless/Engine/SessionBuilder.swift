@@ -89,6 +89,8 @@ struct BuiltSession: Sendable, Equatable, Identifiable {
 
     var plannedSeconds: Double { entries.reduce(0) { $0 + $1.estimatedSeconds } }
     var plannedMinutes: Int { entries.isEmpty ? 0 : max(1, Int((plannedSeconds / 60).rounded(.up))) }
+    /// An eve session's minutes as its button and the plan's "Tonight" say them: rounded up, at most the eve's limit; 0 with nothing to review.
+    var tonightMinutes: Int { min(plannedMinutes, SessionBuilder.examEveMinutes) }
     /// Due and exam-priority reviews ("18 reviews").
     var reviewCount: Int { entries.filter { $0.reason == .due || $0.reason == .examPriority }.count }
     var newCount: Int { entries.filter { $0.reason == .new }.count }

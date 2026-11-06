@@ -37,6 +37,9 @@ struct PlanDay: Sendable, Equatable, Identifiable {
     /// A day off in a what-if (`PlanBuilder.skipping`): nothing planned.
     var isSkipped: Bool = false
 
+    /// This exam's minutes that day as the plan's stops and Today's strip show them: at least 1.
+    var shownMinutes: Int { max(1, Int((seconds / 60).rounded())) }
+
     var id: Int { dayNumber }
 }
 

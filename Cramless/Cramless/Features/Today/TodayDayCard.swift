@@ -4,7 +4,8 @@ import SwiftUI
 /// days"), the topics, why, readiness now and about where today takes it (the dashed ring is a projection), the day's one button and
 /// "Why these?".
 ///
-/// - Large text: the rings sit above their words, and the chip wraps.
+/// - Large text or a small phone: the rings sit above their words, the chip and when it is take two lines when one won't hold them,
+///   and a long practice button shortens to "Practice · 5 min" (the reason names the topic).
 /// - Differentiate Without Color: the projection ring is dashed, the done card's change has an arrow, every chip has a symbol.
 /// - VoiceOver: the chip, the title (a header), the reason, the rings as one sentence ("42 percent ready now, about 52 percent after
 ///   today, projected"), the button, "Why these?".
@@ -38,18 +39,32 @@ struct TodayDayCard: View {
     // MARK: Pieces
 
     private var chipRow: some View {
-        ReflowStack(verticalAlignment: .center, spacing: 8) {
-            if let chip = content.chip {
-                ReflowPill(text: .verbatim(chip.text), tone: tone(chip.tone), systemImage: chip.symbol)
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 8) {
+                chipPill
+                if let when = content.when {
+                    Text(verbatim: when)
+                        .clFont(.footnoteEmphasis)
+                        .foregroundStyle(CLColor.ink2)
+                        .lineLimit(1)
+                }
             }
-            if let when = content.when {
-                Text(verbatim: when)
-                    .clFont(.footnoteEmphasis)
-                    .foregroundStyle(CLColor.ink2)
-                    .fixedSize(horizontal: false, vertical: true)
+            VStack(alignment: .leading, spacing: 6) {
+                chipPill
+                if let when = content.when {
+                    DotLine(parts: when.components(separatedBy: " · "))
+                        .clFont(.footnoteEmphasis)
+                        .foregroundStyle(CLColor.ink2)
+                }
             }
         }
         .accessibilityElement(children: .combine)
+    }
+
+    @ViewBuilder private var chipPill: some View {
+        if let chip = content.chip {
+            ReflowPill(text: .verbatim(chip.text), tone: tone(chip.tone), systemImage: chip.symbol)
+        }
     }
 
     private var title: some View {
@@ -116,7 +131,7 @@ struct TodayDayCard: View {
                     .foregroundStyle(CLColor.ink)
                 let points = Int((line.change * 100).rounded())
                 Label {
-                    Text(verbatim: line.detail)
+                    DotLine(parts: line.detail.components(separatedBy: " · "))
                 } icon: {
                     Image(systemName: points > 0 ? "arrow.up.right" : points < 0 ? "arrow.down.right" : "minus")
                         .font(.system(size: 11, weight: .bold))
@@ -134,9 +149,13 @@ struct TodayDayCard: View {
         VStack(spacing: 4) {
             ForEach(Array(content.actions.enumerated()), id: \.offset) { _, action in
                 Button { perform(action) } label: {
-                    Label(action.title, systemImage: action.systemImage)
-                        .lineLimit(2)
-                        .multilineTextAlignment(.center)
+                    if let short = action.shortTitle {
+                        FittingLabel(titles: [String(localized: action.title), String(localized: short)], systemImage: action.systemImage)
+                    } else {
+                        Label(action.title, systemImage: action.systemImage)
+                            .lineLimit(2)
+                            .multilineTextAlignment(.center)
+                    }
                 }
                 .buttonStyle(.cl(action.prominent ? .primary : .soft, size: action.prominent ? .regular : .medium))
                 .accessibilityLabel(action.spoken.map { Text($0) } ?? Text(action.title))

@@ -33,9 +33,10 @@ extension AppModel {
         return (summary, built)
     }
 
-    /// Which exam a session serves (`SessionFocus`): the exam holding at least 40% of its minutes, its topics and the exams that wait.
+    /// Which exam a session serves (`SessionFocus`: an exam this week with 20% of its minutes, else one with 40%), its topics and the
+    /// exams that wait.
     func sessionFocus(_ session: BuiltSession) -> SessionFocus {
-        SessionFocus.make(session, exams: examSnapshots(upcomingOnly: true))
+        SessionFocus.make(session, exams: examSnapshots(upcomingOnly: true), now: now, calendar: calendar)
     }
 
     /// Readiness for `exam` once `session` is done ("about 52% after today"): the ring's own function over the session's questions
@@ -102,7 +103,7 @@ extension AppModel {
     }
 
     /// Every upcoming exam's plan, soonest exam first, sharing one daily goal: each exam is given what the sooner ones leave of
-    /// each day (the easy-day share on easy days; today, what's left of today's goal). An exam's eve keeps its 10 minutes, and
+    /// each day (the easy-day share on easy days; today, what's left of today's goal). An exam's eve keeps its up to 10 minutes, and
     /// the later exams wait that day, as Today does on the eve. Cached per revision, hour and settings.
     func examPlans() -> [StudyPlan] { sharedPlans().plans }
 

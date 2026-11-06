@@ -298,6 +298,11 @@ final class ExamPresentationTests: XCTestCase {
         let evePlan = examPlan([pday(0, .examEve, seconds: 420), pday(1, .exam)], projected: 0.78)
         XCTAssertEqual(ExamPresentation.stops(plan: evePlan, phase: .eve, examTitle: "Quiz", examDate: day(1, hour: 10), today: chemToday,
                                               skipped: nil, now: now, calendar: cal).map(\.title).first, "Tonight · about 7 min")
+        // The session built for tonight says the number, the same as the button; with nothing to review it says so.
+        XCTAssertEqual(ExamPresentation.stops(plan: evePlan, phase: .eve, examTitle: "Quiz", examDate: day(1, hour: 10), today: chemToday,
+                                              skipped: nil, tonightMinutes: 4, now: now, calendar: cal).map(\.title).first, "Tonight · about 4 min")
+        XCTAssertEqual(ExamPresentation.stops(plan: evePlan, phase: .eve, examTitle: "Quiz", examDate: day(1, hour: 10), today: chemToday,
+                                              skipped: nil, tonightMinutes: 0, now: now, calendar: cal).map(\.title).first, "Tonight · nothing to review")
         XCTAssertTrue(ExamPresentation.stops(plan: plan, phase: .today, examTitle: "Quiz", examDate: day(0, hour: 20), today: chemToday,
                                              skipped: nil, now: now, calendar: cal).isEmpty)
     }
@@ -376,6 +381,13 @@ final class ExamPresentationTests: XCTestCase {
         XCTAssertEqual(practice?.title, "Practice Moles · 3 min")
         XCTAssertEqual(ExamPresentation.studyAction(phase: .eve, today: chemToday, weakest: weakest, courseName: "Chem 110")?.title,
                        "Tonight · 10 min")
+        let tonight = ExamPresentation.studyAction(phase: .eve, today: chemToday, weakest: weakest, courseName: "Chem 110", eveMinutes: 4)
+        XCTAssertEqual(tonight?.title, "Tonight · 4 min")
+        XCTAssertEqual(tonight?.subline, "About 4 minutes on what you're shakiest on. Then stop: sleep does the rest.")
+        XCTAssertEqual(ExamPresentation.studyAction(phase: .eve, today: chemToday, weakest: weakest, courseName: "Chem 110", eveMinutes: 1)?.subline,
+                       "About 1 minute on what you're shakiest on. Then stop: sleep does the rest.")
+        XCTAssertNil(ExamPresentation.studyAction(phase: .eve, today: chemToday, weakest: weakest, courseName: "Chem 110", eveMinutes: 0),
+                     "nothing to review tonight: no button")
         XCTAssertNil(ExamPresentation.studyAction(phase: .today, today: chemToday, weakest: weakest, courseName: "Chem 110"))
     }
 

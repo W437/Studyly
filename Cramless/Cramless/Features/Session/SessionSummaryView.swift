@@ -465,10 +465,9 @@ struct SessionSummaryView: View {
                 Text(info?.examTitle ?? summary.examTitle ?? "Your exam")
                     .clFont(.headline)
                     .foregroundStyle(CLColor.ink)
-                Text(readinessLine(before: before, after: after))
+                DotLine(parts: readinessParts(before: before, after: after))
                     .clFont(.subheadline)
                     .foregroundStyle(CLColor.ink2)
-                    .fixedSize(horizontal: false, vertical: true)
                 if let pill = projectionPill {
                     CLPill(text: .verbatim(pill.text), tone: pill.tone, systemImage: pill.symbol)
                         .padding(.top, 4)
@@ -480,10 +479,10 @@ struct SessionSummaryView: View {
         .accessibilityElement(children: .combine)
     }
 
-    private func readinessLine(before: Double, after: Double) -> String {
+    private func readinessParts(before: Double, after: Double) -> [String] {
         let change = "\(CLFormat.percent(before)) → \(CLFormat.percent(after)) ready"
-        guard let days = info?.daysLeft else { return change }
-        return "\(change) · \(SessionCopy.unbroken(days == 1 ? "1 day left" : "\(days) days left"))"
+        guard let days = info?.daysLeft else { return [change] }
+        return [change, days == 1 ? "1 day left" : "\(days) days left"]
     }
 
     private var projectionPill: (text: String, tone: CLPill.Tone, symbol: String)? {

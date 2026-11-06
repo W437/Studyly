@@ -377,13 +377,17 @@ enum ExamPresentation {
         var kind: Kind
         var title: String
         var subline: String?
+        /// What the button says when `title` doesn't fit on one line ("Practice · 5 min").
+        var shortTitle: String?
     }
 
+    /// `eveMinutes`: the eve session built for tonight (`BuiltSession.tonightMinutes`); with 0 there is nothing to review and no button.
     static func studyAction(phase: Phase, today: TodayWork, weakest: TopicRow?, courseName: String,
-                            eveMinutes: Int = Int(PlanBuilder.examEveSeconds / 60)) -> StudyAction? {
+                            eveMinutes: Int = SessionBuilder.examEveMinutes) -> StudyAction? {
         switch phase {
         case .today, .past: return nil
         case .eve:
+            guard eveMinutes > 0 else { return nil }
             return StudyAction(kind: .examEve, title: String(localized: "Tonight · \(eveMinutes) min"),
                                subline: String(localized: "About \(eveMinutes) minutes on what you're shakiest on. Then stop: sleep does the rest."))
         case .ahead: break
@@ -402,7 +406,8 @@ enum ExamPresentation {
         let done = today.studiedToday ? String(localized: "Today's session is done. This one is extra.") : nil
         if let weakest, let minutes = weakest.practiceMinutes {
             return StudyAction(kind: .practice(topicID: weakest.id, minutes: minutes),
-                               title: String(localized: SkyCopy.practice(weakest.name, minutes: minutes)), subline: done)
+                               title: String(localized: SkyCopy.practice(weakest.name, minutes: minutes)), subline: done,
+                               shortTitle: String(localized: "Practice · \(minutes) min"))
         }
         return StudyAction(kind: .practice(topicID: nil, minutes: nil), title: String(localized: "Practice \(courseName)"), subline: done)
     }
@@ -466,9 +471,10 @@ enum ExamPresentation {
     }
 
     /// The plan as stops. Within `nearDays`: today, each later study day, the eve, the exam. Further: today, "Then about N min a day
-    /// until <date>", the eve, the exam. A skipped day (the what-if) shows as its own stop.
+    /// until <date>", the eve, the exam. A skipped day (the what-if) shows as its own stop. `tonightMinutes`: on the eve, the session
+    /// built for tonight, so the "Tonight" stop and the button say one number (0: nothing to review).
     static func stops(plan: StudyPlan, phase: Phase, examTitle: String, examDate: Date, today: TodayWork, skipped: Int?,
-                      now: Date, calendar: Calendar) -> [Stop] {
+                      tonightMinutes: Int? = nil, now: Date, calendar: Calendar) -> [Stop] {
         switch phase {
         case .today, .past: return []
         case .ahead, .eve: break
@@ -484,9 +490,11 @@ enum ExamPresentation {
 
         if case .eve = phase {
             let eve = plan.days.first { $0.kind == .examEve }
-            stops.append(Stop(id: "eve", kind: .eve,
-                              title: String(localized: "Tonight · about \(minutes(eve?.seconds ?? PlanBuilder.examEveSeconds)) min"),
-                              detail: eveLine))
+            let tonight = tonightMinutes ?? minutes(eve?.seconds ?? PlanBuilder.examEveSeconds)
+            stops.append(tonight > 0
+                         ? Stop(id: "eve", kind: .eve, title: String(localized: "Tonight · about \(tonight) min"), detail: eveLine)
+                         : Stop(id: "eve", kind: .eve, title: String(localized: "Tonight · nothing to review"),
+                                detail: String(localized: "Sleep is part of studying.")))
         } else {
             let todayStop: Stop
             if today.sessionMinutes > 0 {
@@ -518,10 +526,10 @@ enum ExamPresentation {
                                 detail: String(localized: "Nothing that day in this what-if."), isSkipped: true)
                 }
                 if day.kind == .examEve {
-                    return Stop(id: "d\(day.offset)", kind: .eve, title: String(localized: "\(name) · about \(minutes(day.seconds)) min"),
+                    return Stop(id: "d\(day.offset)", kind: .eve, title: String(localized: "\(name) · about \(day.shownMinutes) min"),
                                 detail: eveLine)
                 }
-                return Stop(id: "d\(day.offset)", kind: .day, title: String(localized: "\(name) · about \(minutes(day.seconds)) min"))
+                return Stop(id: "d\(day.offset)", kind: .day, title: String(localized: "\(name) · about \(day.shownMinutes) min"))
             }
             if calendar.dayDistance(from: now, to: examDate) <= nearDays {
                 for day in later where day.seconds > 0 || day.isSkipped || day.offset == skipped {

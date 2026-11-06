@@ -4,7 +4,7 @@ import XCTest
 /// "Why these?": the rows that say why today's session holds what it holds (`TodayReasons.make`).
 final class TodayReasonsTests: XCTestCase {
     private func input() -> TodayReasons.Input {
-        TodayReasons.Input(examTitle: "Chem 110 Quiz", when: "Sun · in 2 days",
+        TodayReasons.Input(examTitle: "Chem 110 Quiz", when: "Sun · in 2 days", daysLeft: 2, focusSeconds: 240,
                            scopeTopics: ["Limiting reagents", "Stoichiometry", "Moles"], courseName: "Chem 110",
                            weakestName: "Limiting reagents", weakestValue: 0.38, weakestToday: 4, due: 12, new: 0,
                            others: [TodayReasons.Other(name: "Bio 101", daysLeft: 23, inToday: false),
@@ -49,10 +49,56 @@ final class TodayReasonsTests: XCTestCase {
         XCTAssertEqual(rows.first { $0.id == "alsoIn" }?.title, "A few Bio 101 questions are in too")
     }
 
+    func testAnotherExamNearerThanTheOneTheSessionIsForIsNotCalledFurtherOff() {
+        var i = input()
+        i.examTitle = "Bio 101 Midterm"
+        i.daysLeft = 23
+        i.focusSeconds = 480
+        i.others = [TodayReasons.Other(name: "Chem 110", daysLeft: 2, inToday: true, seconds: 240),
+                    TodayReasons.Other(name: "AP Psychology", daysLeft: 196, inToday: true, seconds: 180)]
+        let row = TodayReasons.make(i).first { $0.id == "alsoIn" }
+        XCTAssertEqual(row?.title, "A few Chem 110 and AP Psychology questions are in too, because they're due.")
+        XCTAssertNil(row?.detail)
+    }
+
+    func testFurtherOffAndASmallerShareSaySoAndOnlyWhenBothAreTrue() {
+        var i = input()
+        i.others = [TodayReasons.Other(name: "Bio 101", daysLeft: 23, inToday: true, seconds: 120),
+                    TodayReasons.Other(name: "AP Psychology", daysLeft: 196, inToday: true, seconds: 60)]
+        var row = TodayReasons.make(i).first { $0.id == "alsoIn" }
+        XCTAssertEqual(row?.title, "A few Bio 101 and AP Psychology questions are in too")
+        XCTAssertEqual(row?.detail, "Their exams are further off, so they get a smaller share of today.")
+        i.others.removeLast()
+        XCTAssertEqual(TodayReasons.make(i).first { $0.id == "alsoIn" }?.detail,
+                       "Its exam is further off, so it gets a smaller share of today.")
+
+        // The demo's Friday: further off, but more of today than the quiz, whose few questions are all in. Not "a few", not "smaller".
+        i.others = [TodayReasons.Other(name: "Bio 101", daysLeft: 23, inToday: true, seconds: 480),
+                    TodayReasons.Other(name: "AP Psychology", daysLeft: 196, inToday: true, seconds: 180)]
+        row = TodayReasons.make(i).first { $0.id == "alsoIn" }
+        XCTAssertEqual(row?.title, "Bio 101 and AP Psychology questions are in too, because they're due.")
+        XCTAssertEqual(row?.detail, "Their exams are further off.")
+    }
+
+    func testBecauseTheyreDueOnlyWhenTheyAre() {
+        var i = input()
+        i.daysLeft = 30
+        i.others = [TodayReasons.Other(name: "Bio 101", daysLeft: 23, inToday: true, seconds: 60, due: false)]
+        XCTAssertEqual(TodayReasons.make(i).first { $0.id == "alsoIn" }?.title, "A few Bio 101 questions are in too")
+        i.others[0].seconds = 600
+        XCTAssertEqual(TodayReasons.make(i).first { $0.id == "alsoIn" }?.title, "Bio 101 questions are in too")
+        XCTAssertNil(TodayReasons.make(i).first { $0.id == "alsoIn" }?.detail, "23 days isn't further off than 30")
+    }
+
     func testWithNoExamOnlyWhatIsDueAndNew() {
         let rows = TodayReasons.make(TodayReasons.Input(due: 18, new: 6))
         XCTAssertEqual(rows.map(\.id), ["due", "new"])
         XCTAssertEqual(rows[1].detail, "A few at a time, so they stick.")
+    }
+
+    func testWithNoFocusExamNothingIsFurtherOff() {
+        let rows = TodayReasons.make(TodayReasons.Input(others: [TodayReasons.Other(name: "Bio 101", daysLeft: 23, inToday: true, seconds: 300)]))
+        XCTAssertEqual(rows.first { $0.id == "alsoIn" }?.title, "Bio 101 questions are in too, because they're due.")
     }
 
     func testEnoughQuestionsNeedNoNoteAndNamesAreNotRepeated() {

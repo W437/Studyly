@@ -2,9 +2,10 @@ import Foundation
 
 /// "Your plan" on Today: seven days, two back, today and four ahead, across every exam (`TodayPlanStrip.make`, pure). The past
 /// days say whether you studied (a check, a repair counts), a freeze covered the day (a snowflake) or not (a hollow circle: never
-/// red, nothing is owed); today says its planned minutes, or a check once the goal is met; each exam's eve is a moon with its 10
-/// minutes, the exam day a mortarboard ("2" when two exams share it); other days the minutes planned: the daily goal (half on an
-/// easy day), more when an exam's share of the shared plan (`AppModel.examPlans()`) needs more.
+/// red, nothing is owed); today says its planned minutes, or a check once the goal is met; each exam's eve is a moon with the minutes
+/// the exam's plan gives it (at least 1, what the exam page says; tonight, the eve session's own), the exam day a mortarboard ("2"
+/// when two exams share it); other days the minutes planned: the daily goal (half on an easy day), more when an exam's share of the
+/// shared plan (`AppModel.examPlans()`) needs more.
 struct TodayPlanDay: Equatable, Sendable, Identifiable {
     enum Mark: Equatable, Sendable {
         /// A past day you studied (or repaired).
@@ -17,7 +18,7 @@ struct TodayPlanDay: Equatable, Sendable, Identifiable {
         case done
         /// Minutes planned (today or ahead).
         case minutes(Int)
-        /// The night before an exam: its short session.
+        /// The night before an exam: its short session (0: nothing to review tonight).
         case eve(minutes: Int)
         /// An exam day: how many exams.
         case exam(count: Int)
@@ -49,13 +50,14 @@ enum TodayPlanStrip {
 
     /// The week. `today` is now; `past` are the day records (any range; only the two days back are read); `todayMinutes` is the
     /// session planned now and `todayDone` that the day's goal is met; `goal` the daily minutes; `easyDays` the weekdays (1 Sunday
-    /// ... 7 Saturday) that are easy.
+    /// ... 7 Saturday) that are easy; `tonightMinutes` the eve session built for tonight, when today is an eve (0: nothing to review).
     static func make(today: Date, plans: [ExamPlan], past: [DaySnapshot], todayMinutes: Int, todayDone: Bool, goal: Int,
-                     easyDays: [Int], calendar: Calendar) -> [TodayPlanDay] {
+                     easyDays: [Int], tonightMinutes: Int? = nil, calendar: Calendar) -> [TodayPlanDay] {
         let todayNumber = calendar.dayNumber(for: today)
         let records = Dictionary(past.map { (calendar.dayNumber(for: $0.day), $0) }, uniquingKeysWith: { a, b in a.studied ? a : b })
         // What each exam's plan says about each day ahead.
         var eves: [Int: [String]] = [:]
+        var eveMinutes: [Int: Int] = [:]
         var examDays: [Int: [String]] = [:]
         var busiest: [Int: Int] = [:]
         for plan in plans {
@@ -64,7 +66,9 @@ enum TodayPlanStrip {
                 guard offset >= 0, offset <= ahead else { continue }
                 switch day.kind {
                 case .exam: examDays[offset, default: []].append(plan.title)
-                case .examEve: eves[offset, default: []].append(plan.title)
+                case .examEve:
+                    eves[offset, default: []].append(plan.title)
+                    eveMinutes[offset] = max(eveMinutes[offset] ?? 0, day.shownMinutes)
                 case .study, .light, .rest:
                     if !day.isSkipped { busiest[offset] = max(busiest[offset] ?? 0, day.sessionMinutes) }
                 }
@@ -94,7 +98,8 @@ enum TodayPlanStrip {
                 day.mark = .exam(count: titles.count)
                 day.examTitles = titles
             } else if let titles = eves[offset] {
-                day.mark = offset == 0 && todayDone ? .done : .eve(minutes: SessionBuilder.examEveMinutes)
+                let minutes = (offset == 0 ? tonightMinutes : nil) ?? eveMinutes[offset] ?? 1
+                day.mark = offset == 0 && todayDone ? .done : .eve(minutes: minutes)
                 day.examTitles = titles
             } else if offset == 0 {
                 day.mark = todayDone ? .done : .minutes(todayMinutes)

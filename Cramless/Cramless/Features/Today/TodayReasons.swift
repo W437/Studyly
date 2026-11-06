@@ -15,8 +15,12 @@ enum TodayReasons {
         /// Its course's name ("Bio 101"), or its own title with no course.
         var name: String
         var daysLeft: Int
-        /// Some of today's questions are for it (a smaller share than the exam the session is for).
+        /// Some of today's questions are for it.
         var inToday: Bool
+        /// Today's planned seconds for it.
+        var seconds: Double = 0
+        /// Today's questions for it are all reviews (none is new).
+        var due: Bool = true
     }
 
     /// Everything the rows say, as plain values.
@@ -24,6 +28,9 @@ enum TodayReasons {
         /// The exam the session mostly serves, and when it is ("Sun · in 2 days").
         var examTitle: String?
         var when: String?
+        /// Days until it, and today's planned seconds for it.
+        var daysLeft: Int?
+        var focusSeconds: Double = 0
         /// The exam's topics by name, or empty when it covers its whole course (`courseName`).
         var scopeTopics: [String] = []
         var courseName: String = ""
@@ -74,18 +81,41 @@ enum TodayReasons {
             rows.append(Row(id: "wait", symbol: "calendar", title: String(localized: "\(names.formatted(.list(type: .and))) can wait"),
                             detail: detail))
         }
-        let included = unique(input.others.filter(\.inToday).map(\.name))
-        if !included.isEmpty {
-            rows.append(Row(id: "alsoIn", symbol: "plus.circle",
-                            title: String(localized: "A few \(included.formatted(.list(type: .and))) questions are in too"),
-                            detail: included.count == 1 ? String(localized: "Its exam is further off, so it gets a smaller share of today.")
-                                : String(localized: "Their exams are further off, so they get a smaller share of today.")))
-        }
+        if let row = alsoIn(input) { rows.append(row) }
         if let exam = input.examTitle, input.scopeCount > 0, input.scopeCount < TodayCopy.fewQuestions {
             rows.append(Row(id: "few", symbol: "info.circle", title: String(localized: "\(exam) has \(input.scopeCount) questions so far"),
                             detail: String(localized: "Readiness is based on them. Add more material and it gets surer.")))
         }
         return rows
+    }
+
+    /// The other exams with questions today. It says only what is true of all of them, in any order of exams: "a few" when each has
+    /// less of today than the exam the session is for, "further off" when each is, "because they're due" when none of them is new.
+    private static func alsoIn(_ input: Input) -> Row? {
+        let others = input.others.filter(\.inToday)
+        guard !others.isEmpty else { return nil }
+        let unique = unique(others.map(\.name))
+        let names = unique.formatted(.list(type: .and))
+        let few = others.allSatisfy { $0.seconds <= input.focusSeconds }
+        let furtherOff = input.daysLeft.map { days in others.allSatisfy { $0.daysLeft > days } } ?? false
+        let title: String
+        var detail: String?
+        if few, furtherOff {
+            title = String(localized: "A few \(names) questions are in too")
+            detail = unique.count == 1 ? String(localized: "Its exam is further off, so it gets a smaller share of today.")
+                : String(localized: "Their exams are further off, so they get a smaller share of today.")
+        } else {
+            if others.allSatisfy(\.due) {
+                title = few ? String(localized: "A few \(names) questions are in too, because they're due.")
+                    : String(localized: "\(names) questions are in too, because they're due.")
+            } else {
+                title = few ? String(localized: "A few \(names) questions are in too") : String(localized: "\(names) questions are in too")
+            }
+            if furtherOff {
+                detail = unique.count == 1 ? String(localized: "Its exam is further off.") : String(localized: "Their exams are further off.")
+            }
+        }
+        return Row(id: "alsoIn", symbol: "plus.circle", title: title, detail: detail)
     }
 
     private static func unique(_ names: [String]) -> [String] {

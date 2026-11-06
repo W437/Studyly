@@ -8,11 +8,11 @@ import Foundation
 /// |---|---|---|---|
 /// | Plan (a session for one exam) | "For Chem 110 Quiz" · "Sun · in 2 days" | up to two topics | "Study · 15 min" |
 /// | Catch-up | the same | the same, the backlog as the reason | "Study · 15 min" |
-/// | No exam (or none holds 40%) | none | its topics or courses | "Study · 15 min" |
-/// | Exam eve | moon, the exam · "Tomorrow · 10:00" | "Tonight: weak spots only" | "Tonight · 10 min" |
+/// | No exam (or none the session serves, `SessionFocus`) | none | its topics or courses | "Study · 15 min" |
+/// | Exam eve | moon, the exam · "Tomorrow · 10:00" | "Tonight: weak spots only" | "Tonight · 4 min" (the session's own minutes) |
 /// | Eve, nothing weak or done | the same | "Nothing left to review tonight" / "That's enough for tonight" | none |
 /// | Done | "Done for today" · "15 min · 24 answers" | "Bright tonight" | "5 more minutes" (quiet) |
-/// | All lit | none | "All lit" | "Practice Limiting reagents · 5 min" |
+/// | All lit | none | "All lit" | "Practice Limiting reagents · 5 min", or "Practice · 5 min" when that doesn't fit |
 /// | No questions yet | none | "Let's make your first set" / "Add your first material" | "Try a sample page", "Scan a page" |
 struct TodayHeroContent: Equatable, Sendable {
     /// How the band's sky is drawn.
@@ -41,6 +41,8 @@ struct TodayHeroContent: Equatable, Sendable {
         var prominent: Bool
         /// What VoiceOver says for it, when the title alone is terse ("Study for 15 minutes").
         var spoken: LocalizedStringResource? = nil
+        /// What the button says when `title` doesn't fit on one line ("Practice · 5 min").
+        var shortTitle: LocalizedStringResource? = nil
 
         /// The session this action starts, if it starts one.
         var request: SessionRequest? {
@@ -155,8 +157,9 @@ struct TodayHeroContent: Equatable, Sendable {
             }
             return TodayHeroContent(
                 cap: .watchingTheSky, sky: .regionLit(id), chip: chip, when: exam?.when,
-                title: String(localized: "Tonight: weak spots only"), reason: TodayCopy.eveReason(topics: snapshot.eveTopics),
-                actions: [.tonight(examID: id)])
+                title: String(localized: "Tonight: weak spots only"),
+                reason: TodayCopy.eveReason(minutes: snapshot.eveMinutes, topics: snapshot.eveTopics),
+                actions: [.tonight(examID: id, minutes: snapshot.eveMinutes)])
 
         case .examEveDone(let id):
             let exam = snapshot.exams.first { $0.id == id }
@@ -187,7 +190,7 @@ struct TodayHeroContent: Equatable, Sendable {
             let action: Action = snapshot.practice.map { .practice($0) } ?? .extra(.practice, minutes: 5, title: .practiceFiveMinutes, prominent: true)
             return TodayHeroContent(
                 cap: .relaxed, sky: .live, title: String(localized: "All lit"), titleSymbol: "sparkles",
-                reason: String(localized: "Nothing due right now. A short practice keeps it fresh."), actions: [action])
+                reason: TodayCopy.allLit(topic: snapshot.practice?.name), actions: [action])
         }
     }
 }
@@ -217,18 +220,19 @@ private extension TodayHeroContent.Action {
     /// "Practice Limiting reagents · 5 min": the topic remembered least.
     static func practice(_ topic: TodayPractice) -> TodayHeroContent.Action {
         TodayHeroContent.Action(kind: .practice(topicID: topic.topicID, courseID: topic.courseID, minutes: 5),
-                                title: SkyCopy.practice(topic.name, minutes: 5), systemImage: "sparkles", prominent: true)
+                                title: SkyCopy.practice(topic.name, minutes: 5), systemImage: "sparkles", prominent: true,
+                                shortTitle: .practiceFiveMinutes)
     }
 
-    static func tonight(examID: UUID) -> TodayHeroContent.Action {
-        TodayHeroContent.Action(kind: .session(.examEve, minutes: nil, examID: examID), title: .tonight,
-                                systemImage: "moon.stars.fill", prominent: true, spoken: "Tonight, 10 minutes")
+    /// Tonight's session, with its own minutes.
+    static func tonight(examID: UUID, minutes: Int) -> TodayHeroContent.Action {
+        TodayHeroContent.Action(kind: .session(.examEve, minutes: nil, examID: examID), title: "Tonight · \(minutes) min",
+                                systemImage: "moon.stars.fill", prominent: true, spoken: "Tonight, \(minutes) minutes")
     }
 }
 
 private extension LocalizedStringResource {
-    /// Tonight's session is always ten minutes, and the extras five: plain words, not counts to pluralise.
-    static let tonight: LocalizedStringResource = "Tonight · 10 min"
+    /// The extras are always five minutes: plain words, not counts to pluralise.
     static let fiveMoreMinutes: LocalizedStringResource = "5 more minutes"
     static let practiceFiveMinutes: LocalizedStringResource = "Practice · 5 min"
 }

@@ -166,6 +166,21 @@ final class StudyAppModelTests: XCTestCase {
         XCTAssertGreaterThan(try XCTUnwrap(summary.readinessDelta), 0.5)
     }
 
+    /// The delta beside "53% → 67%" is the difference of the two numbers on screen, not a rounding of the raw gap (13.2 points).
+    func testTheSummarysDeltaIsTheDifferenceOfTheRoundedNumbers() throws {
+        var summary = SessionSummary(sessionID: UUID(), kind: .daily, answers: 1, itemsReviewed: 1, correctFirstTry: 1, accuracy: 1, newLearned: 0,
+                                     minutes: 1, examID: nil, examTitle: nil, readinessBefore: 0.534, readinessAfter: 0.666,
+                                     streak: StreakState(), streakExtended: false, repairedDay: nil, stopNow: false)
+        XCTAssertEqual(CLFormat.percent(0.534), "53%")
+        XCTAssertEqual(CLFormat.percent(0.666), "67%")
+        XCTAssertEqual(CLFormat.delta(try XCTUnwrap(summary.readinessDelta)), "+14%")
+        summary.readinessBefore = 0.671
+        summary.readinessAfter = 0.666
+        XCTAssertEqual(CLFormat.delta(try XCTUnwrap(summary.readinessDelta)), "±0%")
+        summary.readinessAfter = nil
+        XCTAssertNil(summary.readinessDelta)
+    }
+
     func testRolloverFreezesASingleMissedDay() throws {
         makeCourse()
         addDays("sssssss", endingDaysAgo: 2)

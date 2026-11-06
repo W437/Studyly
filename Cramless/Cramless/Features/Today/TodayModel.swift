@@ -51,10 +51,10 @@ struct TodayExam: Identifiable, Equatable, Sendable {
     var deltaToday: Double = 0
 }
 
-/// The exam today's session mostly serves (`SessionFocus`: at least 40% of its minutes), as the day card names it.
+/// The exam the session serves (`SessionFocus`: one this week with 20% of its minutes, else one with 40%), as the day card names it.
 struct TodayFocus: Equatable, Sendable {
     var exam: TodayExam
-    /// The session's topics for it, weak spots first.
+    /// The session's topics for it, weakest first (the order "Why these?" reads them in).
     var topics: [String]
     /// "About N% after today": the ring's own function over today's session (`AppModel.readinessAfter`).
     var forecast: Double
@@ -90,12 +90,14 @@ struct TodaySnapshot: Equatable, Sendable {
     var initials: String
     /// "Good afternoon, Maya".
     var greeting: String = ""
-    /// The exam the session mostly serves; nil with no exam or a session spread over several.
+    /// The exam the session serves; nil with no exam or a session spread over several.
     var focus: TodayFocus?
     /// The session's topics (and with none, its courses), for a card with no exam to name.
     var sessionTopics: [String] = []
     /// The exam eve session would have questions (weak spots in scope), and on which topics.
     var eveHasWork = true
+    /// That session's planned minutes, rounded up, at most 10 (`BuiltSession.tonightMinutes`).
+    var eveMinutes = SessionBuilder.examEveMinutes
     var eveTopics: [String] = []
     /// On the eve: the other exams' courses, which wait until after it.
     var eveOthers: [String] = []
@@ -178,7 +180,11 @@ struct TodaySnapshot: Equatable, Sendable {
         let focus = app.sessionFocus(session)
         if let id = focus.examID, let exam = exams.first(where: { $0.id == id }),
            let examSnapshot = app.examSnapshots(upcomingOnly: true).first(where: { $0.id == id }) {
-            snapshot.focus = TodayFocus(exam: exam, topics: focus.topicIDs.compactMap { names[$0] },
+            var readiness: [UUID: Double] = [:]
+            if let model = app.exam(id) {
+                for topic in app.topicReadiness(for: model) { readiness[topic.id] = topic.value }
+            }
+            snapshot.focus = TodayFocus(exam: exam, topics: focus.topicsWeakestFirst(readiness: readiness).compactMap { names[$0] },
                                         forecast: max(exam.readiness, app.readinessAfter(session, for: examSnapshot)),
                                         weakCount: focus.weakCount, dueCount: focus.dueCount, newCount: focus.newCount)
         }
@@ -193,6 +199,7 @@ struct TodaySnapshot: Equatable, Sendable {
         if let eve = snapshot.eveExam {
             let built = app.buildSession(SessionRequest(kind: .examEve, examID: eve.id))
             snapshot.eveHasWork = !built.isEmpty
+            snapshot.eveMinutes = built.tonightMinutes
             snapshot.eveTopics = topicNames(of: built, names: names)
             snapshot.eveOthers = otherCourses(exams, besides: eve)
         }
@@ -200,7 +207,7 @@ struct TodaySnapshot: Equatable, Sendable {
             TodayDoneExam(title: $0.title, readiness: $0.readiness, deltaToday: $0.deltaToday, daysLeft: $0.daysLeft)
         }
         snapshot.practice = practice(in: snapshot.sky)
-        snapshot.strip = app.todayStrip(summary: summary)
+        snapshot.strip = app.todayStrip(summary: summary, tonightMinutes: snapshot.eveExam == nil ? nil : snapshot.eveMinutes)
         snapshot.notices = app.todayNotices()
         if app.hasFinishedAnySession(), !app.settings.quietMode { snapshot.quests = app.questsToday() }
         #if DEBUG
@@ -298,12 +305,13 @@ struct TodaySnapshot: Equatable, Sendable {
                 // The demo's first exam is days away: say it as its eve would.
                 snapshot.exams[0].when = TodayCopy.when(first.date, now: first.date.addingTimeInterval(-86_400), calendar: app.calendar)
                 let built = app.buildSession(SessionRequest(kind: .examEve, examID: id))
+                snapshot.eveMinutes = built.tonightMinutes
                 snapshot.eveTopics = topicNames(of: built, names: app.topicNames())
                 snapshot.eveOthers = otherCourses(snapshot.exams, besides: snapshot.exams[0])
                 // The week as the eve's: tonight's moon, tomorrow's exam.
                 for i in snapshot.strip.indices {
                     switch snapshot.strip[i].offset {
-                    case 0: snapshot.strip[i].mark = .eve(minutes: SessionBuilder.examEveMinutes); snapshot.strip[i].examTitles = [first.title]
+                    case 0: snapshot.strip[i].mark = .eve(minutes: built.tonightMinutes); snapshot.strip[i].examTitles = [first.title]
                     case 1: snapshot.strip[i].mark = .exam(count: 1); snapshot.strip[i].examTitles = [first.title]
                     default:
                         if case .exam = snapshot.strip[i].mark { snapshot.strip[i].mark = .minutes(snapshot.summary.minutesGoal) }

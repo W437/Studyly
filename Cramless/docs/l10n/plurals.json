@@ -317,5 +317,23 @@
         "other": "%arg sources"
       }
     }
+  },
+  "%lld minutes on %@, then sleep. That's the whole plan tonight.": {
+    "value": "%#@minutes@ on %2$@, then sleep. That's the whole plan tonight.",
+    "substitutions": {
+      "minutes": {
+        "argNum": 1,
+        "one": "%arg minute",
+        "other": "%arg minutes"
+      }
+    }
+  },
+  "%lld minutes on your weak spots, then sleep. That's the whole plan tonight.": {
+    "one": "%lld minute on your weak spots, then sleep. That's the whole plan tonight.",
+    "other": "%lld minutes on your weak spots, then sleep. That's the whole plan tonight."
+  },
+  "Tonight, %lld minutes": {
+    "one": "Tonight, %lld minute",
+    "other": "Tonight, %lld minutes"
   }
 }
