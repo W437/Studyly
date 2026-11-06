@@ -328,7 +328,7 @@ final class TodayTests: XCTestCase {
     }
 
     func testAMixUpIsCapsCardAndLaterPutsItOffUntilTomorrow() throws {
-        let (chem, _, _) = world()
+        let (chem, _, _) = world(quizIn: 5)
         let items = chem.items.prefix(2).map(\.id)
         let first = Confusion(course: chem, name: "Moles vs molar mass", explanation: "", itemIDs: Array(items), missCount: 4, now: clock.now)
         let second = Confusion(course: chem, name: "Limiting vs excess", explanation: "", itemIDs: Array(items), missCount: 2, now: clock.now)
@@ -336,18 +336,212 @@ final class TodayTests: XCTestCase {
         app.context.insert(second)
         app.save()
         var notices = TodaySnapshot.make(app: app).notices
-        XCTAssertEqual(notices.map(\.kind), [.mixUp, .mixUp])
+        XCTAssertEqual(notices.map(\.kind), [.mixUp], "one card per kind a day")
         XCTAssertEqual(notices.first?.title, "You keep mixing up moles and molar mass.", "the most missed first")
         XCTAssertEqual(notices.first?.action?.title, "Fix it · 2 min")
         XCTAssertEqual(notices.first?.link, .confusion(first.id))
+        XCTAssertEqual(notices.first?.cost, "No AI")
         if case .fixMixUp(let id)? = notices.first?.action?.run { XCTAssertEqual(id, first.id) } else { XCTFail("the fix") }
 
         app.snoozeNotice(try XCTUnwrap(notices.first).id)
         notices = TodaySnapshot.make(app: app).notices
-        XCTAssertEqual(notices.count, 1, "Later moves to the next")
-        XCTAssertEqual(notices.first?.title, "You keep mixing up limiting and excess.")
+        XCTAssertTrue(notices.isEmpty, "the second mix-up waits for another day")
         clock.advance(86_400)
-        XCTAssertEqual(TodaySnapshot.make(app: app).notices.count, 2, "tomorrow it is back")
+        notices = TodaySnapshot.make(app: app).notices
+        XCTAssertEqual(notices.first?.title, "You keep mixing up moles and molar mass.", "tomorrow it is back")
+    }
+
+    func testTheOldLaterStoreIsReadOnce() throws {
+        let (chem, _, _) = world(quizIn: 5)
+        let confusion = Confusion(course: chem, name: "Moles vs molar mass", explanation: "", itemIDs: chem.items.prefix(2).map(\.id), missCount: 4, now: clock.now)
+        app.context.insert(confusion)
+        app.save()
+        let fresh = try StudyTestApp.make(clock: clock, calendar: cal, defaults: app.defaults, container: app.container)
+        fresh.defaults.removeObject(forKey: AppModel.noticeLedgerKey)
+        fresh.defaults.set([confusion.id.uuidString: cal.dayKey(for: clock.now), UUID().uuidString: "2020-01-01"], forKey: "capling.study.confusionSnooze")
+        XCTAssertTrue(fresh.todayNotices().isEmpty, "put off today, in the old store")
+        XCTAssertNil(fresh.defaults.object(forKey: "capling.study.confusionSnooze"), "and the old store is gone")
+        XCTAssertTrue(fresh.defaults.data(forKey: AppModel.noticeLedgerKey) != nil)
+        clock.advance(86_400)
+        XCTAssertEqual(fresh.todayNotices().count, 1)
+    }
+
+    func testCapsCardsSayWhereTheyStand() throws {
+        let (chem, _, _) = world()
+        let confusion = Confusion(course: chem, name: "Moles vs molar mass", explanation: "", itemIDs: chem.items.prefix(2).map(\.id), missCount: 4, now: clock.now)
+        app.context.insert(confusion)
+        app.save()
+        let snapshot = TodaySnapshot.make(app: app)
+        XCTAssertEqual(snapshot.noticePosition, 1)
+        XCTAssertEqual(snapshot.noticeTotal, 1)
+    }
+
+    func testDontShowTheseSwitchesTheKindOff() throws {
+        let (chem, _, _) = world()
+        let confusion = Confusion(course: chem, name: "Moles vs molar mass", explanation: "", itemIDs: chem.items.prefix(2).map(\.id), missCount: 4, now: clock.now)
+        app.context.insert(confusion)
+        app.save()
+        XCTAssertEqual(app.todayNotices().count, 1)
+        app.setNoticeKind(.mixUp, on: false)
+        XCTAssertTrue(app.todayNotices().isEmpty)
+        app.setNoticeKind(.mixUp, on: true)
+        XCTAssertEqual(app.todayNotices().count, 1)
+    }
+
+    // MARK: Fix my week on the day card
+
+    /// Chem 110 with 80 long-overdue questions and a quiz in 6 days: more than a session holds, so a fading card fires.
+    @discardableResult
+    private func fadingWorld() throws -> (chem: Course, quiz: Exam) {
+        let chem = Course(name: "Chem 110", now: clock.now)
+        app.context.insert(chem)
+        for i in 0..<80 {
+            let item = StudyItem(course: chem, kind: .recall, status: .active, origin: .person, prompt: "Q\(i)", answer: "A long enough answer number \(i).", now: clock.now)
+            item.memory = MemoryState(state: .review, stability: 1.4, difficulty: 5, due: cal.adding(days: -20, to: clock.now),
+                                      lastReview: cal.adding(days: -25, to: clock.now), reps: 3)
+            app.context.insert(item)
+            chem.items.append(item)
+        }
+        let quiz = Exam(course: chem, title: "Chem 110 Quiz", date: EngineTest.date(2026, 10, 28, 10, in: cal), now: clock.now)
+        app.context.insert(quiz)
+        chem.exams.append(quiz)
+        app.save()
+        return (chem, quiz)
+    }
+
+    private func fadingCard() throws -> (card: CapNotice, rescue: FadeRescue) {
+        let card = try XCTUnwrap(app.todayNotices().first { $0.kind == .fading })
+        guard case .fixMyWeek(let rescue)? = card.action?.run else { throw XCTSkip("not a fading card") }
+        return (card, rescue)
+    }
+
+    /// The whole way from the store to the plan: the planner's own tests hand it a ping, so they can't see the app failing to make one.
+    private func plannedNotices() -> [NotificationPlanner.Planned] {
+        NotificationPlanner.plan(app.notifications.planInput(for: app), calendar: cal).filter { $0.kind == .notice }
+    }
+
+    func testAFadingCardIsPlannedAsANotificationTonight() throws {
+        try fadingWorld()
+        app.settings.reminderMinutes = 19 * 60
+        let planned = plannedNotices()
+        XCTAssertEqual(planned.count, 1, "one card, once")
+        XCTAssertEqual(planned.first.map { cal.dayKey(for: $0.date) }, cal.dayKey(for: clock.now))
+    }
+
+    func testAFadingCardFirstDealtAfterTheReminderTimeGoesOutTomorrow() throws {
+        try fadingWorld()
+        app.settings.reminderMinutes = 19 * 60
+        clock.now = EngineTest.date(2026, 10, 22, 21, in: cal)
+        app.save()
+        let planned = plannedNotices()
+        XCTAssertEqual(planned.count, 1, "tonight's time has gone by")
+        XCTAssertEqual(planned.first.map { cal.dayKey(for: $0.date) }, cal.dayKey(for: cal.adding(days: 1, to: clock.now)))
+    }
+
+    func testAFadingCardAlreadySeenTodayGoesOutTomorrow() throws {
+        try fadingWorld()
+        app.settings.reminderMinutes = 19 * 60
+        app.noteNoticeShown(try fadingCard().card.id)
+        XCTAssertEqual(plannedNotices().map { cal.dayKey(for: $0.date) }, [cal.dayKey(for: cal.adding(days: 1, to: clock.now))])
+    }
+
+    /// The store's order changes between launches, and here every question ties, so the engines' ties are all decided by it.
+    func testTheSameQuestionsMakeTheSameSessionAndCardHoweverTheyWereStored() throws {
+        let ids = (0..<80).map { _ in UUID() }
+        func make(_ order: [UUID]) throws -> (session: [UUID], dim: Int?) {
+            let app = try StudyTestApp.make(clock: clock, calendar: cal)
+            let chem = Course(name: "Chem 110", now: clock.now)
+            app.context.insert(chem)
+            for id in order {
+                let item = StudyItem(id: id, course: chem, kind: .recall, status: .active, origin: .person, prompt: "Q", answer: "A long enough answer.", now: clock.now)
+                item.memory = MemoryState(state: .review, stability: 1.4, difficulty: 5, due: cal.adding(days: -20, to: clock.now),
+                                          lastReview: cal.adding(days: -25, to: clock.now), reps: 3)
+                app.context.insert(item)
+                chem.items.append(item)
+            }
+            let quiz = Exam(course: chem, title: "Chem 110 Quiz", date: EngineTest.date(2026, 10, 28, 10, in: cal), now: clock.now)
+            app.context.insert(quiz)
+            chem.exams.append(quiz)
+            app.save()
+            var dim: Int?
+            if case .fading(let rescue)? = app.noticeDeck().first(where: { $0.kind == .fading })?.evidence { dim = rescue.dimCount }
+            return (app.todayBuiltSession().entries.map(\.itemID), dim)
+        }
+        let first = try make(ids), second = try make(ids.reversed())
+        XCTAssertEqual(first.session, second.session)
+        XCTAssertEqual(first.dim, second.dim)
+        XCTAssertNotNil(first.dim)
+    }
+
+    func testFixMyWeekAddsMinutesToTheDayCardAndThePlanStrip() throws {
+        try fadingWorld()
+        let before = TodaySnapshot.make(app: app)
+        let (card, rescue) = try fadingCard()
+        XCTAssertEqual(card.action?.title, "Fix my week")
+        XCTAssertEqual(rescue.days.first?.offset, 0)
+        app.perform(try XCTUnwrap(card.action))
+
+        let after = TodaySnapshot.make(app: app)
+        XCTAssertEqual(after.summary.minutesGoal, before.summary.minutesGoal + rescue.minutesPerDay, "the goal grows by today's boost")
+        XCTAssertGreaterThan(after.summary.plannedMinutes, before.summary.plannedMinutes, "and so does the day card's button")
+        XCTAssertEqual(after.notices.first?.title, "Plan updated")
+        XCTAssertEqual(after.notices.first?.action?.title, "Undo")
+        // Tomorrow's boost shows on the strip.
+        if rescue.days.count > 1 {
+            let tomorrow = try XCTUnwrap(after.strip.first { $0.offset == 1 })
+            guard case .minutes(let minutes) = tomorrow.mark else { return XCTFail("a study day") }
+            XCTAssertGreaterThanOrEqual(minutes, app.settings.dailyMinutes + rescue.minutesPerDay)
+        }
+        // The day's session takes its questions first.
+        let built = app.todayBuiltSession()
+        XCTAssertFalse(Set(built.entries.map(\.itemID)).isDisjoint(with: rescue.days[0].itemIDs))
+    }
+
+    func testFixMyWeekWritesNoMemoryAndUndoTakesItAllBack() throws {
+        let (chem, _) = try fadingWorld()
+        let memory = chem.items.map(\.memory)
+        let before = TodaySnapshot.make(app: app).summary
+        let (card, rescue) = try fadingCard()
+        app.perform(try XCTUnwrap(card.action))
+        XCTAssertEqual(chem.items.map(\.memory), memory, "no due date moved")
+        let undo = try XCTUnwrap(TodaySnapshot.make(app: app).notices.first?.action)
+        app.perform(undo)
+        let after = TodaySnapshot.make(app: app)
+        XCTAssertEqual(after.summary.minutesGoal, before.minutesGoal)
+        XCTAssertEqual(after.summary.plannedMinutes, before.plannedMinutes)
+        XCTAssertEqual(after.notices.first?.id, rescue.noticeID, "the card is back")
+        XCTAssertTrue(app.noticeLedger.boosts.isEmpty)
+    }
+
+    func testTheDayIsDoneOnlyAfterTheBoostedMinutes() throws {
+        try fadingWorld()
+        let (card, rescue) = try fadingCard()
+        app.perform(try XCTUnwrap(card.action))
+        let goal = app.settings.dailyMinutes
+        let record = app.dayRecord(for: clock.now)
+        record.sessions = 1
+        record.studySeconds = Double(goal * 60)
+        app.save()
+        XCTAssertNotEqual(TodaySnapshot.make(app: app).hero, .done, "the daily goal alone isn't the day any more")
+        record.studySeconds = Double((goal + rescue.minutesPerDay) * 60)
+        app.save()
+        XCTAssertEqual(TodaySnapshot.make(app: app).hero, .done)
+    }
+
+    func testBoostedQuestionsDontFireAgainAndAMissedDayCanBringACardBack() throws {
+        try fadingWorld()
+        let (card, rescue) = try fadingCard()
+        app.perform(try XCTUnwrap(card.action))
+        app.dismissNoticeConfirmation()
+        // Enough left over to fire on their own? Only if the rest are still at least five; the boosted ones aren't among them.
+        if let again = app.noticeDeck().first(where: { $0.kind == .fading }), case .fading(let next) = again.evidence {
+            XCTAssertTrue(Set(next.itemIDs).isDisjoint(with: rescue.itemIDs))
+        }
+        // Past the boost's last day, its questions may be noticed again, under a new id.
+        clock.advance(86_400 * Double(rescue.days.count))
+        XCTAssertTrue(app.noticeLedger.boosts.isEmpty, "over")
+        let later = try XCTUnwrap(app.noticeDeck().first { $0.kind == .fading })
+        XCTAssertNotEqual(later.id, rescue.noticeID)
     }
 
     func testCapsActionRunsTheFixDrill() throws {
@@ -419,6 +613,8 @@ final class TodayTests: XCTestCase {
         XCTAssertEqual(SessionCopy.missLine(recent), "Missed 3 of the last 4 times. Want a 2-minute fix?")
         let thin = ConfusionNote(id: UUID(), name: "x", missCount: 3, recentMisses: 1, recentAnswers: 1)
         XCTAssertEqual(SessionCopy.missLine(thin), "Missed 3 times lately. Want a 2-minute fix?")
+        let spotted = ConfusionNote(id: UUID(), name: "x", missCount: 0, recentMisses: 0, recentAnswers: 0)
+        XCTAssertEqual(SessionCopy.missLine(spotted), "Spotted before any mix-up. Want a 2-minute fix?")
     }
 
     func testIntervalsReadLikeTheButtons() {

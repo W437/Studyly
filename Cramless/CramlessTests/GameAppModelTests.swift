@@ -686,6 +686,9 @@ final class GameAppModelTests: XCTestCase {
         XCTAssertEqual(old.appIcon, .standard)
         XCTAssertNil(old.badges)
         XCTAssertNil(old.reviewPromptedAt)
+        XCTAssertEqual(old.notices, NoticeSettings(), "every one of Cap's kinds on")
+        XCTAssertTrue(NoticeKind.allCases.allSatisfy(old.notices.allows))
+        XCTAssertTrue(old.notices.notify)
     }
 
     func testASkyOrIconThisVersionDoesntKnowFallsBackToTheDefault() throws {

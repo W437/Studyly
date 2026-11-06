@@ -1,0 +1,4780 @@
+{
+"_about": "Labelled pairs for LookAlikeFinder, read by NoticeEngineTests. Each course is a whole deck: [id, topic, kind, prompt, answer, wrong choices]. `lookAlikes` are the pairs a teacher would call easy to confuse, named by their terms in comparable form (lowercase, no punctuation), labelled from the material without running the finder; `never` are traps that must not be found (one word in two forms, one spelling and another, numbers, answers that name nothing, glosses of foreign words). A pair the finder reports that is in neither list counts against its precision. Decks with `heldOut` were written and labelled after the rules were last tuned on the others, and are reported on their own.",
+"courses": [
+{
+"name": "Bio 101",
+"items": [
+[
+"b1",
+"Phases of mitosis",
+"mcq",
+"In which phase do chromosomes line up at the equator of the cell?",
+"Metaphase",
+[
+"Prophase",
+"Anaphase",
+"Telophase"
+]
+],
+[
+"b2",
+"Phases of mitosis",
+"mcq",
+"Which phase comes right before cytokinesis?",
+"Telophase",
+[
+"Prophase",
+"Metaphase",
+"Anaphase"
+]
+],
+[
+"b3",
+"Phases of mitosis",
+"flashcard",
+"Prophase",
+"Chromosomes condense and become visible, and the nuclear envelope breaks down.",
+[]
+],
+[
+"b4",
+"Phases of mitosis",
+"flashcard",
+"Anaphase",
+"Sister chromatids are pulled to opposite poles.",
+[]
+],
+[
+"b5",
+"Cell division",
+"flashcard",
+"Mitosis",
+"Division into two identical daughter cells.",
+[]
+],
+[
+"b6",
+"Cell division",
+"flashcard",
+"Meiosis",
+"Division into four cells with half the chromosomes.",
+[]
+],
+[
+"b7",
+"Cell division",
+"flashcard",
+"Cytokinesis",
+"The division of the cytoplasm.",
+[]
+],
+[
+"b8",
+"Chromosomes",
+"mcq",
+"What is a loose complex of DNA and protein called?",
+"Chromatin",
+[
+"Chromatid",
+"Centromere",
+"Spindle"
+]
+],
+[
+"b9",
+"Chromosomes",
+"mcq",
+"What is one of two identical copies of a duplicated chromosome?",
+"Chromatid",
+[
+"Chromatin",
+"Centromere",
+"Telomere"
+]
+],
+[
+"b10",
+"Chromosomes",
+"flashcard",
+"Centromere",
+"The region joining two sister chromatids.",
+[]
+],
+[
+"b11",
+"Chromosomes",
+"flashcard",
+"Telomere",
+"The protective cap at the end of a chromosome.",
+[]
+],
+[
+"b12",
+"Chromosomes",
+"flashcard",
+"Chromosome",
+"A long molecule of DNA with its proteins.",
+[]
+],
+[
+"b13",
+"Chromosomes",
+"flashcard",
+"Chromosomes",
+"Long molecules of DNA with their proteins, in the plural.",
+[]
+],
+[
+"b14",
+"Genetics",
+"flashcard",
+"Genotype",
+"The alleles an organism has.",
+[]
+],
+[
+"b15",
+"Genetics",
+"flashcard",
+"Phenotype",
+"The trait you can observe.",
+[]
+],
+[
+"b16",
+"Genetics",
+"flashcard",
+"Homozygous",
+"Two identical alleles for a gene.",
+[]
+],
+[
+"b17",
+"Genetics",
+"flashcard",
+"Heterozygous",
+"Two different alleles for a gene.",
+[]
+],
+[
+"b18",
+"Genetics",
+"flashcard",
+"Dominant allele",
+"Shows in the phenotype with one copy.",
+[]
+],
+[
+"b19",
+"Genetics",
+"flashcard",
+"Recessive allele",
+"Shows in the phenotype only with two copies.",
+[]
+],
+[
+"b20",
+"Genetics",
+"flashcard",
+"Punnett square",
+"A grid that predicts offspring genotypes.",
+[]
+],
+[
+"b21",
+"Transport",
+"mcq",
+"Water moving across a membrane toward more solute is called what?",
+"Osmosis",
+[
+"Diffusion",
+"Active transport",
+"Endocytosis"
+]
+],
+[
+"b22",
+"Transport",
+"mcq",
+"Particles spreading from high to low concentration is called what?",
+"Diffusion",
+[
+"Osmosis",
+"Exocytosis",
+"Active transport"
+]
+],
+[
+"b23",
+"Transport",
+"flashcard",
+"Endocytosis",
+"A cell takes material in by wrapping it in membrane.",
+[]
+],
+[
+"b24",
+"Transport",
+"flashcard",
+"Exocytosis",
+"A cell releases material by fusing a vesicle with its membrane.",
+[]
+],
+[
+"b25",
+"Transport",
+"flashcard",
+"Active transport",
+"Moving substances against their gradient using energy.",
+[]
+],
+[
+"b26",
+"Protein synthesis",
+"flashcard",
+"Transcription",
+"Copying DNA into mRNA.",
+[]
+],
+[
+"b27",
+"Protein synthesis",
+"flashcard",
+"Translation",
+"Building a protein from mRNA at a ribosome.",
+[]
+],
+[
+"b28",
+"Protein synthesis",
+"flashcard",
+"Ribosome",
+"Where proteins are built.",
+[]
+],
+[
+"b29",
+"Organelles",
+"flashcard",
+"Mitochondrion",
+"Makes most of the cell's ATP.",
+[]
+],
+[
+"b30",
+"Organelles",
+"flashcard",
+"Mitochondria",
+"Make most of the cell's ATP.",
+[]
+],
+[
+"b31",
+"Organelles",
+"flashcard",
+"Golgi apparatus",
+"Packages proteins for export.",
+[]
+],
+[
+"b32",
+"Organelles",
+"flashcard",
+"Cell wall",
+"A rigid layer outside the membrane in plants.",
+[]
+],
+[
+"b33",
+"Organelles",
+"flashcard",
+"Cell membrane",
+"The phospholipid bilayer around every cell.",
+[]
+],
+[
+"b34",
+"Organelles",
+"flashcard",
+"Cell cycle",
+"Interphase, mitosis and cytokinesis in turn.",
+[]
+],
+[
+"b35",
+"Organelles",
+"flashcard",
+"Nucleus",
+"Holds the cell's DNA.",
+[]
+],
+[
+"b36",
+"Organelles",
+"flashcard",
+"Nucleolus",
+"Where ribosomes are made, inside the nucleus.",
+[]
+],
+[
+"b37",
+"Cell cycle",
+"mcq",
+"Is a cell in G1 growing?",
+"True",
+[
+"False"
+]
+],
+[
+"b38",
+"Cell cycle",
+"mcq",
+"Is DNA copied in G1?",
+"False",
+[
+"True"
+]
+],
+[
+"b39",
+"Cell cycle",
+"mcq",
+"What happens to DNA content during S phase?",
+"Increases",
+[
+"Decreases",
+"Stays the same"
+]
+],
+[
+"b40",
+"Cell cycle",
+"mcq",
+"What happens to cell size after division?",
+"Decreases",
+[
+"Increases",
+"Stays the same"
+]
+],
+[
+"b41",
+"Cell cycle",
+"recall",
+"Why do cells divide?",
+"To grow, to replace old or damaged cells and to help the body heal.",
+[]
+],
+[
+"b42",
+"Cell cycle",
+"recall",
+"What does genetically identical mean?",
+"Both new cells have the same DNA as the parent cell.",
+[]
+],
+[
+"b43",
+"Ecology",
+"flashcard",
+"Herbivore",
+"An animal that eats plants.",
+[]
+],
+[
+"b44",
+"Ecology",
+"flashcard",
+"Carnivore",
+"An animal that eats other animals.",
+[]
+],
+[
+"b45",
+"Ecology",
+"flashcard",
+"Omnivore",
+"An animal that eats both.",
+[]
+],
+[
+"b46",
+"Ecology",
+"flashcard",
+"Food chain",
+"Who eats whom, in a line.",
+[]
+],
+[
+"b47",
+"Ecology",
+"flashcard",
+"Food web",
+"Every food chain in an ecosystem, linked.",
+[]
+],
+[
+"b48",
+"Plants",
+"flashcard",
+"Xylem",
+"Carries water up from the roots.",
+[]
+],
+[
+"b49",
+"Plants",
+"flashcard",
+"Phloem",
+"Carries sugars around the plant.",
+[]
+],
+[
+"b50",
+"Plants",
+"flashcard",
+"Stomata",
+"Pores in a leaf for gas exchange.",
+[]
+]
+],
+"lookAlikes": [
+[
+"metaphase",
+"telophase"
+],
+[
+"metaphase",
+"prophase"
+],
+[
+"telophase",
+"prophase"
+],
+[
+"anaphase",
+"metaphase"
+],
+[
+"anaphase",
+"telophase"
+],
+[
+"anaphase",
+"prophase"
+],
+[
+"mitosis",
+"meiosis"
+],
+[
+"chromatin",
+"chromatid"
+],
+[
+"centromere",
+"telomere"
+],
+[
+"genotype",
+"phenotype"
+],
+[
+"homozygous",
+"heterozygous"
+],
+[
+"dominant allele",
+"recessive allele"
+],
+[
+"osmosis",
+"diffusion"
+],
+[
+"endocytosis",
+"exocytosis"
+],
+[
+"transcription",
+"translation"
+],
+[
+"nucleus",
+"nucleolus"
+],
+[
+"cell wall",
+"cell membrane"
+],
+[
+"herbivore",
+"carnivore"
+],
+[
+"herbivore",
+"omnivore"
+],
+[
+"carnivore",
+"omnivore"
+],
+[
+"food chain",
+"food web"
+],
+[
+"osmosis",
+"active transport"
+],
+[
+"diffusion",
+"active transport"
+],
+[
+"xylem",
+"phloem"
+],
+[
+"chromatin",
+"centromere"
+],
+[
+"chromatid",
+"centromere"
+],
+[
+"chromatid",
+"telomere"
+]
+],
+"never": [
+[
+"chromosome",
+"chromosomes"
+],
+[
+"mitochondrion",
+"mitochondria"
+],
+[
+"true",
+"false"
+],
+[
+"increases",
+"decreases"
+],
+[
+"cell wall",
+"cell cycle"
+],
+[
+"cell membrane",
+"cell cycle"
+]
+]
+},
+{
+"name": "Chem 110",
+"items": [
+[
+"c1",
+"Bonding",
+"flashcard",
+"Ionic bond",
+"Electrons transferred between atoms.",
+[]
+],
+[
+"c2",
+"Bonding",
+"flashcard",
+"Covalent bond",
+"Electrons shared between atoms.",
+[]
+],
+[
+"c3",
+"Bonding",
+"flashcard",
+"Metallic bond",
+"A sea of shared electrons among metal atoms.",
+[]
+],
+[
+"c4",
+"Ions",
+"flashcard",
+"Cation",
+"A positive ion.",
+[]
+],
+[
+"c5",
+"Ions",
+"flashcard",
+"Anion",
+"A negative ion.",
+[]
+],
+[
+"c6",
+"Moles",
+"flashcard",
+"Molarity",
+"Moles of solute per litre of solution.",
+[]
+],
+[
+"c7",
+"Moles",
+"flashcard",
+"Molality",
+"Moles of solute per kilogram of solvent.",
+[]
+],
+[
+"c8",
+"Moles",
+"flashcard",
+"Molar mass",
+"The mass of one mole of a substance.",
+[]
+],
+[
+"c9",
+"Moles",
+"flashcard",
+"Avogadro's number",
+"The number of particles in one mole.",
+[]
+],
+[
+"c10",
+"Redox",
+"flashcard",
+"Oxidation",
+"Loss of electrons.",
+[]
+],
+[
+"c11",
+"Redox",
+"flashcard",
+"Reduction",
+"Gain of electrons.",
+[]
+],
+[
+"c12",
+"Thermo",
+"flashcard",
+"Exothermic",
+"Releases heat.",
+[]
+],
+[
+"c13",
+"Thermo",
+"flashcard",
+"Endothermic",
+"Absorbs heat.",
+[]
+],
+[
+"c14",
+"Thermo",
+"flashcard",
+"Enthalpy",
+"The heat content of a system.",
+[]
+],
+[
+"c15",
+"Thermo",
+"flashcard",
+"Entropy",
+"The disorder of a system.",
+[]
+],
+[
+"c16",
+"Atoms",
+"flashcard",
+"Isotope",
+"Same element, different number of neutrons.",
+[]
+],
+[
+"c17",
+"Atoms",
+"flashcard",
+"Isomer",
+"Same formula, different structure.",
+[]
+],
+[
+"c18",
+"Atoms",
+"mcq",
+"Which particle has a positive charge?",
+"Proton",
+[
+"Neutron",
+"Electron"
+]
+],
+[
+"c19",
+"Atoms",
+"mcq",
+"Which particle has no charge?",
+"Neutron",
+[
+"Proton",
+"Electron"
+]
+],
+[
+"c20",
+"Atoms",
+"mcq",
+"Which particle has a negative charge?",
+"Electron",
+[
+"Proton",
+"Neutron"
+]
+],
+[
+"c21",
+"Acids",
+"flashcard",
+"Sodium chloride",
+"Table salt.",
+[]
+],
+[
+"c22",
+"Acids",
+"flashcard",
+"Sodium hydroxide",
+"A strong base, also called lye.",
+[]
+],
+[
+"c23",
+"Acids",
+"flashcard",
+"Strong acid",
+"Dissociates fully in water.",
+[]
+],
+[
+"c24",
+"Acids",
+"flashcard",
+"Weak acid",
+"Dissociates only partly in water.",
+[]
+],
+[
+"c25",
+"Acids",
+"flashcard",
+"Buffer",
+"Resists a change in pH.",
+[]
+],
+[
+"c26",
+"Periodic table",
+"mcq",
+"Where is group 1 on the table?",
+"Group 1",
+[
+"Group 2",
+"Group 17"
+]
+],
+[
+"c27",
+"Periodic table",
+"mcq",
+"Where are the halogens?",
+"Group 17",
+[
+"Group 1",
+"Group 18"
+]
+],
+[
+"c28",
+"Periodic table",
+"flashcard",
+"Halogen",
+"A reactive nonmetal in group 17.",
+[]
+],
+[
+"c29",
+"Periodic table",
+"flashcard",
+"Noble gas",
+"An unreactive gas in group 18.",
+[]
+],
+[
+"c30",
+"Stoichiometry",
+"flashcard",
+"Limiting reagent",
+"Runs out first and stops the reaction.",
+[]
+],
+[
+"c31",
+"Stoichiometry",
+"flashcard",
+"Excess reagent",
+"Left over when the reaction stops.",
+[]
+],
+[
+"c32",
+"Stoichiometry",
+"flashcard",
+"Percent yield",
+"Actual yield over theoretical yield.",
+[]
+],
+[
+"c33",
+"Stoichiometry",
+"flashcard",
+"Theoretical yield",
+"The most product a reaction can make.",
+[]
+],
+[
+"c34",
+"Stoichiometry",
+"flashcard",
+"Actual yield",
+"The product a reaction really made.",
+[]
+],
+[
+"c35",
+"Gases",
+"mcq",
+"Does gas pressure rise as temperature rises at fixed volume?",
+"Yes",
+[
+"No"
+]
+],
+[
+"c36",
+"Gases",
+"mcq",
+"Does gas volume rise as pressure rises at fixed temperature?",
+"No",
+[
+"Yes"
+]
+],
+[
+"c37",
+"Gases",
+"flashcard",
+"Boyle's law",
+"Pressure and volume are inversely related.",
+[]
+],
+[
+"c38",
+"Gases",
+"flashcard",
+"Charles's law",
+"Volume and temperature are directly related.",
+[]
+]
+],
+"lookAlikes": [
+[
+"ionic bond",
+"covalent bond"
+],
+[
+"ionic bond",
+"metallic bond"
+],
+[
+"covalent bond",
+"metallic bond"
+],
+[
+"cation",
+"anion"
+],
+[
+"molarity",
+"molality"
+],
+[
+"exothermic",
+"endothermic"
+],
+[
+"enthalpy",
+"entropy"
+],
+[
+"isotope",
+"isomer"
+],
+[
+"proton",
+"neutron"
+],
+[
+"proton",
+"electron"
+],
+[
+"neutron",
+"electron"
+],
+[
+"sodium chloride",
+"sodium hydroxide"
+],
+[
+"strong acid",
+"weak acid"
+],
+[
+"limiting reagent",
+"excess reagent"
+],
+[
+"theoretical yield",
+"actual yield"
+],
+[
+"boyle s law",
+"charles s law"
+],
+[
+"oxidation",
+"reduction"
+]
+],
+"never": [
+[
+"group 1",
+"group 2"
+],
+[
+"group 17",
+"group 1"
+],
+[
+"yes",
+"no"
+]
+]
+},
+{
+"name": "AP Psych",
+"items": [
+[
+"p1",
+"Learning",
+"flashcard",
+"Classical conditioning",
+"Learning by association between two stimuli.",
+[]
+],
+[
+"p2",
+"Learning",
+"flashcard",
+"Operant conditioning",
+"Learning from the consequences of behaviour.",
+[]
+],
+[
+"p3",
+"Learning",
+"flashcard",
+"Positive reinforcement",
+"Adding something pleasant to increase a behaviour.",
+[]
+],
+[
+"p4",
+"Learning",
+"flashcard",
+"Negative reinforcement",
+"Removing something unpleasant to increase a behaviour.",
+[]
+],
+[
+"p5",
+"Learning",
+"flashcard",
+"Positive punishment",
+"Adding something unpleasant to decrease a behaviour.",
+[]
+],
+[
+"p6",
+"Learning",
+"flashcard",
+"Negative punishment",
+"Removing something pleasant to decrease a behaviour.",
+[]
+],
+[
+"p7",
+"Memory",
+"flashcard",
+"Retrograde amnesia",
+"Losing memories from before an injury.",
+[]
+],
+[
+"p8",
+"Memory",
+"flashcard",
+"Anterograde amnesia",
+"Being unable to form new memories after an injury.",
+[]
+],
+[
+"p9",
+"Memory",
+"flashcard",
+"Short-term memory",
+"Holds a few items for seconds.",
+[]
+],
+[
+"p10",
+"Memory",
+"flashcard",
+"Long-term memory",
+"Holds information for years.",
+[]
+],
+[
+"p11",
+"Memory",
+"flashcard",
+"Encoding",
+"Getting information into memory.",
+[]
+],
+[
+"p12",
+"Memory",
+"flashcard",
+"Retrieval",
+"Getting information back out of memory.",
+[]
+],
+[
+"p13",
+"Biology",
+"flashcard",
+"Hippocampus",
+"Forms new long-term memories.",
+[]
+],
+[
+"p14",
+"Biology",
+"flashcard",
+"Hypothalamus",
+"Regulates hunger, thirst and temperature.",
+[]
+],
+[
+"p15",
+"Biology",
+"flashcard",
+"Thalamus",
+"Relays sensory signals to the cortex.",
+[]
+],
+[
+"p16",
+"Biology",
+"flashcard",
+"Amygdala",
+"Processes fear and emotion.",
+[]
+],
+[
+"p17",
+"Biology",
+"flashcard",
+"Sympathetic nervous system",
+"Fight or flight.",
+[]
+],
+[
+"p18",
+"Biology",
+"flashcard",
+"Parasympathetic nervous system",
+"Rest and digest.",
+[]
+],
+[
+"p19",
+"Research",
+"flashcard",
+"Reliability",
+"A measure gives consistent results.",
+[]
+],
+[
+"p20",
+"Research",
+"flashcard",
+"Validity",
+"A measure tests what it claims to.",
+[]
+],
+[
+"p21",
+"Research",
+"flashcard",
+"Independent variable",
+"What the researcher changes.",
+[]
+],
+[
+"p22",
+"Research",
+"flashcard",
+"Dependent variable",
+"What the researcher measures.",
+[]
+],
+[
+"p23",
+"Research",
+"flashcard",
+"Placebo",
+"A fake treatment.",
+[]
+],
+[
+"p24",
+"Research",
+"flashcard",
+"Correlation",
+"Two things vary together.",
+[]
+],
+[
+"p25",
+"Development",
+"mcq",
+"Fitting new information into an existing schema is called what?",
+"Assimilation",
+[
+"Accommodation",
+"Conservation"
+]
+],
+[
+"p26",
+"Development",
+"mcq",
+"Changing a schema to fit new information is called what?",
+"Accommodation",
+[
+"Assimilation",
+"Object permanence"
+]
+],
+[
+"p27",
+"Development",
+"flashcard",
+"Object permanence",
+"Knowing an object exists when out of sight.",
+[]
+],
+[
+"p28",
+"Development",
+"flashcard",
+"Conservation",
+"Knowing quantity stays the same when shape changes.",
+[]
+],
+[
+"p29",
+"Freud",
+"flashcard",
+"Ego",
+"Balances desire and reality.",
+[]
+],
+[
+"p30",
+"Freud",
+"flashcard",
+"Superego",
+"The internalised moral voice.",
+[]
+],
+[
+"p31",
+"Freud",
+"flashcard",
+"Repression",
+"Pushing painful memories out of awareness.",
+[]
+],
+[
+"p32",
+"Freud",
+"flashcard",
+"Regression",
+"Going back to childish behaviour.",
+[]
+],
+[
+"p33",
+"Freud",
+"flashcard",
+"Projection",
+"Seeing your own feelings in someone else.",
+[]
+]
+],
+"lookAlikes": [
+[
+"classical conditioning",
+"operant conditioning"
+],
+[
+"positive reinforcement",
+"negative reinforcement"
+],
+[
+"positive punishment",
+"negative punishment"
+],
+[
+"positive reinforcement",
+"positive punishment"
+],
+[
+"negative reinforcement",
+"negative punishment"
+],
+[
+"retrograde amnesia",
+"anterograde amnesia"
+],
+[
+"short term memory",
+"long term memory"
+],
+[
+"hippocampus",
+"hypothalamus"
+],
+[
+"hypothalamus",
+"thalamus"
+],
+[
+"sympathetic nervous system",
+"parasympathetic nervous system"
+],
+[
+"reliability",
+"validity"
+],
+[
+"independent variable",
+"dependent variable"
+],
+[
+"assimilation",
+"accommodation"
+],
+[
+"ego",
+"superego"
+],
+[
+"repression",
+"regression"
+],
+[
+"accommodation",
+"conservation"
+],
+[
+"assimilation",
+"conservation"
+],
+[
+"assimilation",
+"object permanence"
+],
+[
+"accommodation",
+"object permanence"
+],
+[
+"regression",
+"projection"
+],
+[
+"repression",
+"projection"
+]
+],
+"never": []
+},
+{
+"name": "Spanish II",
+"items": [
+[
+"s1",
+"Unidad 4",
+"flashcard",
+"la nota",
+"the grade",
+[]
+],
+[
+"s2",
+"Unidad 4",
+"flashcard",
+"la tarea",
+"the homework",
+[]
+],
+[
+"s3",
+"Unidad 4",
+"flashcard",
+"el libro",
+"the book",
+[]
+],
+[
+"s4",
+"Unidad 4",
+"flashcard",
+"la libra",
+"the pound",
+[]
+],
+[
+"s5",
+"Unidad 4",
+"flashcard",
+"la casa",
+"the house",
+[]
+],
+[
+"s6",
+"Unidad 4",
+"flashcard",
+"la cosa",
+"the thing",
+[]
+],
+[
+"s7",
+"Unidad 4",
+"flashcard",
+"el gato",
+"the cat",
+[]
+],
+[
+"s8",
+"Unidad 4",
+"flashcard",
+"el coche",
+"the car",
+[]
+],
+[
+"s9",
+"Unidad 4",
+"flashcard",
+"el pato",
+"the duck",
+[]
+],
+[
+"s10",
+"Unidad 4",
+"flashcard",
+"el perro",
+"the dog",
+[]
+],
+[
+"s11",
+"Unidad 4",
+"flashcard",
+"el pelo",
+"the hair",
+[]
+],
+[
+"s12",
+"Unidad 4",
+"flashcard",
+"pero",
+"but",
+[]
+],
+[
+"s13",
+"Unidad 4",
+"flashcard",
+"correr",
+"to run",
+[]
+],
+[
+"s14",
+"Unidad 4",
+"flashcard",
+"frotar",
+"to rub",
+[]
+],
+[
+"s15",
+"Unidad 4",
+"flashcard",
+"hablar",
+"to speak",
+[]
+],
+[
+"s16",
+"Unidad 4",
+"flashcard",
+"comer",
+"to eat",
+[]
+],
+[
+"s17",
+"Unidad 4",
+"flashcard",
+"beber",
+"to drink",
+[]
+],
+[
+"s18",
+"Unidad 4",
+"flashcard",
+"vivir",
+"to live",
+[]
+],
+[
+"s19",
+"Unidad 4",
+"flashcard",
+"la madre",
+"the mother",
+[]
+],
+[
+"s20",
+"Unidad 4",
+"flashcard",
+"el padre",
+"the father",
+[]
+],
+[
+"s21",
+"Unidad 4",
+"flashcard",
+"la mesa",
+"the table",
+[]
+],
+[
+"s22",
+"Unidad 4",
+"flashcard",
+"el mes",
+"the month",
+[]
+],
+[
+"s23",
+"Unidad 5",
+"flashcard",
+"ser",
+"to be, permanent",
+[]
+],
+[
+"s24",
+"Unidad 5",
+"flashcard",
+"estar",
+"to be, temporary",
+[]
+],
+[
+"s25",
+"Unidad 5",
+"flashcard",
+"saber",
+"to know a fact",
+[]
+],
+[
+"s26",
+"Unidad 5",
+"flashcard",
+"conocer",
+"to know a person",
+[]
+],
+[
+"s27",
+"Unidad 5",
+"flashcard",
+"pedir",
+"to ask for",
+[]
+],
+[
+"s28",
+"Unidad 5",
+"flashcard",
+"preguntar",
+"to ask a question",
+[]
+],
+[
+"s29",
+"Unidad 5",
+"flashcard",
+"hoy",
+"today",
+[]
+],
+[
+"s30",
+"Unidad 5",
+"flashcard",
+"ayer",
+"yesterday",
+[]
+],
+[
+"s31",
+"Unidad 5",
+"flashcard",
+"mañana",
+"tomorrow",
+[]
+]
+],
+"lookAlikes": [
+[
+"el libro",
+"la libra"
+],
+[
+"la casa",
+"la cosa"
+],
+[
+"el gato",
+"el pato"
+],
+[
+"el perro",
+"el pelo"
+],
+[
+"el perro",
+"pero"
+],
+[
+"el pelo",
+"pero"
+],
+[
+"la madre",
+"el padre"
+],
+[
+"la mesa",
+"el mes"
+],
+[
+"ser",
+"estar"
+],
+[
+"saber",
+"conocer"
+],
+[
+"pedir",
+"preguntar"
+]
+],
+"never": [
+[
+"la nota",
+"la tarea"
+],
+[
+"the cat",
+"the car"
+],
+[
+"to run",
+"to rub"
+],
+[
+"correr",
+"comer"
+]
+]
+},
+{
+"name": "US History",
+"items": [
+[
+"h1",
+"Early republic",
+"flashcard",
+"Federalists",
+"Wanted a strong national government.",
+[]
+],
+[
+"h2",
+"Early republic",
+"flashcard",
+"Anti-Federalists",
+"Feared a strong national government.",
+[]
+],
+[
+"h3",
+"Early republic",
+"flashcard",
+"Articles of Confederation",
+"The first, weak national government.",
+[]
+],
+[
+"h4",
+"Early republic",
+"flashcard",
+"Bill of Rights",
+"The first ten amendments.",
+[]
+],
+[
+"h5",
+"Presidents",
+"flashcard",
+"Andrew Jackson",
+"Seventh president, the Indian Removal Act.",
+[]
+],
+[
+"h6",
+"Presidents",
+"flashcard",
+"Andrew Johnson",
+"Seventeenth president, impeached in 1868.",
+[]
+],
+[
+"h7",
+"Presidents",
+"flashcard",
+"Lyndon Johnson",
+"The Great Society.",
+[]
+],
+[
+"h8",
+"Presidents",
+"flashcard",
+"Theodore Roosevelt",
+"The Square Deal and trust-busting.",
+[]
+],
+[
+"h9",
+"Presidents",
+"flashcard",
+"Franklin Roosevelt",
+"The New Deal.",
+[]
+],
+[
+"h10",
+"Presidents",
+"flashcard",
+"Abraham Lincoln",
+"President during the Civil War.",
+[]
+],
+[
+"h11",
+"Treaties",
+"mcq",
+"Which treaty ended the American Revolution?",
+"Treaty of Paris",
+[
+"Treaty of Versailles",
+"Treaty of Ghent"
+]
+],
+[
+"h12",
+"Treaties",
+"mcq",
+"Which treaty ended World War I?",
+"Treaty of Versailles",
+[
+"Treaty of Paris",
+"Treaty of Ghent"
+]
+],
+[
+"h13",
+"Treaties",
+"flashcard",
+"Treaty of Ghent",
+"Ended the War of 1812.",
+[]
+],
+[
+"h14",
+"Foreign policy",
+"flashcard",
+"Monroe Doctrine",
+"Europe stays out of the Americas.",
+[]
+],
+[
+"h15",
+"Foreign policy",
+"flashcard",
+"Truman Doctrine",
+"Aid to nations resisting communism.",
+[]
+],
+[
+"h16",
+"Foreign policy",
+"flashcard",
+"Marshall Plan",
+"Economic aid to rebuild Europe.",
+[]
+],
+[
+"h17",
+"Civil rights",
+"flashcard",
+"Brown v. Board",
+"Ended segregated schools.",
+[]
+],
+[
+"h18",
+"Civil rights",
+"flashcard",
+"Plessy v. Ferguson",
+"Allowed separate but equal.",
+[]
+],
+[
+"h19",
+"Civil rights",
+"flashcard",
+"13th Amendment",
+"Abolished slavery.",
+[]
+],
+[
+"h20",
+"Civil rights",
+"flashcard",
+"14th Amendment",
+"Equal protection and citizenship.",
+[]
+],
+[
+"h21",
+"Civil rights",
+"flashcard",
+"15th Amendment",
+"Voting rights regardless of race.",
+[]
+],
+[
+"h22",
+"Capitals",
+"mcq",
+"What was the first capital of the United States?",
+"New York",
+[
+"Philadelphia",
+"Boston"
+]
+],
+[
+"h23",
+"Capitals",
+"mcq",
+"Where was the Declaration of Independence signed?",
+"Philadelphia",
+[
+"Boston",
+"New York"
+]
+],
+[
+"h24",
+"Economy",
+"flashcard",
+"Gilded Age",
+"Rapid industry and wide inequality.",
+[]
+],
+[
+"h25",
+"Economy",
+"flashcard",
+"Great Depression",
+"The economic collapse of the 1930s.",
+[]
+],
+[
+"h26",
+"Economy",
+"flashcard",
+"Great Migration",
+"Black Americans moving north.",
+[]
+],
+[
+"h27",
+"Economy",
+"flashcard",
+"Great Society",
+"Johnson's programs against poverty.",
+[]
+],
+[
+"h28",
+"Economy",
+"flashcard",
+"New Deal",
+"Roosevelt's programs in the Depression.",
+[]
+],
+[
+"h29",
+"Economy",
+"recall",
+"What caused the crash of 1929?",
+"Speculation, buying on margin and banks that failed.",
+[]
+]
+],
+"lookAlikes": [
+[
+"federalists",
+"anti federalists"
+],
+[
+"andrew jackson",
+"andrew johnson"
+],
+[
+"andrew johnson",
+"lyndon johnson"
+],
+[
+"theodore roosevelt",
+"franklin roosevelt"
+],
+[
+"treaty of paris",
+"treaty of versailles"
+],
+[
+"treaty of ghent",
+"treaty of paris"
+],
+[
+"treaty of ghent",
+"treaty of versailles"
+],
+[
+"monroe doctrine",
+"truman doctrine"
+],
+[
+"brown v board",
+"plessy v ferguson"
+],
+[
+"great depression",
+"great migration"
+],
+[
+"great society",
+"new deal"
+],
+[
+"great depression",
+"great society"
+],
+[
+"great migration",
+"great society"
+]
+],
+"never": [
+[
+"13th amendment",
+"14th amendment"
+],
+[
+"14th amendment",
+"15th amendment"
+]
+]
+},
+{
+"name": "Econ 201",
+"items": [
+[
+"e1",
+"Prices",
+"flashcard",
+"Inflation",
+"Prices rising overall.",
+[]
+],
+[
+"e2",
+"Prices",
+"flashcard",
+"Deflation",
+"Prices falling overall.",
+[]
+],
+[
+"e3",
+"Prices",
+"flashcard",
+"Disinflation",
+"Prices rising more slowly.",
+[]
+],
+[
+"e4",
+"Cycle",
+"flashcard",
+"Recession",
+"Two quarters of falling output.",
+[]
+],
+[
+"e5",
+"Cycle",
+"flashcard",
+"Depression",
+"A long, severe recession.",
+[]
+],
+[
+"e6",
+"Cycle",
+"flashcard",
+"Expansion",
+"Output growing.",
+[]
+],
+[
+"e7",
+"Policy",
+"flashcard",
+"Fiscal policy",
+"Government taxing and spending.",
+[]
+],
+[
+"e8",
+"Policy",
+"flashcard",
+"Monetary policy",
+"The central bank setting money and rates.",
+[]
+],
+[
+"e9",
+"Measures",
+"flashcard",
+"GDP",
+"Output made inside a country.",
+[]
+],
+[
+"e10",
+"Measures",
+"flashcard",
+"GNP",
+"Output made by a country's people, anywhere.",
+[]
+],
+[
+"e11",
+"Measures",
+"flashcard",
+"CPI",
+"The cost of a basket of goods.",
+[]
+],
+[
+"e12",
+"Fields",
+"flashcard",
+"Microeconomics",
+"Households and firms.",
+[]
+],
+[
+"e13",
+"Fields",
+"flashcard",
+"Macroeconomics",
+"The economy as a whole.",
+[]
+],
+[
+"e14",
+"Demand",
+"flashcard",
+"Elastic demand",
+"Quantity changes a lot with price.",
+[]
+],
+[
+"e15",
+"Demand",
+"flashcard",
+"Inelastic demand",
+"Quantity barely changes with price.",
+[]
+],
+[
+"e16",
+"Trade",
+"flashcard",
+"Comparative advantage",
+"Lower opportunity cost.",
+[]
+],
+[
+"e17",
+"Trade",
+"flashcard",
+"Absolute advantage",
+"More output from the same inputs.",
+[]
+],
+[
+"e18",
+"Trade",
+"mcq",
+"A tax on imports is called what?",
+"Tariff",
+[
+"Quota",
+"Subsidy"
+]
+],
+[
+"e19",
+"Trade",
+"mcq",
+"A limit on imports is called what?",
+"Quota",
+[
+"Tariff",
+"Embargo"
+]
+],
+[
+"e20",
+"Trade",
+"flashcard",
+"Subsidy",
+"Government money to producers.",
+[]
+],
+[
+"e21",
+"Trade",
+"flashcard",
+"Embargo",
+"A ban on trade with a country.",
+[]
+],
+[
+"e22",
+"Curves",
+"mcq",
+"What happens to quantity demanded when price rises?",
+"Decreases",
+[
+"Increases"
+]
+],
+[
+"e23",
+"Curves",
+"mcq",
+"What happens to quantity supplied when price rises?",
+"Increases",
+[
+"Decreases"
+]
+],
+[
+"e24",
+"Curves",
+"flashcard",
+"Supply curve",
+"Slopes up.",
+[]
+],
+[
+"e25",
+"Curves",
+"flashcard",
+"Demand curve",
+"Slopes down.",
+[]
+],
+[
+"e26",
+"Curves",
+"flashcard",
+"Equilibrium",
+"Where supply meets demand.",
+[]
+],
+[
+"e27",
+"Firms",
+"flashcard",
+"Monopoly",
+"One seller.",
+[]
+],
+[
+"e28",
+"Firms",
+"flashcard",
+"Monopsony",
+"One buyer.",
+[]
+],
+[
+"e29",
+"Firms",
+"flashcard",
+"Oligopoly",
+"A few sellers.",
+[]
+],
+[
+"e30",
+"Firms",
+"flashcard",
+"Fixed cost",
+"Doesn't change with output.",
+[]
+],
+[
+"e31",
+"Firms",
+"flashcard",
+"Variable cost",
+"Changes with output.",
+[]
+],
+[
+"e32",
+"Firms",
+"flashcard",
+"Marginal cost",
+"The cost of one more unit.",
+[]
+],
+[
+"e33",
+"Firms",
+"flashcard",
+"Marginal revenue",
+"The revenue from one more unit.",
+[]
+]
+],
+"lookAlikes": [
+[
+"inflation",
+"deflation"
+],
+[
+"inflation",
+"disinflation"
+],
+[
+"deflation",
+"disinflation"
+],
+[
+"recession",
+"depression"
+],
+[
+"recession",
+"expansion"
+],
+[
+"fiscal policy",
+"monetary policy"
+],
+[
+"gdp",
+"gnp"
+],
+[
+"microeconomics",
+"macroeconomics"
+],
+[
+"elastic demand",
+"inelastic demand"
+],
+[
+"comparative advantage",
+"absolute advantage"
+],
+[
+"tariff",
+"quota"
+],
+[
+"tariff",
+"subsidy"
+],
+[
+"quota",
+"embargo"
+],
+[
+"supply curve",
+"demand curve"
+],
+[
+"monopoly",
+"monopsony"
+],
+[
+"monopoly",
+"oligopoly"
+],
+[
+"monopsony",
+"oligopoly"
+],
+[
+"fixed cost",
+"variable cost"
+],
+[
+"marginal cost",
+"marginal revenue"
+],
+[
+"fixed cost",
+"marginal cost"
+],
+[
+"variable cost",
+"marginal cost"
+]
+],
+"never": [
+[
+"increases",
+"decreases"
+]
+]
+},
+{
+"name": "Physics 1",
+"items": [
+[
+"f1",
+"Motion",
+"flashcard",
+"Speed",
+"Distance over time.",
+[]
+],
+[
+"f2",
+"Motion",
+"flashcard",
+"Velocity",
+"Displacement over time.",
+[]
+],
+[
+"f3",
+"Motion",
+"flashcard",
+"Acceleration",
+"Change in velocity over time.",
+[]
+],
+[
+"f4",
+"Motion",
+"flashcard",
+"Distance",
+"The length of the path.",
+[]
+],
+[
+"f5",
+"Motion",
+"flashcard",
+"Displacement",
+"The straight line from start to end.",
+[]
+],
+[
+"f6",
+"Forces",
+"flashcard",
+"Mass",
+"The amount of matter.",
+[]
+],
+[
+"f7",
+"Forces",
+"flashcard",
+"Weight",
+"The force of gravity on a mass.",
+[]
+],
+[
+"f8",
+"Forces",
+"flashcard",
+"Inertia",
+"Resistance to a change in motion.",
+[]
+],
+[
+"f9",
+"Forces",
+"flashcard",
+"Static friction",
+"Keeps a resting object at rest.",
+[]
+],
+[
+"f10",
+"Forces",
+"flashcard",
+"Kinetic friction",
+"Slows a sliding object.",
+[]
+],
+[
+"f11",
+"Energy",
+"flashcard",
+"Kinetic energy",
+"Energy of motion.",
+[]
+],
+[
+"f12",
+"Energy",
+"flashcard",
+"Potential energy",
+"Stored energy.",
+[]
+],
+[
+"f13",
+"Energy",
+"flashcard",
+"Work",
+"Force over a distance.",
+[]
+],
+[
+"f14",
+"Energy",
+"flashcard",
+"Power",
+"Work per unit of time.",
+[]
+],
+[
+"f15",
+"Circuits",
+"flashcard",
+"Series circuit",
+"One path for current.",
+[]
+],
+[
+"f16",
+"Circuits",
+"flashcard",
+"Parallel circuit",
+"Several paths for current.",
+[]
+],
+[
+"f17",
+"Circuits",
+"flashcard",
+"Resistance",
+"Opposition to current.",
+[]
+],
+[
+"f18",
+"Circuits",
+"flashcard",
+"Resistor",
+"A part that limits current.",
+[]
+],
+[
+"f19",
+"Circuits",
+"flashcard",
+"Current",
+"Charge flow per second.",
+[]
+],
+[
+"f20",
+"Circuits",
+"flashcard",
+"Voltage",
+"Energy per unit of charge.",
+[]
+],
+[
+"f21",
+"Heat",
+"flashcard",
+"Conduction",
+"Heat through direct contact.",
+[]
+],
+[
+"f22",
+"Heat",
+"flashcard",
+"Convection",
+"Heat carried by a moving fluid.",
+[]
+],
+[
+"f23",
+"Heat",
+"flashcard",
+"Radiation",
+"Heat by electromagnetic waves.",
+[]
+],
+[
+"f24",
+"Nuclear",
+"flashcard",
+"Fission",
+"A heavy nucleus splits.",
+[]
+],
+[
+"f25",
+"Nuclear",
+"flashcard",
+"Fusion",
+"Light nuclei join.",
+[]
+],
+[
+"f26",
+"Waves",
+"flashcard",
+"Reflection",
+"A wave bounces off a surface.",
+[]
+],
+[
+"f27",
+"Waves",
+"flashcard",
+"Refraction",
+"A wave bends entering a new medium.",
+[]
+],
+[
+"f28",
+"Waves",
+"flashcard",
+"Diffraction",
+"A wave spreads through a gap.",
+[]
+],
+[
+"f29",
+"Waves",
+"flashcard",
+"Amplitude",
+"The height of a wave.",
+[]
+],
+[
+"f30",
+"Waves",
+"flashcard",
+"Frequency",
+"Waves per second.",
+[]
+],
+[
+"f31",
+"Waves",
+"mcq",
+"As frequency rises, what happens to wavelength?",
+"Decreases",
+[
+"Increases"
+]
+],
+[
+"f32",
+"Waves",
+"mcq",
+"As amplitude rises, what happens to energy?",
+"Increases",
+[
+"Decreases"
+]
+]
+],
+"lookAlikes": [
+[
+"speed",
+"velocity"
+],
+[
+"distance",
+"displacement"
+],
+[
+"mass",
+"weight"
+],
+[
+"static friction",
+"kinetic friction"
+],
+[
+"kinetic energy",
+"potential energy"
+],
+[
+"work",
+"power"
+],
+[
+"series circuit",
+"parallel circuit"
+],
+[
+"current",
+"voltage"
+],
+[
+"conduction",
+"convection"
+],
+[
+"conduction",
+"radiation"
+],
+[
+"convection",
+"radiation"
+],
+[
+"fission",
+"fusion"
+],
+[
+"reflection",
+"refraction"
+],
+[
+"refraction",
+"diffraction"
+],
+[
+"reflection",
+"diffraction"
+],
+[
+"amplitude",
+"frequency"
+],
+[
+"velocity",
+"acceleration"
+],
+[
+"resistance",
+"resistor"
+]
+],
+"never": [
+[
+"increases",
+"decreases"
+]
+]
+},
+{
+"name": "Anatomy",
+"items": [
+[
+"a1",
+"Blood",
+"flashcard",
+"Hypertension",
+"High blood pressure.",
+[]
+],
+[
+"a2",
+"Blood",
+"flashcard",
+"Hypotension",
+"Low blood pressure.",
+[]
+],
+[
+"a3",
+"Blood",
+"flashcard",
+"Hyperglycemia",
+"High blood sugar.",
+[]
+],
+[
+"a4",
+"Blood",
+"flashcard",
+"Hypoglycemia",
+"Low blood sugar.",
+[]
+],
+[
+"a5",
+"Blood",
+"mcq",
+"Which vessels carry blood away from the heart?",
+"Arteries",
+[
+"Veins",
+"Capillaries"
+]
+],
+[
+"a6",
+"Blood",
+"mcq",
+"Which vessels carry blood back to the heart?",
+"Veins",
+[
+"Arteries",
+"Capillaries"
+]
+],
+[
+"a7",
+"Blood",
+"flashcard",
+"Capillaries",
+"Where gases exchange with tissue.",
+[]
+],
+[
+"a8",
+"Blood",
+"flashcard",
+"Red blood cell",
+"Carries oxygen.",
+[]
+],
+[
+"a9",
+"Blood",
+"flashcard",
+"White blood cell",
+"Fights infection.",
+[]
+],
+[
+"a10",
+"Bones",
+"flashcard",
+"Tendon",
+"Joins muscle to bone.",
+[]
+],
+[
+"a11",
+"Bones",
+"flashcard",
+"Ligament",
+"Joins bone to bone.",
+[]
+],
+[
+"a12",
+"Bones",
+"flashcard",
+"Cartilage",
+"Cushions joints.",
+[]
+],
+[
+"a13",
+"Bones",
+"flashcard",
+"Humerus",
+"The upper arm bone.",
+[]
+],
+[
+"a14",
+"Bones",
+"flashcard",
+"Femur",
+"The thigh bone.",
+[]
+],
+[
+"a15",
+"Bones",
+"flashcard",
+"Tibia",
+"The shin bone.",
+[]
+],
+[
+"a16",
+"Bones",
+"flashcard",
+"Fibula",
+"The thin bone beside the shin.",
+[]
+],
+[
+"a17",
+"Directions",
+"flashcard",
+"Anterior",
+"Toward the front.",
+[]
+],
+[
+"a18",
+"Directions",
+"flashcard",
+"Posterior",
+"Toward the back.",
+[]
+],
+[
+"a19",
+"Directions",
+"flashcard",
+"Superior",
+"Above.",
+[]
+],
+[
+"a20",
+"Directions",
+"flashcard",
+"Inferior",
+"Below.",
+[]
+],
+[
+"a21",
+"Directions",
+"flashcard",
+"Proximal",
+"Nearer the trunk.",
+[]
+],
+[
+"a22",
+"Directions",
+"flashcard",
+"Distal",
+"Farther from the trunk.",
+[]
+],
+[
+"a23",
+"Nerves",
+"flashcard",
+"Afferent neuron",
+"Carries signals to the brain.",
+[]
+],
+[
+"a24",
+"Nerves",
+"flashcard",
+"Efferent neuron",
+"Carries signals from the brain.",
+[]
+],
+[
+"a25",
+"Nerves",
+"flashcard",
+"Axon",
+"Carries signals away from the cell body.",
+[]
+],
+[
+"a26",
+"Nerves",
+"flashcard",
+"Dendrite",
+"Receives signals.",
+[]
+],
+[
+"a27",
+"Digestion",
+"flashcard",
+"Stomach",
+"Breaks food down with acid.",
+[]
+],
+[
+"a28",
+"Digestion",
+"flashcard",
+"Small intestine",
+"Absorbs nutrients.",
+[]
+],
+[
+"a29",
+"Digestion",
+"flashcard",
+"Large intestine",
+"Absorbs water.",
+[]
+],
+[
+"a30",
+"Digestion",
+"flashcard",
+"Liver",
+"Makes bile.",
+[]
+],
+[
+"a31",
+"Digestion",
+"flashcard",
+"Gallbladder",
+"Stores bile.",
+[]
+],
+[
+"a32",
+"Digestion",
+"flashcard",
+"Pancreas",
+"Makes insulin and enzymes.",
+[]
+],
+[
+"a33",
+"Hormones",
+"flashcard",
+"Insulin",
+"Lowers blood sugar.",
+[]
+],
+[
+"a34",
+"Hormones",
+"flashcard",
+"Glucagon",
+"Raises blood sugar.",
+[]
+],
+[
+"a35",
+"Hormones",
+"flashcard",
+"Fiber",
+"Food the body can't digest.",
+[]
+],
+[
+"a36",
+"Hormones",
+"flashcard",
+"Fibre",
+"Food the body can't digest, in British spelling.",
+[]
+]
+],
+"lookAlikes": [
+[
+"hypertension",
+"hypotension"
+],
+[
+"hyperglycemia",
+"hypoglycemia"
+],
+[
+"arteries",
+"veins"
+],
+[
+"arteries",
+"capillaries"
+],
+[
+"veins",
+"capillaries"
+],
+[
+"red blood cell",
+"white blood cell"
+],
+[
+"tendon",
+"ligament"
+],
+[
+"tibia",
+"fibula"
+],
+[
+"anterior",
+"posterior"
+],
+[
+"anterior",
+"inferior"
+],
+[
+"posterior",
+"superior"
+],
+[
+"superior",
+"inferior"
+],
+[
+"anterior",
+"superior"
+],
+[
+"posterior",
+"inferior"
+],
+[
+"proximal",
+"distal"
+],
+[
+"afferent neuron",
+"efferent neuron"
+],
+[
+"axon",
+"dendrite"
+],
+[
+"small intestine",
+"large intestine"
+],
+[
+"liver",
+"gallbladder"
+],
+[
+"insulin",
+"glucagon"
+],
+[
+"hypertension",
+"hyperglycemia"
+],
+[
+"hypotension",
+"hypoglycemia"
+]
+],
+"never": [
+[
+"fiber",
+"fibre"
+]
+]
+},
+{
+"name": "CS 101",
+"heldOut": true,
+"items": [
+[
+"k1",
+"Data structures",
+"flashcard",
+"Stack",
+"Last in, first out.",
+[]
+],
+[
+"k2",
+"Data structures",
+"flashcard",
+"Queue",
+"First in, first out.",
+[]
+],
+[
+"k3",
+"Data structures",
+"flashcard",
+"Array",
+"Items in contiguous memory.",
+[]
+],
+[
+"k4",
+"Data structures",
+"flashcard",
+"Linked list",
+"Nodes joined by pointers.",
+[]
+],
+[
+"k5",
+"Data structures",
+"flashcard",
+"Hash table",
+"Keys mapped to slots by a function.",
+[]
+],
+[
+"k6",
+"Data structures",
+"flashcard",
+"Binary tree",
+"Each node has at most two children.",
+[]
+],
+[
+"k7",
+"Data structures",
+"flashcard",
+"Binary search",
+"Halving a sorted list each step.",
+[]
+],
+[
+"k8",
+"Sorting",
+"mcq",
+"Which sort repeatedly swaps adjacent items?",
+"Bubble sort",
+[
+"Merge sort",
+"Quick sort",
+"Insertion sort"
+]
+],
+[
+"k9",
+"Sorting",
+"mcq",
+"Which sort splits a list in half and joins sorted halves?",
+"Merge sort",
+[
+"Bubble sort",
+"Quick sort",
+"Selection sort"
+]
+],
+[
+"k10",
+"Sorting",
+"mcq",
+"Which sort partitions around a pivot?",
+"Quick sort",
+[
+"Merge sort",
+"Bubble sort",
+"Selection sort"
+]
+],
+[
+"k11",
+"Sorting",
+"flashcard",
+"Selection sort",
+"Repeatedly picks the smallest remaining item.",
+[]
+],
+[
+"k12",
+"Sorting",
+"flashcard",
+"Insertion sort",
+"Grows a sorted section one item at a time.",
+[]
+],
+[
+"k13",
+"Networks",
+"flashcard",
+"TCP",
+"Reliable, ordered delivery.",
+[]
+],
+[
+"k14",
+"Networks",
+"flashcard",
+"UDP",
+"Fast delivery with no guarantee.",
+[]
+],
+[
+"k15",
+"Networks",
+"flashcard",
+"HTTP",
+"The protocol of the web.",
+[]
+],
+[
+"k16",
+"Networks",
+"flashcard",
+"HTTPS",
+"The web's protocol, encrypted.",
+[]
+],
+[
+"k17",
+"Networks",
+"flashcard",
+"DNS",
+"Turns names into addresses.",
+[]
+],
+[
+"k18",
+"Networks",
+"flashcard",
+"Router",
+"Forwards packets between networks.",
+[]
+],
+[
+"k19",
+"Networks",
+"flashcard",
+"Modem",
+"Connects a home to the provider.",
+[]
+],
+[
+"k20",
+"Memory",
+"flashcard",
+"Stack memory",
+"Local variables, freed automatically.",
+[]
+],
+[
+"k21",
+"Memory",
+"flashcard",
+"Heap memory",
+"Allocated by hand, lives until freed.",
+[]
+],
+[
+"k22",
+"Memory",
+"flashcard",
+"Pointer",
+"Holds an address.",
+[]
+],
+[
+"k23",
+"Memory",
+"flashcard",
+"Reference",
+"Another name for a value.",
+[]
+],
+[
+"k24",
+"Types",
+"flashcard",
+"Compiler",
+"Translates the whole program before running.",
+[]
+],
+[
+"k25",
+"Types",
+"flashcard",
+"Interpreter",
+"Runs a program line by line.",
+[]
+],
+[
+"k26",
+"Types",
+"flashcard",
+"Integer",
+"A whole number.",
+[]
+],
+[
+"k27",
+"Types",
+"flashcard",
+"Boolean",
+"True or false.",
+[]
+],
+[
+"k28",
+"Types",
+"mcq",
+"Is a string a primitive in Java?",
+"No",
+[
+"Yes"
+]
+],
+[
+"k29",
+"Logic",
+"flashcard",
+"Recursion",
+"A function calling itself.",
+[]
+],
+[
+"k30",
+"Logic",
+"flashcard",
+"Iteration",
+"Repeating with a loop.",
+[]
+],
+[
+"k31",
+"Logic",
+"flashcard",
+"Encryption",
+"Scrambling data with a key.",
+[]
+],
+[
+"k32",
+"Logic",
+"flashcard",
+"Encoding",
+"Representing data in another form.",
+[]
+],
+[
+"k33",
+"Logic",
+"recall",
+"Why is a hash table fast?",
+"It finds a key's slot directly instead of searching through the items.",
+[]
+]
+],
+"lookAlikes": [
+[
+"stack",
+"queue"
+],
+[
+"array",
+"linked list"
+],
+[
+"bubble sort",
+"merge sort"
+],
+[
+"merge sort",
+"quick sort"
+],
+[
+"bubble sort",
+"quick sort"
+],
+[
+"selection sort",
+"insertion sort"
+],
+[
+"tcp",
+"udp"
+],
+[
+"http",
+"https"
+],
+[
+"router",
+"modem"
+],
+[
+"stack memory",
+"heap memory"
+],
+[
+"pointer",
+"reference"
+],
+[
+"compiler",
+"interpreter"
+],
+[
+"recursion",
+"iteration"
+],
+[
+"encryption",
+"encoding"
+],
+[
+"binary tree",
+"binary search"
+],
+[
+"bubble sort",
+"selection sort"
+],
+[
+"merge sort",
+"selection sort"
+],
+[
+"quick sort",
+"selection sort"
+],
+[
+"bubble sort",
+"insertion sort"
+]
+],
+"never": []
+},
+{
+"name": "Stats 200",
+"heldOut": true,
+"items": [
+[
+"t1",
+"Averages",
+"flashcard",
+"Mean",
+"The sum divided by the count.",
+[]
+],
+[
+"t2",
+"Averages",
+"flashcard",
+"Median",
+"The middle value.",
+[]
+],
+[
+"t3",
+"Averages",
+"flashcard",
+"Mode",
+"The most common value.",
+[]
+],
+[
+"t4",
+"Spread",
+"flashcard",
+"Variance",
+"The mean squared distance from the mean.",
+[]
+],
+[
+"t5",
+"Spread",
+"flashcard",
+"Standard deviation",
+"The square root of the variance.",
+[]
+],
+[
+"t6",
+"Spread",
+"flashcard",
+"Standard error",
+"The spread of a sample mean.",
+[]
+],
+[
+"t7",
+"Spread",
+"flashcard",
+"Range",
+"Highest minus lowest.",
+[]
+],
+[
+"t8",
+"Sampling",
+"flashcard",
+"Population",
+"Everyone you want to know about.",
+[]
+],
+[
+"t9",
+"Sampling",
+"flashcard",
+"Sample",
+"The ones you actually measure.",
+[]
+],
+[
+"t10",
+"Sampling",
+"flashcard",
+"Parameter",
+"A number describing a population.",
+[]
+],
+[
+"t11",
+"Sampling",
+"flashcard",
+"Statistic",
+"A number describing a sample.",
+[]
+],
+[
+"t12",
+"Tests",
+"flashcard",
+"Type I error",
+"Rejecting a true null hypothesis.",
+[]
+],
+[
+"t13",
+"Tests",
+"flashcard",
+"Type II error",
+"Failing to reject a false null.",
+[]
+],
+[
+"t14",
+"Tests",
+"flashcard",
+"Null hypothesis",
+"There is no effect.",
+[]
+],
+[
+"t15",
+"Tests",
+"flashcard",
+"Alternative hypothesis",
+"There is an effect.",
+[]
+],
+[
+"t16",
+"Tests",
+"flashcard",
+"P value",
+"The chance of data this extreme if the null holds.",
+[]
+],
+[
+"t17",
+"Tests",
+"flashcard",
+"Confidence interval",
+"A range likely to hold the true value.",
+[]
+],
+[
+"t18",
+"Tests",
+"mcq",
+"A one-tailed test looks for an effect in how many directions?",
+"One direction",
+[
+"Two directions",
+"No direction"
+]
+],
+[
+"t19",
+"Tests",
+"mcq",
+"Is correlation enough to show causation?",
+"No",
+[
+"Yes"
+]
+],
+[
+"t20",
+"Relationships",
+"flashcard",
+"Correlation",
+"Two things vary together.",
+[]
+],
+[
+"t21",
+"Relationships",
+"flashcard",
+"Causation",
+"One thing makes another happen.",
+[]
+],
+[
+"t22",
+"Relationships",
+"flashcard",
+"Regression",
+"Fitting a line to predict one thing from another.",
+[]
+],
+[
+"t23",
+"Distributions",
+"flashcard",
+"Normal distribution",
+"The bell curve.",
+[]
+],
+[
+"t24",
+"Distributions",
+"flashcard",
+"Binomial distribution",
+"Counts of successes in fixed trials.",
+[]
+],
+[
+"t25",
+"Distributions",
+"flashcard",
+"Poisson distribution",
+"Counts of events in a fixed time.",
+[]
+],
+[
+"t26",
+"Distributions",
+"flashcard",
+"Skewness",
+"How lopsided a distribution is.",
+[]
+],
+[
+"t27",
+"Distributions",
+"flashcard",
+"Kurtosis",
+"How heavy a distribution's tails are.",
+[]
+],
+[
+"t28",
+"Design",
+"mcq",
+"Which study assigns treatments at random?",
+"Experiment",
+[
+"Observational study",
+"Survey"
+]
+],
+[
+"t29",
+"Design",
+"mcq",
+"Which study only watches what happens?",
+"Observational study",
+[
+"Experiment",
+"Census"
+]
+],
+[
+"t30",
+"Design",
+"flashcard",
+"Census",
+"Measures the whole population.",
+[]
+],
+[
+"t31",
+"Design",
+"flashcard",
+"Survey",
+"Asks a sample questions.",
+[]
+]
+],
+"lookAlikes": [
+[
+"mean",
+"median"
+],
+[
+"median",
+"mode"
+],
+[
+"mean",
+"mode"
+],
+[
+"variance",
+"standard deviation"
+],
+[
+"standard deviation",
+"standard error"
+],
+[
+"population",
+"sample"
+],
+[
+"parameter",
+"statistic"
+],
+[
+"null hypothesis",
+"alternative hypothesis"
+],
+[
+"correlation",
+"causation"
+],
+[
+"correlation",
+"regression"
+],
+[
+"normal distribution",
+"binomial distribution"
+],
+[
+"binomial distribution",
+"poisson distribution"
+],
+[
+"normal distribution",
+"poisson distribution"
+],
+[
+"skewness",
+"kurtosis"
+],
+[
+"experiment",
+"observational study"
+],
+[
+"census",
+"survey"
+],
+[
+"observational study",
+"census"
+]
+],
+"never": []
+},
+{
+"name": "French I",
+"heldOut": true,
+"items": [
+[
+"r1",
+"Vocabulaire",
+"flashcard",
+"le poisson",
+"the fish",
+[]
+],
+[
+"r2",
+"Vocabulaire",
+"flashcard",
+"le poison",
+"the poison",
+[]
+],
+[
+"r3",
+"Vocabulaire",
+"flashcard",
+"la pomme",
+"the apple",
+[]
+],
+[
+"r4",
+"Vocabulaire",
+"flashcard",
+"la pomme de terre",
+"the potato",
+[]
+],
+[
+"r5",
+"Vocabulaire",
+"flashcard",
+"le pain",
+"the bread",
+[]
+],
+[
+"r6",
+"Vocabulaire",
+"flashcard",
+"la main",
+"the hand",
+[]
+],
+[
+"r7",
+"Vocabulaire",
+"flashcard",
+"le vin",
+"the wine",
+[]
+],
+[
+"r8",
+"Vocabulaire",
+"flashcard",
+"le vent",
+"the wind",
+[]
+],
+[
+"r9",
+"Vocabulaire",
+"flashcard",
+"la mer",
+"the sea",
+[]
+],
+[
+"r10",
+"Vocabulaire",
+"flashcard",
+"la mère",
+"the mother",
+[]
+],
+[
+"r11",
+"Vocabulaire",
+"flashcard",
+"le père",
+"the father",
+[]
+],
+[
+"r12",
+"Vocabulaire",
+"flashcard",
+"la tête",
+"the head",
+[]
+],
+[
+"r13",
+"Vocabulaire",
+"flashcard",
+"la fête",
+"the party",
+[]
+],
+[
+"r14",
+"Vocabulaire",
+"flashcard",
+"le chat",
+"the cat",
+[]
+],
+[
+"r15",
+"Vocabulaire",
+"flashcard",
+"le chien",
+"the dog",
+[]
+],
+[
+"r16",
+"Vocabulaire",
+"flashcard",
+"la voiture",
+"the car",
+[]
+],
+[
+"r17",
+"Vocabulaire",
+"flashcard",
+"le livre",
+"the book",
+[]
+],
+[
+"r18",
+"Vocabulaire",
+"flashcard",
+"la table",
+"the table",
+[]
+],
+[
+"r19",
+"Vocabulaire",
+"flashcard",
+"la chaise",
+"the chair",
+[]
+],
+[
+"r20",
+"Vocabulaire",
+"flashcard",
+"la fenêtre",
+"the window",
+[]
+],
+[
+"r21",
+"Verbes",
+"flashcard",
+"aller",
+"to go",
+[]
+],
+[
+"r22",
+"Verbes",
+"flashcard",
+"avoir",
+"to have",
+[]
+],
+[
+"r23",
+"Verbes",
+"flashcard",
+"être",
+"to be",
+[]
+],
+[
+"r24",
+"Verbes",
+"flashcard",
+"faire",
+"to do",
+[]
+],
+[
+"r25",
+"Verbes",
+"flashcard",
+"savoir",
+"to know a fact",
+[]
+],
+[
+"r26",
+"Verbes",
+"flashcard",
+"connaître",
+"to know a person",
+[]
+],
+[
+"r27",
+"Verbes",
+"flashcard",
+"venir",
+"to come",
+[]
+],
+[
+"r28",
+"Verbes",
+"flashcard",
+"tenir",
+"to hold",
+[]
+],
+[
+"r29",
+"Verbes",
+"flashcard",
+"parler",
+"to speak",
+[]
+],
+[
+"r30",
+"Verbes",
+"flashcard",
+"manger",
+"to eat",
+[]
+]
+],
+"lookAlikes": [
+[
+"le poisson",
+"le poison"
+],
+[
+"le pain",
+"la main"
+],
+[
+"le vin",
+"le vent"
+],
+[
+"la mer",
+"la mere"
+],
+[
+"la tete",
+"la fete"
+],
+[
+"la mere",
+"le pere"
+],
+[
+"savoir",
+"connaitre"
+],
+[
+"venir",
+"tenir"
+],
+[
+"la mer",
+"le pere"
+],
+[
+"avoir",
+"savoir"
+]
+],
+"never": [
+[
+"the cat",
+"the car"
+],
+[
+"the fish",
+"the wine"
+]
+]
+},
+{
+"name": "Art History",
+"heldOut": true,
+"items": [
+[
+"o1",
+"Movements",
+"flashcard",
+"Impressionism",
+"Light and colour caught in quick strokes.",
+[]
+],
+[
+"o2",
+"Movements",
+"flashcard",
+"Expressionism",
+"Distortion to show feeling.",
+[]
+],
+[
+"o3",
+"Movements",
+"flashcard",
+"Post-Impressionism",
+"Structure and symbol after the Impressionists.",
+[]
+],
+[
+"o4",
+"Movements",
+"flashcard",
+"Cubism",
+"Many viewpoints at once, in fragments.",
+[]
+],
+[
+"o5",
+"Movements",
+"flashcard",
+"Surrealism",
+"Dream imagery.",
+[]
+],
+[
+"o6",
+"Movements",
+"flashcard",
+"Realism",
+"Everyday life as it is.",
+[]
+],
+[
+"o7",
+"Movements",
+"flashcard",
+"Baroque",
+"Drama and movement.",
+[]
+],
+[
+"o8",
+"Movements",
+"flashcard",
+"Rococo",
+"Light, playful and ornate.",
+[]
+],
+[
+"o9",
+"Movements",
+"flashcard",
+"Fauvism",
+"Wild, unnatural colour.",
+[]
+],
+[
+"o10",
+"Artists",
+"mcq",
+"Who painted the Sistine Chapel ceiling?",
+"Michelangelo",
+[
+"Raphael",
+"Leonardo da Vinci"
+]
+],
+[
+"o11",
+"Artists",
+"mcq",
+"Who painted The School of Athens?",
+"Raphael",
+[
+"Michelangelo",
+"Titian"
+]
+],
+[
+"o12",
+"Artists",
+"mcq",
+"Who painted the Mona Lisa?",
+"Leonardo da Vinci",
+[
+"Raphael",
+"Titian"
+]
+],
+[
+"o13",
+"Artists",
+"flashcard",
+"Monet",
+"Painted water lilies.",
+[]
+],
+[
+"o14",
+"Artists",
+"flashcard",
+"Manet",
+"Painted Olympia.",
+[]
+],
+[
+"o15",
+"Artists",
+"flashcard",
+"Rembrandt",
+"Dutch master of light and shadow.",
+[]
+],
+[
+"o16",
+"Artists",
+"flashcard",
+"Vermeer",
+"Painted Girl with a Pearl Earring.",
+[]
+],
+[
+"o17",
+"Artists",
+"flashcard",
+"Van Gogh",
+"Painted The Starry Night.",
+[]
+],
+[
+"o18",
+"Artists",
+"flashcard",
+"Picasso",
+"Painted Guernica.",
+[]
+],
+[
+"o19",
+"Techniques",
+"flashcard",
+"Fresco",
+"Paint on wet plaster.",
+[]
+],
+[
+"o20",
+"Techniques",
+"flashcard",
+"Tempera",
+"Pigment mixed with egg yolk.",
+[]
+],
+[
+"o21",
+"Techniques",
+"flashcard",
+"Chiaroscuro",
+"Strong contrast of light and dark.",
+[]
+],
+[
+"o22",
+"Techniques",
+"flashcard",
+"Sfumato",
+"Soft, smoky blending.",
+[]
+],
+[
+"o23",
+"Techniques",
+"flashcard",
+"Etching",
+"Lines bitten into metal with acid.",
+[]
+],
+[
+"o24",
+"Techniques",
+"flashcard",
+"Engraving",
+"Lines cut into metal by hand.",
+[]
+],
+[
+"o25",
+"Architecture",
+"flashcard",
+"Doric",
+"The plainest Greek column.",
+[]
+],
+[
+"o26",
+"Architecture",
+"flashcard",
+"Ionic",
+"A column with scrolls.",
+[]
+],
+[
+"o27",
+"Architecture",
+"flashcard",
+"Corinthian",
+"A column with leaves.",
+[]
+],
+[
+"o28",
+"Architecture",
+"flashcard",
+"Romanesque",
+"Round arches and thick walls.",
+[]
+],
+[
+"o29",
+"Architecture",
+"flashcard",
+"Gothic",
+"Pointed arches and stained glass.",
+[]
+],
+[
+"o30",
+"Architecture",
+"mcq",
+"Which century is the Eiffel Tower from?",
+"19th century",
+[
+"18th century",
+"20th century"
+]
+]
+],
+"lookAlikes": [
+[
+"impressionism",
+"expressionism"
+],
+[
+"impressionism",
+"post impressionism"
+],
+[
+"expressionism",
+"post impressionism"
+],
+[
+"cubism",
+"surrealism"
+],
+[
+"baroque",
+"rococo"
+],
+[
+"cubism",
+"fauvism"
+],
+[
+"realism",
+"surrealism"
+],
+[
+"michelangelo",
+"raphael"
+],
+[
+"raphael",
+"leonardo da vinci"
+],
+[
+"michelangelo",
+"leonardo da vinci"
+],
+[
+"monet",
+"manet"
+],
+[
+"rembrandt",
+"vermeer"
+],
+[
+"fresco",
+"tempera"
+],
+[
+"chiaroscuro",
+"sfumato"
+],
+[
+"etching",
+"engraving"
+],
+[
+"doric",
+"ionic"
+],
+[
+"ionic",
+"corinthian"
+],
+[
+"doric",
+"corinthian"
+],
+[
+"romanesque",
+"gothic"
+]
+],
+"never": [
+[
+"18th century",
+"19th century"
+]
+]
+},
+{
+"name": "Pharmacology",
+"heldOut": true,
+"items": [
+[
+"m1",
+"Pharmacokinetics",
+"flashcard",
+"Absorption",
+"How a drug enters the blood.",
+[]
+],
+[
+"m2",
+"Pharmacokinetics",
+"flashcard",
+"Distribution",
+"How a drug spreads through the body.",
+[]
+],
+[
+"m3",
+"Pharmacokinetics",
+"flashcard",
+"Metabolism",
+"How the body changes a drug.",
+[]
+],
+[
+"m4",
+"Pharmacokinetics",
+"flashcard",
+"Excretion",
+"How a drug leaves the body.",
+[]
+],
+[
+"m5",
+"Pharmacokinetics",
+"flashcard",
+"Half-life",
+"Time for the level to fall by half.",
+[]
+],
+[
+"m6",
+"Pharmacokinetics",
+"flashcard",
+"Bioavailability",
+"The share of a dose that reaches the blood.",
+[]
+],
+[
+"m7",
+"Receptors",
+"flashcard",
+"Agonist",
+"Activates a receptor.",
+[]
+],
+[
+"m8",
+"Receptors",
+"flashcard",
+"Antagonist",
+"Blocks a receptor.",
+[]
+],
+[
+"m9",
+"Receptors",
+"flashcard",
+"Partial agonist",
+"Activates a receptor weakly.",
+[]
+],
+[
+"m10",
+"Receptors",
+"flashcard",
+"Affinity",
+"How strongly a drug binds.",
+[]
+],
+[
+"m11",
+"Receptors",
+"flashcard",
+"Efficacy",
+"How much effect a bound drug has.",
+[]
+],
+[
+"m12",
+"Receptors",
+"flashcard",
+"Potency",
+"How little drug it takes.",
+[]
+],
+[
+"m13",
+"Drugs",
+"flashcard",
+"Metoprolol",
+"A beta blocker.",
+[]
+],
+[
+"m14",
+"Drugs",
+"flashcard",
+"Metformin",
+"Lowers blood sugar in type 2 diabetes.",
+[]
+],
+[
+"m15",
+"Drugs",
+"flashcard",
+"Lisinopril",
+"An ACE inhibitor.",
+[]
+],
+[
+"m16",
+"Drugs",
+"flashcard",
+"Losartan",
+"An angiotensin receptor blocker.",
+[]
+],
+[
+"m17",
+"Drugs",
+"flashcard",
+"Hydralazine",
+"Dilates arteries.",
+[]
+],
+[
+"m18",
+"Drugs",
+"flashcard",
+"Hydroxyzine",
+"An antihistamine for anxiety and itching.",
+[]
+],
+[
+"m19",
+"Drugs",
+"flashcard",
+"Clonidine",
+"Lowers blood pressure centrally.",
+[]
+],
+[
+"m20",
+"Drugs",
+"flashcard",
+"Klonopin",
+"A benzodiazepine for seizures and panic.",
+[]
+],
+[
+"m21",
+"Drugs",
+"flashcard",
+"Celebrex",
+"A COX-2 inhibitor for pain.",
+[]
+],
+[
+"m22",
+"Drugs",
+"flashcard",
+"Celexa",
+"An SSRI for depression.",
+[]
+],
+[
+"m23",
+"Effects",
+"mcq",
+"Which effect is a wanted result of a drug?",
+"Therapeutic effect",
+[
+"Side effect",
+"Adverse effect"
+]
+],
+[
+"m24",
+"Effects",
+"mcq",
+"Which effect is unwanted but expected?",
+"Side effect",
+[
+"Therapeutic effect",
+"Toxic effect"
+]
+],
+[
+"m25",
+"Effects",
+"flashcard",
+"Tolerance",
+"Needing more for the same effect.",
+[]
+],
+[
+"m26",
+"Effects",
+"flashcard",
+"Dependence",
+"Withdrawal without the drug.",
+[]
+],
+[
+"m27",
+"Effects",
+"mcq",
+"Does tolerance raise the dose needed?",
+"Yes",
+[
+"No"
+]
+],
+[
+"m28",
+"Routes",
+"flashcard",
+"Oral",
+"By mouth.",
+[]
+],
+[
+"m29",
+"Routes",
+"flashcard",
+"Sublingual",
+"Under the tongue.",
+[]
+],
+[
+"m30",
+"Routes",
+"flashcard",
+"Intravenous",
+"Into a vein.",
+[]
+],
+[
+"m31",
+"Routes",
+"flashcard",
+"Intramuscular",
+"Into a muscle.",
+[]
+],
+[
+"m32",
+"Routes",
+"flashcard",
+"Subcutaneous",
+"Under the skin.",
+[]
+]
+],
+"lookAlikes": [
+[
+"absorption",
+"distribution"
+],
+[
+"metabolism",
+"excretion"
+],
+[
+"agonist",
+"antagonist"
+],
+[
+"agonist",
+"partial agonist"
+],
+[
+"affinity",
+"efficacy"
+],
+[
+"efficacy",
+"potency"
+],
+[
+"metoprolol",
+"metformin"
+],
+[
+"lisinopril",
+"losartan"
+],
+[
+"hydralazine",
+"hydroxyzine"
+],
+[
+"clonidine",
+"klonopin"
+],
+[
+"celebrex",
+"celexa"
+],
+[
+"therapeutic effect",
+"side effect"
+],
+[
+"tolerance",
+"dependence"
+],
+[
+"intravenous",
+"intramuscular"
+],
+[
+"sublingual",
+"subcutaneous"
+],
+[
+"distribution",
+"excretion"
+],
+[
+"absorption",
+"excretion"
+]
+],
+"never": [
+[
+"yes",
+"no"
+]
+]
+}
+]
+}

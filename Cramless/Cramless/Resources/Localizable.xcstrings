@@ -30,6 +30,26 @@
     },
     "%@ (new)" : {},
     "%@ Midterm" : {},
+    "%@ and %@ look alike" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ and %2$@ look alike"
+          }
+        }
+      }
+    },
+    "%@ and %@ look alike, and both are on your %@. Cap can show you the difference." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ and %2$@ look alike, and both are on your %3$@. Cap can show you the difference."
+          }
+        }
+      }
+    },
     "%@ are tomorrow. Sleep is part of studying." : {},
     "%@ at %@" : {
       "localizations" : {
@@ -436,6 +456,28 @@
     },
     "%lld days." : {},
     "%lld dim" : {},
+    "%lld drafts" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld draft"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld drafts"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "%lld essay questions" : {
       "localizations" : {
         "en" : {
@@ -799,6 +841,102 @@
       }
     },
     "%lld more" : {},
+    "%lld more minutes %@ for %@." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%#@minutes@ %2$@ for %3$@."
+          },
+          "substitutions" : {
+            "minutes" : {
+              "argNum" : 1,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg more minute"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg more minutes"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld more minutes %@ keeps %lld of them." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%#@minutes@ %2$@ keeps %3$lld of them."
+          },
+          "substitutions" : {
+            "minutes" : {
+              "argNum" : 1,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg more minute"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg more minutes"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld more minutes %@ keeps them." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%#@minutes@ %2$@ keeps them."
+          },
+          "substitutions" : {
+            "minutes" : {
+              "argNum" : 1,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg more minute"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg more minutes"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "%lld multiple choice" : {},
     "%lld new questions" : {
       "localizations" : {
@@ -1391,6 +1529,28 @@
         }
       }
     },
+    "%lld questions will be dim by exam day" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld question will be dim by exam day"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld questions will be dim by exam day"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "%lld questions you're about to forget, and %lld new ones." : {
       "localizations" : {
         "en" : {
@@ -1651,6 +1811,7 @@
     "A little every day. Ready on exam day." : {},
     "A little polish, and it shines." : {},
     "A log of your AI requests, to count the free limits. Not your notes, answers or chats; your chats stay on this iPhone." : {},
+    "A mock exam for your %@" : {},
     "A mock needs %lld questions on this exam's topics. You have %lld." : {
       "localizations" : {
         "en" : {
@@ -2127,6 +2288,17 @@
     "Boop count: lots." : {},
     "Boop noted. Back to reading." : {},
     "Boop!" : {},
+    "Both are on %@'s %@. Learn the one difference now?" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Both are on %1$@'s %2$@. Learn the one difference now?"
+          }
+        }
+      }
+    },
+    "Both are on your %@. Learn the one difference now?" : {},
     "Both fonts are used under the SIL Open Font License 1.1. OpenDyslexic is unmodified." : {},
     "Bought Capling before, on this Apple Account?" : {},
     "Box %lld, %@" : {
@@ -2150,6 +2322,7 @@
     "Bringing your material back…" : {},
     "Building your plan" : {},
     "Built from your answers. It bends when your week does." : {},
+    "Busy days" : {},
     "By topic, on exam day" : {},
     "CAP-7Q4K" : {},
     "Calendar" : {},
@@ -2185,6 +2358,7 @@
     "Cap is reading your notes" : {},
     "Cap is working: %@" : {},
     "Cap is writing a note about what it made" : {},
+    "Cap is writing it" : {},
     "Cap keeps what you typed for next time. Everything before it is saved." : {},
     "Cap kept %lld lectures that were cut off." : {
       "localizations" : {
@@ -2247,6 +2421,7 @@
     "Cap will bring it up on Today" : {},
     "Cap will bring it up tomorrow" : {},
     "Cap won't bring it up again" : {},
+    "Cap won't bring these up. Turn them on again in Settings." : {},
     "Cap won't look anything up online." : {},
     "Cap's answers and drafts, no daily limit" : {},
     "Cap's own words" : {},
@@ -2363,6 +2538,7 @@
     "Daily goal" : {},
     "Daily reminder" : {},
     "Date" : {},
+    "Dates heard in a lecture" : {},
     "Day" : {},
     "Debug" : {},
     "Delete" : {},
@@ -2399,6 +2575,7 @@
     "Dim the lights, please." : {},
     "Discard %@" : {},
     "Discard recording" : {},
+    "Don't show these" : {},
     "Don't wake the capybara." : {},
     "Done" : {},
     "Done for today" : {},
@@ -2497,6 +2674,7 @@
     "Eyes on the card!" : {},
     "Eyes on the prize. Gently." : {},
     "Fading" : {},
+    "Fading before an exam" : {},
     "Feedback? Only the nice kind." : {},
     "Feel" : {},
     "Feel lab" : {},
@@ -2518,6 +2696,7 @@
     "Fix a mix-up" : {},
     "Fix it now · 2 min" : {},
     "Fix it · 2 min" : {},
+    "Fix my week" : {},
     "Fixed" : {},
     "Flag" : {},
     "Flagged" : {},
@@ -2533,11 +2712,13 @@
     "For accounts under 18 Cap always asks first. You decide what is added." : {},
     "For handwriting, math and diagrams. Photos of the pages you scan go along with their text. You can change this later." : {},
     "For handwriting, math and diagrams. Photos of the pages you scan go with their text. Needs Cloud AI." : {},
+    "For your %@." : {},
     "Forgetting is normal. Reviewing helps." : {},
     "Format" : {},
     "Format: %@" : {},
     "Found %@" : {},
     "Found it for you." : {},
+    "Free" : {},
     "Free AI scans are used up until Monday. Cap still writes questions on your iPhone." : {},
     "Free limits" : {},
     "Free plan" : {},
@@ -2552,6 +2733,16 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "From %1$@ today to %2$@ on exam day, if you follow the plan."
+          }
+        }
+      }
+    },
+    "From %@, for your %@." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "From %1$@, for your %2$@."
           }
         }
       }
@@ -2571,6 +2762,7 @@
     "Fun fact: capybaras nap in water." : {},
     "Fun fact: my teeth never stop growing." : {},
     "Future you says thanks." : {},
+    "Gaps in your notes" : {},
     "Gentle reminder: you're great." : {},
     "Get 5 right in a row" : {},
     "Get Exam Pass for %@" : {},
@@ -2718,6 +2910,7 @@
     "In %lld days" : {},
     "In Study" : {},
     "In progress" : {},
+    "In the week before an exam, one a day at most, instead of that day's reminder." : {},
     "In this Squad" : {},
     "In your own words" : {},
     "In your words" : {},
@@ -2884,6 +3077,7 @@
     "Look right there." : {},
     "Look who it is." : {},
     "Look, it's twinkling." : {},
+    "Look-alikes" : {},
     "Looked again. All good." : {},
     "Looking at the calendar" : {},
     "Lunch for the brain?" : {},
@@ -2975,6 +3169,16 @@
     "More reviews" : {},
     "More sparkle, please." : {},
     "Morning! Orange juice?" : {},
+    "Mostly %@, for your %@." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Mostly %1$@, for your %2$@."
+          }
+        }
+      }
+    },
     "Multiple choice" : {},
     "My brain is buffering." : {},
     "My eyelids filed a complaint." : {},
@@ -3010,6 +3214,7 @@
     "Night" : {},
     "Night owl, capybara edition." : {},
     "Night shift: stargazing." : {},
+    "No AI" : {},
     "No answer" : {},
     "No card is ticked." : {},
     "No connection, so you mark this one." : {},
@@ -3059,6 +3264,7 @@
     "None" : {},
     "None of these" : {},
     "Normal day" : {},
+    "Not a look-alike" : {},
     "Not a mix-up" : {},
     "Not a subscription, so there's nothing to cancel. Free stays free after the 30 days." : {},
     "Not available for accounts under 13. Everything runs on this iPhone." : {},
@@ -3128,10 +3334,12 @@
     "On this iPhone" : {},
     "On track" : {},
     "Onboarding" : {},
+    "One difference" : {},
     "One fresh sky, as ordered." : {},
     "One line in your notes looks like an instruction to me, so I ignored it." : {},
     "One more card?" : {},
     "One more." : {},
+    "One note at a time on Today, three a day at most. Spotting them runs on this iPhone and uses no AI." : {},
     "One tiny tweak." : {},
     "Only Cloud AI counts. The offline rules are free and never do. Days reset at midnight, weeks on Monday." : {},
     "Only Cloud AI counts. Your iPhone's own AI and the offline rules are free and never do. Days reset at midnight, weeks on Monday." : {},
@@ -3222,6 +3430,7 @@
     "Pick me!" : {},
     "Pick up where you left off" : {},
     "Picked up where you left off." : {},
+    "Plan updated" : {},
     "Planned (debug)" : {},
     "Planning an exam" : {},
     "Plans" : {},
@@ -3330,6 +3539,7 @@
     "Questions come back right before you'd forget them." : {},
     "Questions come from this text only, and each one links back to the sentence it came from." : {},
     "Questions on it" : {},
+    "Questions that got too easy" : {},
     "Questions, a bug, or a charge you didn't expect? Write to us. A real person reads every message." : {},
     "Questions, checks of fill-ins and choices, and Cap's answers from your notes, with no network and no AI. They never count against a limit. Answers in your own words you mark yourself, unless an AI is there to check them." : {},
     "Questions? Ask a real person" : {},
@@ -3468,6 +3678,7 @@
     "Say it in your own words." : {},
     "Say it to yourself, then tap to check" : {},
     "Say something smart." : {},
+    "Say the difference in your own words, then try them." : {},
     "Say what to research." : {},
     "Says why today's questions were picked" : {},
     "Scan a page" : {},
@@ -3539,6 +3750,7 @@
     "Show answer" : {},
     "Show fewer" : {},
     "Show less" : {},
+    "Show me" : {},
     "Show on the page" : {},
     "Show the sky" : {},
     "Show the whole transcript (%lld parts)" : {
@@ -3634,6 +3846,17 @@
     "So close!" : {},
     "Soaking in the quiet." : {},
     "Soft cards, soft dreams." : {},
+    "Some %@ questions are fading before your %@. A few extra minutes keeps them." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Some %1$@ questions are fading before your %2$@. A few extra minutes keeps them."
+          }
+        }
+      }
+    },
+    "Some questions are fading before your %@. A few extra minutes keeps them." : {},
     "Sound check: lovely." : {},
     "Sound level" : {},
     "Sounds" : {},
@@ -3645,11 +3868,14 @@
     "Spaced repetition. Trust it." : {},
     "Speak up, I'm listening." : {},
     "Spot the clue." : {},
+    "Spotted before any mix-up" : {},
+    "Spotted before any mix-up." : {},
     "Squad" : {},
     "Squad code" : {},
     "Star saver" : {},
     "Stars checked, every one." : {},
     "Start" : {},
+    "Start 5 min" : {},
     "Start a %@ session" : {},
     "Start a streak today." : {},
     "Start my plan" : {},
@@ -3685,7 +3911,9 @@
     "Steam is a great view." : {},
     "Still hearing: %@" : {},
     "Still learning, still good." : {},
+    "Still mixing up %@? A 2-minute fix is ready." : {},
     "Still to come. Last week %@" : {},
+    "Still tripping on the same questions? A 2-minute fix is ready." : {},
     "Still up? Me too." : {},
     "Stop Cap" : {},
     "Stop and mark" : {},
@@ -3794,6 +4022,7 @@
     "Take it" : {},
     "Take your time." : {},
     "Taken back" : {},
+    "Takes the minutes off your plan" : {},
     "Taking notes. Carry on." : {},
     "Talk to me." : {},
     "Tap Cap and he says something short and silly." : {},
@@ -3805,6 +4034,7 @@
     "Tap the day of your exam" : {},
     "Target" : {},
     "Target %@" : {},
+    "Teach Cap" : {},
     "Teaching is the best test." : {},
     "Telescope time." : {},
     "Tell me everything." : {},
@@ -3879,8 +4109,10 @@
     "The other topics" : {},
     "The pillow's calling. Soon." : {},
     "The plan" : {},
+    "The questions that look alike" : {},
     "The questions you mixed up" : {},
     "The ring is how ready you are for each course's next exam." : {},
+    "The same idea in two courses" : {},
     "The same screens CRAMLESS_ROUTE opens (App/TestHarness.swift)." : {},
     "The sky looks lovely tonight." : {},
     "The sky says hello." : {},
@@ -3964,10 +4196,12 @@
     "There is nothing to save yet." : {},
     "There. Everything's current." : {},
     "There. That's one memory." : {},
+    "These questions are gone" : {},
     "These questions aren't in your library any more." : {},
     "These questions keep tripping you up." : {},
     "They count once you've marked them." : {},
     "They join your sessions once you approve them." : {},
+    "They look alike. One thing tells them apart." : {},
     "Thinking is half the work." : {},
     "Thinking… thinking…" : {},
     "This beanbag is my home." : {},
@@ -4079,6 +4313,28 @@
     "Topics show where you're strong and where you're not, per exam." : {},
     "Tough one. You'll get it." : {},
     "Transcript" : {},
+    "Try %lld questions" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Try %lld question"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Try %lld questions"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "Try a sample page" : {},
     "Try explaining it out loud." : {},
     "Tucking in the stars." : {},
@@ -4105,6 +4361,7 @@
     "Two quick questions" : {},
     "Type it, or slide" : {},
     "Type your answer…" : {},
+    "Under 1¢" : {},
     "Undo" : {},
     "Undo %@" : {},
     "Untangled" : {},
@@ -4142,6 +4399,7 @@
     "Webbed feet. Excellent swimmer." : {},
     "Welcome" : {},
     "Welcome back" : {},
+    "Welcome back, %@" : {},
     "Welcome, %@" : {},
     "What Cap can do" : {},
     "What Capling sends" : {},
@@ -4155,6 +4413,7 @@
     "When" : {},
     "When is your next exam?" : {},
     "Which class is this for?" : {},
+    "Which one is this? %@" : {},
     "Whoa, easy there!" : {},
     "Why do cells divide by mitosis?" : {},
     "Why does anaphase matter?" : {},
@@ -4180,6 +4439,7 @@
     "Writing the questions" : {},
     "Writing the summary" : {},
     "Writing your note" : {},
+    "Written by Cap from your two questions" : {},
     "Yaaawn… sorry." : {},
     "Yawns are contagious. You're welcome." : {},
     "Yes! Nailed it." : {},
@@ -4353,6 +4613,7 @@
     "Your answers" : {},
     "Your answers so far are marked. The rest are left out." : {},
     "Your best streak unlocks a new icon at 7, 30, 100 and 365 days. They stay yours." : {},
+    "Your best streak, %lld days, is still yours. 5 minutes today lights your flame again." : {},
     "Your call" : {},
     "Your cards are safe with me." : {},
     "Your chats with Cap appear here." : {},
@@ -4384,6 +4645,7 @@
     "Your set goes there, and your plan is built for it." : {},
     "Your sky is %@" : {},
     "Your sky is waiting" : {},
+    "Your stars waited for you. 5 minutes today is a good start." : {},
     "Your streak, quests and the sky" : {},
     "Your topics" : {},
     "Your turn" : {},
@@ -4504,6 +4766,7 @@
     "ng" : {},
     "not studied" : {},
     "nothing planned" : {},
+    "on %@" : {},
     "opened %lld days ago" : {},
     "opened today" : {},
     "opened yesterday" : {},

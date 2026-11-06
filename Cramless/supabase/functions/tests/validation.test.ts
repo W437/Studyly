@@ -4,7 +4,7 @@
 import { assert, assertEquals } from "@std/assert";
 import type { GeneratedItem } from "../_shared/contract.ts";
 import { sanitizeGrade, sanitizeItem, sanitizeItems, sanitizeVerdicts } from "../_shared/items.ts";
-import { contractSchema, MAX_SOURCE_CHARS } from "../_shared/schemas.ts";
+import { contractSchema, MAX_SOURCE_CHARS, requestSchema } from "../_shared/schemas.ts";
 import { validate } from "../_shared/schema.ts";
 import { GENERATE_TIMEOUT_MS } from "../ai/handler.ts";
 import { errorOf, fixtureJson, rig, ScriptedProvider } from "./_harness.ts";
@@ -436,6 +436,21 @@ Deno.test("lecture: leftOut is cleaned to a whole number from 1 to 99, and nothi
     const body = await ask(none);
     assertEquals("leftOut" in body, false, String(none));
   }
+});
+
+Deno.test("a look-alike request may say so: a boolean, or nothing at all", () => {
+  const mistake = {
+    itemId: "i7",
+    topic: "Phases",
+    prompt: "Which phase?",
+    expected: "Metaphase",
+    given: "",
+    misses: 0,
+  };
+  const schema = requestSchema("ConfusionsRequest");
+  assertEquals(validate(schema, { course: "Bio", mistakes: [mistake] }).length, 0, "old apps send nothing");
+  assertEquals(validate(schema, { course: "Bio", mistakes: [mistake], lookAlike: true }).length, 0);
+  assert(validate(schema, { course: "Bio", mistakes: [mistake], lookAlike: "yes" }).length > 0);
 });
 
 Deno.test("lecture, confusions, cards and transcription replies are cleaned too", async () => {

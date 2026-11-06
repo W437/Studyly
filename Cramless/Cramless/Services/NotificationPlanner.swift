@@ -15,13 +15,16 @@ import Foundation
 /// - **Streak nudge** at 20:30 when the streak is 3 or more and the day isn't done yet: today if not studied (and
 ///   there's something to study), else tomorrow; only when the day's reminder came at least an hour earlier. Never
 ///   when reminders are off. Copy is calm ("15 minutes tonight and your 12-day streak is safe.").
+/// - **Cap noticed** (`NoticePing`, from `NoticeEngine.pings`): one of Cap's cards, 2 to 6 days before its exam, at the reminder time
+///   (18:00 when reminders are off), at most one a day. It replaces that day's reminder and streak nudge, so the evening has one
+///   notification, and it never goes out on a day with an exam note.
 /// - **The day a milestone is one session away** (a streak of 2, 6, 29, 99 or 364 that today's session would carry to
 ///   3, 7, 30, 100 or 365; tomorrow's, when today is done) says so in that day's reminder and nudge: "One session today
 ///   makes it 30 days."
 /// - Every time is moved out of quiet hours: to 30 minutes before they start or to when they end, whichever keeps it
 ///   on the same day (and is closer).
 /// - **Quiet mode** (`Input.quiet`) drops the streak nudge and the milestone line. The reminder and the exam notes stay.
-/// - At most 2 a day and at least an hour apart, by priority: exam eve, exam week, reminder, streak.
+/// - At most 2 a day and at least an hour apart, by priority: exam eve, exam week, Cap noticed, reminder, streak.
 /// - Nothing in the past. Identifiers start with "capling."; requests starting "trial." belong to PurchaseStore
 ///   and are never removed (`staleIdentifiers`).
 enum NotificationPlanner {
@@ -51,18 +54,21 @@ enum NotificationPlanner {
         var exams: [ExamInfo]
         /// Quiet mode: nothing about the streak.
         var quiet = false
+        /// Cap's cards that may be sent, today's and tomorrow's.
+        var notices: [NoticePing] = []
     }
 
     struct Planned: Equatable, Sendable, Identifiable {
         enum Kind: String, Sendable {
-            case examEve, examWeek, daily, streak
+            case examEve, examWeek, notice, daily, streak
 
             var priority: Int {
                 switch self {
                 case .examEve: 0
                 case .examWeek: 1
-                case .daily: 2
-                case .streak: 3
+                case .notice: 2
+                case .daily: 3
+                case .streak: 4
                 }
             }
 
@@ -71,6 +77,7 @@ enum NotificationPlanner {
                 switch self {
                 case .examEve: 0.9
                 case .examWeek: 0.7
+                case .notice: 0.65
                 case .daily: 0.6
                 case .streak: 0.4
                 }
@@ -89,6 +96,7 @@ enum NotificationPlanner {
     static let prefix = "capling."
     static let studyCategory = "capling.study"
     static let examCategory = "capling.exam"
+    static let noticeCategory = "capling.notice"
     static let reminderDays = 7
     static let examHorizonDays = 14
     static let maxPerDay = 2
@@ -150,6 +158,19 @@ enum NotificationPlanner {
                                url: CramlessLink.exam(exam.id), category: examCategory, thread: examCategory))
         }
 
+        // Cap noticed: at the reminder time (18:00 with reminders off), at most one a day, in the week before the card's exam.
+        // A card goes out once: on the first day whose time hasn't passed.
+        var noticeDays = Set<Int>(), noticeLinks = Set<String>()
+        for ping in input.notices.sorted(by: { $0.dayOffset < $1.dayOffset }) {
+            let left = dayOffset(of: ping.examDate) - ping.dayOffset
+            guard !noticeDays.contains(ping.dayOffset), !noticeLinks.contains(ping.linkID), NoticeEngine.pingWindow.contains(left),
+                  let date = time(input.reminderMinutes ?? fallbackMinutes, onDay: ping.dayOffset) else { continue }
+            noticeDays.insert(ping.dayOffset)
+            noticeLinks.insert(ping.linkID)
+            out.append(Planned(id: "\(prefix)notice.\(dayKey(date, calendar))", kind: .notice, date: date, body: ping.body,
+                               url: CramlessLink.today(notice: ping.linkID), category: noticeCategory, thread: noticeCategory))
+        }
+
         // The daily reminder.
         if let reminder = input.reminderMinutes {
             let hasHistory = !nothingToday || !exams.isEmpty || input.streak.current > 0 || input.streak.best > 0
@@ -193,14 +214,18 @@ enum NotificationPlanner {
 
     /// Keeps at most `maxPerDay` a day, an hour apart, by priority. An exam note replaces the day's reminder, and
     /// the streak nudge only follows a reminder that came at least an hour earlier (else the reminder was enough).
+    /// A "Cap noticed" never goes out beside an exam note, and replaces both the reminder and the nudge.
     static func capped(_ planned: [Planned], calendar: Calendar) -> [Planned] {
         let byDay = Dictionary(grouping: planned) { calendar.startOfDay(for: $0.date) }
         var kept: [Planned] = []
         for (_, list) in byDay {
             let hasExamNote = list.contains { $0.kind == .examEve || $0.kind == .examWeek }
+            let hasNotice = !hasExamNote && list.contains { $0.kind == .notice }
             let reminder = hasExamNote ? nil : list.first { $0.kind == .daily }
             var accepted: [Planned] = []
             for item in list.sorted(by: { ($0.kind.priority, $0.date) < ($1.kind.priority, $1.date) }) {
+                if item.kind == .notice, hasExamNote { continue }
+                if hasNotice, item.kind == .daily || item.kind == .streak { continue }
                 if item.kind == .daily, hasExamNote { continue }
                 if item.kind == .streak, let reminder, reminder.date > item.date.addingTimeInterval(-minimumGap) {
                     continue

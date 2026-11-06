@@ -153,6 +153,10 @@ enum TestHarness {
         case "todayWhy": r.tab = .today; r.present(.todayReasons)
         case "skyList": r.push(.skyList, on: .today)
         case "quests": r.tab = .today; r.present(.quests)
+        // Two look-alikes side by side (`CRAMLESS_LOOKALIKE=rules|cloud|writing`): the best pair, whatever the exams' dates.
+        case "lookAlike":
+            r.tab = .today
+            if let pair = app.debugLookAlikePair() { r.present(.lookAlike(a: pair.a, b: pair.b, examID: pair.examID)) }
         case "chat":
             r.tab = .ask
             if let t = app.fetch(FetchDescriptorFactory.latestThread).first { r.push(.chat(t.id), on: .ask) }

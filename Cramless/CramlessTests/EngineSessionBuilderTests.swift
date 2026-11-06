@@ -34,6 +34,30 @@ final class EngineSessionBuilderTests: XCTestCase {
         return items
     }
 
+    func testFocusQuestionsComeFirstAndNothingChangesWithoutThem() {
+        let items = world()
+        let plain = builder().build(SessionSpec(kind: .daily), items: items, topicNames: names)
+        let same = builder().build(SessionSpec(kind: .daily, focusItemIDs: []), items: items, topicNames: names)
+        XCTAssertEqual(plain.entries.map(\.itemID), same.entries.map(\.itemID))
+
+        // A tiny budget, and a due question that wouldn't otherwise make it (the highest recall of the due ones).
+        let due = items.filter { ($0.memory.due ?? .distantFuture) < cal.adding(days: 1, to: cal.startOfDay(for: now)) && $0.isStudied }
+        let strongest = due.max { fsrsRecall($0) < fsrsRecall($1) }!
+        let small = builder().build(SessionSpec(kind: .daily, minutes: 1), items: items, topicNames: names)
+        XCTAssertFalse(small.entries.contains { $0.itemID == strongest.id })
+        let focused = builder().build(SessionSpec(kind: .daily, minutes: 1, focusItemIDs: [strongest.id]), items: items, topicNames: names)
+        XCTAssertTrue(focused.entries.contains { $0.itemID == strongest.id }, "in, ahead of the rest")
+    }
+
+    func testAFocusQuestionNoLongerDueIsLeftOut() {
+        let items = world()
+        let solid = items.first { ($0.memory.due ?? .distantPast) > cal.adding(days: 1, to: now) }!
+        let built = builder().build(SessionSpec(kind: .daily, minutes: 2, focusItemIDs: [solid.id]), items: items, topicNames: names)
+        XCTAssertFalse(built.entries.contains { $0.itemID == solid.id && $0.reason == .due })
+    }
+
+    private func fsrsRecall(_ item: ItemSnapshot) -> Double { FSRS().retrievability(of: item.memory, at: now) }
+
     func testDailyMixesDueNewAndWeakSpots() {
         let built = builder().build(SessionSpec(kind: .daily), items: world(), topicNames: names)
         XCTAssertGreaterThan(built.reviewCount, 8)

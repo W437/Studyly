@@ -304,6 +304,8 @@ export interface MistakeInput {
 export interface ConfusionsRequest {
   course: string;
   mistakes: MistakeInput[];
+  /** Two look-alikes the student hasn't mixed up yet: one difference, a hook if one fits, 2 or 3 questions. */
+  lookAlike?: boolean;
 }
 
 export interface ConfusionOut {

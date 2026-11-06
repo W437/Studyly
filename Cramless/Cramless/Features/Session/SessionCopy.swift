@@ -184,6 +184,9 @@ enum SessionCopy {
             lead = "Missed \(note.recentMisses) of the last \(note.recentAnswers) times."
         } else if note.missCount > 1 {
             lead = "Missed \(note.missCount) times lately."
+        } else if note.missCount == 0 {
+            // An adopted look-alike: nothing has been missed yet.
+            lead = String(localized: "Spotted before any mix-up.")
         } else {
             lead = "Missed it lately."
         }

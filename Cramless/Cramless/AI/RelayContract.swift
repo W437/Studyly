@@ -277,6 +277,9 @@ struct MistakeInput: Codable, Hashable, Sendable {
 struct ConfusionsRequest: Codable, Hashable, Sendable {
     var course: String
     var mistakes: [MistakeInput]
+    /// True for two look-alikes the student hasn't mixed up yet: one difference, a hook if one fits, 2 or 3 questions. Sent only when
+    /// true, so a relay that doesn't know it just answers as it always has (and the app falls back to its rules).
+    var lookAlike: Bool? = nil
 }
 
 struct ConfusionOut: Codable, Hashable, Sendable {

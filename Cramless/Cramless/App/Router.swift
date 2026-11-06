@@ -127,6 +127,8 @@ enum AppSheet: Identifiable, Hashable, Sendable {
     case quests
     /// Help: write to a real person, what is always free, restore.
     case help
+    /// Two look-alike questions side by side (Cap's card "Show me").
+    case lookAlike(a: UUID, b: UUID, examID: UUID?)
     /// The month's calendar, from Progress's week card.
     case streakMonth
     /// The reviews coming due and the brightest topics, over the sky.

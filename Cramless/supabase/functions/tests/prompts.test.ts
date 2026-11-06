@@ -12,6 +12,7 @@ import {
   assistantSystem,
   checkContent,
   checkSystem,
+  confusionsContent,
   materialsBlock,
   researchSystem,
   systemFor,
@@ -430,4 +431,23 @@ Deno.test("transcribe prompt: a subscript is the Unicode subscript letter when t
   const prompt = systemFor("transcribe");
   assertStringIncludes(prompt, "Write a subscript with the Unicode subscript letter or digit when there is one");
   assertStringIncludes(prompt, "never a modifier letter or a tone mark");
+});
+
+Deno.test("a look-alike pair asks for its one difference, and only when the request says so", () => {
+  const mistakes = [
+    { itemId: "i7", topic: "Phases", prompt: "Which phase lines up?", expected: "Metaphase", given: "", misses: 0 },
+    { itemId: "i10", topic: "Phases", prompt: "Which phase is last?", expected: "Telophase", given: "", misses: 0 },
+  ];
+  const text = (blocks: ReturnType<typeof confusionsContent>) =>
+    blocks.map((b) => (b.type === "text" ? b.text : "")).join("");
+  const plain = text(confusionsContent({ course: "Bio", mistakes }));
+  assertStringIncludes(plain, "Find the mix-ups");
+  assert(!plain.includes("look-alike"));
+  const pair = text(confusionsContent({ course: "Bio", mistakes, lookAlike: true }));
+  assertStringIncludes(pair, "look-alike pair");
+  assert(!pair.includes("Find the mix-ups"));
+  const system = systemFor("confusions");
+  assertStringIncludes(system, "A look-alike pair");
+  assertStringIncludes(system, "Never say the student got anything wrong");
+  assertStringIncludes(system, "Use only facts from the two questions");
 });

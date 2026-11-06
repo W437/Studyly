@@ -6,8 +6,9 @@ import SwiftUI
 /// quiet line instead); and the exams as a row (`TodayExamsRow`, or "When is your next exam?" with material and no exam).
 ///
 /// DEBUG hooks: `CRAMLESS_TODAY=catchup|partway|split|noExam|examEve|twoEves|eveDone|done|caughtUp|noMaterial|empty` (see `TodaySnapshot`);
-/// `CRAMLESS_TODAY_NOTICES=0|1|2|3` deals that many of Cap's cards; `CRAMLESS_TODAY_WHY=<ms>`, `CRAMLESS_TODAY_QUESTS=<ms>` open "Why
-/// these?" and the quests that long after launch, and `CRAMLESS_TODAY_LATER=<ms>` presses Cap's "Later"; `CRAMLESS_TODAY_SCROLL=1`
+/// `CRAMLESS_TODAY_NOTICES=0|1|2|3` deals that many of Cap's cards; `CRAMLESS_NOTICES`, `CRAMLESS_NOTICE_STATE` shape the world for his
+/// real ones (`AppModel+NoticeHarness`); `CRAMLESS_TODAY_WHY=<ms>`, `CRAMLESS_TODAY_QUESTS=<ms>` open "Why these?" and the quests that
+/// long after launch, `CRAMLESS_TODAY_LATER=<ms>` presses Cap's "Later" and `CRAMLESS_NOTICE_TAP=<ms>` his card's button; `CRAMLESS_TODAY_SCROLL=1`
 /// scrolls down to the exams and back, to film it; `CRAMLESS_SKY_TOUR=<ms>` shows each sky behind the stars in turn;
 /// `CRAMLESS_TODAY_OPEN=<ms>` opens the sky that long after launch, as a tap on the band would; `CRAMLESS_TODAY_TYPE=ax3` draws
 /// Today at that text size; `CRAMLESS_HERO_PULL=2500:96:500`
@@ -28,9 +29,6 @@ struct TodayView: View {
     @State private var pull = HeroPullModel()
     /// The shape the band's sky was last laid out for.
     @State private var skyAspect = TodaySnapshot.skyAspect
-    /// Cap's cards put off with "Later" since the page was drawn (stored for tomorrow by `snoozeNotice`; kept here so the next one
-    /// shows at once).
-    @State private var laterIDs: Set<String> = []
     /// The band has scrolled up out of sight: the status bar gets the page's colour behind it, so cards don't run under the clock.
     @State private var pastBand = false
     #if DEBUG
@@ -87,7 +85,7 @@ struct TodayView: View {
                         .padding(.horizontal, CLSpace.gutter)
                         .padding(.top, 16)
                         .padding(.bottom, 28)
-                        .animation(CLMotion.settle, value: notices(snap).first?.id)
+                        .animation(CLMotion.settle, value: snap.notices.first?.id)
                     }
                 }
                 .scrollIndicators(.hidden)
@@ -173,11 +171,15 @@ struct TodayView: View {
         }
         if snap.isEve, let eve = snap.eveExam {
             TodayQuietLine(text: TodayCopy.quietLine(examTitle: snap.eveTitle ?? eve.title, others: snap.eveOthers))
-        } else if snap.hasMaterial, let notice = notices(snap).first {
-            TodayNoticeCard(notice: notice, index: 1, total: notices(snap).count,
-                            onAction: { act(on: $0) }, onLater: { later(notice) }, onOpen: { follow($0) })
+        } else if snap.hasMaterial, let notice = snap.notices.first {
+            TodayNoticeCard(notice: notice, index: snap.noticePosition, total: snap.noticeTotal,
+                            onAction: { act(on: $0) }, onLater: { later(notice) }, onOpen: { follow($0) }, onHide: { hide(notice) })
                 .id(notice.id)
                 .transition(.opacity.combined(with: .scale(scale: 0.97)))
+                // On screen, not just on the page: a card seen today needs no notification today.
+                .onScrollVisibilityChange(threshold: 0.6) { visible in
+                    if visible, !notice.isConfirmation { app.noteNoticeShown(notice.id) }
+                }
         }
         if snap.hasMaterial, !snap.isEve {
             Group {
@@ -189,11 +191,6 @@ struct TodayView: View {
             }
             .id("today-bottom")
         }
-    }
-
-    /// Cap's cards still to show today: those not put off with "Later" since the page was drawn.
-    private func notices(_ snap: TodaySnapshot) -> [CapNotice] {
-        snap.notices.filter { !laterIDs.contains($0.id) }
     }
 
     /// Pull to refresh (and VoiceOver's "Refresh"): rolls the day over, brings in what other devices changed, and looks at the sky
@@ -252,13 +249,23 @@ struct TodayView: View {
         }
         if let ms = TestHarness.once("CRAMLESS_TODAY_LATER").flatMap(Int.init) {
             try? await nap(ms)
-            if let notice = notices(snapshot ?? snap).first { later(notice) }
+            if let notice = (snapshot ?? snap).notices.first { later(notice) }
+        }
+        // `CRAMLESS_NOTICE_TAP=<ms>` presses the button on Cap's card.
+        if let ms = TestHarness.once("CRAMLESS_NOTICE_TAP").flatMap(Int.init) {
+            try? await nap(ms)
+            if let action = (snapshot ?? snap).notices.first?.action { act(on: action) }
         }
     }
 
-    /// `CRAMLESS_TODAY_SCROLL=1`: after a moment, down the page to the exams and back up, for a film.
+    /// `CRAMLESS_TODAY_SCROLL=1`: after a moment, down the page to the exams and back up, for a film. `=notice`: to Cap's card, and it stays.
     private func runScrollHook(_ proxy: ScrollViewProxy) async {
-        guard TestHarness.once("CRAMLESS_TODAY_SCROLL") != nil else { return }
+        guard let scroll = TestHarness.once("CRAMLESS_TODAY_SCROLL") else { return }
+        if scroll == "notice" {
+            try? await nap(900)
+            if let id = (snapshot ?? TodaySnapshot.make(app: app, skyAspect: skyAspect)).notices.first?.id { proxy.scrollTo(id, anchor: .center) }
+            return
+        }
         try? await nap(2200)
         withAnimation(.easeInOut(duration: 2.4)) { proxy.scrollTo("today-bottom", anchor: .bottom) }
         try? await nap(3600)
@@ -313,15 +320,24 @@ struct TodayView: View {
         }
     }
 
-    /// "Later": the card waits until tomorrow, and the next one (if any) takes its place.
+    /// "Later": the card waits until tomorrow, and the next one (if any) takes its place. On "Plan updated", "OK": it just goes.
     private func later(_ notice: CapNotice) {
         CLHaptics.tap()
-        app.snoozeNotice(notice.id)
-        withAnimation(CLMotion.exit) {
-            laterIDs.insert(notice.id)
-            snapshot = TodaySnapshot.make(app: app, skyAspect: skyAspect)
+        if notice.isConfirmation {
+            app.dismissNoticeConfirmation()
+        } else {
+            app.snoozeNotice(notice.id)
+            app.router.toast("Cap will bring it up tomorrow", systemImage: "clock", tone: .neutral)
         }
-        app.router.toast("Cap will bring it up tomorrow", systemImage: "clock", tone: .neutral)
+        withAnimation(CLMotion.exit) { snapshot = TodaySnapshot.make(app: app, skyAspect: skyAspect) }
+    }
+
+    /// "Don't show these": the kind's switch goes off.
+    private func hide(_ notice: CapNotice) {
+        CLHaptics.tap()
+        app.setNoticeKind(notice.kind, on: false)
+        withAnimation(CLMotion.exit) { snapshot = TodaySnapshot.make(app: app, skyAspect: skyAspect) }
+        app.router.toast("Cap won't bring these up. Turn them on again in Settings.", systemImage: "checkmark.circle.fill", tone: .neutral)
     }
 
     private func sample() {
