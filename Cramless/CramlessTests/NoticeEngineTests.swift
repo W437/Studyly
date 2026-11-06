@@ -525,9 +525,7 @@ final class NoticeEngineTests: XCTestCase {
             $0.items = [item]
             $0.exams = another ? [next] : []
             $0.finishedExams = [past]
-            var note = mixUp(items: [item.id])
-            note.note.missCount = misses
-            $0.mixUps = [note]
+            $0.mixUps = [mixUp(misses: misses, items: [item.id])]
         }).candidates().first)
     }
 
