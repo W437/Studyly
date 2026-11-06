@@ -34,14 +34,16 @@ struct ChatEntry: Identifiable, Equatable {
     var isRefusal: Bool { role == .assistant && TutorPolicy.isDecline(text) }
 }
 
-/// The tutor chat: the course chip and Cap's style, the messages (Cap's streaming in), the suggestions and the glass
-/// composer pinned above the keyboard on a solid dock (`AskDock`), so the chat never shows through behind it. Used by the Ask tab (a new chat until the first question) and by a chat
-/// pushed from history.
+/// The tutor chat: the title with its course menu, the messages (Cap's streaming in), the follow-ups and, pinned above the keyboard on a
+/// solid dock (`AskDock`) so the chat never shows through behind it, one row of starter chips while the chat is empty and the composer
+/// with Cap's style in it. Used by the Ask tab (a new chat until the first question) and by a chat pushed from history.
 struct ChatPane: View {
     @Binding var threadID: UUID?
     /// The course for a chat that hasn't started yet (the Ask tab).
     @Binding var pendingCourseID: UUID?
     var showsEmptyState = true
+    /// The title over the course menu: "Ask Cap", or a pushed chat's own.
+    var title: String = String(localized: "Ask Cap")
 
     @Environment(AppModel.self) private var app
     @Environment(\.clReduceMotion) private var reduceMotion
@@ -69,7 +71,6 @@ struct ChatPane: View {
         ScrollViewReader { proxy in
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
-                    header(thread)
                     if entries.isEmpty && live == nil {
                         if showsEmptyState { emptyState }
                     } else {
@@ -102,10 +103,25 @@ struct ChatPane: View {
         }
         .safeAreaInset(edge: .bottom) {
             AskDock {
-                ChatComposer(text: $draft, focused: $composerFocused, isAnswering: live != nil,
-                             onSend: { send(draft) },
-                             onStop: { if let id = threadID { streams.stop(id, app: app) } })
+                VStack(alignment: .leading, spacing: 8) {
+                    FreeAnswersNote()
+                    if showsEmptyState, entries.isEmpty, live == nil, draft.isEmpty, hasMaterial {
+                        AskDockChipRow(chips: dockChips, onTap: tap)
+                    }
+                    ChatComposer(text: $draft, focused: $composerFocused, isAnswering: live != nil,
+                                 placeholder: "Ask about your notes…", thread: thread, showsMode: true,
+                                 onSend: { send(draft) },
+                                 onStop: { if let id = threadID { streams.stop(id, app: app) } })
+                }
             }
+        }
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                AskTitleMenu(title: title, courseID: courseID) { picked in
+                    if let thread { app.setChatCourse(thread, to: picked) } else { pendingCourseID = picked }
+                }
+            }
+            .sharedBackgroundVisibility(.hidden)
         }
         .clScreenBackground()
         .task(id: courseID) {
@@ -116,16 +132,6 @@ struct ChatPane: View {
     }
 
     // MARK: Parts
-
-    private func header(_ thread: ChatThread?) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            CourseMaterialChip(courseID: courseID) { picked in
-                if let thread { app.setChatCourse(thread, to: picked) } else { pendingCourseID = picked }
-            }
-            TutorModeControl(thread: thread)
-            FreeAnswersNote()
-        }
-    }
 
     @ViewBuilder
     private func conversation(_ entries: [ChatEntry], live: AskStreams.Live?, thread: ChatThread?) -> some View {
@@ -173,13 +179,13 @@ struct ChatPane: View {
                     }
                 } else {
                     SuggestionChip(title: "Quiz me on this", systemImage: "checklist") { quiz(hint: chatText(entries)) }
-                    SuggestionChip(title: "Explain with an analogy", systemImage: "lightbulb") {
-                        ask("Explain with an analogy", sendAs: "Explain \(subject(thread, entries)) with an analogy, using my notes.")
+                    let simpler = String(localized: "Explain it simpler")
+                    SuggestionChip(title: simpler, systemImage: "lightbulb") {
+                        ask(simpler, sendAs: "Explain \(subject(thread, entries)) more simply, using my notes.")
                     }
                     if let thread {
-                        SuggestionChip(title: "Make cards from this", systemImage: "rectangle.stack.badge.plus") {
-                            CLHaptics.tap()
-                            app.router.present(.makeCards(threadID: thread.id))
+                        SuggestionChip(title: String(localized: "Make 3 flashcards"), systemImage: "rectangle.stack.badge.plus") {
+                            makeThreeFlashcards(thread, entries)
                         }
                     }
                 }
@@ -189,16 +195,29 @@ struct ChatPane: View {
     }
 
     private var emptyState: some View {
-        let recent = app.chatThreads().filter { $0.id != threadID && !$0.messages.isEmpty }.prefix(3)
-        return AskEmptyState(name: app.settings.firstName, courseName: app.liveCourse(courseID)?.name,
-                             sourceCount: app.readableSources(courseID: courseID).count, starters: starters,
+        let recent = app.chatThreads().first { $0.id != threadID && !$0.messages.isEmpty }
+        return AskEmptyState(courseName: app.liveCourse(courseID)?.name,
+                             sourceCount: app.readableSources(courseID: courseID).count,
                              recent: recent.map { RecentChat(id: $0.id, title: $0.title, updatedAt: $0.updatedAt) },
                              now: app.now,
-                             quickStarts: app.ai.assistantReady ? AssistantQuickStart.available(app) : [],
-                             onStarter: { ask($0, sendAs: nil) },
-                             onCompose: { compose($0) },
                              onOpen: { id in withAnimation(CLMotion.settle) { threadID = id } },
                              onAddMaterial: { app.router.present(.capture(courseID: courseID)) })
+    }
+
+    private var hasMaterial: Bool { !app.readableSources(courseID: courseID).isEmpty }
+
+    /// The dock's chips; nil until the questions drawn from the notes are ready, so the row never swaps under a finger.
+    private var dockChips: [AskDockChips.Chip]? {
+        guard let starters else { return nil }
+        return AskDockChips.make(quickStarts: app.ai.assistantReady ? AssistantQuickStart.available(app) : [], starters: starters)
+    }
+
+    private func tap(_ chip: AskDockChips.Chip) {
+        switch chip.action {
+        case .compose(let prefix): compose(prefix)
+        case .ask(let question): ask(question, sendAs: nil)
+        case .quiz: quiz(hint: "")
+        }
     }
 
     // MARK: Actions
@@ -226,6 +245,16 @@ struct ChatPane: View {
         CLHaptics.tap()
         withAnimation(CLMotion.settle) {
             streams.ask(text, in: thread, app: app, sendAs: sendAs)
+        }
+    }
+
+    /// Three cards from the chat: Cap's assistant drafts them in the chat when it can; otherwise the sheet that picks them out of the answer.
+    private func makeThreeFlashcards(_ thread: ChatThread, _ entries: [ChatEntry]) {
+        if app.ai.assistantReady {
+            ask(String(localized: "Make 3 flashcards"), sendAs: "Make 3 flashcards on \(subject(thread, entries)), from my notes.")
+        } else {
+            CLHaptics.tap()
+            app.router.present(.makeCards(threadID: thread.id, maxItems: 3))
         }
     }
 
@@ -523,46 +552,29 @@ struct RecentChat: Identifiable, Equatable {
     var updatedAt: Date
 }
 
-/// A new chat: Cap, what it answers from, three questions drawn from the person's material, and the chats to pick
-/// up again. With no material yet, a way to add some.
+/// A new chat, calm: Cap, one line on what he answers from, and the latest chat to pick up. With no material yet, a way to add some. The
+/// starter chips are in the dock.
 struct AskEmptyState: View {
-    let name: String
     let courseName: String?
     let sourceCount: Int
-    /// Nil while they're being picked.
-    let starters: [String]?
-    let recent: [RecentChat]
+    let recent: RecentChat?
     let now: Date
-    /// What Cap can make, as first words for the composer (none when its tools can't be used).
-    var quickStarts: [AssistantQuickStart.Start] = []
-    let onStarter: (String) -> Void
-    var onCompose: ((String) -> Void)?
     let onOpen: (UUID) -> Void
     let onAddMaterial: () -> Void
 
-    @Environment(\.dynamicTypeSize) private var typeSize
-
     var body: some View {
-        // Cap beside the words; above them at the accessibility sizes, so the words keep the full width.
-        let intro = typeSize.isAccessibilitySize
-            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 10))
-            : AnyLayout(HStackLayout(alignment: .center, spacing: 14))
         VStack(alignment: .leading, spacing: 0) {
-            intro {
-                CapView(pose: sourceCount == 0 ? .sleep : .study, size: typeSize.isAccessibilitySize ? 88 : 104)
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(title)
-                        .clFont(.title3)
-                        .foregroundStyle(CLColor.ink)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .accessibilityAddTraits(.isHeader)
-                    Text(subtitle)
-                        .clFont(.subheadline)
-                        .foregroundStyle(CLColor.ink2)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
+            VStack(spacing: 12) {
+                CapView(pose: sourceCount == 0 ? .sleep : .study, size: 132)
+                Text(line)
+                    .clFont(.body)
+                    .foregroundStyle(CLColor.ink2)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityAddTraits(.isHeader)
             }
-            .padding(.top, 10)
+            .frame(maxWidth: .infinity)
+            .padding(.top, 28)
 
             if sourceCount == 0 {
                 Button(action: onAddMaterial) {
@@ -570,75 +582,25 @@ struct AskEmptyState: View {
                 }
                 .buttonStyle(.cl(.primary))
                 .padding(.top, 22)
-            } else {
-                if let onCompose, !quickStarts.isEmpty {
-                    CLSectionHeader(title: "Ask Cap to make something")
-                    CLFlow(spacing: 8, lineSpacing: 0) {
-                        ForEach(quickStarts, id: \.prefix) { start in
-                            SuggestionChip(title: start.title, systemImage: start.icon) { onCompose(start.prefix) }
-                        }
-                    }
-                }
-                CLSectionHeader(title: "Try asking")
-                if let starters {
-                    if starters.isEmpty {
-                        Text("Ask anything your notes cover. Cap shows you where each answer comes from.")
-                            .clFont(.subheadline)
-                            .foregroundStyle(CLColor.ink2)
-                    } else {
-                        CLList {
-                            ForEach(starters, id: \.self) { starter in
-                                Button { onStarter(starter) } label: {
-                                    CLRow(icon: "text.bubble", tint: .sky, title: .verbatim(starter)) {
-                                        Image(systemName: "arrow.up.right")
-                                            .font(.system(size: 13, weight: .bold))
-                                            .foregroundStyle(CLColor.ink4)
-                                            .accessibilityHidden(true)
-                                    }
-                                }
-                                .buttonStyle(.pressable)
-                                .accessibilityHint(Text("Asks Cap"))
-                            }
-                        }
-                        .transition(.opacity)
-                    }
-                } else {
-                    CLList {
-                        ForEach(0..<3, id: \.self) { _ in
-                            CLRow(icon: "text.bubble", tint: .sky, title: "What happens after mitosis in the cell?") { EmptyView() }
-                                .redacted(reason: .placeholder)
-                        }
-                    }
-                    .accessibilityHidden(true)
-                }
             }
 
-            if !recent.isEmpty {
+            if let recent {
                 CLSectionHeader(title: "Pick up where you left off")
                 CLList {
-                    ForEach(recent) { chat in
-                        Button { onOpen(chat.id) } label: {
-                            CLRow(icon: "bubble.left.and.bubble.right", tint: .tangerine, title: .verbatim(chat.title),
-                                  subtitle: .verbatim(Self.when(chat.updatedAt, now: now)))
-                        }
-                        .buttonStyle(.pressable)
+                    Button { onOpen(recent.id) } label: {
+                        CLRow(icon: "bubble.left.and.bubble.right", tint: .tangerine, title: .verbatim(recent.title),
+                              subtitle: .verbatim(Self.when(recent.updatedAt, now: now)))
                     }
+                    .buttonStyle(.pressable)
                 }
             }
         }
-        .animation(CLMotion.fade, value: starters)
     }
 
-    private var title: String {
-        let first = name.trimmingCharacters(in: .whitespaces)
-        if sourceCount == 0 { return first.isEmpty ? "Cap answers from your notes" : "Hi \(first). Cap answers from your notes" }
-        let course = courseName ?? "your courses"
-        return first.isEmpty ? "Ask me about \(course)" : "Hi \(first), ask me about \(course)"
-    }
-
-    private var subtitle: String {
+    private var line: LocalizedStringResource {
         if sourceCount == 0 { return "Scan a page or add slides, and ask away. Every answer points to where it says so." }
-        return "I answer from your \(CLFormat.count(sourceCount, "source")) and show you where it says so. If they don't cover it, I'll tell you."
+        let course = courseName ?? String(localized: "your courses")
+        return "Ask about \(course). I answer from your \(sourceCount) sources and show you where."
     }
 
     static func when(_ date: Date, now: Date) -> String {
@@ -652,22 +614,61 @@ struct AskEmptyState: View {
     }
 }
 
+/// One row of chips over the composer while the chat is empty: a line that scrolls sideways, or two lines of the first few at the
+/// accessibility text sizes. It keeps its height until the chips are ready.
+struct AskDockChipRow: View {
+    let chips: [AskDockChips.Chip]?
+    let onTap: (AskDockChips.Chip) -> Void
+
+    @Environment(\.dynamicTypeSize) private var typeSize
+
+    var body: some View {
+        Group {
+            if let chips {
+                if typeSize.isAccessibilitySize {
+                    CLFlow(spacing: 8, lineSpacing: 0) {
+                        ForEach(chips.prefix(4)) { chip($0) }
+                    }
+                } else {
+                    ScrollView(.horizontal) {
+                        HStack(spacing: 8) {
+                            ForEach(chips) { chip($0) }
+                        }
+                        .padding(.horizontal, 4)
+                    }
+                    .scrollIndicators(.hidden)
+                    .scrollClipDisabled()
+                }
+            } else {
+                Color.clear.frame(height: CLMetrics.minHitTarget)
+            }
+        }
+        .animation(CLMotion.fade, value: chips)
+    }
+
+    private func chip(_ chip: AskDockChips.Chip) -> some View {
+        SuggestionChip(title: chip.title, systemImage: chip.icon) { onTap(chip) }
+            .transition(.opacity)
+            .accessibilityHint(chip.isQuestion ? Text("Asks Cap") : Text("Starts a request for you to finish"))
+    }
+}
 
 /// The first words of the things Cap can make, put in the composer to be finished.
 enum AssistantQuickStart {
-    struct Start: Equatable { var title: String; var icon: String; var prefix: String }
+    enum Kind: Sendable { case quiz, cards, note, exam, research }
+    struct Start: Equatable { var title: String; var icon: String; var prefix: String; var kind: Kind }
 
     /// What this student can ask for: everything, except the web when it is off (or not for them).
     @MainActor
     static func available(_ app: AppModel) -> [Start] {
         var all = [
-            Start(title: String(localized: "Make flashcards"), icon: "rectangle.stack", prefix: String(localized: "Make flashcards on ")),
-            Start(title: String(localized: "Quiz me"), icon: "checklist", prefix: String(localized: "Quiz me on ")),
-            Start(title: String(localized: "Write a note"), icon: "doc.text", prefix: String(localized: "Write me a note on ")),
-            Start(title: String(localized: "Add an exam"), icon: "calendar", prefix: String(localized: "Add my exam on ")),
+            Start(title: String(localized: "Make flashcards"), icon: "rectangle.stack", prefix: String(localized: "Make flashcards on "), kind: .cards),
+            Start(title: String(localized: "Quiz me"), icon: "checklist", prefix: String(localized: "Quiz me on "), kind: .quiz),
+            Start(title: String(localized: "Write a note"), icon: "doc.text", prefix: String(localized: "Write me a note on "), kind: .note),
+            Start(title: String(localized: "Add an exam"), icon: "calendar", prefix: String(localized: "Add my exam on "), kind: .exam),
         ]
         if app.assistantTools.contains(.researchWeb) {
-            all.append(Start(title: String(localized: "Research online"), icon: "globe", prefix: String(localized: "Research online: ")))
+            all.append(Start(title: String(localized: "Research online"), icon: "globe", prefix: String(localized: "Research online: "), kind: .research))
         }
         return all
     }

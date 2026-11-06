@@ -104,7 +104,8 @@ struct FlashcardSwipeLayer<Content: View>: View {
         let width = Double(state.width)
         let dx = Double(state.offset)
         content
-            .overlay(alignment: .top) { stamp(dx: dx, width: width) }
+            // On the side the card moves away from, so it stays on screen.
+            .overlay(alignment: dx >= 0 ? .topLeading : .topTrailing) { stamp(dx: dx, width: width) }
             .rotationEffect(.degrees(reduceMotion ? 0 : SwipeRule.tilt(dx: dx, width: width)), anchor: .bottom)
             .offset(x: state.offset)
             .opacity(state.gone ? 0 : 1)
@@ -134,7 +135,7 @@ struct FlashcardSwipeLayer<Content: View>: View {
                 .background(CLColor.background, in: Capsule())
                 .background(tone.fill, in: Capsule())
                 .overlay(Capsule().strokeBorder(tone.ink.opacity(0.35), lineWidth: 1.5))
-                .padding(.top, 16)
+                .padding(16)
                 .opacity(opacity)
                 .accessibilityHidden(true)
         }
@@ -181,7 +182,6 @@ struct FlashcardTallyView: View {
             CLPill(text: "Got it \(tally.gotIt)", tone: .mint, systemImage: "checkmark")
             CLPill(text: "Again \(tally.again)", tone: .rose, systemImage: "arrow.uturn.backward")
         }
-        .contentTransition(.numericText())
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("This session: got it \(tally.gotIt), again \(tally.again)")
     }

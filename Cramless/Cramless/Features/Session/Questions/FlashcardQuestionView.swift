@@ -327,8 +327,15 @@ struct FlashcardQuestionView: View {
                                    outcome: SessionRunner.Outcome(rating: rating), undo: .flashcard(flippedAtMs: flippedAtMs))
         if review?.isSave == true { runner.flareSave(of: item) }
         let runner = runner
+        // Set before the card flies, so what is left of this question fades in place instead of sliding off after it.
+        runner.prepareArrival(.rise)
         swipeState.fly(rating, reduceMotion: reduceMotion) {
             withAnimation(CLMotion.settle) { runner.advance(arriving: .rise) }
+            // Once the next one has risen, the one after comes on from the edge again.
+            Task { @MainActor in
+                try? await nap(600)
+                if runner.arrival == .rise { runner.prepareArrival(.forward) }
+            }
         }
     }
 

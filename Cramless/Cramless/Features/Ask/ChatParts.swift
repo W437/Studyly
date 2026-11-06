@@ -517,19 +517,37 @@ struct AskDock<Content: View>: View {
     }
 }
 
-/// The glass composer pinned above the keyboard. While Cap answers, send becomes stop.
+/// The glass composer pinned above the keyboard. While Cap answers, send becomes stop. In Ask's chat it holds Cap's style (`showsMode`).
 struct ChatComposer: View {
     @Binding var text: String
     var focused: FocusState<Bool>.Binding
     let isAnswering: Bool
-    var placeholder = "Ask about your material…"
+    var placeholder: LocalizedStringKey = "Ask about your notes…"
+    /// The chat, for Cap's style.
+    var thread: ChatThread? = nil
+    var showsMode = false
+    /// The slot for a camera at the field's start: shown once there is something to do with it.
+    var onCamera: (() -> Void)? = nil
     let onSend: () -> Void
     let onStop: () -> Void
 
     private var canSend: Bool { !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
 
     var body: some View {
-        HStack(alignment: .bottom, spacing: 8) {
+        HStack(alignment: .bottom, spacing: 4) {
+            if let onCamera {
+                Button(action: onCamera) {
+                    Image(systemName: "camera")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundStyle(CLColor.ink2)
+                        .frame(width: CLMetrics.minHitTarget, height: CLMetrics.minHitTarget)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.pressable)
+                .padding(.leading, 3)
+                .padding(.bottom, 3)
+                .accessibilityLabel("Snap a problem")
+            }
             TextField(placeholder, text: $text, axis: .vertical)
                 .clFont(.body)
                 .foregroundStyle(CLColor.ink)
@@ -543,9 +561,13 @@ struct ChatComposer: View {
                     text = old
                     if canSend && !isAnswering { onSend() }
                 }
-                .padding(.leading, 16)
+                .padding(.leading, onCamera == nil ? 16 : 2)
                 .padding(.vertical, 12)
                 .accessibilityLabel("Question for Cap")
+            if showsMode {
+                TutorModePill(thread: thread)
+                    .padding(.bottom, 3)
+            }
             Group {
                 if isAnswering {
                     Button(action: onStop) {
@@ -583,67 +605,97 @@ struct ChatComposer: View {
 
 // MARK: - Cap's style
 
-/// "Hints first / Just explain". Locked on hints first for under-18 accounts, with the reason.
-struct TutorModeControl: View {
+/// "Hints first" or "Just explain", in the composer: a tap opens the two with a line on each. Locked on hints first for under-18 accounts,
+/// with the reason.
+///
+/// DEBUG: `CRAMLESS_ASK_MODE=open` opens it as the chat appears.
+struct TutorModePill: View {
     let thread: ChatThread?
 
     @Environment(AppModel.self) private var app
-    @Namespace private var namespace
+    @State private var open = false
 
     var body: some View {
         let locked = app.settings.isMinor
         let mode = app.settings.effectiveTutorMode
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 0) {
-                segment(.hints, title: "Hints first", selected: mode == .hints, locked: false)
-                segment(.explain, title: "Just explain", selected: mode == .explain, locked: locked)
+        Button {
+            CLHaptics.tap()
+            open = true
+        } label: {
+            HStack(spacing: 4) {
+                if locked { Image(systemName: "lock.fill").font(.system(size: 10, weight: .bold)) }
+                Text(mode == .hints ? "Hints first" : "Just explain")
+                    .clFont(.footnoteEmphasis)
+                    .lineLimit(1)
+                    .fixedSize()
+                Image(systemName: "chevron.up.chevron.down").font(.system(size: 10, weight: .bold))
             }
-            .padding(2)
-            .background(CLColor.surface3, in: Capsule())
-            .animation(CLMotion.snap, value: mode)
-            if locked {
-                Label("Hints first stays on for accounts under 18, so Cap helps you work it out.", systemImage: "lock.fill")
-                    .clFont(.caption)
-                    .foregroundStyle(CLColor.ink2)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.horizontal, 4)
+            .foregroundStyle(CLColor.ink2)
+            .padding(.horizontal, 10)
+            .frame(minHeight: 30)
+            .background(CLColor.surface2, in: Capsule())
+            .frame(minHeight: CLMetrics.minHitTarget)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Cap's style")
+        .accessibilityValue(mode == .hints ? Text("Hints first") : Text("Just explain"))
+        .accessibilityHint(locked ? Text("Hints first stays on for accounts under 18.") : Text("Choose how Cap answers"))
+        .popover(isPresented: $open, arrowEdge: .bottom) {
+            VStack(alignment: .leading, spacing: 4) {
+                row(.hints, title: "Hints first", detail: "Cap asks you a question back", selected: mode == .hints, locked: false)
+                row(.explain, title: "Just explain", detail: "Straight to the answer", selected: mode == .explain, locked: locked)
+                if locked {
+                    Label("Hints first stays on for accounts under 18, so Cap helps you work it out.", systemImage: "lock.fill")
+                        .clFont(.caption)
+                        .foregroundStyle(CLColor.ink2)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                }
+            }
+            .padding(8)
+            .frame(width: 300)
+            .presentationCompactAdaptation(.popover)
+        }
+        #if DEBUG
+        .task {
+            if TestHarness.once("CRAMLESS_ASK_MODE") == "open" {
+                try? await nap(600)
+                open = true
             }
         }
-        .accessibilityElement(children: .ignore)
-        .accessibilityRepresentation {
-            Picker("Cap's style", selection: Binding(get: { mode }, set: { choose($0) })) {
-                Text("Hints first: Cap asks before it tells").tag(TutorMode.hints)
-                if !locked { Text("Just explain").tag(TutorMode.explain) }
-            }
-        }
-        .accessibilityHint(Text(locked ? "Hints first stays on for accounts under 18." : "Hints first: Cap asks a question before it explains."))
+        #endif
     }
 
-    private func segment(_ value: TutorMode, title: String, selected: Bool, locked: Bool) -> some View {
+    private func row(_ value: TutorMode, title: LocalizedStringResource, detail: LocalizedStringResource, selected: Bool, locked: Bool) -> some View {
         Button {
             choose(value)
         } label: {
-            HStack(spacing: 5) {
-                if locked { Image(systemName: "lock.fill").font(.system(size: 10, weight: .bold)) }
-                Text(title).clFont(.footnoteEmphasis).lineLimit(1).minimumScaleFactor(0.8)
-            }
-            .foregroundStyle(selected ? CLColor.ink : (locked ? CLColor.ink4 : CLColor.ink2))
-            .frame(maxWidth: .infinity, minHeight: CLMetrics.minHitTarget - 4)
-            .background {
-                if selected {
-                    Capsule()
-                        .fill(CLColor.surface)
-                        .shadow(color: CLColor.night.opacity(0.12), radius: 4, y: 2)
-                        .matchedGeometryEffect(id: "mode", in: namespace)
+            HStack(spacing: 10) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title).clFont(.bodyEmphasis).foregroundStyle(locked ? CLColor.ink4 : CLColor.ink)
+                    Text(detail).clFont(.footnote).foregroundStyle(locked ? CLColor.ink4 : CLColor.ink2)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                if locked {
+                    Image(systemName: "lock.fill").font(.system(size: 13, weight: .bold)).foregroundStyle(CLColor.ink4)
+                } else if selected {
+                    Image(systemName: "checkmark").font(.system(size: 14, weight: .bold)).foregroundStyle(CLColor.tangerineInk)
                 }
             }
-            .contentShape(Capsule())
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .frame(minHeight: CLMetrics.minHitTarget)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .disabled(locked)
+        .accessibilityAddTraits(selected ? .isSelected : [])
     }
 
     private func choose(_ value: TutorMode) {
+        open = false
         guard value != app.settings.effectiveTutorMode, !(app.settings.isMinor && value == .explain) else { return }
         CLHaptics.select()
         app.setTutorMode(value, in: thread)
@@ -652,8 +704,10 @@ struct TutorModeControl: View {
 
 // MARK: - Course and material
 
-/// "Bio 101 · 3 sources": which course's material Cap answers from. A menu to pick another course or all of them.
-struct CourseMaterialChip: View {
+/// The chat's title and, under it, "Bio 101 · 3 sources": which course's material Cap answers from. All of it is a menu to pick another
+/// course or all of them.
+struct AskTitleMenu: View {
+    let title: String
     let courseID: UUID?
     let onPick: (UUID?) -> Void
 
@@ -673,19 +727,25 @@ struct CourseMaterialChip: View {
                 Label("All courses", systemImage: "square.stack.3d.up").tag(UUID?.none)
             }
         } label: {
-            HStack(spacing: 6) {
-                Image(systemName: "book.closed").font(.system(size: 13, weight: .semibold))
-                Text("\(name) · \(sources)").clFont(.footnoteEmphasis).lineLimit(1)
-                Image(systemName: "chevron.down").font(.system(size: 10, weight: .bold))
+            VStack(spacing: 1) {
+                Text(verbatim: title)
+                    .clFont(.headline)
+                    .foregroundStyle(CLColor.ink)
+                    .lineLimit(1)
+                HStack(spacing: 4) {
+                    Text("\(name) · \(sources)")
+                        .clFont(.caption)
+                        .lineLimit(1)
+                    Image(systemName: "chevron.down").font(.system(size: 9, weight: .bold))
+                }
+                .foregroundStyle(CLColor.ink3)
             }
-            .padding(.horizontal, 12)
-            .frame(minHeight: 34)
-            .foregroundStyle(CLColor.ink2)
-            .background(CLColor.surface2, in: Capsule())
-            .contentShape(Capsule())
             .frame(minHeight: CLMetrics.minHitTarget)
+            .contentShape(Rectangle())
         }
-        .accessibilityLabel(Text("Answering from \(name), \(sources)"))
+        .dynamicTypeSize(...DynamicTypeSize.accessibility1)
+        .accessibilityLabel(Text(verbatim: title))
+        .accessibilityValue(Text("Answering from \(name), \(sources)"))
         .accessibilityHint(Text("Choose which course's material Cap answers from"))
     }
 
