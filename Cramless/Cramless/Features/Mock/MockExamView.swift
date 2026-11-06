@@ -19,11 +19,16 @@ struct MockExamView: View {
     @State private var loaded = false
     @State private var timed = true
     @State private var confirmStop = false
+    /// Practice from the summary runs in this same cover: changing the cover's item ends the new session as the old cover leaves.
+    @State private var practice: SessionRequest?
 
     var body: some View {
         ZStack {
             CLColor.background.ignoresSafeArea()
-            if let runner {
+            if let practice {
+                SessionView(request: practice)
+                    .transition(.opacity)
+            } else if let runner {
                 content(runner)
             } else if loaded {
                 MockUnavailableView(examID: examID)
@@ -84,8 +89,10 @@ struct MockExamView: View {
             MockMarkingView(runner: runner)
                 .transition(.opacity)
         case .summary:
-            MockSummaryView(runner: runner, onDone: { app.router.dismissCover() })
-                .transition(.opacity)
+            MockSummaryView(runner: runner, onDone: { app.router.dismissCover() }, onPractice: { request in
+                withAnimation(CLMotion.fade) { practice = request }
+            })
+            .transition(.opacity)
         }
     }
 

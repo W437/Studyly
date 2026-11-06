@@ -5,6 +5,7 @@ import SwiftUI
 struct MockSummaryView: View {
     let runner: MockRunner
     let onDone: () -> Void
+    let onPractice: (SessionRequest) -> Void
 
     @Environment(AppModel.self) private var app
     @State private var showsMarking = false
@@ -35,8 +36,9 @@ struct MockSummaryView: View {
             .padding(.top, 8)
         }
         .sessionFooter {
+            // One tangerine button: while answers wait for a mark, marking is what moves things forward.
             Button("Done", action: onDone)
-                .buttonStyle(.cl(.primary))
+                .buttonStyle(.cl(runner.toMark.isEmpty ? .primary : .soft))
         } secondary: {
             secondary
         }
@@ -198,8 +200,7 @@ struct MockSummaryView: View {
             if practice {
                 Button {
                     CLHaptics.tap()
-                    app.router.present(.session(SessionRequest(kind: .practice, courseID: runner.courseID, examID: runner.examID, minutes: 5,
-                                                               topicID: topic.id)))
+                    onPractice(SessionRequest(kind: .practice, courseID: runner.courseID, examID: runner.examID, minutes: 5, topicID: topic.id))
                 } label: {
                     Label("Practice", systemImage: "play.fill")
                         .clFont(.footnoteEmphasis)
@@ -239,6 +240,12 @@ private struct MockMarkingSheet: View {
     @State private var ticked: Set<String> = []
     @State private var touched = false
     @State private var found = false
+
+    init(runner: MockRunner) {
+        self.runner = runner
+        // Set before the first body: an empty sheet closes itself.
+        _entry = State(initialValue: runner.toMark.first)
+    }
 
     var body: some View {
         NavigationStack {
