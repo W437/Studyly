@@ -343,6 +343,12 @@ The streak page has the twelve weeks of studying (the heatmap's days are stars: 
 
 **A mock exam** (`Features/Mock/`): free, built from the exam's own questions and shaped like it. No marks until the end: Back, Next and Flag, a countdown nothing has to redraw for, a grid to look over. "Time's up." offers "Finish untimed" before the score. "Cap predicted" is the fair score for these questions, recall now plus a guess on multiple choice, not the exam-day ring: a mock taken early would otherwise beat Cap and teach that the number is wrong. Never on the eve or the day: tonight is for weak spots and sleep.
 
+**The last look** (`LastLookView`, a sheet): the eve's end. "Your last look", then five ideas as one sentence each, each with a chip to the page it came from, then "That's enough for tonight. Sleep is part of studying. Good luck tomorrow." and "Good night". No quiz, no marks, no timer. It is offered in words, on the eve's summary and quietly on Today's done card, never pushed.
+
+**Busy days** are Cap's cards like the rest: the ask ("Cap can plan around your long days") and "Monday looks busy", whose button moves minutes and whose confirmation has Undo. The day stays in the strip with its shorter minutes.
+
+**The Squad on Today** is one line in "Your plan": faces with a check mark for who studied today, and words beside them. It opens the Squad. It isn't a score, there's no count of days, and it goes away on an eve and in Quiet mode.
+
 ## Celebrations
 
 Learning earns celebrations; buying never does. The purchase screen stays calm, with no confetti.
