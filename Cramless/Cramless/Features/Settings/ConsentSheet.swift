@@ -11,6 +11,8 @@ import SwiftUI
 /// Harness: `CRAMLESS_ROUTE=consent` or `consent:photos`, with `CRAMLESS_CONSENT=0` for a person who hasn't allowed it.
 struct ConsentSheet: View {
     let reason: ConsentReason
+    /// How it goes away, when it isn't the router's sheet (over the syllabus flow, whose editor is the router's sheet).
+    var onClose: (() -> Void)? = nil
 
     @Environment(AppModel.self) private var app
     @State private var alsoPhotos = false
@@ -92,12 +94,12 @@ struct ConsentSheet: View {
     private var actions: some View {
         VStack(spacing: CLSpace.s) {
             if isChild {
-                Button("OK") { app.router.dismissSheet() }
+                Button("OK") { close() }
                     .buttonStyle(.cl(.primary))
             } else {
                 Button(allowTitle) { allow() }
                     .buttonStyle(.cl(.primary))
-                Button("Not now") { app.router.dismissSheet() }
+                Button("Not now") { close() }
                     .buttonStyle(.cl(.ghost, size: .medium))
             }
         }
@@ -112,6 +114,10 @@ struct ConsentSheet: View {
         }
     }
 
+    private func close() {
+        if let onClose { onClose() } else { app.router.dismissSheet() }
+    }
+
     private func allow() {
         CLHaptics.commit()
         switch reason {
@@ -120,7 +126,7 @@ struct ConsentSheet: View {
         case .photos:
             if hasConsent { app.setSendPhotos(true) } else { app.allowCloudAI(sendPhotos: true) }
         }
-        app.router.dismissSheet()
+        close()
         app.router.toast(reason == .photos ? "Page photos will go to Cloud AI" : "Cloud AI is on", systemImage: "checkmark.circle.fill")
     }
 

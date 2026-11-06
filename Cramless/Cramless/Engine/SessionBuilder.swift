@@ -241,6 +241,17 @@ struct SessionBuilder: Sendable {
 
     private var today: Int { calendar.dayNumber(for: now) }
 
+    /// Recall within the same twentieth counts as a tie: nothing separates two questions that close but a rounding, so what a lecturer marked for the exam goes first.
+    static func recallBand(_ recall: Double) -> Int { Int((recall * 20).rounded()) }
+
+    /// The lower recall first; in a tie (`recallBand`), a question marked for the exam, then the lower recall still. With nothing marked this is just the lower recall.
+    static func weaker(_ a: Double, _ first: ItemSnapshot, than b: Double, _ second: ItemSnapshot) -> Bool {
+        let ba = recallBand(a), bb = recallBand(b)
+        if ba != bb { return ba < bb }
+        if first.examFlagged != second.examFlagged { return first.examFlagged }
+        return a < b
+    }
+
     private var startOfTomorrow: Date {
         calendar.startOfDay(for: calendar.adding(days: 1, to: calendar.startOfDay(for: now).addingTimeInterval(12 * 3600)))
     }
@@ -328,12 +339,12 @@ struct SessionBuilder: Sendable {
         if catchUp {
             due.sort { a, b in
                 let ea = a.examDays ?? Int.max, eb = b.examDays ?? Int.max
-                return ea != eb ? ea < eb : a.recall < b.recall
+                return ea != eb ? ea < eb : Self.weaker(a.recall, a.item, than: b.recall, b.item)
             }
         } else {
             due.sort { a, b in
                 let fa = (a.examDays ?? Int.max) <= Self.examFocusDays, fb = (b.examDays ?? Int.max) <= Self.examFocusDays
-                return fa != fb ? fa : a.recall < b.recall
+                return fa != fb ? fa : Self.weaker(a.recall, a.item, than: b.recall, b.item)
             }
         }
         // Not due before the exam (its due day is on or after the exam day) and under target on exam day.
@@ -345,13 +356,14 @@ struct SessionBuilder: Sendable {
                   let examStart = examStarts[exam.id] else { return false }
             return d >= examStart
         }.sorted { a, b in
-            a.examDays != b.examDays ? (a.examDays ?? 0) < (b.examDays ?? 0) : (a.examRecall ?? 0) < (b.examRecall ?? 0)
+            a.examDays != b.examDays ? (a.examDays ?? 0) < (b.examDays ?? 0) : Self.weaker(a.examRecall ?? 0, a.item, than: b.examRecall ?? 0, b.item)
         }
 
-        // New items: the exam plans' share for today first, then the default quota.
+        // New items: the exam plans' share for today first, then the default quota. What a lecturer marked for the exam comes first among one exam's.
         fresh.sort { a, b in
             let da = a.exam?.date ?? .distantFuture, db = b.exam?.date ?? .distantFuture
             if da != db { return da < db }
+            if a.item.examFlagged != b.item.examFlagged { return a.item.examFlagged }
             if a.item.createdAt != b.item.createdAt { return a.item.createdAt < b.item.createdAt }
             return a.item.difficultyHint < b.item.difficultyHint
         }
@@ -498,11 +510,15 @@ struct SessionBuilder: Sendable {
                                         members: members.sorted { $0.recall < $1.recall }, examDays: days,
                                         mastery: mastery))
         }
-        // Topics for an exam in the next month first (nearest exam first), then the weakest.
+        // Topics for an exam in the next month first (nearest exam first), then the weakest; between two about as weak, the one a lecturer marked for the exam.
         topics.sort { a, b in
             let na = a.examDays <= 30, nb = b.examDays <= 30
             if na != nb { return na }
             if na && a.examDays != b.examDays { return a.examDays < b.examDays }
+            let ba = Self.recallBand(a.mastery), bb = Self.recallBand(b.mastery)
+            if ba != bb { return ba < bb }
+            let fa = a.members.contains { $0.item.examFlagged }, fb = b.members.contains { $0.item.examFlagged }
+            if fa != fb { return fa }
             if a.mastery != b.mastery { return a.mastery < b.mastery }
             return a.name < b.name
         }
@@ -547,7 +563,7 @@ struct SessionBuilder: Sendable {
             }
             weak.sort { a, b in
                 let ca = confused.contains(a.item.id), cb = confused.contains(b.item.id)
-                return ca != cb ? ca : (a.examRecall ?? 0) < (b.examRecall ?? 0)
+                return ca != cb ? ca : Self.weaker(a.examRecall ?? 0, a.item, than: b.examRecall ?? 0, b.item)
             }
             var used = 0.0
             for c in weak where used + c.cost <= budget {

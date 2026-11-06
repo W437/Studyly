@@ -4,7 +4,8 @@ import SwiftData
 
 // Launch hooks for Cap's cards (DEBUG only). They shape the demo world so the real engines find each kind:
 //
-// - `CRAMLESS_NOTICES=mixup,lookalike,fading,back,mock|all|none`: those kinds and no others. `lookalike`: the Bio midterm 9 days out, with the
+// - `CRAMLESS_NOTICES=mixup,lookalike,fading,back,mock,gap,lecturedate|all|none`: those kinds and no others. `gap`: the Bio midterm 12 days out, with its topics that
+//   have no questions; `lecturedate`: Lecture 6 heard a date for a second quiz, two weeks off. `lookalike`: the Bio midterm 9 days out, with the
 //   sample page's look-alikes. `fading`: the midterm 6 days out, and its questions 20 days overdue, with 30 more added, so that more of them than today's session
 //   holds. `back`: 8 days without study after a 23-day run. `mock`: the midterm 5 days out. `mixup` needs nothing: the demo world has an open mix-up.
 // - `CRAMLESS_NOTICE_STATE=second|later|done|allLater`, once the deck is dealt: `second` the first card acted on, so "2 of N" shows; `later` the
@@ -19,7 +20,8 @@ extension AppModel {
         guard config.isHarness, let raw = TestHarness.value("CRAMLESS_NOTICES") else { return }
         let asked = Set(raw.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces).lowercased() })
         let all = asked.contains("all")
-        let kinds: [(String, NoticeKind)] = [("mixup", .mixUp), ("lookalike", .lookAlike), ("fading", .fading), ("back", .welcomeBack), ("mock", .mockOffer)]
+        let kinds: [(String, NoticeKind)] = [("mixup", .mixUp), ("lookalike", .lookAlike), ("fading", .fading), ("back", .welcomeBack), ("mock", .mockOffer),
+                                            ("gap", .gap), ("lecturedate", .lectureDate)]
         var off = Set<NoticeKind>()
         for (name, kind) in kinds where !all && !asked.contains(name) { off.insert(kind) }
         settings.notices.off = off
@@ -38,7 +40,11 @@ extension AppModel {
         } else if asked.contains("mock") {
             debugMoveExam(midterm, toDays: 5)
             debugMoveExam(chem, toDays: 40)
+        } else if asked.contains("gap") {
+            debugMoveExam(midterm, toDays: 12)
+            debugMoveExam(chem, toDays: 40)
         }
+        if asked.contains("lecturedate") || all { debugHearExamDate("new") }
         if asked.contains("back") || all { debugWentAway() }
         save()
         applyNoticeState()

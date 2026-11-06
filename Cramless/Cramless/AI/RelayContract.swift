@@ -371,6 +371,96 @@ struct TranscribeImageResponse: Codable, Hashable, Sendable {
     var lines: [LineInput]
 }
 
+// MARK: - an exam's scope: reading a syllabus, checking a date heard in a lecture
+
+struct SyllabusTopicInput: Codable, Hashable, Sendable {
+    /// A short id the model passes back: "t1", "t2", in the order the app sends them.
+    var id: String
+    var name: String
+}
+
+/// Text only: the photo of a syllabus stays on the phone, and it isn't kept there either.
+struct SyllabusRequest: Codable, Hashable, Sendable {
+    var course: String
+    /// The exam being edited, when it has a name.
+    var examTitle: String?
+    /// The student's local day, yyyy-MM-dd.
+    var today: String
+    var topics: [SyllabusTopicInput]
+    var pages: [PageInput]
+}
+
+struct SyllabusTopic: Codable, Hashable, Sendable {
+    var name: String
+    /// The request's id, for a topic the course already has.
+    var topicId: String?
+    var lineIds: [String]
+}
+
+/// What a page says about an exam's form, and nothing more: nil is "it doesn't say".
+struct SyllabusFormat: Codable, Hashable, Sendable {
+    var multipleChoice: Bool?
+    var shortAnswer: Bool?
+    var essay: Bool?
+    var questionCount: Int?
+    var minutes: Int?
+    var notes: String?
+}
+
+struct SyllabusExam: Codable, Hashable, Sendable {
+    var title: String
+    /// yyyy-MM-dd.
+    var date: String?
+    /// HH:mm, 24 hours.
+    var time: String?
+    /// The date as the page writes it. The app believes a date only if it finds these words on the page.
+    var dateQuote: String?
+    var topics: [SyllabusTopic]
+    var format: SyllabusFormat
+    var formatQuote: String?
+}
+
+struct SyllabusResponse: Codable, Hashable, Sendable {
+    var model: String
+    var exams: [SyllabusExam]
+}
+
+struct ExamMentionInput: Codable, Hashable, Sendable {
+    var id: String
+    /// The sentence as it was transcribed.
+    var text: String
+    /// yyyy-MM-dd: the days the date detector read from it.
+    var candidates: [String]
+}
+
+struct ExamMentionRequest: Codable, Hashable, Sendable {
+    var course: String
+    var title: String
+    /// The day of the recording, yyyy-MM-dd: what relative dates count from.
+    var recordedDay: String
+    var language: String?
+    var topics: [String]
+    var mentions: [ExamMentionInput]
+}
+
+struct ExamMentionVerdict: Codable, Hashable, Sendable {
+    var id: String
+    var isExam: Bool
+    var title: String?
+    /// One of the mention's candidates.
+    var date: String?
+    /// HH:mm, 24 hours.
+    var time: String?
+    /// What the lecturer said it covers, in their words.
+    var scopePhrase: String?
+    var topics: [String]
+}
+
+struct ExamMentionResponse: Codable, Hashable, Sendable {
+    var model: String
+    var mentions: [ExamMentionVerdict]
+}
+
 // MARK: - quota and entitlement
 
 struct QuotaMeter: Codable, Hashable, Sendable {

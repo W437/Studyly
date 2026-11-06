@@ -144,6 +144,15 @@ extension AppModel {
             markNoticeActed(NoticeEngine.mockOfferID(examID))
             router.present(.mockExam(examID: examID))
             return nil
+        case .fillGap(let examID):
+            // Like a look-alike: opening the sheet has seen to it, and the exam page still says so until it's filled.
+            markNoticeActed(NoticeEngine.gapID(examID))
+            router.present(.fillGap(examID: examID, topicID: nil))
+            return nil
+        case .openHeardDate(let sourceID, let noticeID):
+            markNoticeActed(noticeID)
+            router.push(.lectureNotes(sourceID))
+            return nil
         }
         if let request { router.present(.session(request)) }
         return request
@@ -383,6 +392,8 @@ extension AppModel {
         inputs.topicNames = topicNames()
         inputs.cloudLessons = ai.route(.confusions).usesCloud
         inputs.mockOffers = noticeMockOffers()
+        inputs.gaps = noticeGaps(items: items)
+        inputs.heardDates = noticeHeardDates()
         return inputs
     }
 

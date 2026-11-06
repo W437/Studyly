@@ -12,16 +12,19 @@ struct ResearchStepView: View {
     let result: ResearchResult
     let actions: AssistantStepActions
     var animated = false
+    /// The save button's words.
+    var saveTitle: String
 
     @Environment(\.clReduceMotion) private var reduceMotion
     @State private var tilesShown: Int
     @State private var expanded = false
 
-    init(step: AssistantStep, result: ResearchResult, actions: AssistantStepActions, animated: Bool) {
+    init(step: AssistantStep, result: ResearchResult, actions: AssistantStepActions, animated: Bool, saveTitle: String? = nil) {
         self.step = step
         self.result = result
         self.actions = actions
         self.animated = animated
+        self.saveTitle = saveTitle ?? String(localized: "Save as note")
         _tilesShown = State(initialValue: animated ? 0 : min(8, result.sources.count))
     }
 
@@ -29,7 +32,7 @@ struct ResearchStepView: View {
     private var tiles: [WebSource] { Array(result.sources.prefix(8)) }
 
     var body: some View {
-        StepCard(step: step, actions: actions, addTitle: "Save as note", subtitle: "From trusted study sites") {
+        StepCard(step: step, actions: actions, addTitle: saveTitle, subtitle: "From trusted study sites") {
             VStack(alignment: .leading, spacing: 12) {
                 if working || !result.queries.isEmpty { searchBar }
                 if !result.sources.isEmpty { sources }

@@ -12,6 +12,8 @@ import SwiftUI
 struct ScannerFlowView: View {
     let courseID: UUID?
     let isOnboarding: Bool
+    /// The topic these pages are for ("Snap the chapter", filling a gap).
+    var topicID: UUID? = nil
 
     @Environment(AppModel.self) private var app
     @State private var useFallback = !ScannerSupport.canScan
@@ -51,7 +53,7 @@ struct ScannerFlowView: View {
         switch outcome {
         case .pages(let paths):
             CLHaptics.success()
-            app.router.present(.captureFlow(CaptureRequest(input: .images(paths), courseID: courseID, isOnboarding: isOnboarding)))
+            app.router.present(.captureFlow(CaptureRequest(input: .images(paths), courseID: courseID, isOnboarding: isOnboarding, topicID: topicID)))
         case .cancelled:
             app.router.dismissCover()
         case .failed(let message):
@@ -101,7 +103,7 @@ struct ScannerFlowView: View {
                     .disabled(preparing)
                     Button {
                         CLHaptics.tap()
-                        app.router.present(.captureFlow(CaptureRequest(input: .sample, courseID: courseID, isOnboarding: isOnboarding)))
+                        app.router.present(.captureFlow(CaptureRequest(input: .sample, courseID: courseID, isOnboarding: isOnboarding, topicID: topicID)))
                     } label: {
                         CaptureOptionRow(systemImage: "book.pages", tint: .sky, title: "Use our sample page",
                                          subtitle: "A biology page about mitosis")
@@ -147,7 +149,7 @@ struct ScannerFlowView: View {
         .task {
             guard TestHarness.once("CRAMLESS_SCANNER_SAMPLE") == "1" else { return }
             try? await nap(1200)
-            app.router.present(.captureFlow(CaptureRequest(input: .sample, courseID: courseID, isOnboarding: isOnboarding)))
+            app.router.present(.captureFlow(CaptureRequest(input: .sample, courseID: courseID, isOnboarding: isOnboarding, topicID: topicID)))
         }
         #endif
     }
@@ -169,7 +171,7 @@ struct ScannerFlowView: View {
         do {
             let paths = try await Task.detached(priority: .userInitiated) { try PageImageStore.stage(imageData: images) }.value
             CLHaptics.success()
-            app.router.present(.captureFlow(CaptureRequest(input: .images(paths), courseID: courseID, isOnboarding: isOnboarding)))
+            app.router.present(.captureFlow(CaptureRequest(input: .images(paths), courseID: courseID, isOnboarding: isOnboarding, topicID: topicID)))
         } catch {
             failure = (error as? LocalizedError)?.errorDescription ?? "Couldn't open those photos. Try others."
         }

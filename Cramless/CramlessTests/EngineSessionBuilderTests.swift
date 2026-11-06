@@ -449,4 +449,68 @@ final class EngineSessionBuilderTests: XCTestCase {
         XCTAssertFalse(built!.isEmpty)
         XCTAssertNotNil(built!.catchUp, "thousands due at once is a catch-up day")
     }
+
+    // MARK: Questions a lecturer marked for the exam
+
+    private func entries(_ session: BuiltSession) -> [UUID] { session.entries.map(\.itemID) }
+
+    func testAQuestionMarkedForTheExamGoesFirstAmongTiesAndNothingChangesWithoutOne() {
+        // Thirty due reviews about as weak as each other: more than a minute holds.
+        let items = (0..<30).map { i in
+            EngineTest.studied(topic: topics[0], course: course, recall: 0.70 + 0.0005 * Double(i), daysAgo: 12, now: now, cal: cal)
+        }
+        let spec = SessionSpec(kind: .daily)
+        let plain = builder(minutes: 1).build(spec, items: items, topicNames: names)
+        XCTAssertLessThan(plain.entries.count, items.count)
+        XCTAssertTrue(entries(plain).contains(items[0].id), "the lowest recall first")
+        XCTAssertFalse(entries(plain).contains(items[29].id))
+        var marked = items
+        marked[29].examFlagged = true
+        let flagged = builder(minutes: 1).build(spec, items: marked, topicNames: names)
+        XCTAssertTrue(entries(flagged).contains(items[29].id), "the marked one makes the session, though it is the strongest of the tie")
+        XCTAssertEqual(flagged.entries.count, plain.entries.count, "and takes one place")
+    }
+
+    func testAMarkedQuestionDoesNotJumpOverAClearlyWeakerOne() {
+        let weak = EngineTest.studied(course: course, recall: 0.4, daysAgo: 12, now: now, cal: cal)
+        var marked = EngineTest.studied(course: course, recall: 0.8, daysAgo: 12, now: now, cal: cal)
+        marked.examFlagged = true
+        XCTAssertTrue(SessionBuilder.weaker(0.4, weak, than: 0.8, marked))
+        XCTAssertFalse(SessionBuilder.weaker(0.8, marked, than: 0.4, weak))
+        // In a tie the mark decides, either way round; with no mark in it, the lower recall does.
+        let tied = EngineTest.studied(course: course, recall: 0.81, daysAgo: 12, now: now, cal: cal)
+        XCTAssertTrue(SessionBuilder.weaker(0.81, marked, than: 0.8, tied))
+        XCTAssertFalse(SessionBuilder.weaker(0.8, tied, than: 0.81, marked))
+        XCTAssertTrue(SessionBuilder.weaker(0.8, tied, than: 0.81, tied))
+        XCTAssertFalse(SessionBuilder.weaker(0.81, tied, than: 0.8, tied))
+    }
+
+    func testAMarkedNewQuestionComesFirstAmongOneExamsNewOnes() {
+        let exam = ExamSnapshot(courseID: course, title: "Midterm", date: cal.adding(days: 12, to: now))
+        var items = (0..<12).map { i in
+            EngineTest.fresh(topic: topics[0], course: course, createdAt: cal.adding(days: -20 + i, to: now))
+        }
+        items[11].examFlagged = true
+        let session = builder().build(SessionSpec(kind: .daily), items: items, exams: [exam], topicNames: names)
+        XCTAssertTrue(entries(session).contains(items[11].id), "the last one made, but the one the lecturer stressed")
+    }
+
+    func testTheEveTakesMarkedQuestionsFirstAmongTies() {
+        let exam = ExamSnapshot(courseID: course, title: "Midterm", date: cal.adding(days: 1, to: now), target: 0.99)
+        var items = (0..<40).map { _ in EngineTest.studied(kind: .recall, topic: topics[0], course: course, recall: 0.7, daysAgo: 12, now: now, cal: cal) }
+        items[39].examFlagged = true
+        let spec = SessionSpec(kind: .examEve, examID: exam.id)
+        let session = builder().build(spec, items: items, exams: [exam], topicNames: names)
+        XCTAssertLessThan(session.entries.count, items.count, "only some fit tonight")
+        XCTAssertTrue(entries(session).contains(items[39].id))
+    }
+
+    func testReadinessDoesNotReadTheMark() {
+        let exam = ExamSnapshot(courseID: course, title: "Midterm", date: cal.adding(days: 5, to: now))
+        var item = EngineTest.studied(course: course, recall: 0.8, daysAgo: 12, now: now, cal: cal)
+        let engine = ReadinessEngine(fsrs: FSRS(), calendar: cal, now: now)
+        let plain = engine.value(of: exam, items: [item])
+        item.examFlagged = true
+        XCTAssertEqual(engine.value(of: exam, items: [item]), plain)
+    }
 }

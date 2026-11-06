@@ -22,6 +22,10 @@ struct CapNotice: Identifiable, Equatable, Sendable {
             case undoFixMyWeek(noticeID: String)
             /// "Take it": a mock of this exam.
             case takeMock(examID: UUID)
+            /// "Fill the gap": how Cap can help with this exam's topics that have no notes.
+            case fillGap(examID: UUID)
+            /// "See it": the lecture the date was heard in, where it can be added.
+            case openHeardDate(sourceID: UUID, noticeID: String)
         }
 
         /// "Fix it · 2 min".

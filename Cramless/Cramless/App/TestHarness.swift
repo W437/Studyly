@@ -153,6 +153,7 @@ enum TestHarness {
                 r.push(.sourcePage(sourceID: s.id, pageIndex: 0, highlight: anchors), on: .library)
             }
         case "lectureNotes":
+            app.applyExamHeardHarness()
             if let lecture = firstCourse?.liveSources.first(where: { $0.kind == .lecture }) {
                 r.push(.lectureNotes(lecture.id), on: .library)
             }
@@ -206,6 +207,14 @@ enum TestHarness {
         case "newCourse": r.present(.newCourse)
         case "newExam": r.present(.newExam(courseID: firstCourse?.id))
         case "editExam": if let e = firstExam { r.present(.editExam(e.id)) }
+        // `syllabus:new`: a new exam for the first course; `syllabus` or `syllabus:edit`: the Bio midterm. `CRAMLESS_SYLLABUS` sets the state (see
+        // `ExamEditorView`).
+        case "syllabus":
+            if arg == "new" {
+                r.present(.newExam(courseID: firstCourse?.id))
+            } else if let exam = app.upcomingExams().first(where: { $0.title == "Bio 101 Midterm" }) ?? firstExam {
+                r.present(.syllabus(examID: exam.id))
+            }
         case "logGrade": if let e = firstExam { r.present(.logGrade(examID: e.id)) }
         case "editItem": if let i = firstCourse?.activeItems.first { r.present(.editItem(i.id)) }
         case "newItem": r.present(.newItem(courseID: firstCourse?.id))

@@ -429,5 +429,24 @@
         "other": "%arg free AI scans"
       }
     }
+  },
+  "%lld topics on your %@ have no notes": {
+    "value": "%#@topics@ on your %2$@ %#@verb@ no notes",
+    "substitutions": {
+      "topics": {
+        "argNum": 1,
+        "one": "%arg topic",
+        "other": "%arg topics"
+      },
+      "verb": {
+        "argNum": 1,
+        "one": "has",
+        "other": "have"
+      }
+    }
+  },
+  "Exam added, %lld days away": {
+    "one": "Exam added, %lld day away",
+    "other": "Exam added, %lld days away"
   }
 }

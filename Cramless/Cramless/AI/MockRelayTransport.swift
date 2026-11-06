@@ -15,6 +15,8 @@ struct MockRelayTransport: RelayTransport {
         static let check = 1.5
         static let grade = 0.9
         static let confusions = 1.2
+        static let syllabus = 1.8
+        static let examMention = 0.9
         static let lecture = 2.0
         static let cardsFromChat = 1.2
         static let transcribeImage = 1.5
@@ -171,6 +173,37 @@ struct MockRelayTransport: RelayTransport {
         try await pause(Latency.transcribeImage)
         try magic([request.label])
         return try load(TranscribeImageResponse.self, "transcribe-image")
+    }
+
+    /// The fixture, with its topic ids put right for this course by name (the request makes its ids up), and its line ids only when the
+    /// request has those lines (the sample syllabus does).
+    func syllabus(_ request: SyllabusRequest) async throws -> SyllabusResponse {
+        try await pause(Latency.syllabus)
+        var response = try load(SyllabusResponse.self, "syllabus")
+        let ids = Dictionary(request.topics.map { ($0.name.lowercased(), $0.id) }, uniquingKeysWith: { a, _ in a })
+        let lines = Set(request.pages.flatMap { $0.lines.map(\.id) })
+        for e in response.exams.indices {
+            for t in response.exams[e].topics.indices {
+                let topic = response.exams[e].topics[t]
+                response.exams[e].topics[t].topicId = ids[topic.name.lowercased()]
+                response.exams[e].topics[t].lineIds = topic.lineIds.filter(lines.contains)
+            }
+        }
+        return response
+    }
+
+    /// The fixture's verdict, for each mention asked about: its id, and the mention's own first candidate.
+    func examMention(_ request: ExamMentionRequest) async throws -> ExamMentionResponse {
+        try await pause(Latency.examMention)
+        var response = try load(ExamMentionResponse.self, "exam-mention")
+        guard let verdict = response.mentions.first else { return response }
+        response.mentions = request.mentions.map { mention in
+            var out = verdict
+            out.id = mention.id
+            out.date = mention.candidates.first
+            return out
+        }
+        return response
     }
 
     func quota() async throws -> QuotaStatus {

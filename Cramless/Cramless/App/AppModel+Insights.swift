@@ -341,10 +341,13 @@ extension AppModel {
         // same questions could otherwise make a different session, and a different count on Cap's card, each time the app opens.
         let items = fetch(FetchDescriptor<StudyItem>(predicate: #Predicate { $0.deletedAt == nil && $0.statusRaw == active },
                                                      sortBy: [SortDescriptor(\.id)]))
+        let flagged = examFlaggedItemIDs()
         return items.compactMap { item in
             let course = item.course
             if let course, course.deletedAt != nil { return nil }
-            return ItemSnapshot(item, courseID: course?.id)
+            var snapshot = ItemSnapshot(item, courseID: course?.id)
+            snapshot.examFlagged = flagged.contains(item.id)
+            return snapshot
         }
     }
 

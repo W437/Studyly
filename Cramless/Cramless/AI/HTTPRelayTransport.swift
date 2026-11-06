@@ -21,6 +21,8 @@ struct HTTPRelayTransport: RelayTransport {
         case transcribeImage = "transcribe-image"
         case assistant
         case research
+        case syllabus
+        case examMention = "exam-mention"
         case quota
 
         var method: String { self == .quota ? "GET" : "POST" }
@@ -41,6 +43,8 @@ struct HTTPRelayTransport: RelayTransport {
             case .transcribeImage: 60
             case .assistant: 45
             case .research: 70
+            case .syllabus: 45
+            case .examMention: 20
             case .quota: 10
             }
         }
@@ -74,6 +78,8 @@ struct HTTPRelayTransport: RelayTransport {
     func lecture(_ request: LectureRequest) async throws -> LectureResponse { try await send(.lecture, request) }
     func cardsFromChat(_ request: CardsFromChatRequest) async throws -> CardsFromChatResponse { try await send(.cardsFromChat, request) }
     func transcribeImage(_ request: TranscribeImageRequest) async throws -> TranscribeImageResponse { try await send(.transcribeImage, request) }
+    func syllabus(_ request: SyllabusRequest) async throws -> SyllabusResponse { try await send(.syllabus, request) }
+    func examMention(_ request: ExamMentionRequest) async throws -> ExamMentionResponse { try await send(.examMention, request) }
     func quota() async throws -> QuotaStatus { try await send(.quota, Optional<Int>.none) }
 
     func tutor(_ request: TutorRequest) -> AsyncThrowingStream<TutorEvent, Error> {

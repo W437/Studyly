@@ -63,6 +63,17 @@ enum RelayLimits {
     /// The lines of one page of a generate or check request.
     static let pageLines = 800
 
+    // Reading a syllabus and checking a date heard in a lecture.
+    /// `SyllabusRequest.pages`, `.topics` (each name at most 120, like a mention's topics).
+    static let syllabusPages = 6
+    static let syllabusTopics = 60
+    /// `ExamMentionRequest.mentions`: at most 5, each a sentence of at most 2,000 with at most 4 candidate days; at most 30 topics.
+    static let mentions = 5
+    static let mentionText = 2000
+    static let mentionCandidates = 4
+    static let mentionTopics = 30
+    /// `ExamMentionRequest.title` and `.course` are the lecture's (`title`, `course`).
+
     /// How much of the end of a label that has to be cut is kept ("p. 87", "· 07:40", "· card 7"): it says which one it is.
     static let labelTail = 24
 
@@ -202,6 +213,39 @@ extension ResearchRequest {
         request.topic = topic.clipped(toScalars: RelayLimits.researchTopic)
         request.focus = focus?.clipped(toScalars: RelayLimits.researchFocus)
         request.course = course?.clipped(toScalars: RelayLimits.course)
+        return request
+    }
+}
+
+extension SyllabusRequest {
+    /// The request within the relay's limits: its first 6 pages, a body of text only, each line within its length.
+    func fitted() -> SyllabusRequest {
+        var request = self
+        request.course = course.clipped(toScalars: RelayLimits.course)
+        request.examTitle = examTitle?.clipped(toScalars: RelayLimits.studyExamTitle)
+        request.topics = topics.prefix(RelayLimits.syllabusTopics).map {
+            SyllabusTopicInput(id: $0.id, name: $0.name.clipped(toScalars: RelayLimits.studyTopicName))
+        }
+        request.pages = pages.prefix(RelayLimits.syllabusPages).map { page in
+            PageInput(page: page.page, label: page.label.clipped(toScalars: RelayLimits.label),
+                      lines: page.lines.prefix(RelayLimits.pageLines).map { LineInput(id: $0.id, text: $0.text.clipped(toScalars: RelayLimits.lineText)) },
+                      image: nil)
+        }
+        return request
+    }
+}
+
+extension ExamMentionRequest {
+    /// The request within the relay's limits.
+    func fitted() -> ExamMentionRequest {
+        var request = self
+        request.course = course.clipped(toScalars: RelayLimits.course)
+        request.title = title.clipped(toScalars: RelayLimits.title)
+        request.topics = topics.prefix(RelayLimits.mentionTopics).map { $0.clipped(toScalars: RelayLimits.studyTopicName) }
+        request.mentions = mentions.prefix(RelayLimits.mentions).map {
+            ExamMentionInput(id: $0.id.clipped(toScalars: RelayLimits.sourceID), text: $0.text.clipped(toScalars: RelayLimits.mentionText),
+                             candidates: Array($0.candidates.prefix(RelayLimits.mentionCandidates)))
+        }
         return request
     }
 }

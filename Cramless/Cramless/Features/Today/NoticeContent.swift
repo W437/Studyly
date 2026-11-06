@@ -34,6 +34,17 @@ enum NoticeContent {
                              detail: MockCopy.cardLine(questions: offer.questions, minutes: offer.minutes),
                              action: .init(title: String(localized: "Take it"), systemImage: "doc.text", run: .takeMock(examID: offer.examID)),
                              link: .exam(offer.examID), cost: costLine(notice.cost))
+        case .gap(let gap):
+            return CapNotice(id: notice.id, kind: .gap, title: ExamGapCopy.title(count: gap.topics.count, examTitle: gap.examTitle),
+                             detail: ExamGapCopy.detail(gap.topics.map(\.name)),
+                             action: .init(title: String(localized: "Fill the gap"), systemImage: "text.badge.plus", run: .fillGap(examID: gap.examID)),
+                             link: .exam(gap.examID), cost: costLine(notice.cost))
+        case .lectureDate(let heard):
+            return CapNotice(id: notice.id, kind: .lectureDate, title: String(localized: "Cap heard an exam date"),
+                             detail: String(localized: "“\(heard.quote)” From \(heard.lectureTitle)."),
+                             action: .init(title: String(localized: "See it"), systemImage: "waveform",
+                                           run: .openHeardDate(sourceID: heard.sourceID, noticeID: notice.id)),
+                             cost: costLine(notice.cost))
         }
     }
 
@@ -160,7 +171,9 @@ enum NoticeContent {
         case .mixUp(let note):
             if note.name == ConfusionCandidate.unnamed { return String(localized: "Still tripping on the same questions? A 2-minute fix is ready.") }
             return String(localized: "Still mixing up \(SessionCopy.mixUpPair(note.name))? A 2-minute fix is ready.")
-        case .welcomeBack, .mockOffer:
+        case .gap(let gap):
+            return String(localized: "Some topics on your \(gap.examTitle) have no notes yet. Cap can help you fill them in.")
+        case .welcomeBack, .mockOffer, .lectureDate:
             return nil
         }
     }

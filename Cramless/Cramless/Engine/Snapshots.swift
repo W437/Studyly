@@ -14,10 +14,12 @@ struct ItemSnapshot: Sendable, Hashable, Identifiable {
     var createdAt: Date
     /// The generator's difficulty guess, 0 (easy) … 1 (hard).
     var difficultyHint: Double
+    /// It comes from a moment of a lecture marked for the exam: first among ties in a session. Readiness doesn't read it.
+    var examFlagged = false
 
     init(id: UUID = UUID(), kind: ItemKind = .flashcard, topicID: UUID? = nil, courseID: UUID? = nil,
          memory: MemoryState = .new, status: ItemStatus = .active, createdAt: Date = .distantPast,
-         difficultyHint: Double = 0.5) {
+         difficultyHint: Double = 0.5, examFlagged: Bool = false) {
         self.id = id
         self.kind = kind
         self.topicID = topicID
@@ -26,6 +28,7 @@ struct ItemSnapshot: Sendable, Hashable, Identifiable {
         self.status = status
         self.createdAt = createdAt
         self.difficultyHint = difficultyHint
+        self.examFlagged = examFlagged
     }
 
     var lapses: Int { memory.lapses }

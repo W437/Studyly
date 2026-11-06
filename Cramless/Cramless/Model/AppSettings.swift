@@ -76,6 +76,8 @@ struct AppSettings: Codable, Equatable, Sendable {
     var easyDays: [Int] = []
     /// Cap's cards: which kinds he may bring up, and whether he may send a notification about them.
     var notices = NoticeSettings()
+    /// The exam dates heard in lectures that the student added, moved to or put aside (`<lecture id>:<mention id>`).
+    var heardDatesHandled: Set<String> = []
 
     // AI and privacy
     /// The consent version the person accepted for cloud AI; 0 means not accepted.
@@ -145,6 +147,7 @@ struct AppSettings: Codable, Equatable, Sendable {
         targetRetention = try c.decodeIfPresent(Double.self, forKey: .targetRetention) ?? d.targetRetention
         easyDays = try c.decodeIfPresent([Int].self, forKey: .easyDays) ?? d.easyDays
         notices = (try? c.decodeIfPresent(NoticeSettings.self, forKey: .notices)) ?? d.notices
+        heardDatesHandled = try c.decodeIfPresent(Set<String>.self, forKey: .heardDatesHandled) ?? d.heardDatesHandled
         cloudConsentVersion = try c.decodeIfPresent(Int.self, forKey: .cloudConsentVersion) ?? d.cloudConsentVersion
         sendPhotos = try c.decodeIfPresent(Bool.self, forKey: .sendPhotos) ?? d.sendPhotos
         tutorMode = try c.decodeIfPresent(TutorMode.self, forKey: .tutorMode) ?? d.tutorMode

@@ -21,7 +21,7 @@ import Foundation
 //   • under-18: the tutor is always on hints first.
 
 enum AIJob: String, CaseIterable, Sendable {
-    case generate, grade, tutor, confusions, lecture, cardsFromChat, transcribeImage
+    case generate, grade, tutor, confusions, lecture, cardsFromChat, transcribeImage, syllabus, examMention
 
     /// The free limit the job counts against.
     var meter: QuotaMeter.Key? {
@@ -30,14 +30,14 @@ enum AIJob: String, CaseIterable, Sendable {
         case .grade: .grades
         case .tutor: .tutor
         case .lecture: .lectures
-        case .confusions, .cardsFromChat, .transcribeImage: nil
+        case .confusions, .cardsFromChat, .transcribeImage, .syllabus, .examMention: nil
         }
     }
 
-    /// This iPhone's model can do this job (mistake patterns and handwriting need the cloud).
+    /// This iPhone's model can do this job (mistake patterns, handwriting, a syllabus and a date heard in a lecture need the cloud).
     var runsOnDevice: Bool {
         switch self {
-        case .confusions, .transcribeImage: false
+        case .confusions, .transcribeImage, .syllabus, .examMention: false
         default: true
         }
     }
@@ -52,6 +52,8 @@ enum AIJob: String, CaseIterable, Sendable {
         case .lecture: "Write notes and questions from your lectures"
         case .cardsFromChat: "Make cards from your chat"
         case .transcribeImage: "Read handwriting, math and diagrams"
+        case .syllabus: "Read your syllabus"
+        case .examMention: "Check a date heard in a lecture"
         }
     }
 }
@@ -149,7 +151,7 @@ enum AIRouting {
         switch c.job {
         case .grade:
             order = c.strongest || c.preferCloud ? [.cloud, .onDevice] : [.onDevice, .cloud]
-        case .confusions, .transcribeImage:
+        case .confusions, .transcribeImage, .syllabus, .examMention:
             order = [.cloud]
         case .generate, .tutor, .lecture, .cardsFromChat:
             order = [.cloud, .privateCloud, .onDevice]

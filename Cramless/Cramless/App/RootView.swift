@@ -223,6 +223,7 @@ struct SheetDestination: View {
         case .editCourse(let id): CourseEditorView(courseID: id)
         case .newExam(let courseID): ExamEditorView(courseID: courseID, examID: nil)
         case .editExam(let id): ExamEditorView(courseID: nil, examID: id)
+        case .syllabus(let id): ExamEditorView(courseID: nil, examID: id, opensSyllabus: true)
         case .logGrade(let id): LogGradeView(examID: id)
         case .editItem(let id): ItemEditorView(itemID: id, courseID: nil)
         case .newItem(let courseID): ItemEditorView(itemID: nil, courseID: courseID)
@@ -246,6 +247,7 @@ struct SheetDestination: View {
         case .lookAlike(let a, let b, _): LookAlikeView(a: a, b: b)
         case .streakMonth: StreakMonthSheet()
         case .skyMemory: SkyMemorySheet()
+        case .fillGap(let examID, let topicID): FillGapSheet(examID: examID, topicID: topicID)
         }
     }
 }
@@ -258,7 +260,7 @@ struct CoverDestination: View {
         switch cover {
         case .session(let request): SessionView(request: request)
         case .mockExam(let examID): MockExamView(examID: examID)
-        case .scanner(let courseID, let isOnboarding): ScannerFlowView(courseID: courseID, isOnboarding: isOnboarding)
+        case .scanner(let courseID, let isOnboarding, let topicID): ScannerFlowView(courseID: courseID, isOnboarding: isOnboarding, topicID: topicID)
         case .captureFlow(let request): CaptureFlowView(request: request)
         case .record(let courseID): RecordView(courseID: courseID)
         case .onboarding(let page): OnboardingFlow(startPage: page)

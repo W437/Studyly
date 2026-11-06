@@ -273,7 +273,11 @@ function walk(node: unknown, visit: (n: Schema) => void): void {
   if (Array.isArray(node)) node.forEach((n) => walk(n, visit));
   else if (node && typeof node === "object") {
     visit(node as Schema);
-    for (const v of Object.values(node)) walk(v, visit);
+    for (const [key, value] of Object.entries(node)) {
+      // `properties` and `$defs` map names to schemas: a property may be called "format" without being the keyword.
+      if (key === "properties" || key === "$defs") Object.values(value as object).forEach((v) => walk(v, visit));
+      else walk(value, visit);
+    }
   }
 }
 

@@ -7,7 +7,9 @@ import SwiftUI
 /// With no notes yet it says why (the transcript is still pending, or the notes haven't been made) and offers to
 /// make them.
 ///
-/// DEBUG hook: `CRAMLESS_NOTES_FOCUS=<seconds>` opens focused on that moment (with `CRAMLESS_ROUTE=lectureNotes`).
+/// A date the lecturer gave for an exam shows first (`ExamHeardCard`).
+///
+/// DEBUG hook: `CRAMLESS_NOTES_FOCUS=<seconds>` opens focused on that moment (with `CRAMLESS_ROUTE=lectureNotes`); `CRAMLESS_EXAM_HEARD` (see `AppModel+Lecture`).
 struct LectureNotesView: View {
     let sourceID: UUID
     /// Seconds into the lecture to scroll to and mark (nil: the top).
@@ -26,6 +28,8 @@ struct LectureNotesView: View {
     /// Where each transcript moment sits in the scroll content, measured as it lays out.
     @State private var rowTops: [String: CGFloat] = [:]
     @State private var pendingJump: String?
+    /// The date just added: its card stays, saying so, with Undo.
+    @State private var heardAdded: AppModel.ExamHeard?
 
     private static let contentSpace = "lecture-notes-content"
     @State private var didFocus = false
@@ -88,6 +92,10 @@ struct LectureNotesView: View {
                 .fixedSize(horizontal: false, vertical: true)
                 .accessibilityAddTraits(.isHeader)
                 .padding(.top, 4)
+            if let heard = heardAdded ?? lecture.examHeard {
+                ExamHeardCard(heard: heard, onAdded: { heardAdded = heard }, onUndone: { heardAdded = nil })
+                    .padding(.top, 14)
+            }
             if let notes = lecture.notes {
                 CaptureOriginNote(systemImage: originIcon(notes.origin), text: originText(notes.origin),
                            tone: notes.origin == ItemOrigin.rules.rawValue ? .sun : .sky)
@@ -484,9 +492,12 @@ struct LectureNotesSnapshot: Equatable {
     /// There are no notes yet and the offline rules couldn't make good ones from this transcript (their section titles
     /// would be junk): only Cloud AI can (`LocalLectureNotes.make(qualityBar:)`).
     var offlineNotesThin = false
+    /// A date heard in it for an exam, not dealt with yet.
+    var examHeard: AppModel.ExamHeard?
 
     @MainActor
     init(source: Source, app: AppModel) {
+        examHeard = app.examHeard(in: source)
         title = source.title
         var parts: [String] = []
         if let course = source.course?.name { parts.append(course) }
