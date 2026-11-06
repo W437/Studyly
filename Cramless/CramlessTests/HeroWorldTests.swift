@@ -1,65 +1,89 @@
 import XCTest
 @testable import Cramless
 
-/// Today's hero as a world: where everything sits on each screen, the field of background stars, the clouds behind each course,
-/// where a focused constellation's card goes, how a tilt moves the layers, the shooting stars, and aiming a tap at a star.
+/// Today's sky band (and the welcome's world): where everything sits on each screen, the field of background stars, the clouds
+/// behind each course, how a tilt moves the layers, the shooting stars, and aiming a tap at a star (the full sky's).
 final class HeroWorldGeometryTests: XCTestCase {
-    private let phone = HeroWorldGeometry.make(width: 402, screenHeight: 874, topInset: 62, compact: false)
+    private let phone = HeroWorldGeometry.band(width: 402, topInset: 62, compact: false)
 
-    func testTheWorldTakesAboutHalfTheScreenOnAPhoneAndLeavesRoomForTheButton() {
-        XCTAssertEqual(phone.band, 874 * HeroWorldGeometry.bandShare, accuracy: 0.5)
-        XCTAssertEqual(phone.height, 62 + phone.band, accuracy: 0.001)
-        XCTAssertLessThan(phone.height, 874 * 0.55, "the day's button must stay on the first screen")
-        XCTAssertGreaterThan(phone.height, 874 * 0.40)
+    func testTheBandIsTheSameOnEveryPhone() {
+        for (width, top) in [(375.0, 20.0), (393.0, 59.0), (402.0, 62.0), (440.0, 62.0)] {
+            let band = HeroWorldGeometry.band(width: width, topInset: top, compact: false)
+            XCTAssertEqual(band.band, HeroWorldGeometry.bandHeight)
+            XCTAssertEqual(band.height, top + 188, "188 points under the status bar")
+            XCTAssertEqual(band.style, .band)
+        }
+        XCTAssertEqual(phone.height, 250, "250 on an iPhone 17 Pro")
+        XCTAssertEqual(HeroWorldGeometry.band(width: 375, topInset: 20, compact: false).height, 208, "208 on an SE")
     }
 
-    func testTheBandIsHeldBetweenItsLimits() {
-        let small = HeroWorldGeometry.make(width: 375, screenHeight: 667, topInset: 20, compact: false)
-        XCTAssertEqual(small.band, HeroWorldGeometry.bandLimits.lowerBound)
-        let tall = HeroWorldGeometry.make(width: 1024, screenHeight: 1366, topInset: 24, compact: false)
-        XCTAssertEqual(tall.band, HeroWorldGeometry.bandLimits.upperBound)
+    func testTheSELeavesRoomForTheDaysCard() {
+        // An iPhone SE: 667 points tall, 49 of them the tab bar.
+        let se = HeroWorldGeometry.band(width: 375, topInset: 20, compact: false)
+        XCTAssertGreaterThanOrEqual(667 - 49 - se.height, 380)
+    }
+
+    func testCapStandsOnTheShoreAt96Points() {
+        XCTAssertEqual(phone.capSize, 96)
+        XCTAssertLessThan(phone.capSize, phone.band - 60, "he fits under the greeting")
     }
 
     func testTheLargestTextSizesGetALowBandWithNoCap() {
-        let compact = HeroWorldGeometry.make(width: 402, screenHeight: 874, topInset: 62, compact: true)
+        let compact = HeroWorldGeometry.band(width: 402, topInset: 62, compact: true)
         XCTAssertEqual(compact.band, HeroWorldGeometry.compactBand)
         XCTAssertEqual(compact.capSize, 0)
-        XCTAssertGreaterThan(phone.capSize, 0)
-    }
-
-    func testCapIsLargeAndStandsInTheWorld() {
-        XCTAssertGreaterThanOrEqual(phone.capSize, 120)
-        XCTAssertLessThanOrEqual(phone.capSize, 196)
-        XCTAssertGreaterThan(phone.capSize, 134, "bigger than he was beside the sky")
+        XCTAssertFalse(compact.reflects)
     }
 
     func testTheSkyIsTheFreePartBetweenTheStatusBarAndTheHills() {
         XCTAssertGreaterThanOrEqual(phone.skyTop, phone.topInset)
+        XCTAssertEqual(phone.skyTop, phone.topInset + 8)
         XCTAssertLessThan(phone.skyBottom, phone.farHills, "no star sits below the hills' crest")
         XCTAssertEqual(phone.skyBottom - phone.skyTop, phone.skyHeight, accuracy: 0.001)
         XCTAssertEqual(phone.insetTop, Double(phone.skyTop))
         XCTAssertEqual(phone.insetBottom, Double(phone.height - phone.skyBottom), accuracy: 0.001)
         XCTAssertEqual(phone.skyAspect, Double(phone.skyHeight / phone.width), accuracy: 1e-9)
+        XCTAssertEqual(phone.skyAspect, 0.32, accuracy: 0.03, "a wide, low sky")
     }
 
-    func testTheGroundIsLayeredFromFarToNear() {
-        for geometry in [phone, HeroWorldGeometry.make(width: 402, screenHeight: 874, topInset: 62, compact: true)] {
+    func testTheGroundIsLayeredFromFarToNearAndTheBandsLakeIsAStrip() {
+        XCTAssertEqual(phone.farHills, phone.height - 46)
+        XCTAssertEqual(phone.midHills, phone.height - 30)
+        XCTAssertEqual(phone.lakeTop, phone.height - 16)
+        XCTAssertEqual(phone.lakeDepth, 12)
+        XCTAssertFalse(phone.reflects, "too thin to mirror the stars")
+        XCTAssertEqual(phone.glowReach, 110)
+        XCTAssertEqual(phone.scrimReach, 66)
+        for geometry in [phone, HeroWorldGeometry.band(width: 402, topInset: 62, compact: true)] {
             XCTAssertLessThan(geometry.farHills, geometry.midHills)
             XCTAssertLessThan(geometry.midHills, geometry.lakeTop + 0.001)
             XCTAssertLessThan(geometry.lakeTop, geometry.height)
-            XCTAssertEqual(geometry.lakeTop + geometry.lakeDepth, geometry.height, accuracy: 0.001 + geometry.lakeDepth,
-                           "the lake reaches the foot of the hero")
         }
     }
 
-    func testTheSkyAspectFollowsTheScreen() {
-        let short = HeroWorldGeometry.skyAspect(width: 375, screenHeight: 667, topInset: 20, compact: false)
-        let tall = HeroWorldGeometry.skyAspect(width: 402, screenHeight: 874, topInset: 62, compact: false)
-        let wide = HeroWorldGeometry.skyAspect(width: 402, screenHeight: 874, topInset: 62, compact: true)
-        XCTAssertGreaterThan(tall, wide, "the compact band's sky is wide and low")
-        XCTAssertGreaterThan(short, 0.3)
-        XCTAssertLessThan(tall, 1.2)
-        XCTAssertEqual(tall, TodaySnapshot.skyAspect, "the default for a screen that isn't measured yet is a phone's")
+    func testTheWelcomesWorldIsUnchanged() {
+        // `WelcomeView` builds its own geometry: its numbers are the world's, not the band's.
+        let world = HeroWorldGeometry(width: 402, height: 62 + 450, topInset: 62, compact: false)
+        XCTAssertEqual(world.style, .world)
+        XCTAssertEqual(world.skyTop, 62 + 12)
+        XCTAssertEqual(world.farHills, world.height - 84)
+        XCTAssertEqual(world.midHills, world.height - 52)
+        XCTAssertEqual(world.lakeTop, world.height - 50)
+        XCTAssertEqual(world.lakeDepth, 34)
+        XCTAssertEqual(world.capSize, min(196, max(120, 402 * 0.46)))
+        XCTAssertTrue(world.reflects)
+        XCTAssertEqual(world.glowReach, 190)
+        XCTAssertEqual(world.scrimReach, 104)
+        let compact = HeroWorldGeometry(width: 402, height: 62 + 230, topInset: 62, compact: true)
+        XCTAssertEqual(compact.farHills, compact.height - 28)
+        XCTAssertEqual(compact.lakeTop, compact.height - 14)
+    }
+
+    func testTheSkyAspectBeforeMeasuringIsAPhonesBand() {
+        XCTAssertEqual(TodaySnapshot.skyAspect, phone.skyAspect, "the default for a screen that isn't measured yet is a phone's")
+        let compact = HeroWorldGeometry.bandSkyAspect(width: 402, topInset: 62, compact: true)
+        XCTAssertNotEqual(compact, phone.skyAspect, "the compact band's sky is laid out for its own shape")
+        XCTAssertLessThan(compact, 0.5, "and is still wide and low")
     }
 
     func testHeroCameraMayStartFurtherInThanTheFullScreen() {
@@ -176,40 +200,6 @@ final class HeroCloudTests: XCTestCase {
 
     func testAnEmptySkyHasNoClouds() {
         XCTAssertTrue(HeroCloud.clouds(for: .empty).isEmpty)
-    }
-}
-
-final class HeroFocusPlacementTests: XCTestCase {
-    private let size = CGSize(width: 402, height: 430)
-    private let card = CGSize(width: 372, height: 70)
-
-    func testTheCardSitsUnderAConstellationWhenThereIsRoom() {
-        let p = HeroFocusPlacement.card(center: CGPoint(x: 200, y: 120), radius: 50, card: card, in: size, top: 70, bottom: 0)
-        XCTAssertEqual(p.y, 120 + 50 + 10 + 35)
-        XCTAssertEqual(p.x, 200, accuracy: 0.001, "under the constellation, within the 12-point margins")
-        let wide = HeroFocusPlacement.card(center: CGPoint(x: 200, y: 120), radius: 50, card: CGSize(width: 395, height: 70), in: size, top: 70, bottom: 0)
-        XCTAssertEqual(wide.x, 201, accuracy: 0.001, "centred when the card cannot move sideways")
-    }
-
-    func testItMovesAboveWhenThereIsNoRoomBelow() {
-        let p = HeroFocusPlacement.card(center: CGPoint(x: 200, y: 380), radius: 40, card: card, in: size, top: 70, bottom: 0)
-        XCTAssertEqual(p.y, 380 - 40 - 10 - 35)
-    }
-
-    func testItStaysInsideTheScreenSideways() {
-        let narrow = CGSize(width: 200, height: 70)
-        let left = HeroFocusPlacement.card(center: CGPoint(x: 10, y: 100), radius: 20, card: narrow, in: size, top: 70, bottom: 0)
-        XCTAssertEqual(left.x, 12 + 100)
-        let right = HeroFocusPlacement.card(center: CGPoint(x: 400, y: 100), radius: 20, card: narrow, in: size, top: 70, bottom: 0)
-        XCTAssertEqual(right.x, 402 - 12 - 100)
-    }
-
-    func testItNeverLeavesTheFreeArea() {
-        for y in stride(from: 60.0, through: 420.0, by: 20.0) {
-            let p = HeroFocusPlacement.card(center: CGPoint(x: 200, y: y), radius: 80, card: card, in: size, top: 70, bottom: 40)
-            XCTAssertGreaterThanOrEqual(p.y - 35, 70 - 0.001, "above the top at y=\(y)")
-            XCTAssertLessThanOrEqual(p.y + 35, 430 - 40 + 0.001, "below the bottom at y=\(y)")
-        }
     }
 }
 

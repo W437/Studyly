@@ -40,15 +40,17 @@ DERIVED=build-x scripts/xc.sh build                   # another derived-data fol
 - Which tests: the global rule ("Test in proportion to the change", `~/.claude/CLAUDE.md`) applies. The suite is about 1,100 tests and
   needs a simulator slot on a shared Mac (a half-hour queue is normal), so it is a gate, not a per-change check.
   - Run classes, not files: `-only-testing:CramlessTests/<Class>`, as many as needed (`xc.sh test` passes them on). A file can hold
-    several classes (`TodayHeroTests.swift` has `TodayHeroContentTests` and `TodaySkySnapshotTests`; `SkyCopyTests` is in
+    several classes (`TodayHeroTests.swift` has `TodayHeroContentTests` and `TodaySkySnapshotTests`; `HeroWorldTests.swift` has
+    `HeroWorldGeometryTests` and the band's other pure parts; `SkyCopyTests` is in
     `SkyViewTests.swift`; `TutorTests.swift` has `TutorTests`, `TutorSelectionTests`, `TutorHonestyTests`, `RelayLimitsTests` and `TutorPrivacyCopyTests`). `grep -n "class .*TestCase" CramlessTests/<File>.swift` lists a file's classes, and
     `grep -l -w -E "TypeA|TypeB" CramlessTests/*.swift` finds the files that use the types you changed.
-  - No tests: wording, comments, docs, art, `scripts/`. Words a test asserts (`TodayHeroContentTests`, `SkyCopyTests`,
+  - No tests: wording, comments, docs, art, `scripts/`. Words a test asserts (`TodayHeroContentTests`, `TodayCopyTests`, `SkyCopyTests`,
     `PaywallCopyTests`) are updated along with the words. A string-catalog edit has `LocalizationTests` (the catalogs parse, plural
     forms resolve, `docs/l10n/plurals.json` names only keys the app uses).
   - Test files by area (in `CramlessTests/`, without `.swift`; `Ask*`, `Capture*`, `Import*`, `Library*` and `Widget*` stand for the
     files with that prefix):
-    - Today: `TodayHeroTests`, `TodayTests`, `HeroWorldTests`, `HeroRefreshTests`, `WelcomeSkyTests`. The memory sky: `SkyEngineTests`,
+    - Today: `TodayHeroTests`, `TodayTests`, `TodayCopyTests`, `TodayReasonsTests`, `TodayPlanStripTests`, `TodayRenderTests` (PNGs of
+      every card state in `build/review/s1-today/render/`, and the SE fit), `HeroWorldTests`, `HeroRefreshTests`, `WelcomeSkyTests`. The memory sky: `SkyEngineTests`,
       `SkyViewTests`, `SkyDerivedTests`, `SkyAppModelTests`.
     - A session and the engines (`Engine/`): `SessionTests`, `SessionFeelTests`, `EngineFSRSTests`, `EngineSchedulerTests`,
       `EngineSessionBuilderTests`, `EngineReadinessTests`, `EngineStreakTests`.
@@ -166,9 +168,15 @@ sleep 4; xcrun simctl io <udid> screenshot shot.png
   (`TEST_RUNNER_CRAMLESS_STOREKIT_TESTS=1`): they can leave a "Sign in to Apple Account" prompt on a simulator until
   it's erased.
 - Screen states (each documented beside its view):
-  - Today: `CRAMLESS_TODAY=catchup|examEve|eveDone|done|caughtUp|noMaterial|empty`; `CRAMLESS_TODAY_SCROLL=1` scrolls
-    down the page and back (for a film); `CRAMLESS_TODAY_OPEN=<ms>` opens the sky that long after launch, as a tap
-    on it would.
+  - Today: `CRAMLESS_TODAY=catchup|partway|split|noExam|examEve|eveDone|done|caughtUp|noMaterial|empty` (`split`: no exam holds
+    40% of the session, so no chip; `noExam`: no exams at all; `done` also fills the done card's exam, +10%);
+    `CRAMLESS_TODAY_NOTICES=0|1|2|3` deals that many of Cap's cards; `CRAMLESS_TODAY_WHY=<ms>`, `CRAMLESS_TODAY_QUESTS=<ms>` open
+    "Why these?" and the quests sheet, `CRAMLESS_TODAY_LATER=<ms>` presses Cap's "Later", each that long after launch;
+    `CRAMLESS_TODAY_SCROLL=1` scrolls down to the exams row and back (for a film); `CRAMLESS_TODAY_OPEN=<ms>` opens the sky that
+    long after launch, as a tap on the band would; `CRAMLESS_CANVAS=375x667` draws Today at an iPhone SE's size (there is no SE
+    simulator for iOS 27; no status-bar inset); `CRAMLESS_TODAY_TYPE=xxxl|ax1…ax5` draws Today at that text size without changing
+    the simulator's own setting (others may share it). Routes `todayWhy`, `quests` (the sheets) and `skyList` (the sky as a list,
+    "Study something else"); `streak` shows the month with exams and eves marked.
   - Sessions:
     - `CRAMLESS_SESSION_STATE=ownwords|graded|mcq(-answered)|cloze(-answered)|diagram(-filled|-answered)|flashcard|flipped|summary|exameve-summary|fix-summary`
     - `CRAMLESS_SESSION_PICK=wrong`, `CRAMLESS_SESSION_ANSWER=<text>`
@@ -226,8 +234,8 @@ sleep 4; xcrun simctl io <udid> screenshot shot.png
     a video layer and the drawing under it race, and a blink of a frame or two only shows in a film.
   - `CRAMLESS_CELEBRATION=none|nudge|small|medium|big|calm` sets the size of the summary's celebration (with
     `CRAMLESS_SESSION_STATE=summary`); the reason and the title stay the real ones.
-  - Today's hero is a world (`HeroWorld`): `CRAMLESS_HERO=3000:c2,9500:close,12000:x300y160` taps constellation 2's first star,
-    closes its card, then taps the point (300, 160), at those milliseconds after launch, through the same code as a finger.
+  - Today's top is a sky band (`HeroWorld`): `CRAMLESS_HERO=12000:x300y160` taps the point (300, 160) 12 s after launch, through
+    the same code as a finger (a tap opens the full sky; on the outline sky of the first day it ripples).
     With no motion sensor (the Simulator) the layers sway on their own, so films show the depth.
     `scripts/hero_shot.sh <udid> <name> [KEY=VALUE …]` screenshots the hero (`HERO_WAIT=3.5 scripts/hero_shot.sh …` waits that long).
     The hero is pinned when the page is pulled down, and the pull is a pull to refresh (`HeroRefresh.swift`):
@@ -346,9 +354,10 @@ sleep 4; xcrun simctl io <udid> screenshot shot.png
   it; `MemorySkyView` draws it (`Features/Sky/`). A star is an active item, a constellation a topic. Layout depends on
   ids and counts only, so nothing moves as days pass. "Relit" means a star visibly changed in a session. Saves and
   the flare use `ReviewOutcome.isSave`.
-  - Today's top is a world (`TodaySkyHero` over `HeroWorld`: the sky, background stars, hills and a lake, Cap standing in it, a
-    constellation you can tap; its pure parts are `HeroWorldModel.swift`); what each day says and offers is one pure value,
-    `TodayHeroContent`. Progress shows pieces of it: an exam's region (`SkyScene.region(of:)`, drawn by
+  - Today's top is a short sky band (`TodaySkyHero` over `HeroWorld`, `HeroWorldGeometry.band`: the sky, background stars, hills and
+    a strip of lake, Cap on the shore; a tap opens the full sky; its pure parts are `HeroWorldModel.swift`; the welcome's taller
+    world is the same geometry with `style: .world`); what each day's card says and offers is one pure value, `TodayHeroContent`
+    (copy in `TodayCopy`, "Why these?" in `TodayReasons`, the week in `TodayPlanStrip`, Cap's cards are `CapNotice`). Progress shows pieces of it: an exam's region (`SkyScene.region(of:)`, drawn by
     `SkyRegionStill`) and a topic's glyph (`SkyScene.glyph(of:)`, `SkyGlyphView`).
   - An exam's region records the constellations it covers (`SkyLayout.Region.covers`); use that, never "is it inside the
     circle", to decide what belongs to an exam.
