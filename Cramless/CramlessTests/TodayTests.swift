@@ -90,13 +90,191 @@ final class TodayTests: XCTestCase {
         let snapshot = TodaySnapshot.make(app: app)
         XCTAssertEqual(snapshot.hero, .empty)
         XCTAssertTrue(snapshot.exams.isEmpty)
-        XCTAssertNil(snapshot.confusion)
+        XCTAssertTrue(snapshot.notices.isEmpty)
+        XCTAssertTrue(snapshot.strip.isEmpty)
+        XCTAssertTrue(snapshot.firstDay)
+        XCTAssertTrue(snapshot.greeting.hasPrefix("Welcome"), "the band says welcome on the first day")
     }
 
     func testInitials() {
         XCTAssertEqual(TodaySnapshot.initials("Maya"), "M")
         XCTAssertEqual(TodaySnapshot.initials("maya rivera"), "MR")
         XCTAssertEqual(TodaySnapshot.initials(""), "")
+    }
+
+    // MARK: The day card's world
+
+    private let due = { (cal: Calendar, now: Date) in
+        MemoryState(state: .review, stability: 3, difficulty: 5, due: cal.adding(days: -1, to: now),
+                    lastReview: cal.adding(days: -4, to: now), reps: 3)
+    }
+
+    /// Chem 110 with two topics and due questions, a quiz in `days` days; optionally Bio 101 with a midterm further off.
+    @discardableResult
+    private func world(quizIn days: Int = 2, withBio: Bool = false, items: Int = 6) -> (chem: Course, quiz: Exam, bio: Course?) {
+        let chem = Course(name: "Chem 110", now: clock.now)
+        app.context.insert(chem)
+        let reagents = Topic(course: chem, name: "Limiting reagents", sortOrder: 0, now: clock.now)
+        let moles = Topic(course: chem, name: "Moles", sortOrder: 1, now: clock.now)
+        app.context.insert(reagents)
+        app.context.insert(moles)
+        chem.topics.append(contentsOf: [reagents, moles])
+        for i in 0..<items {
+            let item = StudyItem(course: chem, topicID: i % 2 == 0 ? reagents.id : moles.id, kind: .flashcard, status: .active,
+                                 origin: .person, prompt: "Q\(i)", answer: "A\(i)", now: clock.now)
+            item.memory = due(cal, clock.now)
+            app.context.insert(item)
+            chem.items.append(item)
+        }
+        let quiz = Exam(course: chem, title: "Chem 110 Quiz", date: EngineTest.date(2026, 10, 22 + days, 10, in: cal), now: clock.now)
+        app.context.insert(quiz)
+        chem.exams.append(quiz)
+        var bio: Course?
+        if withBio {
+            let b = Course(name: "Bio 101", now: clock.now)
+            app.context.insert(b)
+            let item = StudyItem(course: b, kind: .flashcard, status: .active, origin: .person, prompt: "B", answer: "B", now: clock.now)
+            app.context.insert(item)
+            b.items.append(item)
+            let midterm = Exam(course: b, title: "Bio 101 Midterm", date: EngineTest.date(2026, 11, 14, 9, in: cal), now: clock.now)
+            app.context.insert(midterm)
+            b.exams.append(midterm)
+            bio = b
+        }
+        app.save()
+        return (chem, quiz, bio)
+    }
+
+    func testTheCardNamesTheExamItsTopicsAndAForecastThatNeverGoesDown() throws {
+        let (_, quiz, _) = world()
+        let snapshot = TodaySnapshot.make(app: app)
+        XCTAssertEqual(snapshot.hero, .session)
+        let focus = try XCTUnwrap(snapshot.focus, "every question today is for the quiz")
+        XCTAssertEqual(focus.exam.id, quiz.id)
+        XCTAssertEqual(Set(focus.topics), ["Limiting reagents", "Moles"])
+        XCTAssertGreaterThanOrEqual(focus.forecast, focus.exam.readiness)
+        XCTAssertLessThanOrEqual(focus.forecast, 1)
+        XCTAssertGreaterThan(focus.forecast, focus.exam.readiness, "studying six due questions moves it")
+        XCTAssertEqual(focus.exam.itemsInScope, 6)
+        XCTAssertEqual(focus.dueCount, 6)
+        let content = TodayHeroContent.make(snapshot)
+        XCTAssertEqual(content.chip?.text, "For Chem 110 Quiz")
+        XCTAssertTrue(content.when?.contains("in 2 days") ?? false, content.when ?? "")
+        XCTAssertEqual(content.rings?.footnote, "Based on 6 questions so far.")
+        // The forecast is the ring's own function over today's session.
+        let snapshotExam = try XCTUnwrap(app.examSnapshots(upcomingOnly: true).first)
+        XCTAssertEqual(focus.forecast, max(focus.exam.readiness, app.readinessAfter(app.todayBuiltSession(), for: snapshotExam)),
+                       accuracy: 1e-9)
+    }
+
+    func testTheWeekShowsTheEveAndTheExamAndNothingRed() throws {
+        world(quizIn: 2)
+        let strip = TodaySnapshot.make(app: app).strip
+        XCTAssertEqual(strip.map(\.offset), [-2, -1, 0, 1, 2, 3, 4])
+        XCTAssertEqual(strip[3].mark, .eve(minutes: 10))
+        XCTAssertEqual(strip[3].examTitles, ["Chem 110 Quiz"])
+        XCTAssertEqual(strip[4].mark, .exam(count: 1))
+        XCTAssertEqual(strip[0].mark, .missed, "no record: a hollow circle")
+        if case .minutes(let m) = strip[2].mark { XCTAssertGreaterThan(m, 0) } else { XCTFail("today: its minutes") }
+    }
+
+    func testOnTheEveTheCardNamesTonightsTopicsAndCapIsQuietAboutTheOthers() throws {
+        let (_, quiz, _) = world(quizIn: 1, withBio: true)
+        let snapshot = TodaySnapshot.make(app: app)
+        XCTAssertEqual(snapshot.hero, .examEve(quiz.id))
+        XCTAssertTrue(snapshot.isEve)
+        XCTAssertFalse(snapshot.eveTopics.isEmpty)
+        XCTAssertTrue(Set(snapshot.eveTopics).isSubset(of: ["Limiting reagents", "Moles"]))
+        XCTAssertEqual(snapshot.eveOthers, ["Bio 101"])
+        XCTAssertEqual(TodayCopy.quietLine(examTitle: quiz.title, others: snapshot.eveOthers),
+                       "Cap is quiet tonight. Bio 101 can wait until after Chem 110 Quiz.")
+        let content = TodayHeroContent.make(snapshot)
+        XCTAssertEqual(content.title, "Tonight: weak spots only")
+        XCTAssertTrue(content.reason.hasPrefix("10 minutes on "), content.reason)
+        XCTAssertTrue(content.when?.hasPrefix("Tomorrow · ") ?? false, content.when ?? "")
+    }
+
+    func testTheDoneCardsGainBelongsToTheExamTheSessionCountedToward() throws {
+        let (chem, quiz, _) = world(withBio: true)
+        let (session, built) = app.startSession(SessionRequest(kind: .daily))
+        XCTAssertEqual(session.examID, quiz.id, "the session was mostly for the quiz")
+        for entry in built.entries where entry.courseID == chem.id {
+            app.recordReview(itemID: entry.itemID, rating: .good, sessionID: session.id)
+        }
+        app.finishSession(session)
+        XCTAssertEqual(app.todayDoneExamID(), quiz.id)
+        let snapshot = TodaySnapshot.make(app: app)
+        let done = try XCTUnwrap(snapshot.doneExam)
+        XCTAssertEqual(done.title, "Chem 110 Quiz")
+        XCTAssertGreaterThan(done.deltaToday, 0, "today's reviews moved its readiness")
+    }
+
+    func testAMixUpIsCapsCardAndLaterPutsItOffUntilTomorrow() throws {
+        let (chem, _, _) = world()
+        let items = chem.items.prefix(2).map(\.id)
+        let first = Confusion(course: chem, name: "Moles vs molar mass", explanation: "", itemIDs: Array(items), missCount: 4, now: clock.now)
+        let second = Confusion(course: chem, name: "Limiting vs excess", explanation: "", itemIDs: Array(items), missCount: 2, now: clock.now)
+        app.context.insert(first)
+        app.context.insert(second)
+        app.save()
+        var notices = TodaySnapshot.make(app: app).notices
+        XCTAssertEqual(notices.map(\.kind), [.mixUp, .mixUp])
+        XCTAssertEqual(notices.first?.title, "You keep mixing up moles and molar mass.", "the most missed first")
+        XCTAssertEqual(notices.first?.action?.title, "Fix it · 2 min")
+        XCTAssertEqual(notices.first?.link, .confusion(first.id))
+        if case .fixMixUp(let id)? = notices.first?.action?.run { XCTAssertEqual(id, first.id) } else { XCTFail("the fix") }
+
+        app.snoozeNotice(try XCTUnwrap(notices.first).id)
+        notices = TodaySnapshot.make(app: app).notices
+        XCTAssertEqual(notices.count, 1, "Later moves to the next")
+        XCTAssertEqual(notices.first?.title, "You keep mixing up limiting and excess.")
+        clock.advance(86_400)
+        XCTAssertEqual(TodaySnapshot.make(app: app).notices.count, 2, "tomorrow it is back")
+    }
+
+    func testCapsActionRunsTheFixDrill() throws {
+        let (chem, _, _) = world()
+        let confusion = Confusion(course: chem, name: "Moles vs molar mass", explanation: "", itemIDs: chem.items.prefix(2).map(\.id),
+                                  missCount: 3, now: clock.now)
+        app.context.insert(confusion)
+        app.save()
+        let action = try XCTUnwrap(app.todayNotices().first?.action)
+        let request = try XCTUnwrap(app.perform(action))
+        XCTAssertEqual(request.kind, .fix)
+        XCTAssertEqual(request.confusionID, confusion.id)
+        XCTAssertEqual(app.router.cover, .session(request))
+    }
+
+    func testAllLitPracticesTheTopicRememberedLeast() {
+        world()
+        let snapshot = TodaySnapshot.make(app: app)
+        XCTAssertNotNil(snapshot.practice)
+        XCTAssertTrue(["Limiting reagents", "Moles"].contains(snapshot.practice?.name ?? ""))
+    }
+
+    func testAnExamWithNoCourseYetMakesItsCourse() throws {
+        XCTAssertTrue(app.courses.isEmpty)
+        var draft = ExamDraft.new(courseID: nil, now: clock.now, calendar: cal)
+        XCTAssertNotNil(draft.problem, "no course and no name")
+        draft.newCourseName = "  Bio 101 "
+        XCTAssertNil(draft.problem)
+        let exam = try XCTUnwrap(app.createExam(draft))
+        XCTAssertEqual(exam.course?.name, "Bio 101")
+        XCTAssertEqual(exam.title, "Bio 101 exam")
+        XCTAssertEqual(app.courses.map(\.name), ["Bio 101"])
+    }
+
+    func testReasonsSayWhatTheSessionIsForAndWhatWaits() throws {
+        world(withBio: true)
+        let input = app.todayReasonsInput()
+        XCTAssertEqual(input.examTitle, "Chem 110 Quiz")
+        XCTAssertEqual(input.courseName, "Chem 110")
+        XCTAssertEqual(input.scopeCount, 6)
+        XCTAssertNotNil(input.weakestName)
+        XCTAssertEqual(input.others.map(\.name), ["Bio 101"])
+        let rows = TodayReasons.make(input)
+        XCTAssertEqual(rows.first?.id, "exam")
+        XCTAssertTrue(rows.contains { $0.id == "few" }, "six questions is a thin guess")
     }
 
     // MARK: Words

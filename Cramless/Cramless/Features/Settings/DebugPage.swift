@@ -14,7 +14,7 @@ struct DebugPage: View {
         ("captureFlow", nil), ("paste", nil), ("importDeck", nil), ("newCourse", nil), ("newExam", nil), ("editExam", nil),
         ("logGrade", nil), ("editItem", nil), ("newItem", nil), ("explain", nil), ("makeCards", nil), ("paywall", nil),
         ("paywall", "onboarding"), ("examPass", nil), ("consent", nil), ("consent", "photos"), ("squadRedeem", "CAP-7Q4K"),
-        ("record", nil),
+        ("record", nil), ("todayWhy", nil), ("skyList", nil), ("quests", nil),
     ]
 
     var body: some View {

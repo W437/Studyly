@@ -1,12 +1,14 @@
 import SwiftUI
 
-/// The top of Today: your memory sky as a world, edge to edge and up behind the status bar, with the date, "Today" and the
-/// streak on it, and Cap standing in it (`HeroWorld`). Tap a constellation to look at it and relight it right here, tap the
-/// empty sky and it ripples, tilt the phone to look around, pull the page down and the sky refreshes. What it says and offers each
-/// day is `TodayHeroContent`.
+/// The top of Today: a short band of your memory sky (`HeroWorld`, `HeroWorldGeometry.band`), edge to edge and up behind the status
+/// bar, with the date and a greeting ("Good afternoon, Maya"), the streak and your avatar on it, Cap standing on the shore at the
+/// bottom left and "17 stars dimming" at the bottom right. Tap the band (or the pill) and the full sky opens; pull the page down
+/// and the sky refreshes.
 ///
-/// At the accessibility text sizes the sky is a 180 pt band with only the streak and the avatar on it; the date and
-/// "Today" move below it, and Cap steps out, so the words get the whole width.
+/// At the accessibility text sizes the band is low with only the streak and the avatar on it; the date and the greeting move
+/// below it, and Cap steps out, so the words get the whole width.
+///
+/// VoiceOver reads the greeting, the streak, the avatar, then "Your memory sky" (which opens the sky and has a Refresh action).
 struct TodaySkyHero: View {
     let snapshot: TodaySnapshot
     let content: TodayHeroContent
@@ -15,12 +17,10 @@ struct TodaySkyHero: View {
     /// The page's pull, and the refresh it starts.
     let pull: HeroPullModel
     var onOpenSky: () -> Void
-    var onRelight: (SkyLayout.Constellation) -> Void
     var onStreak: () -> Void
     var onProfile: () -> Void
 
     @Environment(AppModel.self) private var app
-    @State private var focus: Int?
     /// The pill says "Sky refreshed" for a moment after a refresh.
     @State private var showsFresh = false
 
@@ -32,20 +32,16 @@ struct TodaySkyHero: View {
         VStack(alignment: .leading, spacing: 0) {
             ZStack(alignment: .topLeading) {
                 HeroWorld(scene: snapshot.sky, mode: content.sky, ambient: content.twinkles, geometry: geometry,
-                          cap: compact ? nil : content.cap, opensSky: opensSky, pull: pull, focus: $focus, onOpenSky: onOpenSky,
-                          onRelight: { index in
-                              let constellations = snapshot.sky.layout.constellations
-                              if constellations.indices.contains(index) { onRelight(constellations[index]) }
-                          })
-                // VoiceOver reads the title and the streak first, then the sky.
+                          cap: compact ? nil : content.cap, opensSky: opensSky, pull: pull, onOpenSky: onOpenSky)
+                // VoiceOver reads the greeting and the streak first, then the sky.
                 header.accessibilitySortPriority(1)
-                if opensSky, !compact, focus == nil { starsTag }
+                if opensSky, !compact { starsPill }
             }
             .frame(height: geometry.height)
-            .clipShape(UnevenRoundedRectangle(bottomLeadingRadius: 34, bottomTrailingRadius: 34, style: .continuous))
+            .clipShape(UnevenRoundedRectangle(bottomLeadingRadius: 30, bottomTrailingRadius: 30, style: .continuous))
             .overlay(alignment: .bottom) {
                 // A hairline of light along the horizon, so the edge reads in dark mode too.
-                UnevenRoundedRectangle(bottomLeadingRadius: 34, bottomTrailingRadius: 34, style: .continuous)
+                UnevenRoundedRectangle(bottomLeadingRadius: 30, bottomTrailingRadius: 30, style: .continuous)
                     .strokeBorder(.white.opacity(0.07), lineWidth: 1)
                     .allowsHitTesting(false)
             }
@@ -62,13 +58,15 @@ struct TodaySkyHero: View {
         }
     }
 
-    /// "63 stars · 7 dim ›": what the sky holds, and the cue that it opens. For a moment after a refresh it says so instead.
-    private var starsTag: some View {
-        // A finger opens the sky here; VoiceOver does it from the hero itself, so the tag stays hidden from it.
+    /// "17 stars dimming ›": what is fading in the sky, and the cue that it opens. For a moment after a refresh it says so instead.
+    private var starsPill: some View {
+        // A finger opens the sky here; VoiceOver does it from the band itself, so the pill stays hidden from it.
         Button(action: onOpenSky) {
             HStack(spacing: 6) {
-                Text(verbatim: showsFresh ? String(localized: "Sky refreshed") : tagText)
+                Text(verbatim: showsFresh ? String(localized: "Sky refreshed")
+                     : TodayCopy.starsPill(stars: snapshot.sky.starCount, dimming: snapshot.sky.dimCount))
                     .clFont(.footnoteEmphasis)
+                    .lineLimit(1)
                     .contentTransition(.opacity)
                 Image(systemName: showsFresh ? "sparkle" : "chevron.right")
                     .font(.system(size: showsFresh ? 11 : 10, weight: .bold))
@@ -85,15 +83,9 @@ struct TodaySkyHero: View {
         .buttonStyle(.pressable)
         .environment(\.colorScheme, .dark)
         .padding(.trailing, CLSpace.gutter)
-        .padding(.bottom, 16)
+        .padding(.bottom, 14)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
         .accessibilityHidden(true)
-    }
-
-    private var tagText: String {
-        var parts = [String(localized: SkyCopy.stars(snapshot.sky.starCount))]
-        if snapshot.sky.dimCount > 0 { parts.append(String(localized: SkyCopy.dim(snapshot.sky.dimCount))) }
-        return parts.joined(separator: " · ")
     }
 
     // MARK: Header
@@ -108,15 +100,20 @@ struct TodaySkyHero: View {
         .padding(.top, topInset + 8)
     }
 
+    /// The date, and the greeting by the hour.
     private func titles(onSky: Bool) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             CLEyebrow(text: .verbatim(CLFormat.longDay(app.now)), color: onSky ? .white.opacity(0.72) : CLColor.ink3)
                 .dynamicTypeSize(...DynamicTypeSize.accessibility1)
-            Text("Today")
-                .clFont(.largeTitle)
+            Text(verbatim: snapshot.greeting)
+                .clFont(.title2)
                 .foregroundStyle(onSky ? Color.white : CLColor.ink)
-                .accessibilityAddTraits(.isHeader)
+                .lineLimit(onSky ? 2 : nil)
+                .minimumScaleFactor(onSky ? 0.85 : 1)
+                .fixedSize(horizontal: false, vertical: true)
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isHeader)
         .allowsHitTesting(false)
     }
 
@@ -126,48 +123,5 @@ struct TodaySkyHero: View {
             TodayAvatar(initials: snapshot.initials, onOpen: onProfile)
         }
         .environment(\.colorScheme, .dark)
-    }
-}
-
-/// Under the sky: the day's headline when there is one, its button, and one caption.
-struct TodayHeroActions: View {
-    let content: TodayHeroContent
-    var perform: (TodayHeroContent.Action) -> Void
-
-    /// The headline's mark grows with the text it sits beside.
-    @ScaledMetric(relativeTo: .title3) private var symbolSize: CGFloat = 18
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            if let headline = content.headline {
-                HStack(spacing: 8) {
-                    if let symbol = content.headlineSymbol {
-                        Image(systemName: symbol)
-                            .font(.system(size: symbolSize, weight: .semibold))
-                            .foregroundStyle(CLColor.tangerineInk)
-                            .accessibilityHidden(true)
-                    }
-                    Text(headline)
-                        .clFont(.title3)
-                        .foregroundStyle(CLColor.ink)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .accessibilityAddTraits(.isHeader)
-                }
-            }
-            ForEach(Array(content.actions.enumerated()), id: \.offset) { _, action in
-                Button { perform(action) } label: {
-                    Label(action.title, systemImage: action.systemImage)
-                        .lineLimit(2)
-                        .multilineTextAlignment(.center)
-                }
-                .buttonStyle(.cl(action.prominent ? .primary : .soft, size: action.prominent ? .regular : .medium))
-            }
-            Text(content.caption)
-                .clFont(.callout)
-                .foregroundStyle(CLColor.ink2)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.top, 18)
     }
 }

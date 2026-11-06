@@ -30,6 +30,11 @@ struct SkyScreen: View {
 
     private var listMode: Bool { asList ?? typeSize.isAccessibilitySize }
 
+    /// `startsAsList`: open as the list (Today's "Study something else"), with the sky a tap away.
+    init(startsAsList: Bool = false) {
+        _asList = State(initialValue: startsAsList ? true : nil)
+    }
+
     var body: some View {
         GeometryReader { geo in
             ZStack {

@@ -242,68 +242,72 @@ answering relights it. It is the one picture of "how ready am I", and it can't l
 
 ## Today and Progress
 
-Today is the sky and one button. Progress is the same sky, taken apart.
+Today is the plan first: a short band of sky, the day's one card, the week, one of Cap's cards and the exams. Progress is the
+same sky, taken apart.
 
-**Today** (`TodaySkyHero`, `HeroWorld`, `TodayHeroContent`): the hero is a world, about half the screen: your memory sky
-edge to edge behind the status bar with the date, "Today" and the streak on it, and Cap standing in it, large, on the shore
-of a lake, not small beside the stars. Under it come the day's button and one caption, then the next exam, Cap's note on a
-mix-up, the other exams, ways to add material and the Squad. What each day says and offers is one value
-(`TodayHeroContent`), so every state is tested.
+**Today** (direction A, "plan first"; `TodayView`), top to bottom:
+- **The band** (`TodaySkyHero` over `HeroWorld`, `HeroWorldGeometry.band`): 188 pt of your memory sky under the status bar on
+  every phone (250 on a 17 Pro, 208 on an SE), edge to edge and up behind the status bar. On it: the date and a greeting by the
+  hour ("Good afternoon, Maya"; "Welcome, Maya" on the first day), the streak pill and the avatar; Cap (96 pt) on the shore at the
+  bottom left; "17 stars dimming ›" (or "63 stars") at the bottom right. A tap anywhere opens the full sky, where the
+  constellations, their cards and Practice live; on the first day's outline sky a tap ripples. The welcome keeps the tall world
+  (`style: .world`).
+- **The day card** (`TodayDayCard`, words in `TodayHeroContent` and `TodayCopy`): a chip naming the exam today's session mostly
+  serves (`SessionFocus`, 40% of its minutes) and when it is ("For Chem 110 Quiz" · "Sun · in 2 days"), a title of up to two
+  topics ("Limiting reagents and Stoichiometry", more counted, never "then"), one reason ("The weakest topics for this exam, plus
+  12 questions you're about to forget."), readiness now beside a dashed ring for about where today's session takes it ("42% ready
+  now" / "about 52% after today": the ring's own function over today's actual session, `ReadinessEngine.valueAfter`; "Based on
+  7 questions so far." under 15 questions), "Study · 15 min" and "Why these?" (a fitted sheet, `TodayReasons`: the exam's scope,
+  its weakest topic and how many of today's questions are on it, what is due, what waits and why; "Study something else" opens
+  the sky as a list).
+- **Your plan** (`TodayPlanCard`, `TodayPlanStrip`): two days back (a check, a snowflake or a hollow circle: never red), today
+  (its minutes, ringed, or a check), four days ahead with each exam's eve (a moon, "10m") and day (a mortarboard, "2" when two
+  share it) from the shared exam plans. "Calendar" opens the streak page, whose month marks exams and eves and goes one month
+  ahead. Once a first session is done, today's quests fold into one line ("0 of 3 quests today · 5 of 12 this week") that opens
+  them in a sheet.
+- **Cap noticed** (`TodayNoticeCard`, `CapNotice`): one card at a time with "1 of N", its action ("Fix it · 2 min") and Later
+  (until tomorrow, with a toast). In Stage 1 the cards are today's open mix-ups; Stage 2's notice engine deals them. On an exam's
+  eve the slot is his quiet line instead: "Cap is quiet tonight. Bio 101 and AP Psychology can wait until after Chem 110 Quiz."
+- **Exams** (`TodayExamsRow`): tiles in a row (a 46 pt ring, the name, when, rose within three days, "+15% this week" with an
+  arrow), "See all" to the Progress tab. With material and no exam: "When is your next exam?" and "Add an exam" (the editor asks
+  for a course's name when there is none). Hidden on the eve.
 
-The world (`HeroWorldGeometry` says where everything sits, `HeroWorldRenderer` draws it, `HeroWorldModel.swift` is the pure
+| Day | Chip | Title | Button |
+|---|---|---|---|
+| A plan day | "For Chem 110 Quiz" · "Sun · in 2 days" | its topics | "Study · 15 min", "Why these?" |
+| Catch-up | the same | the same; the backlog is the reason | "Study · 15 min" |
+| No exam, or none holds 40% | none (no rings) | its topics or courses | "Study · 15 min" |
+| Exam eve | a moon, the exam · "Tomorrow · 10:00" | "Tonight: weak spots only" | "Tonight · 10 min" |
+| Eve, nothing weak or done | the same; the sky stops twinkling, Cap sleeps | "Nothing left to review tonight" / "That's enough for tonight" | none |
+| Done | "Done for today" · "15 min · 24 answers" | "Bright tonight", with "Chem 110 Quiz: 52% ready" and "+10% today · 2 days to go" | "5 more minutes" (quiet) |
+| All lit | none | "All lit" | "Practice Limiting reagents · 5 min" |
+| No questions yet | none (outline sky) | "Let's make your first set" / "Add your first material" | "Try a sample page", "Scan a page" |
+
+- One big button a day; one word per job ("Study", "Practice", "Tonight"); "questions", never "cards".
+- Readiness is the only percentage; the projection ring is dashed, so it reads without colour.
+- Large text: the band is low with only the streak and avatar on it and the greeting below; the rings sit above their words; the
+  week is five rows in words; the exams are rows.
+- VoiceOver: the greeting, the streak, the avatar, "Your memory sky" (opens the sky; a Refresh action), the card (chip, title,
+  reason, "42 percent ready now, about 52 percent after today, projected", the button, "Why these?"), the week as one element read
+  day by day, Cap's card ("Cap noticed, 1 of 2"), the exams.
+- On an iPhone SE the day card, button included, ends above the tab bar (`TodayRenderTests`).
+
+The band's world (`HeroWorldGeometry` says where everything sits, `HeroWorldRenderer` draws it, `HeroWorldModel.swift` is the pure
 parts):
-- **Layers, far to near**: a dusk at the horizon (violet to rose to peach), a pale Milky Way band, 240 faint background
-  stars at three depths (a few glint), a soft cloud of each course's colour behind its constellations, the sky itself
-  (`SkyRenderer`, the same as the full screen: stars bigger and glowier here, the brightest with a four-point glint, lines
-  a little heavier), a shooting star now and then, far hills lit along the ridge and a mist, middle hills, a lake that
-  mirrors the brightest stars as broken ripples, and the ground Cap stands on.
-- **The sky fills its room**: it is laid out for the free sky's own shape (`HeroWorldGeometry.skyAspect`), not a fixed
-  wide strip, and the camera may start closer than the full screen's (`SkyCamera.fit(largest:)`). Constellations are not
-  named in the hero (the card names the one you pick); the exam regions keep their dashed rims.
-- **Interactive**: tap a star and the camera glides to its constellation, Cap steps aside, and one glass card slides up:
-  its name, how it is doing, "Practice · 4 min" and a close button. Taps aim at stars (any within 40 pt),
-  not at circles, so a near miss still finds the shape; a tap on empty sky ripples, or lets go of what was focused; it does
-  not open the full sky (a near miss mustn't throw you out of Today). The "63 stars · 17 dim" pill opens the full sky, and so
-  does VoiceOver's one element. Tapping Cap makes him answer (see Cap).
-- **It has depth**: tilt the phone and each layer moves by its own amount (`HeroTiltFilter`: where the phone was held a few
-  seconds ago is the middle, so holding it at an angle is the new middle). With no motion sensor (the Simulator) the layers
-  sway slowly on their own. The ground in front, and Cap on it, stay on the screen's plane.
-- **It stays put when the page is pulled**: pull Today down past its top and the page moves under the hero, which doesn't
-  (`TodayView` pins it with a visual effect that cancels the overscroll, in the same frame, so it can't lag). Before, the
-  full-bleed picture came loose from the top of the screen and showed a white page behind the status bar. Scrolled up it goes
-  with the page, as ever.
-- **Pulling is pull to refresh, and the world answers it** (`HeroRefresh.swift`, pure and tested; `HeroPullModel` reads the
-  scroll view): while you pull, the layers lean down by different amounts (the nearer, the further: background stars 4 to 13 pt,
-  the sky 16 pt; the ground never moves), the sky's own stars glow and the dusk brightens. At the line (72 pt of overscroll,
-  about 140 pt of drag) there is a tick under the finger and the far ridge catches the light, so you can see it is ready. Let
-  go and an arc of light climbs from behind the hills, flashing every star it passes, a star falls, and a beat later Cap reacts
-  and says one of his "refreshed" lines (14 of them, dealt like his others) while the pill says "Sky refreshed". A hard flick
-  that lifts short of the line but carries the page past it counts too (it began under the finger); a page flung up that
-  bounces off its top doesn't. What refreshing does: rolls the day over, pulls what other devices changed (waiting five seconds
-  at most), and looks at the sky again as of now (`AppModel.refreshToday`). If the account can't be reached a toast says the
-  sky is current on this iPhone. The flourish is 1.3 seconds at least, however quick the work. A focused constellation lets go.
-  Under Reduce Motion nothing leans or moves: the ridge still lights, and the sky brightens evenly for a moment. VoiceOver:
-  a "Refresh" action on the sky, and "Sky refreshed" is announced (by Cap, when he talks).
-- **It rests**: nothing moves under Reduce Motion (the camera cuts and there are no ripples), nothing ambient in Low Power
-  Mode, nothing while the hero is scrolled away or the app is in the background, and on exam eve once there is nothing
-  left to do it holds still (a tilt still moves it). Cost: about 1 ms a frame for 63 stars, optimised, at 30 frames a second;
-  a pull or a refresh draws at the screen's rate and costs about 1.3 ms a frame, 3 ms at worst (the sky is drawn twice).
-
-| Day | The sky | Under it |
-|---|---|---|
-| A session | Yours | "Study · 15 min", and "18 reviews · 6 new · 2 weak spots" |
-| Catch-up | Yours | "Catch up · 15 min", how much has piled up and how long it takes |
-| Exam eve | The exam's region glows, the rest recedes | "Tonight · 10 min", and "10 minutes on your weak spots, then sleep" |
-| Exam eve, nothing weak or already done | The same, and it stops twinkling | "That's enough for tonight", no button; Cap sleeps |
-| Done | Yours | "Bright tonight", with "5 more minutes" as a quiet extra |
-| Nothing due | Yours | "All lit", with "Practice 5 minutes" as a quiet extra |
-| No questions yet | Three constellations of unlit rings | "Try a sample page", then "Scan a page" |
-
-- One big button a day. On a day with none, the headline says what the day is.
-- At accessibility text sizes the world is a low 180 pt band with only the streak and the avatar on it, the sky laid out
-  wide for it, the date and "Today" below it, and Cap steps out so the words have the whole width.
-- VoiceOver gets one element for the sky ("Your memory sky, 63 stars, 20 dim. Opens the sky") and the words below it;
-  the constellations are listed on the full sky.
+- **Layers, far to near**: a dusk at the horizon, a pale Milky Way band, 240 faint background stars at three depths (a few glint),
+  a soft cloud of each course's colour behind its constellations, the sky itself (`SkyRenderer`, the same as the full screen),
+  a shooting star now and then, far hills lit along the ridge and a mist, middle hills, a strip of lake (too thin to mirror the
+  stars, so it doesn't), and the ground Cap stands on.
+- **The sky fills its room**: it is laid out for the band's free sky (`HeroWorldGeometry.skyAspect`, about 0.32), and the camera
+  may start closer than the full screen's (`SkyCamera.fit(largest:)`). The exam regions keep their dashed rims.
+- **It has depth**: tilt the phone and each layer moves by its own amount (`HeroTiltFilter`). With no motion sensor (the
+  Simulator) the layers sway slowly on their own. It draws at the screen's own rate while anything moves, and not at all
+  otherwise.
+- **It stays put when the page is pulled**, and the pull is pull to refresh (`HeroRefresh.swift`): the layers lean, the ridge
+  lights at the line, and letting go sends an arc of light up the sky, a falling star, Cap's "refreshed" line and "Sky refreshed"
+  on the pill. Under Reduce Motion nothing leans or moves; the sky brightens evenly for a moment.
+- **It rests**: nothing moves under Reduce Motion, nothing ambient in Low Power Mode, nothing while the band is scrolled away or
+  the app is in the background, and on exam eve once there is nothing left to do it holds still.
 
 **Progress** has no second sky. Each part is a piece of the first:
 - Each exam's card has a small still of its region (`SkyRegionStill`): the stars it covers, lit or fading, beside the

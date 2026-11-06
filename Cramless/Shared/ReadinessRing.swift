@@ -19,6 +19,8 @@ struct ReadinessRing: View {
     var goal: Double? = nil
     /// Where the plan takes the value, 0…1: a faint arc from the value on (drawn only when it is ahead of the value).
     var projected: Double? = nil
+    /// `.projection` draws the arc dashed: a forecast ("about 52% after today"), not a measurement.
+    var style: Style = .solid
 
     @State private var shown: Double = 0
     @State private var shownProjected: Double = 0
@@ -48,7 +50,7 @@ struct ReadinessRing: View {
             }
             Circle()
                 .trim(from: 0, to: current)
-                .stroke(CLColor.readiness(clamped), style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
+                .stroke(CLColor.readiness(clamped), style: arcStroke)
                 .rotationEffect(.degrees(-90))
             if let goal {
                 goalDot(goal)
@@ -121,5 +123,17 @@ struct ReadinessRing: View {
         let now = Int((clamped * 100).rounded())
         guard let goal else { return String(localized: "\(now) percent") }
         return String(localized: "\(now) percent, goal \(Int((max(0, min(1, goal)) * 100).rounded())) percent")
+    }
+}
+
+extension ReadinessRing {
+    enum Style: Sendable { case solid, projection }
+
+    /// The arc's stroke: round-capped, and dashed for a projection (so it reads without colour too).
+    var arcStroke: StrokeStyle {
+        switch style {
+        case .solid: StrokeStyle(lineWidth: lineWidth, lineCap: .round)
+        case .projection: StrokeStyle(lineWidth: lineWidth, lineCap: .round, dash: [lineWidth * 0.8, lineWidth * 1.9])
+        }
     }
 }

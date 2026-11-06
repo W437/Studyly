@@ -11,6 +11,8 @@ struct ExamDraft: Equatable, Sendable {
     var format = ExamFormat()
     /// The readiness the plan aims for, kept within `targetRange`.
     var target = 0.9
+    /// With no course yet, the name of the course to make for it (the editor asks for it, so "Add an exam" never dead-ends).
+    var newCourseName = ""
 
     static let targetRange: ClosedRange<Double> = 0.7...0.95
     static let targetStep = 0.05
@@ -65,7 +67,7 @@ struct ExamDraft: Equatable, Sendable {
 
     /// What still stops the draft from being saved, said plainly; nil when it's ready.
     var problem: String? {
-        if courseID == nil { return "Pick the course this exam is for." }
+        if courseID == nil, newCourseName.clTrimmed.isEmpty { return "Pick the course this exam is for." }
         if !wholeCourse && scope.isEmpty { return "Pick at least one topic, or the whole course." }
         return nil
     }
