@@ -363,7 +363,8 @@ extension AppModel {
         }
         inputs.lookAlikes = lookAlikePairs(items: items, exams: exams)
         inputs.days = daySnapshots()
-        inputs.bestStreak = streak().best
+        // Quiet mode hides the flame, so Welcome back doesn't name the streak or promise to light it.
+        inputs.bestStreak = settings.quietMode ? 0 : streak().best
         inputs.todayItems = Set(built.entries.map(\.itemID))
         inputs.goalMet = minutesDone >= settings.dailyMinutes + boostMinutesToday()
         inputs.sources = fadeSources(items: items, exams: exams)

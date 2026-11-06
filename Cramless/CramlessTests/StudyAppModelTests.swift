@@ -438,6 +438,32 @@ final class StudyAppModelTests: XCTestCase {
         return (course, try XCTUnwrap(app.lookAlikeDraft(a: pair.a, b: pair.b)), a, b, pair)
     }
 
+    func testQuietModeTakesTheStreakOutOfWelcomeBack() throws {
+        let course = makeCourse()
+        let item = StudyItem(course: course, kind: .flashcard, status: .active, origin: .person, prompt: "Mitosis", answer: "Cell division", now: clock.now)
+        app.context.insert(item)
+        course.items.append(item)
+        for offset in 9..<20 {
+            let date = cal.adding(days: -offset, to: clock.now)
+            let record = app.dayRecord(key: cal.dayKey(for: date), date: date)
+            record.sessions = 1
+            record.studySeconds = 15 * 60
+            record.itemsReviewed = 18
+        }
+        app.save()
+        func welcome() throws -> CapNotice {
+            let notice = try XCTUnwrap(app.noticeDeck().first { $0.kind == .welcomeBack })
+            return NoticeContent.card(notice, firstName: "Maya", now: clock.now, calendar: cal)
+        }
+        XCTAssertTrue(try welcome().detail.contains("best streak"))
+        XCTAssertTrue(try welcome().detail.contains("flame"))
+
+        app.settings.quietMode = true
+        let quiet = try welcome()
+        XCTAssertEqual(quiet.detail, "Your stars waited for you. 5 minutes today is a good start.")
+        XCTAssertEqual(quiet.title, "Welcome back, Maya", "the card itself stays: it is about coming back to the plan")
+    }
+
     func testShowMeAddsNothing() throws {
         let (course, draft, _, _, pair) = try lookAlikeWorld()
         let card = NoticeContent.card(try XCTUnwrap(app.noticeDeck().first), firstName: "", now: clock.now, calendar: cal)

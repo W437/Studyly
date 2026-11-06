@@ -26,7 +26,7 @@ enum NoticeContent {
             return CapNotice(id: notice.id, kind: .welcomeBack,
                              title: name.isEmpty ? String(localized: "Welcome back") : String(localized: "Welcome back, \(name)"),
                              detail: welcomeBackDetail(best: best),
-                             action: .init(title: String(localized: "Start 5 min"), systemImage: "flame",
+                             action: .init(title: String(localized: "Start 5 min"), systemImage: "play",
                                            run: .session(kind: .daily, minutes: welcomeBackMinutes, courseID: nil, topicID: nil, examID: nil)),
                              link: nil, cost: costLine(notice.cost))
         }

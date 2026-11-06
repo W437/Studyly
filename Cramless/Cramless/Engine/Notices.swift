@@ -216,7 +216,7 @@ struct Notice: Identifiable, Equatable, Sendable {
         case mixUp(ConfusionNote)
         case lookAlike(LookAlikePair)
         case fading(FadeRescue)
-        /// `best`: the person's best streak, in days.
+        /// `best`: the person's best streak, in days; 0 in Quiet mode, where the card doesn't name it.
         case welcomeBack(best: Int)
     }
 
