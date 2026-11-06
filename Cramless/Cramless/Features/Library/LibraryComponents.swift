@@ -384,13 +384,22 @@ struct FittingLabel: View {
     let titles: [String]
     let systemImage: String
 
+    @Environment(\.dynamicTypeSize) private var typeSize
+
     var body: some View {
-        ViewThatFits(in: .horizontal) {
-            ForEach(titles, id: \.self) { title in
-                Label(title, systemImage: systemImage).lineLimit(1)
+        if typeSize.isAccessibilitySize {
+            // A button's words are never cut: the shortest title, on as many lines as it takes.
+            Label(titles.last ?? "", systemImage: systemImage)
+                .lineLimit(nil)
+                .fixedSize(horizontal: false, vertical: true)
+        } else {
+            ViewThatFits(in: .horizontal) {
+                ForEach(titles, id: \.self) { title in
+                    Label(title, systemImage: systemImage).lineLimit(1)
+                }
+                // None fits on one line: the shortest words, wrapped as the button allows.
+                Text(titles.last ?? "")
             }
-            // None fits on one line: the shortest words, wrapped as the button allows.
-            Text(titles.last ?? "")
         }
     }
 }

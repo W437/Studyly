@@ -636,6 +636,11 @@ struct SessionDebug {
         return debug
     }
 
+    /// `CRAMLESS_SESSION_LONG_ANSWER=1` (with a flashcard state): an answer longer than the screen, to try scrolling it with a real finger.
+    private static let longAnswer = (1...5).map { _ in
+        "The division of the cytoplasm, producing two separate daughter cells. It begins in late anaphase or telophase. In animal cells a ring of actin and myosin pinches the cell in two. In plant cells a cell plate grows outward from the middle."
+    }.joined(separator: " ")
+
     init(state: String?, answer: String?, wrong: Bool) {
         self.state = state
         self.answer = answer
@@ -676,6 +681,9 @@ struct SessionDebug {
         case "flashcard", "flipped", "flashcard-saved", "flashcard-rated", "last-rated", "flashcard-drag", "flashcard-swiped":
             runner.debugFront(kinds: [.flashcard], preferring: "Cytokinesis")
             if state == "last-rated" { runner.debugKeepFirstOnly() }
+            if TestHarness.once("CRAMLESS_SESSION_LONG_ANSWER") != nil, let first = runner.queue.current, let item = runner.item(for: first) {
+                item.answer = Self.longAnswer
+            }
             if state == "flashcard-saved", let first = runner.queue.current, let item = runner.item(for: first) {
                 item.memory = Self.fading(app)
             }
@@ -709,7 +717,7 @@ struct SessionDebug {
             runner.debugHoldsUndo = true
             if let front = runner.queue.current { auto = .init(entryID: front.id, flip: true, swipe: .good, next: 500) }
         case "flashcard-rated", "last-rated":
-            let rate = TestHarness.once("CRAMLESS_SESSION_RATE").flatMap { name in Rating.allCases.first { $0.title.lowercased() == name } }
+            let rate = TestHarness.once("CRAMLESS_SESSION_RATE").flatMap { name in Rating.allCases.first { String(describing: $0) == name } }
             auto = .init(entryID: first.id, flip: true, rate: rate ?? .good, next: 500)
         default:
             break

@@ -23,7 +23,7 @@ extension AppModel {
             SessionSpec(kind: .daily, minutes: dailyBudgetMinutes(done: minutesDone), focusItemIDs: boostedItemsToday(), backlogMinutes: backlogMinutesToday()),
             items: itemSnapshots(), exams: examSnapshots(), confusions: confusionSnapshots(), topicNames: topicNames())
         var summary = TodaySummary(minutesGoal: settings.dailyMinutes + boostMinutesToday(), minutesDone: minutesDone,
-                                   plannedMinutes: built.plannedMinutes, reviews: built.reviewCount,
+                                   plannedMinutes: built.plannedMinutes, plannedQuestions: built.entries.count, reviews: built.reviewCount,
                                    newItems: built.newCount, weakSpots: built.weakSpots.count,
                                    weakChips: built.weakChips, studiedToday: (record?.sessions ?? 0) > 0,
                                    sessionReady: !built.isEmpty, catchUp: built.catchUp != nil)

@@ -59,7 +59,8 @@ extension AppModel {
         for (done, page) in pages.enumerated() {
             try Task.checkCancellation()
             guard let image = page.imageFileName else { continue }
-            let read = try await TextRecognizer.read(imageAt: image, pageIndex: page.pageIndex)
+            let index = page.pageIndex
+            let read = try await TextRecognizer.readingEnglishToo { try await TextRecognizer.read(imageAt: image, pageIndex: index, preferredLanguages: $0) }
             guard page.modelContext != nil, source.modelContext != nil else { return }
             page.apply(read)
             progress(CaptureProgress(stage: .reading, completed: done + 1, total: pages.count))

@@ -206,6 +206,40 @@
     "%@ this week" : {},
     "%@ to review" : {},
     "%@ today" : {},
+    "%@ tomorrow. %lld minutes of weak spots, then sleep." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ tomorrow. %#@minutes@ of weak spots, then sleep."
+          },
+          "substitutions" : {
+            "minutes" : {
+              "argNum" : 2,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg minute"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg minutes"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%@ tomorrow. A few minutes on your weak spots, then sleep." : {},
+    "%@ tomorrow. Nothing left to review. Sleep is part of studying." : {},
     "%@ waiting for you" : {},
     "%@ · %@" : {
       "localizations" : {
@@ -238,6 +272,7 @@
         }
       }
     },
+    "%@ · nothing to review" : {},
     "%@ · skipped" : {},
     "%@%@" : {
       "localizations" : {
@@ -312,6 +347,7 @@
         }
       }
     },
+    "%@. Undo is at the bottom." : {},
     "%@. Want help filling it in?" : {},
     "%@. Want help filling them in?" : {},
     "%@: %@" : {
@@ -342,6 +378,38 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "%1$lld answered · %2$lld flagged"
+          }
+        }
+      }
+    },
+    "%lld are for %@." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%#@count@ for %2$@."
+          },
+          "substitutions" : {
+            "count" : {
+              "argNum" : 1,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg is"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg are"
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -508,6 +576,50 @@
                 "stringUnit" : {
                   "state" : "translated",
                   "value" : "%lld essay questions"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld fill-ins" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld fill-in"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld fill-ins"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld for this exam are due" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld for this exam is due"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld for this exam are due"
                 }
               }
             }
@@ -1029,6 +1141,50 @@
         }
       }
     },
+    "%lld new questions for this exam" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld new question for this exam"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld new questions for this exam"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld new questions for this exam." : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld new question for this exam."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld new questions for this exam."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "%lld new questions, so it's all in before the exam." : {
       "localizations" : {
         "en" : {
@@ -1389,6 +1545,38 @@
         }
       }
     },
+    "%lld of %lld written answers marked" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld of %#@answers@ marked"
+          },
+          "substitutions" : {
+            "answers" : {
+              "argNum" : 2,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg written answer"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg written answers"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "%lld of today's questions are on it." : {
       "localizations" : {
         "en" : {
@@ -1613,6 +1801,80 @@
                 "stringUnit" : {
                   "state" : "translated",
                   "value" : "%lld questions will be dim by exam day"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld questions you're about to forget and %lld new ones for this exam." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%#@due@ you're about to forget and %#@new@ for this exam."
+          },
+          "substitutions" : {
+            "due" : {
+              "argNum" : 1,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg question"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg questions"
+                    }
+                  }
+                }
+              }
+            },
+            "new" : {
+              "argNum" : 2,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg new one"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg new ones"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld questions you're about to forget for this exam." : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld question you're about to forget for this exam."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld questions you're about to forget for this exam."
                 }
               }
             }
@@ -1934,12 +2196,12 @@
     "A little polish, and it shines." : {},
     "A log of your AI requests, to count the free limits. Not your notes, answers or chats; your chats stay on this iPhone." : {},
     "A mock exam for your %@" : {},
-    "A mock needs %lld questions on this exam's topics. You have %lld." : {
+    "A mock needs %lld multiple-choice or written questions, and you have %lld." : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "A mock needs %1$lld questions on this exam's topics. You have %2$lld."
+            "value" : "A mock needs %1$lld multiple-choice or written questions, and you have %2$lld."
           }
         }
       }
@@ -2101,6 +2363,50 @@
                       "value" : "the %arg minutes are for this exam"
                     }
                   }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "About %lld questions in all today." : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "About %lld question in all today."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "About %lld questions in all today."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "About %lld questions today" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "About %lld question today"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "About %lld questions today"
                 }
               }
             }
@@ -2297,6 +2603,7 @@
     "Asks first. Then photos of the pages you scan, made smaller, go to Cloud AI with their text." : {},
     "Asks first. Then your questions to Cap go to %@ through Capling's server, with the notes of the course (the text of your pages and lectures, the cards of decks you imported and the names of what you added), the passages it finds in any of your courses when you ask it to look through your notes, answers you type and the names of your courses, topics and exams." : {},
     "At %@" : {},
+    "At %@ when a streak of 3 days or more isn't done yet" : {},
     "At %@ you'll be about %@ ready by %@." : {
       "localizations" : {
         "en" : {
@@ -2361,7 +2668,6 @@
         }
       }
     },
-    "At 8:30 PM when a streak of 3 days or more isn't done yet" : {},
     "Aurora" : {},
     "Back" : {},
     "Back again" : {},
@@ -2627,6 +2933,7 @@
     "Cap's answers and drafts, no daily limit" : {},
     "Cap's own words" : {},
     "Cap's own words, not from your notes" : {},
+    "Cap's prediction is for this mock, today. Readiness is what you'd remember on exam day." : {},
     "Cap's style" : {},
     "Cap's tools need it. Everything still works on this iPhone without them." : {},
     "Cap, your tutor" : {},
@@ -3374,7 +3681,6 @@
     "Mark this moment as on the exam" : {},
     "Mark your answers to see your score." : {},
     "Marked" : {},
-    "Marked %@. Undo is at the bottom." : {},
     "Marked by you" : {},
     "Marking your answers…" : {},
     "Marks its lines on the page" : {},
@@ -4563,6 +4869,16 @@
     "This chat was deleted." : {},
     "This course has no topics yet." : {},
     "This course is gone" : {},
+    "This exam is %@. A mock needs %lld of those, and you have %lld." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "This exam is %1$@. A mock needs %2$lld of those, and you have %3$lld."
+          }
+        }
+      }
+    },
     "This exam is gone" : {},
     "This exam is gone." : {},
     "This exam was deleted." : {},
@@ -4722,7 +5038,6 @@
     "Type it, or slide" : {},
     "Type the problem" : {},
     "Type your answer…" : {},
-    "Under 1¢" : {},
     "Undo" : {},
     "Undo %@" : {},
     "Untangled" : {},
@@ -4737,6 +5052,7 @@
     "Use another address or send a new code" : {},
     "Use it" : {},
     "Use this page anyway" : {},
+    "Uses Cloud AI" : {},
     "Version" : {},
     "Version %@" : {},
     "Very proud. Very capybara." : {},
@@ -5149,6 +5465,7 @@
     "days" : {},
     "done" : {},
     "down %lld points this week" : {},
+    "essay questions" : {},
     "fading" : {},
     "for %lld days, one time. Doesn't renew." : {
       "localizations" : {
@@ -5197,6 +5514,7 @@
     "in a mix-up" : {},
     "log your grade" : {},
     "min" : {},
+    "multiple choice" : {},
     "ng" : {},
     "no quiz" : {},
     "not studied" : {},
@@ -5208,6 +5526,7 @@
     "p. %@" : {},
     "ready" : {},
     "rest" : {},
+    "short answer" : {},
     "steady this week" : {},
     "studied" : {},
     "the night before %@" : {},

@@ -50,8 +50,8 @@ struct CourseView: View {
         let topicOrder = Dictionary(uniqueKeysWithValues: lines.enumerated().map { ($0.element.id, $0.offset) })
         let items = course.liveItems.filter { $0.status == .active || $0.status == .suspended }
             .sorted {
-                let a = $0.topicID.flatMap { topicOrder[$0] } ?? Int.max, b = $1.topicID.flatMap { topicOrder[$0] } ?? Int.max
-                return a != b ? a < b : $0.createdAt < $1.createdAt
+                CourseQuestions.comesBefore(topicA: $0.topicID.flatMap { topicOrder[$0] } ?? Int.max, createdA: $0.createdAt, idA: $0.id,
+                                            topicB: $1.topicID.flatMap { topicOrder[$0] } ?? Int.max, createdB: $1.createdAt, idB: $1.id)
             }
         let model = LibraryCourseModel(course: course, app: app)
         let sources = course.liveSources.sorted { $0.createdAt > $1.createdAt }

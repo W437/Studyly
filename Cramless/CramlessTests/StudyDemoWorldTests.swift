@@ -152,7 +152,18 @@ final class StudyDemoWorldTests: XCTestCase {
         let input = app.todayReasonsInput()
         XCTAssertEqual(names2.first, input.weakestName, "the title and \"Why these?\" agree on the weakest")
         let saturdayStrip = try XCTUnwrap(snapshot.strip.first { $0.offset == 1 })
-        XCTAssertEqual(saturdayStrip.mark, .eve(minutes: saturday.shownMinutes), "the strip and the exam page's plan say one number")
+        // Saturday's eve is tomorrow: its button, the strip and the exam page's plan say one number.
+        let builtEve = app.builtEveMinutes(examID: chem.id)
+        XCTAssertEqual(saturdayStrip.mark, .eve(minutes: builtEve))
+        let stopsWithEve = ExamPresentation.stops(plan: plan, phase: phase, examTitle: chem.title, examDate: chem.date, today: work,
+                                                  skipped: nil, tonightMinutes: builtEve, now: app.now, calendar: cal)
+        XCTAssertTrue(stopsWithEve.contains { $0.kind == .eve && $0.title.hasSuffix("about \(builtEve) min") }, "\(stopsWithEve.map(\.title))")
+        // The card and "Why these?" are true of the session the button starts.
+        XCTAssertEqual(snapshot.summary.plannedQuestions, session.entries.count)
+        XCTAssertEqual(input.sessionTotal, session.entries.count)
+        XCTAssertLessThan(input.examQuestions, input.sessionTotal, "the demo's session holds other exams too")
+        XCTAssertTrue(TodayHeroContent.make(snapshot).reason.hasSuffix("About \(session.entries.count) questions in all today."),
+                      TodayHeroContent.make(snapshot).reason)
         print("\n===== DEMO CARD =====\n\(TodayHeroContent.make(snapshot).chip?.text ?? "") · \(TodayHeroContent.make(snapshot).when ?? "") · \(TodayHeroContent.make(snapshot).title) · \(pct(snapshot.focus?.exam.readiness ?? 0)) → \(pct(snapshot.focus?.forecast ?? 0)) · strip Sat \(saturdayStrip.mark)\nWhy: " + TodayReasons.make(input).map { "\($0.title) [\($0.detail ?? "")]" }.joined(separator: " | ") + "\n=====================\n")
     }
 }

@@ -82,7 +82,9 @@ enum PDFReader {
         guard let image = render(page, scale: renderScale) else { throw CaptureError.pdfUnreadable }
         let stored = try PageImagePipeline.normalize(cgImage: image)
         let path = try FileStore.write(stored.jpeg, folder: imageFolder, name: PageImageStore.pageFileName(index))
-        var captured = try await TextRecognizer.read(image, pageIndex: index, preferredLanguages: languages)
+        var captured = try await TextRecognizer.readingEnglishToo(preferredLanguages: languages) {
+            try await TextRecognizer.read(image, pageIndex: index, preferredLanguages: $0)
+        }
         captured.imageFileName = path
         captured.width = Double(stored.width)
         captured.height = Double(stored.height)

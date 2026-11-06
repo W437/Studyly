@@ -61,6 +61,8 @@ struct TodayFocus: Equatable, Sendable {
     var weakCount: Int
     var dueCount: Int
     var newCount: Int
+    /// All of the session's questions for it: "7" where the session holds 39.
+    var questions: Int = 0
 }
 
 /// The exam the day's finished sessions counted toward, for the done card's ring ("+10% today · 2 days to go").
@@ -201,7 +203,7 @@ struct TodaySnapshot: Equatable, Sendable {
             }
             snapshot.focus = TodayFocus(exam: exam, topics: focus.topicsWeakestFirst(readiness: readiness).compactMap { names[$0] },
                                         forecast: max(exam.readiness, app.readinessAfter(session, for: examSnapshot)),
-                                        weakCount: focus.weakCount, dueCount: focus.dueCount, newCount: focus.newCount)
+                                        weakCount: focus.weakCount, dueCount: focus.dueCount, newCount: focus.newCount, questions: focus.questionCount)
         }
         snapshot.sessionTopics = focus.examID == nil ? focus.topicIDs.compactMap { names[$0] } : []
         if snapshot.sessionTopics.isEmpty {
@@ -215,7 +217,7 @@ struct TodaySnapshot: Equatable, Sendable {
             let built = app.buildSession(SessionRequest(kind: .examEve, examID: eve.id))
             snapshot.eveHasWork = !built.isEmpty
             snapshot.eveMinutes = built.tonightMinutes
-            snapshot.eveTopics = topicNames(of: built, names: names)
+            snapshot.eveTopics = eveTopicNames(of: built, exams: snapshot.eveExams, names: names, app: app)
             snapshot.eveOthers = otherCourses(exams, besides: snapshot.eveExams)
             if case .examEveDone = snapshot.hero { snapshot.lastLookIdeas = app.lastLookCount(for: eve.id) }
         }
@@ -241,16 +243,29 @@ struct TodaySnapshot: Equatable, Sendable {
 
     /// A session's topics by name, in the order they first come up.
     static func topicNames(of session: BuiltSession, names: [UUID: String]) -> [String] {
+        topicIDs(of: session).compactMap { names[$0] }
+    }
+
+    private static func topicIDs(of session: BuiltSession) -> [UUID] {
         var seen = Set<UUID>()
-        var result: [String] = []
-        for spot in session.weakSpots where spot.source == .topic && seen.insert(spot.id).inserted {
-            if let name = names[spot.id] { result.append(name) }
-        }
+        var result: [UUID] = []
+        for spot in session.weakSpots where spot.source == .topic && seen.insert(spot.id).inserted { result.append(spot.id) }
         for entry in session.entries {
-            guard let t = entry.topicID, seen.insert(t).inserted, let name = names[t] else { continue }
-            result.append(name)
+            guard let t = entry.topicID, seen.insert(t).inserted else { continue }
+            result.append(t)
         }
         return result
+    }
+
+    /// The eve session's topics by name, weakest first, as the day card's title reads them.
+    @MainActor
+    private static func eveTopicNames(of session: BuiltSession, exams: [TodayExam], names: [UUID: String], app: AppModel) -> [String] {
+        var readiness: [UUID: Double] = [:]
+        for exam in exams {
+            guard let model = app.exam(exam.id) else { continue }
+            for topic in app.topicReadiness(for: model) where readiness[topic.id] == nil { readiness[topic.id] = topic.value }
+        }
+        return SessionFocus.weakestFirst(topicIDs(of: session), readiness: readiness).compactMap { names[$0] }
     }
 
     /// The other exams' courses, soonest first, without tonight's exams and their courses.
@@ -327,7 +342,7 @@ struct TodaySnapshot: Equatable, Sendable {
                 snapshot.exams[0].when = TodayCopy.when(first.date, now: first.date.addingTimeInterval(-86_400), calendar: app.calendar)
                 let built = app.buildSession(SessionRequest(kind: .examEve, examID: id))
                 snapshot.eveMinutes = built.tonightMinutes
-                snapshot.eveTopics = topicNames(of: built, names: app.topicNames())
+                snapshot.eveTopics = eveTopicNames(of: built, exams: [first], names: app.topicNames(), app: app)
                 snapshot.eveOthers = otherCourses(snapshot.exams, besides: snapshot.eveExams)
                 snapshot.lastLookIdeas = state == "eveDone" ? app.lastLookCount(for: id) : 0
                 // The week as the eve's: tonight's moon, tomorrow's exam.

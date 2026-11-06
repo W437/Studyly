@@ -27,14 +27,13 @@ struct RootView: View {
         #endif
         .environment(\.clDyslexicFont, app.settings.dyslexicFont)
         .environment(\.skyTheme, app.skyTheme)
-        .preferredColorScheme(colorScheme)
+        .background { WindowTheme(style: interfaceStyle).accessibilityHidden(true) }
         .tint(CLColor.tangerine)
         .modifier(RootSheetHost(router: router))
         .fullScreenCover(item: $router.cover) { cover in
             CoverDestination(cover: cover)
                 .environment(\.clDyslexicFont, app.settings.dyslexicFont)
                 .environment(\.skyTheme, app.skyTheme)
-                .preferredColorScheme(colorScheme)
                 .tint(CLColor.tangerine)
                 // A sheet raised while a cover is up is presented by the cover.
                 .sheet(item: $router.sheet) { sheet in
@@ -92,11 +91,41 @@ struct RootView: View {
         }
     }
 
-    private var colorScheme: ColorScheme? {
+    private var interfaceStyle: UIUserInterfaceStyle {
         switch app.settings.theme {
-        case .system: nil
+        case .system: .unspecified
         case .light: .light
         case .dark: .dark
+        }
+    }
+}
+
+/// The person's theme, set on the window. `.preferredColorScheme` at the root would do it too, but it also fixes the status bar's colour, and
+/// wins over the screens below: with Light chosen the clock stayed black over Today's night band and in the sky. On the window, the
+/// system goes on choosing the status bar by what is under it, as it does with System, and the sky's own `.preferredColorScheme(.dark)` counts.
+private struct WindowTheme: UIViewRepresentable {
+    let style: UIUserInterfaceStyle
+
+    func makeUIView(context: Context) -> WindowThemeView { WindowThemeView() }
+
+    func updateUIView(_ view: WindowThemeView, context: Context) {
+        view.style = style
+    }
+
+    final class WindowThemeView: UIView {
+        var style: UIUserInterfaceStyle = .unspecified {
+            didSet { apply() }
+        }
+
+        override func didMoveToWindow() {
+            super.didMoveToWindow()
+            apply()
+        }
+
+        private func apply() {
+            // Every window of the scene, not only this view's: the film strip and the touch rings have their own.
+            guard let windows = window?.windowScene?.windows else { return }
+            for window in windows where window.overrideUserInterfaceStyle != style { window.overrideUserInterfaceStyle = style }
         }
     }
 }

@@ -128,7 +128,9 @@ struct TodayHeroContent: Equatable, Sendable {
             if catchUp {
                 reason = TodayCopy.catchUp(due: summary.dueTotal, goal: summary.minutesGoal, days: summary.catchUpDaysToClear)
             } else if let focus = snapshot.focus {
-                reason = TodayCopy.reason(weak: focus.weakCount > 0, due: focus.dueCount, new: focus.newCount, forExam: true)
+                // The counts are this exam's: when the session holds more, the card says that too, so it's true of what its button starts.
+                reason = TodayCopy.reason(weak: focus.weakCount > 0, due: focus.dueCount, new: focus.newCount, forExam: true,
+                                          sessionTotal: summary.plannedQuestions > focus.questions ? summary.plannedQuestions : nil)
             } else {
                 reason = TodayCopy.reason(weak: summary.weakSpots > 0, due: summary.reviews, new: summary.newItems, forExam: false)
             }

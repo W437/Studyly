@@ -53,6 +53,17 @@ final class TodayHeroContentTests: XCTestCase {
 
     // MARK: The days
 
+    func testTheCardSaysTheWholeSessionOnlyWhenItHoldsMoreThanTheExams() {
+        var whole = summary()
+        whole.plannedQuestions = 39
+        var mine = focus(weak: 0, due: 6, new: 1)
+        mine.questions = 7
+        XCTAssertEqual(content(.session, whole, focus: mine).reason,
+                       "6 questions you're about to forget and 1 new one for this exam. About 39 questions in all today.")
+        whole.plannedQuestions = 7
+        XCTAssertEqual(content(.session, whole, focus: mine).reason, "6 questions you're about to forget, and 1 new one.")
+    }
+
     func testAPlanDayNamesItsExamTopicsAndWhereTodayTakesIt() throws {
         let c = content(.session, focus: focus())
         XCTAssertEqual(c.chip?.text, "For Chem 110 Quiz")

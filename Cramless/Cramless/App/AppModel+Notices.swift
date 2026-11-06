@@ -455,6 +455,7 @@ extension AppModel {
         inputs.bestStreak = settings.quietMode ? 0 : streak().best
         inputs.todayItems = Set(built.entries.map(\.itemID))
         inputs.goalMet = minutesDone >= settings.dailyMinutes + boostMinutesToday()
+        inputs.dailyMinutes = settings.dailyMinutes
         inputs.sources = fadeSources(items: items, exams: exams)
         inputs.topicNames = topicNames()
         inputs.cloudLessons = ai.route(.confusions).usesCloud
@@ -464,7 +465,6 @@ extension AppModel {
         inputs.tooEasy = ladderOffers(items: items, exams: exams).map {
             NoticeTooEasy(itemID: $0.itemID, next: $0.next, topicName: $0.topicName)
         }
-        inputs.dailyMinutes = settings.dailyMinutes
         inputs.calendarAccess = settings.notices.allows(.busyDay) ? busyCalendar.access : .denied
         inputs.busyBlocks = noticeCache.busyBlocks
         return inputs

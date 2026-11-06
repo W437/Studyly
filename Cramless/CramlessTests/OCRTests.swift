@@ -18,6 +18,44 @@ final class OCRTests: CaptureTestCase {
         try XCTUnwrap(lines.firstIndex { $0.text.localizedCaseInsensitiveContains(needle) }, "no line contains \(needle)", file: file, line: line)
     }
 
+    // MARK: Another language first
+
+    /// With Traditional Chinese first, Vision scores printed English under the gate: the page would come back empty.
+    func testAnEnglishPageIsReadOnAnIPhoneSetToChinese() async throws {
+        let image = try sampleImage()
+        let page = try await TextRecognizer.readingEnglishToo(preferredLanguages: ["zh-Hant", "en-US"]) {
+            try await TextRecognizer.read(image, pageIndex: 0, preferredLanguages: $0)
+        }
+        XCTAssertGreaterThanOrEqual(page.lines.count, 34)
+        _ = try index("How Cells Divide", in: page.lines)
+    }
+
+    func testTheSecondReadIsInEnglishAndOnlyWhenTheFirstKeptNothing() async throws {
+        func captured(_ lines: [String]) -> CapturedPage {
+            CapturedPage(pageIndex: 0, label: "1", lines: lines.enumerated().map { TextLine(id: "p0.l\($0.offset)", text: $0.element, box: nil) },
+                         width: 100, height: 100, read: PageRead(engine: .vision, confidence: 1))
+        }
+        var asked: [[String]] = []
+        func read(_ first: [String], second: [String], preferred: [String]) async throws -> CapturedPage {
+            asked = []
+            return try await TextRecognizer.readingEnglishToo(preferredLanguages: preferred) { languages in
+                asked.append(languages)
+                return captured(asked.count == 1 ? first : second)
+            }
+        }
+        var page = try await read(["讀到了"], second: ["read"], preferred: ["zh-Hant"])
+        XCTAssertEqual(page.lines.map(\.text), ["讀到了"])
+        XCTAssertEqual(asked, [["zh-Hant"]], "a page that was read isn't read again")
+        page = try await read([], second: ["read"], preferred: ["zh-Hant", "en-US"])
+        XCTAssertEqual(page.lines.map(\.text), ["read"])
+        XCTAssertEqual(asked, [["zh-Hant", "en-US"], ["en-US"]])
+        page = try await read([], second: [], preferred: ["he-IL"])
+        XCTAssertTrue(page.lines.isEmpty, "still nothing: the empty page stands")
+        page = try await read([], second: ["read"], preferred: ["en-GB"])
+        XCTAssertTrue(page.lines.isEmpty)
+        XCTAssertEqual(asked, [["en-GB"]], "English came first: nothing to retry")
+    }
+
     // MARK: The sample page
 
     func testRecognisesTheSamplePage() async throws {

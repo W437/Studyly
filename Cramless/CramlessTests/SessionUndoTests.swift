@@ -399,6 +399,8 @@ final class SessionUndoTests: XCTestCase {
     func testThePillSaysWhatWasMarkedAndWhenItComesBack() {
         XCTAssertEqual(String(localized: SessionCopy.undoLine(rating: .easy, days: 28)), "Easy · back in 4 weeks")
         XCTAssertEqual(String(localized: SessionCopy.undoLine(rating: .again, days: 10.0 / 1440)), "Again · back in 10 min")
-        XCTAssertEqual(String(localized: SessionCopy.undoAnnouncement(rating: .easy)), "Marked Easy. Undo is at the bottom.")
+        XCTAssertEqual(String(localized: SessionCopy.undoLine(rating: .good, days: 4)), "Got it · back in 4 days", "Good reads as the swipe and the tile do")
+        XCTAssertEqual(String(localized: SessionCopy.undoAccessibility(rating: .good)), "Undo Got it")
+        XCTAssertEqual(String(localized: SessionCopy.undoAnnouncement(rating: .good)), "Got it. Undo is at the bottom.")
     }
 }

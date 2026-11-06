@@ -17,14 +17,10 @@ enum SnapReader {
 
     static func read(stagedAt path: String, preferredLanguages: [String] = Locale.preferredLanguages) async -> Reading {
         defer { PageImageStore.discardStaged([path]) }
-        guard var page = try? await TextRecognizer.read(imageAt: path, pageIndex: 0, preferredLanguages: preferredLanguages) else {
+        guard let page = try? await TextRecognizer.readingEnglishToo(preferredLanguages: preferredLanguages, {
+            try await TextRecognizer.read(imageAt: path, pageIndex: 0, preferredLanguages: $0)
+        }) else {
             return Reading(text: "", issue: .unreadable)
-        }
-        // A sheet in English on an iPhone set to another language: read with that language first, printed English scores under the gate. The
-        // student checks the words before they go anywhere, so a second look costs half a second and risks nothing.
-        if page.lines.isEmpty, preferredLanguages.first?.hasPrefix("en") != true,
-           let english = try? await TextRecognizer.read(imageAt: path, pageIndex: 0, preferredLanguages: ["en-US"]), !english.lines.isEmpty {
-            page = english
         }
         return reading(from: page)
     }

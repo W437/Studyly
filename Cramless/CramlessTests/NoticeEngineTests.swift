@@ -307,6 +307,41 @@ final class NoticeEngineTests: XCTestCase {
         }
     }
 
+    /// "88 reviews, cleared in 3 days" beside "34 questions will be dim" was false: what the sessions before the exam reach doesn't go dim.
+    func testFadingCountsOnlyWhatTheSessionsBeforeTheExamCantReach() throws {
+        let midterm = exam(in: 6)
+        let goal = FadeFinder(fsrs: FSRS(), calendar: cal, now: now, dailySeconds: 15 * 60)
+        // Tomorrow to Monday is 4 days of 15 minutes, and Tuesday the eve's 10: 70 minutes.
+        let reach = 70.0 * 60
+        let seconds = ItemKind.recall.typicalSeconds
+        let cleared = faded(Int(reach / seconds), on: midterm, kind: .recall)
+        XCTAssertTrue(rescues(cleared, [midterm], using: goal).isEmpty, "it all clears before the exam: no card")
+        XCTAssertEqual(rescues(cleared, [midterm]).first?.dimCount, cleared.count, "with no goal to reach them, they all count")
+
+        let tooMany = faded(Int(reach / seconds) + 20, on: midterm, kind: .recall)
+        XCTAssertEqual(rescues(tooMany, [midterm], using: goal).first?.dimCount, 20, "only what is left after those days")
+        XCTAssertTrue(rescues(faded(Int(reach / seconds) + 4, on: midterm, kind: .recall), [midterm], using: goal).isEmpty, "4 left: fewer than 5")
+    }
+
+    func testTheReachIsSharedWithTheNearerExamAndShrinksOnLighterDays() throws {
+        let midterm = exam(in: 6)
+        var quiz = exam(in: 3, title: "Chem quiz")
+        quiz.courseID = UUID()
+        let seconds = ItemKind.recall.typicalSeconds
+        let reach = 70.0 * 60
+        let mine = faded(Int(reach / seconds), on: midterm, kind: .recall)
+        // The quiz's own 30 go first, so 30 of the midterm's are left over.
+        let theirs = faded(30, on: quiz, kind: .recall)
+        let goal = FadeFinder(fsrs: FSRS(), calendar: cal, now: now, dailySeconds: 15 * 60)
+        XCTAssertEqual(rescues(mine + theirs, [midterm, quiz], using: goal).first?.examID, midterm.id)
+        XCTAssertEqual(rescues(mine + theirs, [midterm, quiz], using: goal).first?.dimCount, 30)
+        // A lighter day holds half the goal: tomorrow's 7.5 minutes less reach, 9 own-words questions at 50 seconds.
+        let friday = Calendar.weekday(dayNumber: cal.dayNumber(for: now) + 1)
+        let lighter = FadeFinder(fsrs: FSRS(), calendar: cal, now: now, easyDays: [friday], dailySeconds: 15 * 60)
+        XCTAssertEqual(rescues(faded(Int(reach / seconds) + 1, on: midterm, kind: .recall), [midterm], using: lighter).first?.dimCount,
+                       Int((7.5 * 60 / seconds).rounded(.up)) + 1)
+    }
+
     func testFixMyWeekSkipsLighterDaysAndEves() throws {
         // Thursday: an exam the Wednesday after (6 days), another on Sunday (its eve is Saturday, its day Sunday), Fridays lighter.
         let midterm = exam(in: 6)
@@ -805,7 +840,7 @@ final class NoticeEngineTests: XCTestCase {
             }
             return NoticeContent.card(try XCTUnwrap(NoticeEngine(i).candidates().first), firstName: "", now: now, calendar: cal)
         }
-        XCTAssertEqual(try card(cloud: true).cost, "Under 1¢")
+        XCTAssertEqual(try card(cloud: true).cost, "Uses Cloud AI")
         XCTAssertEqual(try card(cloud: false).cost, "No AI")
         XCTAssertEqual(NoticeContent.costLine(.none), "No AI")
         XCTAssertEqual(NoticeContent.costLine(.drafts(1)), "1 draft")
@@ -956,7 +991,7 @@ final class NoticeEngineTests: XCTestCase {
         XCTAssertEqual(NoticeContent.lookAlikeDetail(pair(in: 12), now: now, calendar: cal), "Both are on your Bio 101 Midterm. Learn the one difference now?")
         let card = NoticeContent.card(Notice(id: "p", kind: .lookAlike, rank: 0, evidence: .lookAlike(soon), cost: .cloud), firstName: "", now: now, calendar: cal)
         XCTAssertEqual(card.action?.title, "Show me")
-        XCTAssertEqual(card.cost, "Under 1¢")
+        XCTAssertEqual(card.cost, "Uses Cloud AI")
     }
 
     /// No card shows a percentage or an emoji, or calls a question a card.
