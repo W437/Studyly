@@ -1483,6 +1483,31 @@ trust rules and the screens are in `docs/assistant.md`, the wire format in `docs
   springing back, a flick, a vertical drag and a swipe on an unflipped card doing nothing, Undo by a tap on the pill (flashcard and own-words marks), the app going to the background
   committing the last question. Not checked: haptics, ⌘Z and the arrow keys with a hardware keyboard, a live VoiceOver session.
 
+### Stage 1: fixes after the first review (2026-11-06, lane `s1-polish`)
+
+- **The day card names the nearest exam.** `SessionFocus.make` takes `now` and `calendar`: an exam within 7 days holding at least 20% of
+  the session's seconds is the focus (soonest first); otherwise the old rule (at least 40%, the most seconds, ties to the sooner). The
+  session itself is unchanged; `trackedExam` follows. `SessionFocus.topicsWeakestFirst(readiness:)` orders the card's title by readiness
+  for that exam, the order "Why these?" reads.
+- **"Why these?" says only what is true in any order** (`TodayReasons`, `Input.daysLeft`/`focusSeconds`, `Other.seconds`/`due`): "a few"
+  only when each other exam has less of today than the focus, "further off, so a smaller share" only when that is true of them all,
+  "because they're due" only when none of their questions is new.
+- **One number for the eve.** `BuiltSession.tonightMinutes` (the built session's planned minutes, rounded up, at most 10; 0 with nothing to
+  review) drives Today's button, its spoken words, its reason and tonight's mark in the strip, and on the exam page the button, its line
+  and the plan's "Tonight". An eve ahead in the strip shows `PlanDay.shownMinutes`, what the exam page's stop shows. With nothing to review
+  the exam page has no button and its stop says "Tonight · nothing to review". The evening notification still says "10 minutes of weak spots"
+  (written ahead of time).
+- **A picked-up session** (`SessionRunner`): the clock counts from the time already spent (the checkpoint's wall seconds, or the session's
+  active seconds if those are more; the closed time is never in it), and the bar starts with the earlier answers (`earlier`, from the log;
+  `segmentCount`, `segmentPosition`). A run of right answers still starts with this runner. The Live Activity still counts this runner's
+  questions only.
+- **The summary's delta** (`SessionSummary.readinessDelta`) is the difference of the two rounded percentages, so "53% → 67%" sits beside +14%.
+- **Layout.** Toasts sit on `CLColor.surface` with a hairline and a shadow (glass let the greeting and the streak show through).
+  `ReflowPill` wraps whenever it doesn't fit, not only at accessibility sizes; the exams row uses it, and its tiles are sized so the next
+  one peeks (`TodayExamsRow.tileWidth`). The day card's chip row is a `ViewThatFits`. `DotLine` (parts on one line, or one part to a line) is
+  used by the exam page's hero, the summary's readiness line, the done card's line and the chip's when-line. `FittingLabel` really picks the
+  first title that fits; the all-lit button and the exam page's practice button shorten to "Practice · 5 min", and the all-lit reason names the topic.
+
 ## App Store Connect (2026-11-01)
 
 The Capling record on the Loopware team (app 6828649543) is filled in by `scripts/asc/`. Every command is re-runnable and has
