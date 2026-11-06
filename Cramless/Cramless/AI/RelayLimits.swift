@@ -20,6 +20,13 @@ enum RelayLimits {
     static let lineText = 4000
     /// A lecture flag's words.
     static let flagText = 2000
+    /// `CheckReport.given` and `.note`.
+    static let reportGiven = 2000
+    static let reportNote = 280
+    /// `RungRequest.prompt` and `.answer`.
+    static let rungText = 2000
+    /// A harder question's page (`GenerateRequest.rung`).
+    static let rungLines = 60
 
     // The tutor's and the assistant's.
     static let sourceID = 80

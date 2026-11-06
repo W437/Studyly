@@ -371,6 +371,9 @@ struct CourseView: View {
                     app.router.push(.sourcePage(sourceID: ref.sourceID, pageIndex: page, highlight: ref.anchorIDs))
                 }
             }
+            Button("Looks wrong?", systemImage: "exclamationmark.bubble") {
+                app.router.present(.looksWrong(itemID: item.id, given: ""))
+            }
             Divider()
             Button("Delete", systemImage: "trash", role: .destructive) { itemToDelete = item.id }
         }
@@ -380,7 +383,9 @@ struct CourseView: View {
         var parts: [String] = []
         if let topic = item.topicID.flatMap({ topicNames[$0] }) { parts.append(topic) } else { parts.append(item.kind.displayName) }
         // The reason takes the source's place here: a third part wraps on most phones.
-        if filter == .attention {
+        if item.reported {
+            parts.append(String(localized: "waiting for Cap's check"))
+        } else if filter == .attention {
             parts.append(row.inMixUp ? String(localized: "in a mix-up") : String(localized: "fading"))
         } else if let label = item.sourceRef?.label, !label.isEmpty {
             parts.append(label)

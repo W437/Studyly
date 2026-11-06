@@ -40,6 +40,7 @@ struct OwnWordsQuestionView: View {
     var autoContinue: Int? = nil
 
     @Environment(AppModel.self) private var app
+    @Environment(\.dynamicTypeSize) private var typeSize
     @Environment(\.clReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
     @FocusState private var editorFocused: Bool
@@ -135,6 +136,12 @@ struct OwnWordsQuestionView: View {
             }
         }
         .sessionFooter(feedback: panel, primary: { footer }, secondary: { secondary })
+        // "My answer should count" from the sheet: the grader looks again.
+        .onChange(of: app.recheckDelivery) { _, delivery in
+            guard let delivery, delivery.itemID == item.id, delivery.result == .regrade else { return }
+            app.takeRecheckDelivery()
+            gradeAgain()
+        }
         .onChange(of: text) { _, new in
             guard submitted == nil else { return }
             let typed = !new.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -537,22 +544,32 @@ struct OwnWordsQuestionView: View {
     @ViewBuilder private var secondary: some View {
         if let grade {
             // A self-check has a mistake to explain only once the person has left an idea unticked.
-            if grade.mode == .selfCheck ? ticked.count < ideas.count : grade.verdict != .correct {
+            let explains = grade.mode == .selfCheck ? ticked.count < ideas.count : grade.verdict != .correct
+            let offersRegrade = grade.mode == .selfCheck ? canGradeAgain : (grade.needsSecondLook && grade.mode != .provisional)
+            // Three in one row: shorter labels, so neither button cuts its words off, even on the smallest iPhone.
+            let crowded = explains && offersRegrade && !typeSize.isAccessibilitySize
+            if explains {
                 Button {
                     CLHaptics.tap()
                     app.router.present(.explain(itemID: item.id, given: submitted ?? ""))
                 } label: {
-                    Label("Explain my mistake", systemImage: "bubble.left")
+                    Label(crowded ? "Explain" : "Explain my mistake", systemImage: "bubble.left")
                 }
                 .buttonStyle(.cl(.soft, size: .medium))
+                .accessibilityLabel(Text("Explain my mistake"))
             }
-            if grade.mode == .selfCheck ? canGradeAgain : (grade.needsSecondLook && grade.mode != .provisional) {
+            if offersRegrade {
                 Button(action: gradeAgain) {
-                    Label(regrading ? "Checking…" : "Grade again", systemImage: "flag")
+                    if crowded {
+                        Text(regrading ? "Checking…" : "Grade again")
+                    } else {
+                        Label(regrading ? "Checking…" : "Grade again", systemImage: "flag")
+                    }
                 }
                 .buttonStyle(.cl(.soft, size: .medium))
                 .disabled(regrading)
             }
+            if runner.offersLooksWrong { LooksWrongButton(item: item, given: submitted, compact: offersRegrade) }
         } else {
             Button("I don't know yet") {
                 text = ""

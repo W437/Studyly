@@ -45,6 +45,11 @@ enum NoticeContent {
                              action: .init(title: String(localized: "See it"), systemImage: "waveform",
                                            run: .openHeardDate(sourceID: heard.sourceID, noticeID: notice.id)),
                              cost: costLine(notice.cost))
+        case .tooEasy(let offer):
+            return CapNotice(id: notice.id, kind: .tooEasy, title: LadderCopy.noticeTitle(topic: offer.topicName),
+                             detail: LadderCopy.noticeLine(next: offer.next),
+                             action: .init(title: LadderCopy.noticeAction, systemImage: "arrow.up.right", run: .raiseQuestion(itemID: offer.itemID)),
+                             cost: costLine(notice.cost))
         }
     }
 
@@ -173,7 +178,7 @@ enum NoticeContent {
             return String(localized: "Still mixing up \(SessionCopy.mixUpPair(note.name))? A 2-minute fix is ready.")
         case .gap(let gap):
             return String(localized: "Some topics on your \(gap.examTitle) have no notes yet. Cap can help you fill them in.")
-        case .welcomeBack, .mockOffer, .lectureDate:
+        case .welcomeBack, .mockOffer, .lectureDate, .tooEasy:
             return nil
         }
     }

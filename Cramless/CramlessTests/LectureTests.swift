@@ -756,3 +756,249 @@ final class LectureVocabularyTests: XCTestCase {
         XCTAssertEqual(noDictation.backend, .speech)
     }
 }
+
+/// The player's rules, through a fake playback (`SystemLecturePlayback` itself is exercised on a real file below).
+@MainActor
+final class LecturePlayerTests: CaptureTestCase {
+    private final class FakePlayback: LecturePlayback {
+        var onEvent: ((LecturePlaybackEvent) -> Void)?
+        var now: Double = 0
+        var playedFrom: [Double] = []
+        var rates: [Double] = []
+        var seeks: [Double] = []
+        var pauses = 0
+        var closes = 0
+        var released: [Bool] = []
+        var published: [LecturePlayer.NowPlaying] = []
+
+        func position() async -> Double { now }
+        func play(from seconds: Double, rate: Double) { playedFrom.append(seconds); now = seconds; rates.append(rate) }
+        func seek(to seconds: Double) { seeks.append(seconds); now = seconds }
+        func pause() { pauses += 1 }
+        func setRate(_ rate: Double) { rates.append(rate) }
+        func close(releasingSession: Bool) { closes += 1; released.append(releasingSession) }
+        func publish(_ info: LecturePlayer.NowPlaying) { published.append(info) }
+    }
+
+    private var fake: FakePlayback!
+    private var player: LecturePlayer!
+
+    private static let segments = [
+        TranscriptSegment(id: "s1", start: 0, end: 10, text: "One."),
+        TranscriptSegment(id: "s2", start: 10, end: 20, text: "Two."),
+        TranscriptSegment(id: "s3", start: 30, end: 40, text: "Three."),
+    ]
+
+    private var track: LecturePlayer.Track {
+        LecturePlayer.Track(sourceID: ModelID.make(), title: "Lecture 6", fileName: "x.m4a", duration: 100, segments: Self.segments)
+    }
+
+    override func setUp() async throws {
+        try await super.setUp()
+        let made = FakePlayback()
+        fake = made
+        player = LecturePlayer(makePlayback: { _ in made })
+        for owner in [AudioFocus.Owner.speech, .microphone, .playback] { AudioFocus.release(owner) }
+    }
+
+    override func tearDown() async throws {
+        player.leave()
+        for owner in [AudioFocus.Owner.speech, .microphone, .playback] { AudioFocus.release(owner) }
+        try await super.tearDown()
+    }
+
+    /// Lets the playback's async making finish.
+    private func settle() async {
+        for _ in 0..<5 { await Task.yield() }
+    }
+
+    func testAMomentPlaysFromAFewSecondsBeforeIt() async {
+        XCTAssertEqual(LecturePlayer.startPoint(for: 761), 756)
+        XCTAssertEqual(LecturePlayer.startPoint(for: 3), 0)
+        player.open(track)
+        player.play(fromMoment: 40)
+        await settle()
+        XCTAssertEqual(fake.playedFrom, [35])
+        XCTAssertTrue(player.isPlaying)
+        XCTAssertTrue(AudioFocus.owners.contains(.playback))
+        XCTAssertFalse(AudioFocus.allowsEffects, "effects stay silent under a lecture")
+    }
+
+    func testCueWaitsForThePerson() async {
+        player.open(track)
+        player.cue(at: 40)
+        await settle()
+        XCTAssertTrue(player.isCued)
+        XCTAssertFalse(player.isPlaying)
+        XCTAssertEqual(player.position, 35)
+        XCTAssertTrue(fake.playedFrom.isEmpty)
+        XCTAssertFalse(AudioFocus.owners.contains(.playback), "a cue doesn't take the audio")
+        player.resume()
+        await settle()
+        XCTAssertEqual(fake.playedFrom, [35])
+        XCTAssertFalse(player.isCued)
+    }
+
+    func testRefusesWhileALectureIsRecording() async {
+        player.open(track)
+        AudioFocus.claim(.microphone)
+        player.play(fromMoment: 40)
+        await settle()
+        XCTAssertTrue(player.refusedForRecording)
+        XCTAssertFalse(player.isPlaying)
+        XCTAssertTrue(fake.playedFrom.isEmpty)
+    }
+
+    func testStopsForTheRecorderOrSpeech() async {
+        // The claim reaches the shared player, so this is what `AudioFocus` runs.
+        player.open(track)
+        player.play(fromMoment: 40)
+        await settle()
+        player.yieldAudio()
+        XCTAssertFalse(player.isPlaying)
+        XCTAssertEqual(fake.closes, 1)
+        XCTAssertFalse(AudioFocus.owners.contains(.playback))
+        XCTAssertEqual(fake.released, [false], "the session is the new owner's now: deactivating it would silence a recording")
+    }
+
+    func testSpeedCyclesAndReachesThePlayingAudio() async {
+        player.open(track)
+        player.play(fromMoment: 40)
+        await settle()
+        XCTAssertEqual(fake.rates, [1])
+        player.cycleSpeed()
+        XCTAssertEqual(player.speed, .faster)
+        player.cycleSpeed()
+        XCTAssertEqual(player.speed, .fastest)
+        player.cycleSpeed()
+        XCTAssertEqual(player.speed, .normal)
+        XCTAssertEqual(fake.rates, [1, 1.5, 2, 1])
+    }
+
+    func testBackFifteenStopsAtTheTop() async {
+        player.open(track)
+        player.play(fromMoment: 40)
+        await settle()
+        player.back15()
+        XCTAssertEqual(player.position, 20)
+        XCTAssertEqual(fake.seeks.last, 20)
+        player.back15()
+        player.back15()
+        XCTAssertEqual(player.position, 0)
+        XCTAssertTrue(player.isPlaying, "going back doesn't stop it")
+    }
+
+    func testCurrentPartFollowsTheClock() async {
+        player.open(track)
+        XCTAssertEqual(player.currentSegmentID, "s1")
+        player.play(fromMoment: 5)
+        await settle()
+        fake.now = 12
+        await player.refreshPosition()
+        XCTAssertEqual(player.currentSegmentID, "s2")
+        // In a gap between parts, it's still the last one said.
+        fake.now = 25
+        await player.refreshPosition()
+        XCTAssertEqual(player.currentSegmentID, "s2")
+        fake.now = 31
+        await player.refreshPosition()
+        XCTAssertEqual(player.currentSegmentID, "s3")
+    }
+
+    func testLeavingHandsTheAudioBackAndKeepsThePlace() async {
+        let lecture = track
+        player.open(lecture)
+        player.play(fromMoment: 40)
+        await settle()
+        player.leave()
+        XCTAssertFalse(player.isPlaying)
+        XCTAssertEqual(fake.closes, 1)
+        XCTAssertEqual(fake.released, [true], "leaving gives other apps their audio back")
+        XCTAssertFalse(AudioFocus.owners.contains(.playback))
+        player.open(lecture)
+        XCTAssertEqual(player.position, 35, "coming back finds the same place")
+        // Another lecture starts at the top.
+        player.open(track)
+        XCTAssertEqual(player.position, 0)
+    }
+
+    func testTheEndStopsAndPlayStartsOver() async {
+        player.open(track)
+        player.play(fromMoment: 40)
+        await settle()
+        fake.onEvent?(.finished)
+        XCTAssertFalse(player.isPlaying)
+        XCTAssertEqual(player.position, 100)
+        player.resume()
+        await settle()
+        XCTAssertEqual(fake.playedFrom.last, 0)
+    }
+
+    func testACallPausesAndItsEndResumes() async {
+        player.open(track)
+        player.play(fromMoment: 40)
+        await settle()
+        fake.onEvent?(.interrupted)
+        XCTAssertFalse(player.isPlaying)
+        fake.onEvent?(.resumeAllowed)
+        await settle()
+        XCTAssertTrue(player.isPlaying)
+        XCTAssertEqual(fake.playedFrom.count, 2)
+        // Paused by hand before the call: the call's end doesn't start it.
+        player.pause()
+        fake.onEvent?(.interrupted)
+        fake.onEvent?(.resumeAllowed)
+        await settle()
+        XCTAssertFalse(player.isPlaying)
+    }
+
+    func testHeadphonesOutPauses() async {
+        player.open(track)
+        player.play(fromMoment: 40)
+        await settle()
+        fake.onEvent?(.routeLost)
+        XCTAssertFalse(player.isPlaying)
+    }
+
+    func testLockScreenTimeStopsWhenPaused() async {
+        player.open(track)
+        player.play(fromMoment: 40)
+        await settle()
+        XCTAssertEqual(fake.published.last?.rate, 1)
+        XCTAssertEqual(fake.published.last?.position, 35)
+        player.pause()
+        XCTAssertEqual(fake.published.last?.rate, 0)
+    }
+
+    func testATrackOnlyWhenTheAudioIsOnThisPhone() throws {
+        let app = try makeApp()
+        let source = Source(course: nil, kind: .lecture, title: "Lecture 6")
+        app.context.insert(source)
+        source.duration = 60
+        source.fileName = LectureFiles.audio(source.id)
+        XCTAssertNil(app.lectureTrack(for: source), "the file is on another device")
+        let url = FileStore.url(for: LectureFiles.audio(source.id))
+        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try Data([0]).write(to: url)
+        XCTAssertEqual(app.lectureTrack(for: source)?.fileName, source.fileName)
+    }
+
+    func testTheRealPlaybackOpensAFileAndMoves() async throws {
+        let url = root.appending(path: "tone.caf")
+        let format = try XCTUnwrap(AVAudioFormat(standardFormatWithSampleRate: 44_100, channels: 1))
+        do {
+            let file = try AVAudioFile(forWriting: url, settings: format.settings)
+            let buffer = try XCTUnwrap(AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 44_100))
+            buffer.frameLength = 44_100
+            try file.write(from: buffer)
+        }
+        let made = await SystemLecturePlayback.make(url: url)
+        let playback = try XCTUnwrap(made)
+        playback.seek(to: 0.5)
+        let position = await playback.position()
+        XCTAssertEqual(position, 0.5, accuracy: 0.05)
+        playback.close(releasingSession: true)
+        let missing = await SystemLecturePlayback.make(url: root.appending(path: "nothing.m4a"))
+        XCTAssertNil(missing)
+    }
+}

@@ -33,13 +33,34 @@ struct MockRelayTransport: RelayTransport {
     func generate(_ request: GenerateRequest) async throws -> GenerateResponse {
         try await pause(Latency.generate)
         try magic(request.pages.flatMap { $0.lines.map(\.text) } + [request.sourceTitle, request.course])
+        if request.rung != nil { return try harderQuestion(for: request) }
         return try load(GenerateResponse.self, "generate")
     }
 
     func check(_ request: CheckRequest) async throws -> CheckResponse {
         try await pause(Latency.check)
         try magic(request.pages.flatMap { $0.lines.map(\.text) })
-        return try load(CheckResponse.self, "check")
+        return try load(CheckResponse.self, (request.reports?.isEmpty ?? true) ? "check" : "check-reported")
+    }
+
+    /// The fixture's harder question, in the format asked for, pointing at lines the request holds.
+    private func harderQuestion(for request: GenerateRequest) throws -> GenerateResponse {
+        var response = try load(GenerateResponse.self, "generate-rung")
+        let lines = request.pages.flatMap { $0.lines.map(\.id) }
+        let kind = request.formats.first ?? .apply
+        response.items = response.items.map { item in
+            var item = item
+            item.kind = kind
+            item.anchors = Array(lines.prefix(2))
+            if kind == .cloze {
+                item.prompt = "Fill in the blank."
+                item.cloze = ClozeSpec(text: "The cell stays at {{metaphase}} when the chromatids are never pulled apart.", alternates: [[]])
+                item.answer = "metaphase"
+                item.keyIdeas = []
+            }
+            return item
+        }
+        return response
     }
 
     func grade(_ request: GradeRequest) async throws -> GradeResponse {

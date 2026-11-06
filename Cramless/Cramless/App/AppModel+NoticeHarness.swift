@@ -8,6 +8,8 @@ import SwiftData
 //   have no questions; `lecturedate`: Lecture 6 heard a date for a second quiz, two weeks off. `lookalike`: the Bio midterm 9 days out, with the
 //   sample page's look-alikes. `fading`: the midterm 6 days out, and its questions 20 days overdue, with 30 more added, so that more of them than today's session
 //   holds. `back`: 8 days without study after a 23-day run. `mock`: the midterm 5 days out. `mixup` needs nothing: the demo world has an open mix-up.
+// - `CRAMLESS_NOTICES=tooeasy` (or `CRAMLESS_LADDER=offer`): one of the Bio midterm's questions has become too easy, with three real reviews
+//   behind it, and the midterm is 20 days out.
 // - `CRAMLESS_NOTICE_STATE=second|later|done|allLater`, once the deck is dealt: `second` the first card acted on, so "2 of N" shows; `later` the
 //   first put off with "Later"; `done` "Fix my week" pressed on a fading card ("Plan updated"); `allLater` all put off.
 // - `CRAMLESS_NOTICE_TAP=<ms>` presses the button on the card that long after launch (`TodayView`).
@@ -17,11 +19,12 @@ import SwiftData
 extension AppModel {
     /// Called once at launch, after the demo world is seeded.
     func applyNoticeHarness() {
-        guard config.isHarness, let raw = TestHarness.value("CRAMLESS_NOTICES") else { return }
+        guard config.isHarness,
+              let raw = TestHarness.value("CRAMLESS_NOTICES") ?? (TestHarness.value("CRAMLESS_LADDER") == "offer" ? "tooeasy" : nil) else { return }
         let asked = Set(raw.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces).lowercased() })
         let all = asked.contains("all")
         let kinds: [(String, NoticeKind)] = [("mixup", .mixUp), ("lookalike", .lookAlike), ("fading", .fading), ("back", .welcomeBack), ("mock", .mockOffer),
-                                            ("gap", .gap), ("lecturedate", .lectureDate)]
+                                            ("gap", .gap), ("lecturedate", .lectureDate), ("tooeasy", .tooEasy)]
         var off = Set<NoticeKind>()
         for (name, kind) in kinds where !all && !asked.contains(name) { off.insert(kind) }
         settings.notices.off = off
@@ -37,6 +40,10 @@ extension AppModel {
             debugMoveExam(midterm, toDays: 9)
             debugMoveExam(chem, toDays: 40)
             debugSoften(course: midterm?.course)
+        } else if asked.contains("tooeasy") {
+            debugMoveExam(midterm, toDays: 20)
+            debugMoveExam(chem, toDays: 40)
+            debugMakeTooEasy(course: midterm?.course)
         } else if asked.contains("mock") {
             debugMoveExam(midterm, toDays: 5)
             debugMoveExam(chem, toDays: 40)
@@ -122,6 +129,27 @@ extension AppModel {
     }
 
     /// Nothing in the course is solid yet: its look-alikes count.
+    /// The course's first question with lines to write from and something harder to become: strong, with the reviews that make it so.
+    private func debugMakeTooEasy(course: Course?) {
+        guard let course, let item = course.items.filter({
+            $0.deletedAt == nil && $0.status == .active && Ladder.next(after: $0.kind) != nil && reportSource(of: $0) != nil
+        }).min(by: { $0.prompt < $1.prompt }) else { return }
+        var memory = item.memory
+        memory.state = .review
+        memory.stability = 30
+        memory.difficulty = max(memory.difficulty, 4)
+        memory.lastReview = calendar.adding(days: -2, to: now)
+        memory.due = calendar.adding(days: 25, to: now)
+        memory.reps = max(memory.reps, 3)
+        item.memory = memory
+        ModelID.seeded("too-easy-harness") {
+            for days in [2, 10, 20] {
+                context.insert(ReviewLog(itemID: item.id, courseID: course.id, sessionID: nil, reviewedAt: calendar.adding(days: -days, to: now),
+                                         rating: .good, gradedBy: "rules", durationMs: 4000, before: memory, after: memory, elapsedDays: 8, scheduledDays: 8))
+            }
+        }
+    }
+
     private func debugSoften(course: Course?) {
         guard let course else { return }
         for item in course.items where item.deletedAt == nil && item.status == .active && item.stateRaw != CardState.new.rawValue {

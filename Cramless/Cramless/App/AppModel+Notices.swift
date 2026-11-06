@@ -153,6 +153,10 @@ extension AppModel {
             markNoticeActed(noticeID)
             router.push(.lectureNotes(sourceID))
             return nil
+        case .raiseQuestion(let itemID):
+            markNoticeActed(NoticeEngine.tooEasyID(itemID))
+            router.present(.ladder(parentID: itemID))
+            return nil
         }
         if let request { router.present(.session(request)) }
         return request
@@ -394,6 +398,9 @@ extension AppModel {
         inputs.mockOffers = noticeMockOffers()
         inputs.gaps = noticeGaps(items: items)
         inputs.heardDates = noticeHeardDates()
+        inputs.tooEasy = ladderOffers(items: items, exams: exams).map {
+            NoticeTooEasy(itemID: $0.itemID, next: $0.next, topicName: $0.topicName)
+        }
         return inputs
     }
 

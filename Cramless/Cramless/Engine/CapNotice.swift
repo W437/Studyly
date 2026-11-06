@@ -26,6 +26,8 @@ struct CapNotice: Identifiable, Equatable, Sendable {
             case fillGap(examID: UUID)
             /// "See it": the lecture the date was heard in, where it can be added.
             case openHeardDate(sourceID: UUID, noticeID: String)
+            /// "Yes, harder": a harder question for this one.
+            case raiseQuestion(itemID: UUID)
         }
 
         /// "Fix it · 2 min".

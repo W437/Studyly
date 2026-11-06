@@ -63,6 +63,11 @@ struct FlashcardQuestionView: View {
                     .padding(.horizontal, 4)
             }
             FlashcardSwipeLayer(state: swipeState, enabled: flipped, intervals: intervals, onSwipe: swipe) { card }
+            if flipped, runner.offersLooksWrong {
+                LooksWrongButton(item: item)
+                    .frame(maxWidth: .infinity)
+                    .opacity(swipeState.isDragging ? 0 : 1)
+            }
         }
         .scrollDisabled(swipeState.isDragging)
         .sessionFooter { footer }

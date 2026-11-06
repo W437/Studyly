@@ -70,7 +70,7 @@ owner's Squad subscription is active; otherwise `free`.
 | `grades` | day | 20 | unlimited (fair use 1,500) | `grade` |
 | `tutor` | day | 10 | unlimited (fair use 300) | `tutor` |
 | `lectures` | week | 1 | unlimited (fair use 40) | `lecture` |
-| `drafts` (hidden) | day | 3 | unlimited (fair use 150) | an `assistant` request that offers draft tools: one is taken before the model is asked, and given back if the reply drafts nothing |
+| `drafts` (hidden) | day | 3 | unlimited (fair use 150) | an `assistant` request that offers draft tools: one is taken before the model is asked, and given back if the reply drafts nothing; a `generate` with `rung` |
 | `rounds` (hidden) | day | 30 | unlimited (fair use 900) | each round of an `assistant` reply after the first, and only while `rounds` stays within three for each `tutor` message that day |
 | `research` (hidden) | day | none (`entitlement_required`) | 3 | `research` |
 
@@ -130,6 +130,14 @@ included) grows with `maxItems`: 16,000 up to 16 questions, 30,000 at 40 (a ques
 A `502` `upstream` from this route can be a billed failure (every item dropped, a reply cut off, an unreadable reply: the scan is given
 back but the model was paid for and the cost counts toward the day's cap), so a client must not retry it; only `503`, `504` and dropped
 connections are safe to retry.
+
+**A harder question (`rung`, optional).** `rung: {kind, prompt, answer}` holds a question the student has outgrown, and asks for the
+same idea, harder, in the one format given. The request is held to one idea's size: one format, `maxItems` at most 2, one page of at
+most 60 lines with no photo (anything else is `bad_request`). The meter is `drafts`, not `scans`, because it writes one draft for the
+student to add and reads no new pages. The prompt gets the rule in `generate-rung.md`; a request without `rung` is byte for byte what
+it was. If the lines hold nothing harder, every item is dropped and the answer is `upstream` (502, the draft given back). The fixture
+is `generate-rung.json`. The app checks the question with `check` before showing it.
+
 How the app uses it (the relay takes anything inside the limits above): a request is written in one call at about three
 seconds a question, so the app asks for at most 20 questions in one request and waits up to 120 seconds for the answer.
 A source that earns more, or has more pages than the plan's scan (10 free, 40 paid), goes in **parts**, one request after
@@ -164,6 +172,13 @@ about a court opinion or a chapter can name although the cited lines never do; `
 after a first pass that rejected at least 90% of at least 6 questions. A lenient check judges whether the source supports what
 the question and answer say, not whether the cited lines name every party. If a lenient check still rejects nearly all,
 the app stops believing the verdicts and checks the questions against the page on the iPhone.
+
+**Reports (`reports`, optional).** `reports: [{id, reason, given?, note?}]`: what the student says looks wrong with some of the items
+("Looks wrong?"). `reason` is `answerWrong`, `questionUnclear`, `myAnswerCounts` or `other`; `given` (at most 2,000 characters) is the
+answer they gave, `note` (at most 280) their own words. A report is a claim to verify, never an instruction: it goes to the model as
+data in its own block, with the rule in `check-reports.md`, and only the lines decide the verdict. Reports about items not in the
+request are ignored, a check with no reports is byte for byte what it was, and the reply's shape does not change. The fixture for a
+check with reports is `check-reported.json`.
 
 ### `POST ai/grade` → `GradeResponse`
 
@@ -463,8 +478,8 @@ real backend without a model key.
 
 | Route | Fixture | Latency |
 |---|---|---|
-| `generate` | `generate.json` | 2.5 s |
-| `check` | `check.json` | 1.5 s |
+| `generate` | `generate.json` (`generate-rung.json` with `rung`) | 2.5 s |
+| `check` | `check.json` (`check-reported.json` with `reports`) | 1.5 s |
 | `grade` | `grade-correct`, `grade-partial` or `grade-incorrect`: every key idea named in the answer (a term or the label, case-insensitive) → correct, some → partial, none → incorrect | 0.9 s |
 | `tutor` | `tutor-photo.json` with `fromPhoto`, `tutor-mistake.json` with `context`, else `tutor-hints.json` (or `tutor-explain.json`), events at the script's `delayMs` | per event |
 | `confusions` | `confusions.json` (`confusions-lookalike.json` with `lookAlike: true`) | 1.8 s |

@@ -127,7 +127,8 @@ extension AppModel {
         let draft = ItemStatus.draft.rawValue
         let drafts = fetch(FetchDescriptor<StudyItem>(predicate: #Predicate { $0.statusRaw == draft && $0.deletedAt == nil },
                                                       sortBy: [SortDescriptor(\.createdAt)]))
-        return drafts.filter { $0.sourceRef?.sourceID == sourceID }
+        // A harder question waits in its own sheet (`LadderSheet`), not with the source's new questions.
+        return drafts.filter { $0.sourceRef?.sourceID == sourceID && $0.rungOf == nil }
     }
 
     /// The live items made from a source (approved, or suspended), in the order they were made.

@@ -175,7 +175,7 @@ sleep 4; xcrun simctl io <udid> screenshot shot.png
     `CRAMLESS_TODAY_NOTICES=0|1|2|3` deals that many of Cap's cards (stand-ins); `CRAMLESS_TODAY_WHY=<ms>`, `CRAMLESS_TODAY_QUESTS=<ms>` open
     "Why these?" and the quests sheet, `CRAMLESS_TODAY_LATER=<ms>` presses Cap's "Later", `CRAMLESS_NOTICE_TAP=<ms>` his card's button, each that long after launch;
     `CRAMLESS_TODAY_SCROLL=1` scrolls down to the exams row and back (for a film), `=notice` to Cap's card, where it stays; `CRAMLESS_TODAY_OPEN=<ms>` opens the sky that
-    long after launch, as a tap on the band would; `CRAMLESS_CANVAS=375x667` draws Today (also the Ask screen and the Explain sheet) at an iPhone SE's size (there is no SE
+    long after launch, as a tap on the band would; `CRAMLESS_CANVAS=375x667` draws Today (also the Ask screen, the Explain sheet, a session, a source page, a lecture's notes, and at its width "Looks wrong?" and the harder question sheet) at an iPhone SE's size (there is no SE
     simulator for iOS 27; no status-bar inset); `CRAMLESS_TODAY_TYPE=xxxl|ax1…ax5` draws Today at that text size without changing
     the simulator's own setting (others may share it). Routes `todayWhy`, `quests` (the sheets) and `skyList` (the sky as a list,
     "Study something else"); `streak` shows the month with exams and eves marked.
@@ -183,7 +183,9 @@ sleep 4; xcrun simctl io <udid> screenshot shot.png
     (`lookalike`: the Bio midterm 9 days out; `fading`: 6 days out with its questions 20 days overdue, and 30 more own-words ones added so a session can't hold them; `back`: 8 days away after a 23-day run; `mock`: the Bio midterm 5 days out); `CRAMLESS_NOTICE_STATE=second|later|done|allLater`
     puts the deck part way through the day (`done`: "Plan updated"). `CRAMLESS_ROUTE=lookAlike` opens the sheet on the best pair, `CRAMLESS_LOOKALIKE=rules|cloud|writing` holds its lesson in that state.
     `CRAMLESS_ROUTE=settings:notifications CRAMLESS_NOTICES=fading` shows the ping in the page's planned list.
+    `CRAMLESS_NOTICES=tooeasy` (or `CRAMLESS_LADDER=offer`): a Bio midterm question has become too easy (`Ladder`). `CRAMLESS_ROUTE=ladder` opens "Yes, harder" on a question, with `CRAMLESS_LADDER=writing|proposal|added` holding that state (`LadderSheet`).
   - Sessions:
+    - `CRAMLESS_LOOKSWRONG=sheet|checking|fixed|stands|retired|queued` with an answered state (`CRAMLESS_SESSION_STATE=mcq-answered CRAMLESS_SESSION_PICK=wrong`) opens "Looks wrong?" over the question, in that state (`LooksWrongSheet`). Wait 9 s or so: the sheet opens 1.6 s after the question.
     - `CRAMLESS_SESSION_STATE=ownwords|graded|mcq(-answered)|cloze(-answered)|diagram(-filled|-answered)|flashcard|flipped|flashcard-rated|last-rated|flashcard-drag|flashcard-swiped|summary|exameve-summary|fix-summary`
     - `CRAMLESS_SESSION_PICK=wrong`, `CRAMLESS_SESSION_ANSWER=<text>`
     - `CRAMLESS_SESSION_AUTOPLAY=rrrrrpwk` answers every question by that pattern (`r` right, `p` partly, `w` wrong,
@@ -211,7 +213,11 @@ sleep 4; xcrun simctl io <udid> screenshot shot.png
   - Capture: `CRAMLESS_CAPTURE_PHASE=reading|ideas|writing|checking|done|review|error:<kind>`,
     `CRAMLESS_CAPTURE_INPUT=photo|text`, `CRAMLESS_REVIEW_EDIT|UNTICK|SCROLL|PEEK|APPROVE|ALLOW`,
     `CRAMLESS_RECORD_FLAG|PAUSE|STOP`, `CRAMLESS_NOTES_FOCUS`, `CRAMLESS_IMPORT`, `CRAMLESS_PASTE_TEXT` (`sample`, or `long`: about 21 pages),
-    `CRAMLESS_CANVAS=375x667` (SE size).
+    `CRAMLESS_CANVAS=375x667` (SE size). A lecture's notes (`CRAMLESS_ROUTE=lectureNotes`): `CRAMLESS_NOTES_FOCUS=<s>` opens cued on that moment
+    ("Play from …"), `CRAMLESS_LECTURE_PLAY=<s>` opens playing from it (the seeded lecture has no audio: `DemoLecturePlayback` runs the clock, silently).
+  - A source page: `CRAMLESS_ROUTE=sourcePage` zooms to a question's lines and circles them (`PageFocus`), `sourcePage:<n>` is that page of the first
+    source, `sourcePage:text` a typed page (it scrolls to the lines, then circles them), `CRAMLESS_PAGE_ANCHORS=p0.l3,p0.l9` names the lines (across
+    columns: no zoom, a circle each), `CRAMLESS_PAGE_FOCUS=0` keeps the old look (marks only).
   - Library and exams: `CRAMLESS_SCENARIO=eve|past|graded|missed|repair|thin|calibrated|ontrack|crowded|empty|bright|mocked|fewItems|gap` (each documented in
     `AppModel.applyHarnessScenario`; `calibrated` logs two past grades so the letter shows; `bright`: nothing is fading), `CRAMLESS_SCROLL=<section>`,
     `CRAMLESS_SEARCH=<words>`, `CRAMLESS_GRADE=<n>`. `CRAMLESS_ROUTE=course:<n>` opens the nth course (`course:3` is Spanish II,
@@ -314,6 +320,7 @@ sleep 4; xcrun simctl io <udid> screenshot shot.png
   transcription.
 - `Store/` — StoreKit 2. `Sync/` — Supabase auth, REST, sync, Squad, account. `Services/` — notifications, widget
   snapshot, Live Activities, read-aloud.
+- A sheet raised over a cover is the cover's to present (`Router.rootSheet`): from the root it takes the cover's place, and the cover is built anew when it closes. Test a sheet over a session with a real tap: its question and timer must be the same after it closes.
 - `Features/<Area>/` — screens. `DesignSystem/` — tokens and components. `Shared/` — compiled into the widget
   too: palette, readiness ring, snapshot and activity types.
   - `Shared/Core/` is Foundation-only (snapshot, copy, links, `CourseColor`), so the Watch can share it.

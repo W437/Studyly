@@ -213,6 +213,7 @@ struct ClozeQuestionView: View {
                 }
                 .buttonStyle(.cl(.soft, size: .medium))
             }
+            if runner.offersLooksWrong { LooksWrongButton(item: item, given: answers.joined(separator: " / ")) }
         } else if !hinted {
             Button {
                 CLHaptics.select()
