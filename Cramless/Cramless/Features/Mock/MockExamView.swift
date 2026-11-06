@@ -145,7 +145,7 @@ private struct MockUnavailableView: View {
 
     private var message: String {
         guard let exam = app.exam(examID) else { return String(localized: "This exam is gone.") }
-        if case .tooFew(let have) = app.mockOffer(for: exam) { return MockCopy.tooFew(have: have) }
+        if case .tooFew(let have) = app.mockOffer(for: exam) { return MockCopy.tooFew(have: have, format: exam.format) }
         return String(localized: "Not this close to the exam. Tonight is for your weak spots, then sleep.")
     }
 }
@@ -183,8 +183,8 @@ private struct MockIntroView: View {
                             .clFont(.headline)
                             .foregroundStyle(CLColor.ink)
                             .fixedSize(horizontal: false, vertical: true)
-                        Text(verbatim: MockCopy.mixLine(multiple: runner.plan.multipleChoiceCount, short: runner.plan.shortCount,
-                                                        essay: runner.plan.essayCount))
+                        Text(verbatim: MockCopy.mixLine(multiple: runner.plan.multipleChoiceCount, fillIns: runner.plan.fillInCount,
+                                                        short: runner.plan.shortCount, essay: runner.plan.essayCount))
                             .clFont(.subheadline)
                             .foregroundStyle(CLColor.ink2)
                             .fixedSize(horizontal: false, vertical: true)
@@ -527,7 +527,7 @@ private struct MockMarkingView: View {
                 .foregroundStyle(CLColor.ink)
                 .accessibilityAddTraits(.isHeader)
             if runner.markingTotal > 0 {
-                Text(verbatim: MockCopy.markingLine(done: runner.markingDone, total: runner.markingTotal))
+                Text(verbatim: MockCopy.markingLine(done: runner.markingDone, total: runner.markingTotal, hasEssays: runner.plan.essayCount > 0))
                     .clFont(.subheadline)
                     .foregroundStyle(CLColor.ink2)
                     .contentTransition(.numericText())

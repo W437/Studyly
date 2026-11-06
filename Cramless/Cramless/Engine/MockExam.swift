@@ -13,7 +13,9 @@ struct MockPlan: Sendable, Equatable {
     var expectedByItem: [UUID: Double]
 
     var multipleChoiceCount: Int { entries.filter { $0.kind == .mcq }.count }
-    var shortCount: Int { entries.filter { $0.kind == .recall || $0.kind == .cloze }.count }
+    /// Fill-ins are marked at once; short answers and essays go to marking.
+    var fillInCount: Int { entries.filter { $0.kind == .cloze }.count }
+    var shortCount: Int { entries.filter { $0.kind == .recall }.count }
     var essayCount: Int { entries.filter { $0.kind == .apply }.count }
 
     /// The fair score for the whole mock.

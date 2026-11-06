@@ -125,6 +125,10 @@ struct MockSummaryView: View {
         VStack(alignment: .leading, spacing: 10) {
             row("You scored", result.score ?? 0, color: CLColor.readiness(result.score ?? 0))
             row("Cap predicted", result.expected, color: CLColor.ink4)
+            Text(verbatim: MockCopy.predictionNote)
+                .clFont(.footnote)
+                .foregroundStyle(CLColor.ink2)
+                .fixedSize(horizontal: false, vertical: true)
         }
         .clCard()
     }

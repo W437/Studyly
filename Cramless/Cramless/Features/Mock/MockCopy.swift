@@ -9,10 +9,11 @@ enum MockCopy {
         String(localized: "\(String(localized: "\(questions) questions")) like the real one · \(minutes) min")
     }
 
-    /// "Matches your exam: 15 multiple choice and 5 short answers. Only this exam's topics."
-    static func mixLine(multiple: Int, short: Int, essay: Int) -> String {
+    /// "Matches your exam: 15 multiple choice, 2 fill-ins and 3 short answers. Only this exam's topics."
+    static func mixLine(multiple: Int, fillIns: Int = 0, short: Int, essay: Int) -> String {
         var parts: [String] = []
         if multiple > 0 { parts.append(String(localized: "\(multiple) multiple choice")) }
+        if fillIns > 0 { parts.append(String(localized: "\(fillIns) fill-ins")) }
         if short > 0 { parts.append(String(localized: "\(short) short answers")) }
         if essay > 0 { parts.append(String(localized: "\(essay) essay questions")) }
         return String(localized: "Matches your exam: \(ListFormatter.localizedString(byJoining: parts)). Only this exam's topics.")
@@ -23,9 +24,18 @@ enum MockCopy {
         String(localized: "Last mock: \(CLFormat.percent(score)) on \(LibraryFormat.shortDate(date, calendar: calendar))")
     }
 
-    /// "A mock needs 8 questions on this exam's topics. You have 3."
-    static func tooFew(have: Int) -> String {
-        String(localized: "A mock needs \(MockExamBuilder.minimumQuestions) questions on this exam's topics. You have \(have).")
+    /// Why there's no mock yet, in the exam's own terms, because other screens count every question: "This exam is multiple choice. A mock
+    /// needs 8 of those, and you have 2." With no format ticked a mock asks anything but flashcards and diagrams.
+    static func tooFew(have: Int, format: ExamFormat) -> String {
+        var kinds: [String] = []
+        if format.multipleChoice { kinds.append(String(localized: "multiple choice")) }
+        if format.shortAnswer { kinds.append(String(localized: "short answer")) }
+        if format.essay { kinds.append(String(localized: "essay questions")) }
+        let need = MockExamBuilder.minimumQuestions
+        guard !kinds.isEmpty else {
+            return String(localized: "A mock needs \(need) multiple-choice or written questions, and you have \(have).")
+        }
+        return String(localized: "This exam is \(ListFormatter.localizedString(byJoining: kinds)). A mock needs \(need) of those, and you have \(have).")
     }
 
     /// "3 of 20".
@@ -46,15 +56,18 @@ enum MockCopy {
         String(localized: "You answered \(answered) of \(total). Finish the rest without the clock, or see your score now.")
     }
 
-    /// "4 of 6 short answers marked".
-    static func markingLine(done: Int, total: Int) -> String {
-        String(localized: "\(done) of \(total) short answers marked")
+    /// "4 of 6 short answers marked" ("written answers" when essays are among them): the same words as the intro's mix. Fill-ins don't wait for this.
+    static func markingLine(done: Int, total: Int, hasEssays: Bool = false) -> String {
+        hasEssays ? String(localized: "\(done) of \(total) written answers marked") : String(localized: "\(done) of \(total) short answers marked")
     }
 
     /// The summary's headline.
     static func scored(_ score: Double) -> String { String(localized: "You scored \(CLFormat.percent(score)).") }
 
     static func predicted(_ expected: Double) -> String { String(localized: "Cap predicted \(CLFormat.percent(expected)).") }
+
+    /// Why the prediction isn't the exam page's readiness.
+    static let predictionNote = String(localized: "Cap's prediction is for this mock, today. Readiness is what you'd remember on exam day.")
 
     static func verdictLine(_ verdict: MockResult.Verdict) -> String {
         switch verdict {

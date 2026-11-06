@@ -301,6 +301,15 @@ final class ExamPresentationTests: XCTestCase {
                                               skipped: nil, tonightMinutes: 4, now: now, calendar: cal).map(\.title).first, "Tonight · about 4 min")
         XCTAssertEqual(ExamPresentation.stops(plan: evePlan, phase: .eve, examTitle: "Quiz", examDate: day(1, hour: 10), today: chemToday,
                                               skipped: nil, tonightMinutes: 0, now: now, calendar: cal).map(\.title).first, "Tonight · nothing to review")
+        // An eve tomorrow: the session as built now, so this stop and Today's strip say one number.
+        let tomorrow = examPlan([pday(0, .study, seconds: 300), pday(1, .examEve, seconds: 60), pday(2, .exam)], projected: 0.78)
+        func eveStop(_ built: Int?) -> String? {
+            ExamPresentation.stops(plan: tomorrow, phase: .ahead(days: 2), examTitle: "Quiz", examDate: day(2, hour: 10), today: chemToday, skipped: nil,
+                                   tonightMinutes: built, now: now, calendar: cal).first { $0.kind == .eve }?.title
+        }
+        XCTAssertTrue(eveStop(2)?.hasSuffix(" evening · about 2 min") == true, eveStop(2) ?? "")
+        XCTAssertTrue(eveStop(0)?.hasSuffix(" evening · nothing to review") == true, eveStop(0) ?? "")
+        XCTAssertTrue(eveStop(nil)?.hasSuffix(" evening · about 1 min") == true, "none built: the plan's")
         XCTAssertTrue(ExamPresentation.stops(plan: plan, phase: .today, examTitle: "Quiz", examDate: day(0, hour: 20), today: chemToday,
                                              skipped: nil, now: now, calendar: cal).isEmpty)
     }
@@ -454,16 +463,16 @@ final class ExamPresentationTests: XCTestCase {
     // MARK: The mock exam's card
 
     func testTheMockCardsStates() {
-        XCTAssertNil(ExamPresentation.mockCard(offer: .hidden, lastScore: nil, lastDate: nil, canWrite: true, calendar: cal), "the eve, the day, after")
+        XCTAssertNil(ExamPresentation.mockCard(offer: .hidden, format: ExamFormat(), lastScore: nil, lastDate: nil, canWrite: true, calendar: cal), "the eve, the day, after")
 
-        let few = ExamPresentation.mockCard(offer: .tooFew(have: 3), lastScore: nil, lastDate: nil, canWrite: true, calendar: cal)
-        XCTAssertEqual(few?.kind, .tooFew(line: "A mock needs 8 questions on this exam's topics. You have 3.", canWrite: true))
-        let cantWrite = ExamPresentation.mockCard(offer: .tooFew(have: 0), lastScore: nil, lastDate: nil, canWrite: false, calendar: cal)
-        XCTAssertEqual(cantWrite?.kind, .tooFew(line: "A mock needs 8 questions on this exam's topics. You have 0.", canWrite: false))
+        let few = ExamPresentation.mockCard(offer: .tooFew(have: 3), format: ExamFormat(multipleChoice: true, shortAnswer: false), lastScore: nil, lastDate: nil, canWrite: true, calendar: cal)
+        XCTAssertEqual(few?.kind, .tooFew(line: "This exam is multiple choice. A mock needs 8 of those, and you have 3.", canWrite: true))
+        let cantWrite = ExamPresentation.mockCard(offer: .tooFew(have: 0), format: ExamFormat(multipleChoice: true, shortAnswer: false), lastScore: nil, lastDate: nil, canWrite: false, calendar: cal)
+        XCTAssertEqual(cantWrite?.kind, .tooFew(line: "This exam is multiple choice. A mock needs 8 of those, and you have 0.", canWrite: false))
 
         let entries = (0..<8).map { i in SessionEntry(itemID: UUID(), reason: .new, kind: i < 6 ? .mcq : .recall, estimatedSeconds: 60) }
         let plan = MockPlan(examID: UUID(), courseID: nil, entries: entries, minutes: 15, expectedByItem: [:])
-        let ready = ExamPresentation.mockCard(offer: .ready(plan), lastScore: 0.72, lastDate: day(-3), canWrite: false, calendar: cal)
+        let ready = ExamPresentation.mockCard(offer: .ready(plan), format: ExamFormat(), lastScore: 0.72, lastDate: day(-3), canWrite: false, calendar: cal)
         guard case .offer(let line, let mix)? = ready?.kind else { return XCTFail("an offer") }
         XCTAssertEqual(line, "8 questions like the real one · 15 min")
         XCTAssertTrue(mix.hasPrefix("Matches your exam: 6 multiple choice"), mix)
