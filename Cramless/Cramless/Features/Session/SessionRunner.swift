@@ -396,7 +396,7 @@ final class SessionRunner: Identifiable {
         guard phase == .question, let entry = queue.current else { return }
         // A question left without an answer leaves a held rating behind: it can't come back past this one.
         if let pending, pending.entry.id != entry.id { commitPending() }
-        self.arrival = arrival
+        prepareArrival(arrival)
         if options.requeues, let answer = answers.last(where: { $0.entry.id == entry.id }) {
             queue.advance(rating: answer.review.rating, memoryAfter: answer.review.after)
         } else {
@@ -502,7 +502,9 @@ final class SessionRunner: Identifiable {
     }
 
     /// The next question is coming from this side. Set a moment before the change, so the question leaving takes it too.
-    func prepareArrival(_ arrival: Arrival) { self.arrival = arrival }
+    func prepareArrival(_ arrival: Arrival) {
+        if self.arrival != arrival { self.arrival = arrival }
+    }
 
     /// Ends the session (idempotent): the engine's summary, the Live Activity's last word. Nothing is left to pick up.
     func finish() {

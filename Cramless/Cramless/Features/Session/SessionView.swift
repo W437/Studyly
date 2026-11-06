@@ -399,8 +399,7 @@ struct SessionQuestionHost: View {
             return .asymmetric(insertion: .move(edge: .leading).combined(with: .opacity),
                                removal: .move(edge: .trailing).combined(with: .opacity))
         case .rise:
-            return .asymmetric(insertion: .scale(scale: 0.94).combined(with: .opacity),
-                               removal: .move(edge: .leading).combined(with: .opacity))
+            return .asymmetric(insertion: .scale(scale: 0.94).combined(with: .opacity), removal: .opacity)
         }
     }
 
@@ -660,7 +659,7 @@ struct SessionDebug {
             runner.debugFront(kinds: [.flashcard])
             runner.debugOnly(kinds: [.flashcard])
             runner.debugHoldsUndo = true
-            if let front = runner.queue.current { auto = .init(entryID: front.id, flip: true, next: 500, swipe: .good) }
+            if let front = runner.queue.current { auto = .init(entryID: front.id, flip: true, swipe: .good, next: 500) }
         case "flashcard-rated", "last-rated":
             let rate = TestHarness.once("CRAMLESS_SESSION_RATE").flatMap { name in Rating.allCases.first { $0.title.lowercased() == name } }
             auto = .init(entryID: first.id, flip: true, rate: rate ?? .good, next: 500)

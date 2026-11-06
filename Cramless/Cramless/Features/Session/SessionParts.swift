@@ -70,29 +70,28 @@ private struct SessionFooter<Primary: View, Secondary: View>: ViewModifier {
     @Environment(\.sessionUndoSlot) private var undoSlot
 
     func body(content: Content) -> some View {
-        content.safeAreaBar(edge: .bottom) {
-            ZStack(alignment: .bottom) {
-                if let feedback {
-                    FeedbackPanel(feedback: feedback, primary: primary, secondary: secondary)
-                        .transition(.move(edge: .bottom).combined(with: .opacity))
-                } else {
-                    bar.transition(.opacity)
-                }
-            }
-            .animation(CLMotion.sheet, value: feedback != nil)
-            // Undo floats just above the footer and takes no room, so no button moves under a finger when it comes and goes.
-            .overlay(alignment: .top) {
+        content
+            // Undo floats just above the footer and takes no room, so no button moves under a finger when it comes and goes. It sits on the
+            // content, not the bar: past the bar's own bounds it would show and not take a tap.
+            .overlay(alignment: .bottom) {
                 if let undoSlot {
-                    Color.clear
-                        .frame(height: 0)
-                        .overlay(alignment: .bottom) {
-                            UndoPill(runner: undoSlot.runner, entryID: undoSlot.entryID)
-                                .padding(.bottom, 4)
-                        }
+                    UndoPill(runner: undoSlot.runner, entryID: undoSlot.entryID)
+                        .padding(.bottom, 4)
+                        .dynamicTypeSize(...DynamicTypeSize.accessibility2)
                 }
             }
-            .dynamicTypeSize(...DynamicTypeSize.accessibility2)
-        }
+            .safeAreaBar(edge: .bottom) {
+                ZStack(alignment: .bottom) {
+                    if let feedback {
+                        FeedbackPanel(feedback: feedback, primary: primary, secondary: secondary)
+                            .transition(.move(edge: .bottom).combined(with: .opacity))
+                    } else {
+                        bar.transition(.opacity)
+                    }
+                }
+                .animation(CLMotion.sheet, value: feedback != nil)
+                .dynamicTypeSize(...DynamicTypeSize.accessibility2)
+            }
     }
 
     private var bar: some View {
