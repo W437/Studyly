@@ -258,9 +258,14 @@ struct TodayView: View {
         }
     }
 
-    /// `CRAMLESS_TODAY_SCROLL=1`: after a moment, down the page to the exams and back up, for a film.
+    /// `CRAMLESS_TODAY_SCROLL=1`: after a moment, down the page to the exams and back up, for a film. `=notice`: to Cap's card, and it stays.
     private func runScrollHook(_ proxy: ScrollViewProxy) async {
-        guard TestHarness.once("CRAMLESS_TODAY_SCROLL") != nil else { return }
+        guard let scroll = TestHarness.once("CRAMLESS_TODAY_SCROLL") else { return }
+        if scroll == "notice" {
+            try? await nap(900)
+            if let id = (snapshot ?? TodaySnapshot.make(app: app, skyAspect: skyAspect)).notices.first?.id { proxy.scrollTo(id, anchor: .center) }
+            return
+        }
         try? await nap(2200)
         withAnimation(.easeInOut(duration: 2.4)) { proxy.scrollTo("today-bottom", anchor: .bottom) }
         try? await nap(3600)

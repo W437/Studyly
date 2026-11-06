@@ -59,12 +59,17 @@ enum LocalConfusions {
     /// Two look-alikes side by side, before any mistake: each one with what tells it apart, and a two-choice question for each. What the
     /// sheet shows when Cloud AI isn't asked.
     static func sideBySide(_ a: LookAlikeSide, _ b: LookAlikeSide) -> ConfusionOut {
+        // A clue is often the question itself, which has its own full stop.
+        func sentence(_ text: String) -> String {
+            let trimmed = Lexicon.trimmedSentence(text)
+            return trimmed.hasSuffix("?") || trimmed.hasSuffix("!") ? trimmed : trimmed + "."
+        }
         func line(_ side: LookAlikeSide) -> String {
-            "\(Lexicon.capitalizedFirst(side.term)): \(Lexicon.trimmedSentence(side.clue))."
+            "\(Lexicon.capitalizedFirst(side.term)): \(sentence(side.clue))"
         }
         func question(_ side: LookAlikeSide, _ other: LookAlikeSide, _ n: Int) -> GeneratedItem {
             let isOwnPrompt = ConfusionFinder.normalize(side.term) == ConfusionFinder.normalize(side.answer)
-            let prompt = isOwnPrompt ? side.prompt : String(localized: "Which one is this? \(Lexicon.trimmedSentence(side.clue)).")
+            let prompt = isOwnPrompt ? side.prompt : String(localized: "Which one is this? \(sentence(side.clue))")
             return GeneratedItem(id: "l\(n)", kind: .mcq, topic: side.topic, prompt: prompt, answer: side.term, explanation: line(side),
                                  choices: [Choice(text: side.term, correct: true), Choice(text: other.term, correct: false)],
                                  anchors: [], difficulty: 0.4)

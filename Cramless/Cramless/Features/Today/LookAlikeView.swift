@@ -2,7 +2,7 @@ import SwiftUI
 
 /// Two questions that look alike, side by side, and the one difference: Cap's card "Show me". The sheet is the first moment Cloud AI may
 /// be asked (on the relay's `extras` meter; the card said "Under 1¢"). If it may, the sheet shows that Cap is writing until the lesson is
-/// ready, then shows it once; if not, the rules' lesson is there at once. Nothing is saved until "Try 2 questions" (an open mix-up with no
+/// ready, then shows it once; if not, the rules' version is there at once (a line asking for the difference, no words of its own). Nothing is saved until "Try 2 questions" (an open mix-up with no
 /// misses, and its fix drill) or "Not a look-alike" (a dismissed one, so neither finder offers it again). Closing it saves nothing, and
 /// the card stays away for its 7 days. A fitted sheet: as tall as what it says.
 ///
@@ -111,18 +111,22 @@ struct LookAlikeView: View {
 
     private var lessonCard: some View {
         VStack(alignment: .leading, spacing: 8) {
-            if let lesson {
+            if let lesson, origin == .cloud {
                 Text(verbatim: lesson.lesson)
                     .clFont(.body)
                     .foregroundStyle(CLColor.ink)
                     .lineSpacing(3)
                     .fixedSize(horizontal: false, vertical: true)
                     .transition(.blurReplace)
-                if origin == .cloud {
-                    Text("Written by Cap from your two questions")
-                        .clFont(.footnote)
-                        .foregroundStyle(CLColor.ink3)
-                }
+                Text("Written by Cap from your two questions")
+                    .clFont(.footnote)
+                    .foregroundStyle(CLColor.ink3)
+            } else if lesson != nil {
+                // The rules' lesson only repeats the two columns above; it is kept for the mix-up page, where they aren't.
+                Text("Say the difference in your own words, then try them.")
+                    .clFont(.body)
+                    .foregroundStyle(CLColor.ink)
+                    .fixedSize(horizontal: false, vertical: true)
             } else {
                 HStack(spacing: 10) {
                     ProgressView()

@@ -642,6 +642,7 @@ final class NoticeEngineTests: XCTestCase {
         XCTAssertEqual(out.questions.count, 2)
         XCTAssertTrue(out.lesson.contains("Metaphase"))
         XCTAssertTrue(out.lesson.contains("New nuclear envelopes"))
+        XCTAssertFalse(out.lesson.contains("?."), "a question keeps its own mark")
         for question in out.questions {
             XCTAssertEqual(question.kind, .mcq)
             XCTAssertEqual(Set(question.choices.map(\.text)), ["Metaphase", "Telophase"])

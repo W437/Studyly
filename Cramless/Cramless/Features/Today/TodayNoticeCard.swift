@@ -35,6 +35,8 @@ struct TodayNoticeCard: View {
                     }
                     if !notice.isConfirmation { menu }
                 }
+                // The menu's hit area reaches over the title's first line; it stays on top.
+                .zIndex(1)
                 titleView
                 Text(verbatim: notice.detail)
                     .clFont(.subheadline)
@@ -51,9 +53,10 @@ struct TodayNoticeCard: View {
                                  : String(localized: "Cap noticed")))
     }
 
+    /// A button's words are never cut: what it costs goes beside the buttons when all of it fits, and under them when it doesn't.
     @ViewBuilder private var buttons: some View {
-        ReflowStack(verticalAlignment: .center, spacing: 6) {
-            if notice.isConfirmation {
+        if notice.isConfirmation {
+            ReflowStack(verticalAlignment: .center, spacing: 6) {
                 Button("OK", action: onLater)
                     .buttonStyle(.cl(.dark, size: .medium, fullWidth: false))
                 if let action = notice.action {
@@ -61,22 +64,40 @@ struct TodayNoticeCard: View {
                         .buttonStyle(.cl(.ghost, size: .medium, fullWidth: false))
                         .accessibilityHint("Takes the minutes off your plan")
                 }
-            } else {
-                if let action = notice.action {
-                    Button(action.title) { onAction(action) }
-                        .buttonStyle(.cl(.dark, size: .medium, fullWidth: false))
+            }
+        } else {
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 6) {
+                    actionButtons
+                    costCaption.padding(.leading, 2)
                 }
-                Button("Later", action: onLater)
-                    .buttonStyle(.cl(.ghost, size: .medium, fullWidth: false))
-                    .accessibilityHint("Cap brings it up tomorrow")
-                if let cost = notice.cost {
-                    Text(verbatim: cost)
-                        .clFont(.caption)
-                        .foregroundStyle(CLColor.ink3)
-                        .padding(.leading, 2)
-                        .frame(minHeight: CLMetrics.minHitTarget)
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 6) { actionButtons }
+                    costCaption
+                }
+                VStack(alignment: .leading, spacing: 6) {
+                    actionButtons
+                    costCaption
                 }
             }
+        }
+    }
+
+    @ViewBuilder private var actionButtons: some View {
+        if let action = notice.action {
+            Button(action.title) { onAction(action) }
+                .buttonStyle(.cl(.dark, size: .medium, fullWidth: false))
+        }
+        Button("Later", action: onLater)
+            .buttonStyle(.cl(.ghost, size: .medium, fullWidth: false))
+            .accessibilityHint("Cap brings it up tomorrow")
+    }
+
+    @ViewBuilder private var costCaption: some View {
+        if let cost = notice.cost {
+            Text(verbatim: cost)
+                .clFont(.caption)
+                .foregroundStyle(CLColor.ink3)
         }
     }
 

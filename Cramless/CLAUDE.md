@@ -173,7 +173,7 @@ sleep 4; xcrun simctl io <udid> screenshot shot.png
     40% of the session, so no chip; `noExam`: no exams at all; `done` also fills the done card's exam, +10%);
     `CRAMLESS_TODAY_NOTICES=0|1|2|3` deals that many of Cap's cards (stand-ins); `CRAMLESS_TODAY_WHY=<ms>`, `CRAMLESS_TODAY_QUESTS=<ms>` open
     "Why these?" and the quests sheet, `CRAMLESS_TODAY_LATER=<ms>` presses Cap's "Later", `CRAMLESS_NOTICE_TAP=<ms>` his card's button, each that long after launch;
-    `CRAMLESS_TODAY_SCROLL=1` scrolls down to the exams row and back (for a film); `CRAMLESS_TODAY_OPEN=<ms>` opens the sky that
+    `CRAMLESS_TODAY_SCROLL=1` scrolls down to the exams row and back (for a film), `=notice` to Cap's card, where it stays; `CRAMLESS_TODAY_OPEN=<ms>` opens the sky that
     long after launch, as a tap on the band would; `CRAMLESS_CANVAS=375x667` draws Today at an iPhone SE's size (there is no SE
     simulator for iOS 27; no status-bar inset); `CRAMLESS_TODAY_TYPE=xxxl|ax1…ax5` draws Today at that text size without changing
     the simulator's own setting (others may share it). Routes `todayWhy`, `quests` (the sheets) and `skyList` (the sky as a list,
