@@ -4,7 +4,7 @@
 import { assert, assertEquals } from "@std/assert";
 import type { GeneratedItem } from "../_shared/contract.ts";
 import { sanitizeGrade, sanitizeItem, sanitizeItems, sanitizeVerdicts } from "../_shared/items.ts";
-import { contractSchema, MAX_SOURCE_CHARS } from "../_shared/schemas.ts";
+import { contractSchema, MAX_SOURCE_CHARS, requestSchema } from "../_shared/schemas.ts";
 import { validate } from "../_shared/schema.ts";
 import { GENERATE_TIMEOUT_MS } from "../ai/handler.ts";
 import { errorOf, fixtureJson, rig, ScriptedProvider } from "./_harness.ts";
@@ -491,4 +491,14 @@ Deno.test("lecture, confusions, cards and transcription replies are cleaned too"
     (provider.jsonCalls.at(-1)!.content[0] as { mediaType: string }).mediaType,
     "image/png",
   );
+});
+
+Deno.test("a check's reports are checked like the rest of the request", () => {
+  const schema = requestSchema("CheckRequest");
+  const pages = [{ page: 0, label: "1", lines: [{ id: "p0.l1", text: "x" }] }];
+  const items = [item()];
+  assertEquals(validate(schema, { pages, items, reports: [{ id: "i1", reason: "answerWrong" }] }), []);
+  assertEquals(validate(schema, { pages, items }), [], "reports are optional");
+  assert(validate(schema, { pages, items, reports: [{ id: "i1", reason: "becauseISaidSo" }] }).length > 0);
+  assert(validate(schema, { pages, items, reports: [{ id: "i1", reason: "other", note: "x".repeat(281) }] }).length > 0);
 });

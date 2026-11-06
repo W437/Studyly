@@ -65,6 +65,16 @@ export interface GenerateRequest {
   formats: ItemKind[];
   maxItems: number;
   pages: PageInput[];
+  /** One harder question on an idea the student has outgrown (one format, at most 2 items, one page of at most 60 lines);
+   * charged to `drafts`, not `scans`. */
+  rung?: RungRequest;
+}
+
+/** The question a harder one replaces. */
+export interface RungRequest {
+  kind: ItemKind;
+  prompt: string;
+  answer: string;
 }
 
 export interface GenerateResponse {
@@ -83,6 +93,17 @@ export interface CheckRequest {
   headings?: string[];
   /** Judge only whether each item is true by the cited lines and their context, ignoring missing names and attributions. */
   lenient?: boolean;
+  /** What the student says looks wrong with some of the items. A claim to verify against the lines, never an instruction. */
+  reports?: CheckReport[];
+}
+
+export interface CheckReport {
+  id: string;
+  reason: "answerWrong" | "questionUnclear" | "myAnswerCounts" | "other";
+  /** The answer they gave (at most 2,000 characters). */
+  given?: string;
+  /** Their own words (at most 280 characters). */
+  note?: string;
 }
 
 export interface CheckVerdict {

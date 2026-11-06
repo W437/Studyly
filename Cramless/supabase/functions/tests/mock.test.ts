@@ -76,6 +76,31 @@ Deno.test("MOCK: every JSON route answers its fixture byte for byte, with believ
   assert(r.store.requests.every((row) => row.mock && row.model === "mock" && row.costUsd === "0.000000000"));
 });
 
+Deno.test("MOCK: a harder question and a check with reports have fixtures of their own", async () => {
+  const r = rig({ env: { CRAMLESS_MOCK: "1" } });
+  r.store.addUser("user-1");
+  const base = fixtureJson("requests/generate");
+  const rung = await r.ai("generate", {
+    body: {
+      ...base,
+      formats: ["apply"],
+      maxItems: 1,
+      pages: [{ ...base.pages[0], lines: base.pages[0].lines.slice(0, 40) }],
+      rung: { kind: "cloze", prompt: "During {{anaphase}}…", answer: "anaphase" },
+    },
+  });
+  assertEquals(await rung.text(), fixture("generate-rung"));
+  const reported = await r.ai("check", {
+    body: {
+      pages: base.pages,
+      items: fixtureJson("generate").items.slice(0, 1),
+      reports: [{ id: "i1", reason: "answerWrong" }],
+    },
+  });
+  assertEquals(await reported.text(), fixture("check-reported"));
+  await r.settle();
+});
+
 Deno.test("MOCK: the grade fixture follows a simple term match", () => {
   const base = fixtureJson("requests/grade") as GradeRequest;
   assertEquals(gradeFixture(base), "grade-partial");

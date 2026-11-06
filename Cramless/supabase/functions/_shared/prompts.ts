@@ -5,6 +5,7 @@
 import type {
   AssistantRequest,
   CardsFromChatRequest,
+  CheckReport,
   ConfusionsRequest,
   GeneratedItem,
   GenerateRequest,
@@ -115,9 +116,22 @@ export function pagesContent(pages: PageInput[], onlyLines?: ReadonlySet<string>
   return out;
 }
 
+/** The generate system prompt; a harder question adds its own rule (generate-rung.md). */
+export function generateSystem(rung = false): string {
+  return rung ? `${systemFor("generate")}\n\n${prompt("generate-rung")}` : systemFor("generate");
+}
+
 export function generateContent(req: GenerateRequest): ContentBlock[] {
   return [
     ...pagesContent(req.pages),
+    ...(req.rung
+      ? [{
+        type: "text" as const,
+        text: `<easier_question>\n${
+          JSON.stringify({ format: req.rung.kind, prompt: req.rung.prompt, answer: req.rung.answer }, null, 1)
+        }\n</easier_question>`,
+      }]
+      : []),
     {
       type: "text",
       text: [
@@ -128,7 +142,7 @@ export function generateContent(req: GenerateRequest): ContentBlock[] {
         `Formats: ${[...new Set(req.formats)].join(", ")}`,
         `maxItems: ${req.maxItems}`,
         "",
-        "Write the practice set from these pages.",
+        req.rung ? "Write the harder question from these lines." : "Write the practice set from these pages.",
       ].join("\n"),
     },
   ];
@@ -148,9 +162,13 @@ function itemForCheck(item: GeneratedItem): Record<string, unknown> {
   };
 }
 
-/** The check's system prompt; a lenient check adds its own rule (check-lenient.md). */
-export function checkSystem(lenient = false): string {
-  return lenient ? `${systemFor("check")}\n\n${prompt("check-lenient")}` : systemFor("check");
+/** The check's system prompt; a lenient check adds its own rule (check-lenient.md), and so does a check with reports
+ * (check-reports.md). A check with neither is what it always was. */
+export function checkSystem(lenient = false, reported = false): string {
+  const parts = [systemFor("check")];
+  if (lenient) parts.push(prompt("check-lenient"));
+  if (reported) parts.push(prompt("check-reports"));
+  return parts.join("\n\n");
 }
 
 /** What else a check request may carry: the source's title and section headings, which are part of the source, and the
@@ -159,6 +177,23 @@ export interface CheckExtras {
   sourceTitle?: string;
   headings?: string[];
   lenient?: boolean;
+  /** What the student says looks wrong, for the items being checked. */
+  reports?: CheckReport[];
+}
+
+/** The reports that are about these items, as data: one JSON block the model reads as a claim, never as instructions (the
+ * prompt says so; the note has no line breaks or tags to pass for one, and its length is capped by the request schema). */
+function reportsBlock(reports: readonly CheckReport[] | undefined, items: readonly GeneratedItem[]): string {
+  const ids = new Set(items.map((i) => i.id));
+  const about = (reports ?? []).filter((r) => ids.has(r.id));
+  if (about.length === 0) return "";
+  const rows = about.map((r) => ({
+    id: r.id,
+    reason: r.reason,
+    ...(r.given?.trim() ? { given: oneLine(r.given, 2000) } : {}),
+    ...(r.note?.trim() ? { note: oneLine(r.note, 280) } : {}),
+  }));
+  return `<student_reports>\n${JSON.stringify(rows, null, 1)}\n</student_reports>`;
 }
 
 /** The source's title and headings as plain lines (the student's own text, each one line); nothing when there are none. */
@@ -188,12 +223,15 @@ function withContext(pages: PageInput[], anchored: ReadonlySet<string>, radius: 
 export function checkContent(pages: PageInput[], items: GeneratedItem[], extras: CheckExtras = {}): ContentBlock[] {
   const anchored = new Set(items.flatMap((i) => i.anchors ?? []));
   const about = sourceBlock(extras.sourceTitle, extras.headings);
+  const reports = reportsBlock(extras.reports, items);
   return [
     ...(about ? [{ type: "text" as const, text: about }] : []),
     ...pagesContent(pages, extras.lenient ? withContext(pages, anchored, 2) : anchored),
     {
       type: "text",
-      text: `<items>\n${JSON.stringify(items.map(itemForCheck), null, 1)}\n</items>\n\nGive one verdict per item.`,
+      text: `<items>\n${JSON.stringify(items.map(itemForCheck), null, 1)}\n</items>\n\n${
+        reports ? `${reports}\n\n` : ""
+      }Give one verdict per item.`,
     },
   ];
 }

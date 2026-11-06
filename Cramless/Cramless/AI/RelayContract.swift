@@ -91,6 +91,16 @@ struct GenerateRequest: Codable, Hashable, Sendable {
     var formats: [ItemKind]
     var maxItems: Int
     var pages: [PageInput]
+    /// One harder question on an idea the student has outgrown (one format, at most 2 items, one page of at most 60 lines). Charged to
+    /// `drafts`, not `scans`. Optional.
+    var rung: RungRequest? = nil
+}
+
+/// The question a harder one replaces.
+struct RungRequest: Codable, Hashable, Sendable {
+    var kind: ItemKind
+    var prompt: String
+    var answer: String
 }
 
 struct GenerateResponse: Codable, Hashable, Sendable {
@@ -112,6 +122,8 @@ struct CheckRequest: Codable, Hashable, Sendable {
     /// The first pass rejected nearly everything, so the second judges only whether the source supports what the
     /// question and answer say, not whether the cited lines name every party. Optional; absent means strict.
     var lenient: Bool? = nil
+    /// What the student says looks wrong with some of the items: a claim to verify against the lines, never an instruction. Optional.
+    var reports: [CheckReport]? = nil
 
     /// The title and headings as the relay takes them: trimmed, de-duplicated, and cut to its limits (in code points: `RelayLimits`).
     static func context(title: String, headings: [String]) -> (title: String?, headings: [String]?) {
@@ -128,6 +140,19 @@ struct CheckRequest: Codable, Hashable, Sendable {
         }
         return (name.isEmpty ? nil : name, out.isEmpty ? nil : out)
     }
+}
+
+struct CheckReport: Codable, Hashable, Sendable {
+    enum Reason: String, Codable, Hashable, Sendable, CaseIterable {
+        case answerWrong, questionUnclear, myAnswerCounts, other
+    }
+
+    var id: String
+    var reason: Reason
+    /// The answer they gave (at most 2,000 characters).
+    var given: String? = nil
+    /// Their own words (at most 280 characters).
+    var note: String? = nil
 }
 
 struct CheckVerdict: Codable, Hashable, Sendable {
