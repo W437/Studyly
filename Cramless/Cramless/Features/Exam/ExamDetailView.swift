@@ -1,11 +1,15 @@
 import SwiftUI
 
-/// One exam: how ready you are now, the projected grade, the path to the target, the topics in scope with their
-/// gaps, the week's plan, the materials, and what to do next (today's session, the exam-eve review, logging the
-/// grade). Every number comes from the engine, read once per change of the store.
+/// One exam, in the order a student reads it: how ready they are now (the ring with the goal's dot and the plan's faint arc), one
+/// sentence on where the plan takes them and what that takes, today's session ("Study · 15 min"), the topics weakest first with a
+/// practice round each, the plan as stops with "What if I skip Saturday?", the materials, how it's gone so far (folded), and Exam
+/// Pass for a free plan. After the exam: readiness on the day and the grade. Every number comes from the engine, read once per
+/// change of the store; the letter grade shows only once logged grades calibrate it.
 ///
-/// Harness: `CRAMLESS_SCENARIO=eve|past|graded|missed` puts the exam (or yesterday) in that state first
-/// (`AppModel.applyHarnessScenario`).
+/// Harness: `CRAMLESS_ROUTE=exam[:n]` (0 the Chem quiz on Sunday, 1 the Bio midterm, 2 AP Psych, with
+/// `CRAMLESS_NOW=2026-11-06T14:00:00-05:00`); `CRAMLESS_SCENARIO=eve|past|graded|missed|thin|calibrated|ontrack|crowded|empty` puts
+/// the exam (or yesterday) in that state first (`AppModel.applyHarnessScenario`); `CRAMLESS_EXAM_SKIP=1` opens with the what-if on;
+/// `CRAMLESS_SCROLL=topics|plan|materials|path` scrolls to a section.
 struct ExamDetailView: View {
     let examID: UUID
 
@@ -41,21 +45,20 @@ struct ExamDetailModel {
     var readiness: ExamReadiness
     var plan: StudyPlan
     var path: ExamPresentation.Path
-    var strip: [ExamPresentation.StripDay]
-    var gapNames: [String]
-    var topicCount: Int
+    var topics: [ExamPresentation.TopicRow]
+    var today: ExamPresentation.TodayWork
+    var study: ExamPresentation.StudyAction?
+    var skip: ExamPresentation.SkipOption?
     var result: Double?
     var readinessAtExam: Double?
-    var projectedAtExam: ProjectedGrade
+    /// Exams with readiness on the day and a logged grade, this one included: two calibrate the letter.
+    var calibratingExams: Int
     /// How much of the material its questions reach (for an exam still to come).
     var coverage: ExamPresentation.CoverageNote?
     /// There is a reading with something left to write questions for ("Add questions for the rest").
     var offersRest = false
     var materials: [Material]
-    var sessionMinutes: Int
-    var sessionReady: Bool
     var offersExamPass: Bool
-    var dailyMinutes: Int
     var now: Date
     var calendar: Calendar
 
@@ -78,17 +81,24 @@ struct ExamDetailModel {
         now = app.now
         calendar = app.calendar
         phase = ExamPresentation.phase(examDate: exam.date, now: app.now, calendar: app.calendar)
-        readiness = app.readiness(for: exam)
-        plan = app.plan(for: exam)
+        let read = app.readinessAndPlan(for: exam)
+        readiness = read.readiness
+        plan = read.plan
         let history = app.readinessHistory(for: exam, days: 14)
         path = ExamPresentation.path(history: history, plan: plan, examDate: exam.date, now: app.now, calendar: app.calendar)
-        strip = ExamPresentation.weekStrip(plan: plan, yesterday: app.dayRecordSnapshot(for: app.calendar.adding(days: -1, to: app.now)),
-                                           examCreatedAt: exam.createdAt, now: app.now, calendar: app.calendar)
-        gapNames = readiness.topics.filter { $0.value == nil }.map(\.name)
-        topicCount = readiness.topics.count
+        topics = ExamPresentation.topicsWeakestFirst(readiness.topics, target: readiness.target)
+        // Today's session as Today starts it, built once: the "Study" button and the plan's first stop read it.
+        let (summary, session) = app.todayPlan()
+        let strip = ExamPresentation.weekStrip(plan: plan, yesterday: app.dayRecordSnapshot(for: app.calendar.adding(days: -1, to: app.now)),
+                                               examCreatedAt: exam.createdAt, now: app.now, calendar: app.calendar)
+        today = ExamPresentation.todayWork(entries: session.entries, sessionMinutes: summary.sessionReady ? summary.plannedMinutes : 0,
+                                           exam: ExamSnapshot(exam), topicNames: app.topicNames(), studiedToday: summary.studiedToday,
+                                           missedYesterday: strip.first.map { $0.kind == .missed || $0.kind == .frozen } == true)
+        study = ExamPresentation.studyAction(phase: phase, today: today, weakest: topics.first { $0.isWeakest }, courseName: course.name)
+        skip = ExamPresentation.skipOption(plan: plan, phase: phase, calendar: app.calendar)
         result = exam.resultScore
         readinessAtExam = exam.readinessAtExam
-        projectedAtExam = app.projectedGrade(for: exam)
+        calibratingExams = app.calibratingExamCount
         if case .past = phase {
             coverage = nil
             offersRest = false
@@ -108,44 +118,56 @@ struct ExamDetailModel {
                      meta: LibraryFormat.sourceMeta(kind: source.kind, pages: source.pages.count, duration: source.duration,
                                                     questions: counts[source.id] ?? 0))
         }
-        let today = app.todaySummary()
-        sessionMinutes = today.plannedMinutes
-        sessionReady = today.sessionReady
         offersExamPass = ExamPresentation.offersExamPass(plan: app.purchases.plan, phase: phase)
-        dailyMinutes = app.settings.dailyMinutes
     }
+
+    var isPast: Bool { if case .past = phase { true } else { false } }
 }
 
 private struct ExamDetailContent: View {
     let model: ExamDetailModel
     @Environment(AppModel.self) private var app
     @State private var confirmDelete = false
+    @State private var showsAllTopics = false
+    @State private var showsHistory = false
+    /// The what-if: the day skipped and the plan without it (a preview; nothing is stored).
+    @State private var skipping = false
+    @State private var skipPlan: (revision: Int, plan: StudyPlan)?
+
+    /// Topics shown before "See all".
+    private let topicsShown = 4
 
     var body: some View {
         ScrollViewReader { proxy in
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
                 hero
-                actions
-                    .padding(.top, 20)
-                if case .past = model.phase {
-                    if model.result != nil { resultCard.padding(.top, 16) }
-                } else {
-                    gradeCard.padding(.top, 16)
-                    pathCard.padding(.top, 16).id("path")
+                if let projection {
+                    projectionCard(projection).padding(.top, 20)
                 }
-                if !model.gapNames.isEmpty {
-                    gapCard.padding(.top, 16)
+                actions.padding(.top, 16)
+                if model.isPast, model.result != nil {
+                    resultCard.padding(.top, 16)
                 }
-                topics.id("topics")
-                if case .past = model.phase {} else { planSection.id("plan") }
+                // Stage 2: the mock exam card goes here, beside the projection (never on the eve or the day).
+                topicsSection.id("topics")
+                if let note = model.coverage {
+                    // The ring is how well the questions are remembered; this is how much of the material they reach.
+                    CoverageNoteCard(sentence: note.sentence, detail: note.mainGap, isThin: note.isThin,
+                                     offersMore: note.offersMore && model.offersRest, centered: false, onAdd: addForTheRest)
+                        .padding(.top, 12)
+                }
+                // Stage 3: the gap card (a topic of the syllabus with no material) goes here, under the topics.
+                planSection.id("plan")
+                materials.id("materials")
+                if !model.isPast { historyFold.padding(.top, 16).id("path") }
                 if model.offersExamPass {
                     examPassCard.padding(.top, 16)
                 }
-                materials.id("materials")
             }
             .padding(.horizontal, CLSpace.gutter)
             .padding(.bottom, 40)
+            .animation(CLMotion.settle, value: skipping)
         }
         .harnessScroll(proxy)
         }
@@ -178,6 +200,12 @@ private struct ExamDetailContent: View {
         } message: {
             Text("Its plan goes. Your questions and progress stay in \(model.courseName).")
         }
+        #if DEBUG
+        .task {
+            // Harness: `CRAMLESS_EXAM_SKIP=1` opens with "What if I skip …?" on.
+            if TestHarness.once("CRAMLESS_EXAM_SKIP") == "1", model.skip != nil { toggleSkip() }
+        }
+        #endif
     }
 
     private var isPastOrToday: Bool {
@@ -187,42 +215,67 @@ private struct ExamDetailContent: View {
         }
     }
 
+    // MARK: The what-if
+
+    /// The plan without the skipped day, built when asked and kept for this revision of the store.
+    private var shownSkipPlan: StudyPlan? {
+        guard skipping, let skipPlan, skipPlan.revision == app.revision else { return nil }
+        return skipPlan.plan
+    }
+
+    private func toggleSkip() {
+        guard let skip = model.skip, let exam = app.exam(model.id) else { return }
+        if !skipping, skipPlan?.revision != app.revision {
+            skipPlan = (app.revision, app.plan(for: exam, skipping: [skip.offset]))
+        }
+        withAnimation(CLMotion.settle) { skipping.toggle() }
+    }
+
+    private var skipCost: ExamPresentation.SkipCost? {
+        guard let skip = model.skip, let plan = shownSkipPlan else { return nil }
+        return ExamPresentation.skipCost(skip, planned: model.plan.projectedReadiness, skipped: plan.projectedReadiness,
+                                         examDate: model.date, now: model.now, calendar: model.calendar)
+    }
+
     // MARK: Hero
 
     private var hero: some View {
-        VStack(spacing: 10) {
-            ReadinessRing(value: shownReadiness, size: 176, lineWidth: 16, caption: ringCaption, animatesFromZero: true)
-                .accessibilityLabel(Text(ringLabel))
-                .padding(.top, 8)
-            if case .past = model.phase {} else {
-                ReflowPill(text: "\(CLFormat.delta(model.readiness.deltaThisWeek)) this week",
-                           tone: model.readiness.deltaThisWeek > 0.004 ? .mint : .neutral,
-                           systemImage: model.readiness.deltaThisWeek > 0.004 ? "arrow.up.right" : nil)
+        let target = model.readiness.target
+        let ahead = !model.isPast
+        return ReflowStack(horizontalAlignment: .center, verticalAlignment: .center, spacing: 18) {
+            ReadinessRing(value: shownReadiness, size: 150, lineWidth: 15, caption: model.isPast ? "on the day" : "ready",
+                          animatesFromZero: true, goal: ahead ? target : nil,
+                          projected: ahead && model.readiness.itemsInScope > 0 ? (shownSkipPlan ?? model.plan).projectedReadiness : nil)
+                .accessibilityLabel(Text(model.isPast ? "Readiness on the day" : "Readiness"))
+            VStack(alignment: .leading, spacing: 6) {
+                Text(whenLine)
+                    .clFont(.title3)
+                    .foregroundStyle(CLColor.ink)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text(subline)
+                    .clFont(.subheadline)
+                    .foregroundStyle(CLColor.ink2)
+                    .fixedSize(horizontal: false, vertical: true)
+                if ahead {
+                    ReflowPill(text: "\(CLFormat.delta(model.readiness.deltaThisWeek)) this week",
+                               tone: model.readiness.deltaThisWeek > 0.004 ? .mint : .neutral,
+                               systemImage: model.readiness.deltaThisWeek > 0.004 ? "arrow.up.right" : nil)
+                        .padding(.top, 2)
+                    HStack(spacing: 6) {
+                        Circle().fill(CLColor.mint).frame(width: 9, height: 9)
+                            .overlay(Circle().stroke(CLColor.surface, lineWidth: 2))
+                            .accessibilityHidden(true)
+                        Text("Goal \(CLFormat.percent(target))")
+                            .clFont(.footnoteEmphasis)
+                            .foregroundStyle(CLColor.ink2)
+                    }
+                    .padding(.top, 2)
+                }
             }
-            Text(model.date.formatted(LibraryFormat.dateStyle(model.calendar).weekday(.abbreviated).month(.abbreviated).day()))
-                .clFont(.title2)
-                .foregroundStyle(CLColor.ink)
-                .padding(.top, 4)
-            Text(subline)
-                .clFont(.callout)
-                .foregroundStyle(CLColor.ink2)
-                .multilineTextAlignment(.center)
-                .fixedSize(horizontal: false, vertical: true)
-            // The ring is how well the questions are remembered; this is how much of the material they reach.
-            if let note = model.coverage {
-                CoverageNoteCard(sentence: note.sentence, detail: note.mainGap, isThin: note.isThin,
-                                 offersMore: note.offersMore && model.offersRest, onAdd: addForTheRest)
-                    .padding(.top, 6)
-            }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .padding(.top, 8)
         .frame(maxWidth: .infinity)
-    }
-
-    /// The ring says what it is, and how much of the material the questions behind it reach.
-    private var ringLabel: String {
-        let name = ringCaption == "ready" ? "Readiness" : ringCaption.capitalized
-        guard let note = model.coverage else { return name }
-        return "\(name). \(note.sentence)"
     }
 
     /// The same flow as importing a source, for the parts of the exam's material no question reaches. The part is decided now.
@@ -232,245 +285,236 @@ private struct ExamDetailContent: View {
     }
 
     private var shownReadiness: Double {
-        if case .past = model.phase, let atExam = model.readinessAtExam { return atExam }
+        if model.isPast, let atExam = model.readinessAtExam { return atExam }
         return model.readiness.value
     }
 
-    private var ringCaption: String {
-        if case .past = model.phase { return "on the day" }
-        return "ready"
+    /// "Sun, Nov 8 · 10:00 AM".
+    private var whenLine: String {
+        let style = LibraryFormat.dateStyle(model.calendar)
+        return "\(model.date.formatted(style.weekday(.abbreviated).month(.abbreviated).day())) · \(model.date.formatted(style.hour().minute()))"
     }
 
     private var subline: String {
         let when: String
         switch model.phase {
         case .ahead(let days): when = LibraryFormat.countdown(days: days)
-        case .eve: when = "Tomorrow at \(model.date.formatted(date: .omitted, time: .shortened))"
-        case .today: when = "Today at \(model.date.formatted(date: .omitted, time: .shortened))"
+        case .eve: when = "Tomorrow"
+        case .today: when = "Today"
         case .past(let days): when = days == 0 ? "Earlier today" : LibraryFormat.countdown(days: -days)
         }
         return "\(when) · \(model.formatLine)"
     }
 
-    // MARK: Actions
+    // MARK: The projection
 
-    @ViewBuilder
-    private var actions: some View {
-        switch model.phase {
-        case .ahead:
-            VStack(spacing: 10) {
-                startTodayButton(primary: true)
-            }
-        case .eve:
-            VStack(spacing: 10) {
-                Button {
-                    app.router.present(.session(SessionRequest(kind: .examEve, examID: model.id)))
-                } label: {
-                    FittingLabel(titles: ["Tonight: weak spots, then sleep", "Tonight's review"],
-                                 systemImage: "moon.stars.fill")
-                }
-                .buttonStyle(.cl(.primary))
-                Text("About 10 minutes on what you're shakiest on. Then stop: sleep does the rest.")
-                    .clFont(.footnote)
-                    .foregroundStyle(CLColor.ink2)
-                    .multilineTextAlignment(.center)
-                    .frame(maxWidth: .infinity)
-            }
-        case .today:
-            HStack(alignment: .center, spacing: 12) {
-                CapView(pose: .celebrate, size: 64)
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("It's exam day.").clFont(.headline).foregroundStyle(CLColor.ink)
-                    Text("You've done the work. Have a glance at your weak spots, then go.")
-                        .clFont(.subheadline).foregroundStyle(CLColor.ink2)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            .clCard(padding: 16)
-        case .past:
-            if model.result == nil {
-                VStack(spacing: 8) {
-                    Button {
-                        app.router.present(.logGrade(examID: model.id))
-                    } label: {
-                        FittingLabel(titles: ["Log your grade", "Log grade"], systemImage: "checkmark.seal.fill")
-                    }
-                    .buttonStyle(.cl(.primary))
-                    Text("Capling projected \(CLFormat.percent(model.projectedAtExam.percent)) (\(model.projectedAtExam.letter)). Your grade shows how close that was, and makes the next projection fit you better.")
-                        .clFont(.footnote)
-                        .foregroundStyle(CLColor.ink2)
-                        .multilineTextAlignment(.center)
-                        .frame(maxWidth: .infinity)
-                }
-            }
-        }
+    private var projection: ExamPresentation.Projection? {
+        ExamPresentation.projection(phase: model.phase, plan: shownSkipPlan ?? model.plan, questionCount: model.readiness.itemsInScope,
+                                    weakestTopic: model.topics.first { $0.isWeakest }?.name,
+                                    grade: model.readiness.projectedGrade, examDate: model.date, now: model.now,
+                                    calendar: model.calendar, skipping: shownSkipPlan == nil ? nil : model.skip)
     }
 
-    private func startTodayButton(primary: Bool) -> some View {
-        Button {
-            if model.sessionReady {
-                app.router.present(.session(SessionRequest(kind: .daily)))
-            } else {
-                app.router.present(.session(SessionRequest(kind: .practice, courseID: model.courseID)))
-            }
-        } label: {
-            FittingLabel(titles: model.sessionReady
-                         ? ["Start today's session · \(CLFormat.minutes(model.sessionMinutes))", "Start today's session", "Start"]
-                         : ["Practice \(model.courseName)", "Practice"],
-                         systemImage: "play.fill")
-        }
-        .buttonStyle(.cl(primary ? .primary : .soft))
-    }
-
-    // MARK: Cards
-
-    private var gradeCard: some View {
-        let grade = model.readiness.projectedGrade
-        return VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .firstTextBaseline) {
-                CLEyebrow(text: "Projected grade")
-                Spacer()
-                ReflowPill(text: grade.isCalibrated ? "Calibrated" : "Projection", tone: grade.isCalibrated ? .mint : .neutral,
-                           systemImage: grade.isCalibrated ? "checkmark" : nil)
-            }
-            ReflowStack(verticalAlignment: .firstTextBaseline, spacing: 12) {
-                Text(grade.letter)
-                    .font(.system(size: 46, weight: .heavy, design: .rounded))
-                    .foregroundStyle(CLColor.ink)
-                    .accessibilityLabel(Text("Projected grade \(grade.letter)"))
-                Text("\(CLFormat.percent(grade.percent)) on exam day if you follow the plan")
-                    .clFont(.subheadlineEmphasis)
-                    .foregroundStyle(CLColor.ink2)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            Text(gradeFootnote(grade))
-                .clFont(.footnote)
-                .foregroundStyle(CLColor.ink3)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .clCard()
-        .accessibilityElement(children: .combine)
-    }
-
-    /// What the projection rests on: the questions' recall and, when it can be told, how much of the material they reach.
-    private func gradeFootnote(_ grade: ProjectedGrade) -> String {
-        if model.coverage == nil {
-            return grade.isCalibrated ? "A projection calibrated to your past grades, not a promise."
-                : "A projection from your recall history, not a promise. It calibrates as you log grades."
-        }
-        return grade.isCalibrated
-            ? "A projection calibrated to your past grades, not a promise. It counts how much of your material your questions cover."
-            : "A projection from your recall history and how much of your material your questions cover, not a promise. It calibrates as you log grades."
-    }
-
-    private var pathCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .firstTextBaseline) {
-                CLEyebrow(text: "Path to \(CLFormat.percent(model.path.target))")
-                Spacer()
-                if let reached = model.path.targetReachedOn {
-                    ReflowPill(text: "by \(LibraryFormat.shortDate(reached, calendar: model.calendar))", tone: .mint, systemImage: "flag.fill")
-                }
-            }
-            ExamPathChart(path: model.path, calendar: model.calendar)
-            ExamPathKey()
-            Text(ExamPresentation.pathSummary(model.path, suggestedMinutes: model.plan.suggestedMinutes, calendar: model.calendar))
-                .clFont(.subheadline)
+    private func projectionCard(_ p: ExamPresentation.Projection) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(verbatim: p.sentence)
+                .clFont(.headline)
                 .foregroundStyle(CLColor.ink)
                 .fixedSize(horizontal: false, vertical: true)
-        }
-        .clCard()
-    }
-
-    private var gapCard: some View {
-        let covered = model.topicCount - model.gapNames.count
-        return HStack(alignment: .top, spacing: 12) {
-            CLIconBadge(systemImage: "info", tint: .sun, size: 34)
-            VStack(alignment: .leading, spacing: 4) {
-                Text("\(covered) of \(CLFormat.count(model.topicCount, "topic")) have material")
-                    .clFont(.headline)
-                    .foregroundStyle(CLColor.ink)
-                Text("You haven't added anything for \(ListFormatter.localizedString(byJoining: model.gapNames)) yet, so it can't count toward readiness.")
+                .contentTransition(.opacity)
+            if let nudge = p.nudge {
+                Text(verbatim: nudge)
                     .clFont(.subheadline)
                     .foregroundStyle(CLColor.ink2)
                     .fixedSize(horizontal: false, vertical: true)
+            }
+            if let letter = p.letter {
+                Label {
+                    Text(verbatim: letter)
+                } icon: {
+                    Image(systemName: "checkmark.seal.fill").foregroundStyle(CLColor.mintInk)
+                }
+                .clFont(.subheadlineEmphasis)
+                .foregroundStyle(CLColor.ink)
+                .fixedSize(horizontal: false, vertical: true)
+            }
+            if p.addsMaterial {
                 Button {
                     app.router.present(.capture(courseID: model.courseID))
                 } label: {
                     FittingLabel(titles: ["Add material", "Add"], systemImage: "plus")
                 }
                 .buttonStyle(.cl(.dark, size: .medium, fullWidth: false))
-                .padding(.top, 8)
+                .padding(.top, 4)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            let small = [p.basedOn, p.footnote].compactMap { $0 }
+            if !small.isEmpty {
+                Text(verbatim: small.joined(separator: " "))
+                    .clFont(.footnote)
+                    .foregroundStyle(CLColor.ink3)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, 2)
+            }
         }
-        .clCard(flat: true)
+        .clCard()
+        .accessibilityElement(children: .contain)
     }
+
+    // MARK: Actions
+
+    @ViewBuilder
+    private var actions: some View {
+        if let study = model.study {
+            VStack(spacing: 8) {
+                Button {
+                    start(study)
+                } label: {
+                    FittingLabel(titles: [study.title], systemImage: study.kind == .examEve ? "moon.stars.fill" : "play.fill")
+                }
+                .buttonStyle(.cl(.primary))
+                if let subline = study.subline {
+                    Text(verbatim: subline)
+                        .clFont(.footnote)
+                        .foregroundStyle(CLColor.ink2)
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: .infinity)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        } else {
+            switch model.phase {
+            case .today:
+                HStack(alignment: .center, spacing: 12) {
+                    CapView(pose: .celebrate, size: 64)
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("It's exam day.").clFont(.headline).foregroundStyle(CLColor.ink)
+                        Text("You've done the work. Have a glance at your weak spots, then go.")
+                            .clFont(.subheadline).foregroundStyle(CLColor.ink2)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .clCard(padding: 16)
+            case .past:
+                if model.result == nil {
+                    VStack(spacing: 8) {
+                        Button {
+                            app.router.present(.logGrade(examID: model.id))
+                        } label: {
+                            FittingLabel(titles: ["Log your grade", "Log grade"], systemImage: "checkmark.seal.fill")
+                        }
+                        .buttonStyle(.cl(.primary))
+                        Text(verbatim: ExamPresentation.logGradeInvite(onTheDay: model.readinessAtExam))
+                            .clFont(.footnote)
+                            .foregroundStyle(CLColor.ink2)
+                            .multilineTextAlignment(.center)
+                            .frame(maxWidth: .infinity)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+            default:
+                EmptyView()
+            }
+        }
+    }
+
+    private func start(_ study: ExamPresentation.StudyAction) {
+        switch study.kind {
+        case .daily:
+            app.router.present(.session(SessionRequest(kind: .daily)))
+        case .examEve:
+            app.router.present(.session(SessionRequest(kind: .examEve, examID: model.id)))
+        case .practice(let topicID, let minutes):
+            app.router.present(.session(SessionRequest(kind: .practice, courseID: model.courseID, examID: model.id, minutes: minutes,
+                                                       topicID: topicID)))
+        }
+    }
+
+    // MARK: After the exam
 
     private var resultCard: some View {
         VStack(alignment: .leading, spacing: 12) {
-            CLEyebrow(text: model.result == nil ? "Your grade" : "How it went")
+            CLEyebrow(text: "How it went")
             if let result = model.result {
-                let lines = ExamPresentation.gradeComparison(projected: model.projectedAtExam.percent, got: result,
-                                                             calibratedNow: model.projectedAtExam.isCalibrated)
-                Text(lines.headline).clFont(.headline).foregroundStyle(CLColor.ink)
+                let lines = ExamPresentation.gradeComparison(onTheDay: model.readinessAtExam, got: result,
+                                                             calibratingExams: model.calibratingExams)
+                Text(verbatim: lines.headline).clFont(.headline).foregroundStyle(CLColor.ink)
                     .fixedSize(horizontal: false, vertical: true)
-                GradeBars(projected: model.projectedAtExam.percent, got: result)
-                Text(lines.note).clFont(.footnote).foregroundStyle(CLColor.ink2)
+                GradeBars(onTheDay: model.readinessAtExam, got: result)
+                Text(verbatim: lines.note).clFont(.footnote).foregroundStyle(CLColor.ink2)
+                    .fixedSize(horizontal: false, vertical: true)
                 Button("Change your grade") { app.router.present(.logGrade(examID: model.id)) }
                     .buttonStyle(.cl(.ghost, size: .small, fullWidth: false))
                     .frame(minHeight: CLMetrics.minHitTarget)
-            } else {
-                Text("Capling projected \(CLFormat.percent(model.projectedAtExam.percent)) (\(model.projectedAtExam.letter)). Log your grade to see how close it was.")
-                    .clFont(.subheadline)
-                    .foregroundStyle(CLColor.ink2)
-                    .fixedSize(horizontal: false, vertical: true)
             }
         }
         .clCard()
     }
 
+    // MARK: Topics
+
     @ViewBuilder
-    private var topics: some View {
-        if !model.readiness.topics.isEmpty {
-            CLSectionHeader(title: "Topics", actionTitle: "Practice") {
-                app.router.present(.session(SessionRequest(kind: .practice, courseID: model.courseID)))
+    private var topicsSection: some View {
+        if !model.isPast, !model.topics.isEmpty {
+            let shown = showsAllTopics ? model.topics : Array(model.topics.prefix(topicsShown))
+            CLSectionHeader(title: "Topics", actionTitle: model.topics.count > topicsShown && !showsAllTopics ? "See all \(model.topics.count)" : nil) {
+                withAnimation(CLMotion.settle) { showsAllTopics = true }
             }
             CLList {
-                ForEach(model.readiness.topics) { topic in
-                    LibraryTopicRow(name: topic.name, value: topic.value, itemCount: topic.itemCount,
-                                    onAdd: topic.value == nil ? { app.router.present(.capture(courseID: model.courseID)) } : nil)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 10)
+                ForEach(shown) { topic in
+                    ExamTopicRow(topic: topic) {
+                        app.router.present(.session(SessionRequest(kind: .practice, courseID: model.courseID, examID: model.id,
+                                                                   minutes: topic.practiceMinutes, topicID: topic.id)))
+                    } onAdd: {
+                        app.router.present(.capture(courseID: model.courseID))
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
                 }
             }
         }
     }
+
+    // MARK: The plan
 
     @ViewBuilder
     private var planSection: some View {
-        if !model.strip.isEmpty {
-            CLSectionHeader(title: "This week's plan", actionTitle: "Adjust") { app.router.push(.settingsPage(.study)) }
-            VStack(alignment: .leading, spacing: 14) {
-                ExamWeekStrip(days: model.strip, calendar: model.calendar)
-                Text(planCaption)
-                    .clFont(.footnote)
-                    .foregroundStyle(CLColor.ink2)
-                    .fixedSize(horizontal: false, vertical: true)
-                if let eve = model.plan.examEve, model.phase != .eve {
-                    Label("Exam eve, \(CLFormat.day(eve, calendar: model.calendar)): weak spots only, then sleep.", systemImage: "moon.stars")
-                        .clFont(.footnote)
-                        .foregroundStyle(CLColor.ink2)
-                }
-            }
-            .clCard()
+        let stops = ExamPresentation.stops(plan: shownSkipPlan ?? model.plan, phase: model.phase, examTitle: model.title,
+                                           examDate: model.date, today: model.today,
+                                           skipped: shownSkipPlan == nil ? nil : model.skip?.offset,
+                                           now: model.now, calendar: model.calendar)
+        if !stops.isEmpty, model.readiness.itemsInScope > 0 {
+            CLSectionHeader(title: "The plan", actionTitle: "Adjust") { app.router.push(.settingsPage(.study)) }
+            ExamPlanPath(stops: stops, skip: model.skip, skipping: shownSkipPlan != nil, cost: skipCost) { toggleSkip() }
         }
     }
 
-    private var planCaption: String {
-        let missed = model.strip.first.map { $0.kind == .missed || $0.kind == .frozen } == true
-        let base = "Minutes for this exam, inside your \(model.dailyMinutes)-minute daily session."
-        return missed ? "Yesterday's reviews moved into the next few days, so nothing piles up. " + base : base
+    // MARK: How it's gone
+
+    private var historyFold: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Button {
+                CLHaptics.select()
+                withAnimation(CLMotion.settle) { showsHistory.toggle() }
+            } label: {
+                HStack {
+                    Text("How it's gone").clFont(.headline).foregroundStyle(CLColor.ink)
+                    Spacer()
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundStyle(CLColor.ink3)
+                        .rotationEffect(.degrees(showsHistory ? 180 : 0))
+                }
+                .frame(minHeight: CLMetrics.minHitTarget)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityValue(Text(showsHistory ? "Shown" : "Hidden"))
+            if showsHistory {
+                ExamPathChart(path: model.path, calendar: model.calendar)
+                ExamPathKey()
+            }
+        }
+        .clCard()
     }
 
     private var examPassCard: some View {
@@ -514,19 +558,19 @@ private struct ExamDetailContent: View {
     }
 }
 
-/// The projected grade beside the logged one, as two meters.
+/// Readiness on the day beside the grade the person got, as two meters.
 struct GradeBars: View {
-    let projected: Double
+    let onTheDay: Double?
     let got: Double
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            row("Projected", projected, color: CLColor.ink4)
+            if let onTheDay { row("Ready on the day", onTheDay, color: CLColor.ink4) }
             row("You got", got, color: CLColor.readiness(got))
         }
     }
 
-    private func row(_ title: String, _ value: Double, color: Color) -> some View {
+    private func row(_ title: LocalizedStringResource, _ value: Double, color: Color) -> some View {
         VStack(alignment: .leading, spacing: 5) {
             HStack {
                 Text(title).clFont(.footnoteEmphasis).foregroundStyle(CLColor.ink2)
@@ -536,5 +580,74 @@ struct GradeBars: View {
             CLBar(value: value, color: color, height: 10).accessibilityHidden(true)
         }
         .accessibilityElement(children: .combine)
+    }
+}
+
+/// A topic on the exam page: its readiness for the exam with a meter, "Your weakest topic" on the first under the goal, and a
+/// practice round ("Practice · 3 min"), "On track" at the goal, or for a gap "No material yet" with Add material.
+private struct ExamTopicRow: View {
+    let topic: ExamPresentation.TopicRow
+    var onPractice: () -> Void
+    var onAdd: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if topic.isWeakest {
+                Text("Your weakest topic")
+                    .clFont(.caption)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(CLColor.tangerineInk)
+            }
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                Text(topic.name).clFont(.subheadlineEmphasis).foregroundStyle(CLColor.ink)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                if let value = topic.value {
+                    Text(topic.questionCount > 0 && value < 0.005 ? "New" : CLFormat.percent(value))
+                        .clFont(.number(15, .bold))
+                        .foregroundStyle(topic.questionCount > 0 && value < 0.005 ? CLColor.ink3 : CLColor.ink)
+                } else {
+                    CLPill(text: "No material yet", tone: .rose)
+                }
+            }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(Text(topic.name))
+            .accessibilityValue(Text(accessibilityValue))
+            if let value = topic.value {
+                CLBar(value: value).accessibilityHidden(true)
+            }
+            if let minutes = topic.practiceMinutes {
+                Button {
+                    CLHaptics.tap()
+                    onPractice()
+                } label: {
+                    Label("Practice · \(minutes) min", systemImage: "play.fill")
+                        .clFont(.footnoteEmphasis)
+                        .foregroundStyle(CLColor.tangerineInk)
+                        .padding(.horizontal, 14)
+                        .frame(minHeight: CLMetrics.minHitTarget)
+                        .background(CLColor.tangerineSoft, in: Capsule())
+                }
+                .buttonStyle(.pressable)
+                .accessibilityLabel(Text("Practice \(topic.name), \(minutes) minutes"))
+            } else if topic.isOnTrack {
+                CLPill(text: "On track", tone: .mint, systemImage: "checkmark")
+            } else if topic.value == nil {
+                Button(action: onAdd) {
+                    Label("Add material", systemImage: "plus")
+                        .clFont(.footnoteEmphasis)
+                        .foregroundStyle(CLColor.skyInk)
+                        .frame(minHeight: CLMetrics.minHitTarget, alignment: .leading)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    private var accessibilityValue: String {
+        guard let value = topic.value else { return String(localized: "No material yet") }
+        if topic.questionCount > 0 && value < 0.005 { return String(localized: "Not studied yet") }
+        let ready = String(localized: "\(Int((value * 100).rounded())) percent ready")
+        return topic.isWeakest ? String(localized: "Your weakest topic.") + " " + ready : ready
     }
 }

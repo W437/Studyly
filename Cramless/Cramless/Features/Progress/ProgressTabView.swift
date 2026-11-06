@@ -1,10 +1,12 @@
 import SwiftUI
 
-/// The Progress tab: readiness per upcoming exam with its last two weeks, the streak with twelve weeks of studying,
-/// this week against last, how much you remember and what's due, strongest and weakest topics, and open mix-ups.
-/// Everything is read from the engine once per change of the store (`ProgressModel`).
+/// The Progress tab: readiness per upcoming exam with its last two weeks (the only percentage here; a projected letter only once
+/// logged grades calibrate it), the streak with twelve weeks of studying, this week against last, what's due, the topics with
+/// questions fading and the brightest, and open mix-ups. Everything is read from the engine once per change of the store
+/// (`ProgressModel`).
 ///
-/// Harness: `CRAMLESS_SCENARIO=missed|repair` puts yesterday in that state first (`AppModel.applyHarnessScenario`).
+/// Harness: `CRAMLESS_SCENARIO=missed|repair` puts yesterday in that state first, `calibrated` logs two past Chem grades
+/// (`AppModel.applyHarnessScenario`); `CRAMLESS_SCROLL=streak|week|memory|topics`.
 struct ProgressTabView: View {
     @Environment(AppModel.self) private var app
 
@@ -18,9 +20,9 @@ struct ProgressTabView: View {
                 StreakSection(model: model).id("streak")
                 BadgesSection(badges: model.badges).id("badges")
                 WeekSection(model: model).id("week")
-                MemorySection(retention: model.retention, target: model.targetRetention, due: model.due, calendar: model.calendar)
+                MemorySection(due: model.due, calendar: model.calendar)
                     .id("memory")
-                ConstellationsSection(sky: model.sky, strongest: model.strongest, weakest: model.weakest).id("topics")
+                ConstellationsSection(sky: model.sky, brightest: model.brightest, fading: model.fading).id("topics")
                 ConfusionsSection(confusions: model.confusions)
             }
             .padding(.horizontal, CLSpace.gutter)
@@ -45,17 +47,16 @@ struct ProgressModel {
         var days: Int
         var readiness: Double
         var delta: Double
-        var grade: ProjectedGrade
+        /// The projected grade, only once logged grades calibrate it (`ProjectedGrade.isCalibrated`); nil before.
+        var grade: ProjectedGrade?
         var history: [ReadinessPoint]
         /// The exam's region of the sky, cut out for its card (nil when nothing in its scope has been studied).
         var region: SkyScene?
     }
 
-    /// A topic as a constellation: its mastery, and its glyph and counts from the sky.
+    /// A topic as a constellation: its counts from the sky and its glyph.
     struct ConstellationLine: Identifiable {
-        var topic: ProgressPresentation.TopicEntry
-        /// Its place in `sky.layout.constellations`, for a practice session.
-        var index: Int?
+        var topic: ProgressPresentation.TopicLight
         var glyph: SkyGlyph?
         var id: UUID { topic.id }
     }
@@ -74,12 +75,10 @@ struct ProgressModel {
     var cells: [HeatmapCell]
     var week: WeeklyStats
     var lastWeek: [Int]
-    var retention: Double?
-    var targetRetention: Double
     var due: [DueForecastDay]
     var sky: SkyScene
-    var strongest: [ConstellationLine]
-    var weakest: [ConstellationLine]
+    var brightest: [ConstellationLine]
+    var fading: [ConstellationLine]
     var confusions: [ConfusionLine]
     var badges: [BadgeStatus]
     var dailyMinutes: Int
@@ -96,8 +95,8 @@ struct ProgressModel {
         exams = app.upcomingExams().filter { $0.course?.deletedAt == nil }.map { exam in
             let r = app.readiness(for: exam)
             return ExamLine(id: exam.id, title: exam.title, date: exam.date, days: r.daysLeft, readiness: r.value,
-                            delta: r.deltaThisWeek, grade: r.projectedGrade, history: app.readinessHistory(for: exam, days: 14),
-                            region: sky.region(of: exam.id))
+                            delta: r.deltaThisWeek, grade: ExamPresentation.shownGrade(r.projectedGrade),
+                            history: app.readinessHistory(for: exam, days: 14), region: sky.region(of: exam.id))
         }
         let streak = app.streak()
         let cells = app.heatmap(weeks: 12)
@@ -106,23 +105,30 @@ struct ProgressModel {
         self.cells = cells
         self.week = week
         lastWeek = ProgressPresentation.lastWeekMinutes(cells: cells, week: week, calendar: app.calendar)
-        retention = app.retentionRate(days: 30)
-        targetRetention = app.settings.targetRetention
         due = app.dueForecast(days: 7)
-        let topicEntries = app.courses.flatMap { course in
-            app.topicMastery(course: course).compactMap { topic -> ProgressPresentation.TopicEntry? in
-                guard let value = topic.value else { return nil }
-                return ProgressPresentation.TopicEntry(id: topic.id, name: topic.name, courseID: course.id, courseName: course.name,
-                                                       color: course.color, value: value, itemCount: topic.itemCount)
-            }
+        // Each topic's readiness for its course's next exam (only topics on that exam have one): what orders the fading list.
+        var readiness: [UUID: Double] = [:]
+        var courses: [UUID: Course] = [:]
+        for course in app.courses {
+            courses[course.id] = course
+            guard let exam = app.nextExam(of: course.id) else { continue }
+            for topic in app.topicReadiness(for: exam) { if let v = topic.value { readiness[topic.id] = v } }
         }
-        let extremes = ProgressPresentation.topicExtremes(topicEntries, count: 3)
-        func line(_ topic: ProgressPresentation.TopicEntry) -> ConstellationLine {
-            let index = sky.layout.constellations.firstIndex { $0.topicID == topic.id }
-            return ConstellationLine(topic: topic, index: index, glyph: index.flatMap { sky.glyph(of: $0) })
+        let light = sky.light
+        let topics = sky.layout.constellations.enumerated().compactMap { index, c -> ProgressPresentation.TopicLight? in
+            guard let topicID = c.topicID, let course = courses[c.courseID] else { return nil }
+            let lit = c.stars.filter { !light.hollow[$0] }.count
+            return ProgressPresentation.TopicLight(id: topicID, name: c.name, courseID: course.id, courseName: course.name,
+                                                   color: course.color, index: index, dimCount: light.dimCount(c),
+                                                   brightCount: light.brightCount(c), litCount: lit,
+                                                   meanRecall: light.meanRecall(c), readiness: readiness[topicID])
         }
-        strongest = extremes.strongest.map(line)
-        weakest = extremes.weakest.map(line)
+        func line(_ topic: ProgressPresentation.TopicLight) -> ConstellationLine {
+            ConstellationLine(topic: topic, glyph: sky.glyph(of: topic.index))
+        }
+        let fadingTopics = ProgressPresentation.fading(topics, count: 3)
+        fading = fadingTopics.map(line)
+        brightest = ProgressPresentation.brightest(topics, excluding: Set(fadingTopics.map(\.id)), count: 3).map(line)
         confusions = app.courses.flatMap { course in
             course.confusions.filter { $0.deletedAt == nil && $0.status == .open }
                 .sorted { $0.lastSeenAt > $1.lastSeenAt }
@@ -146,7 +152,7 @@ private struct ExamsSection: View {
         if exams.isEmpty {
             VStack(alignment: .leading, spacing: 10) {
                 Text("No exams coming up").clFont(.headline).foregroundStyle(CLColor.ink)
-                Text("Add one and Capling plans backwards from its date, with readiness and a projected grade.")
+                Text("Add one and Capling plans backwards from its date, and shows how ready you are, day by day.")
                     .clFont(.subheadline).foregroundStyle(CLColor.ink2)
                     .fixedSize(horizontal: false, vertical: true)
                 Button("New exam") { app.router.present(.newExam(courseID: nil)) }
@@ -166,7 +172,8 @@ private struct ExamsSection: View {
     }
 }
 
-/// One exam: readiness now with its change this week, a sparkline of the last two weeks, and the projected grade.
+/// One exam: readiness now with its change this week and a sparkline of the last two weeks. A projected letter only once logged
+/// grades calibrate it ("Projected B+ from your grades").
 private struct ExamReadinessCard: View {
     let exam: ProgressModel.ExamLine
     let calendar: Calendar
@@ -188,6 +195,7 @@ private struct ExamReadinessCard: View {
                 if let region = exam.region, !typeSize.isAccessibilitySize {
                     SkyRegionStill(scene: region, cornerRadius: 15).frame(width: 50, height: 50)
                 }
+                CLChevron()
             }
             ReflowStack(verticalAlignment: .center, spacing: 14) {
                 VStack(alignment: .leading, spacing: 6) {
@@ -205,22 +213,25 @@ private struct ExamReadinessCard: View {
                 ReadinessSparkline(points: exam.history)
                     .frame(width: 110, height: 44)
             }
-            Rectangle().fill(CLColor.hairline).frame(height: 1)
-            HStack(spacing: 6) {
-                ReflowStack(verticalAlignment: .firstTextBaseline, spacing: 6) {
-                    Text("Projected \(exam.grade.letter)").clFont(.subheadlineEmphasis).foregroundStyle(CLColor.ink)
-                    Text("\(CLFormat.percent(exam.grade.percent)) on exam day")
-                        .clFont(.subheadline).foregroundStyle(CLColor.ink2)
-                }
-                Spacer(minLength: 4)
-                CLChevron()
+            if let grade = exam.grade {
+                Rectangle().fill(CLColor.hairline).frame(height: 1)
+                Text(ExamPresentation.calibratedGradeLine(grade))
+                    .clFont(.subheadlineEmphasis)
+                    .foregroundStyle(CLColor.ink)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
         .clCard()
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text(exam.title))
-        .accessibilityValue(Text("\(CLFormat.percent(exam.readiness)) ready, \(CLFormat.delta(exam.delta)) this week. Projected \(exam.grade.letter), \(CLFormat.percent(exam.grade.percent)). \(LibraryFormat.countdown(days: exam.days))."))
+        .accessibilityValue(Text(accessibilityValue))
         .accessibilityAddTraits(.isButton)
+    }
+
+    private var accessibilityValue: String {
+        var text = "\(CLFormat.percent(exam.readiness)) ready, \(CLFormat.delta(exam.delta)) this week. \(LibraryFormat.countdown(days: exam.days))."
+        if let grade = exam.grade { text += " \(ExamPresentation.calibratedGradeLine(grade))." }
+        return text
     }
 }
 
@@ -394,65 +405,44 @@ private struct WeekSection: View {
     }
 }
 
+/// What's due over the next week. (How much you remember is no longer a percentage here: each exam's readiness is the only one.)
 private struct MemorySection: View {
-    let retention: Double?
-    let target: Double
     let due: [DueForecastDay]
     let calendar: Calendar
 
     var body: some View {
         CLSectionHeader(title: "Memory")
         VStack(alignment: .leading, spacing: 6) {
-            if let retention {
-                Text("You remember \(CLFormat.percent(retention)) of what you review")
-                    .clFont(.headline)
-                    .foregroundStyle(CLColor.ink)
-                    .fixedSize(horizontal: false, vertical: true)
-                Text("Target \(CLFormat.percent(target)) · questions come back right before you'd forget them")
-                    .clFont(.subheadline)
-                    .foregroundStyle(CLColor.ink2)
-                    .fixedSize(horizontal: false, vertical: true)
-            } else {
-                Text("How much you remember shows here after a few days of reviews.")
-                    .clFont(.subheadline)
-                    .foregroundStyle(CLColor.ink2)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
             CLEyebrow(text: "Reviews due, next 7 days")
-                .padding(.top, 18)
                 .padding(.bottom, 6)
             DueForecastChart(days: due, calendar: calendar)
+            Text("Questions come back right before you'd forget them.")
+                .clFont(.footnote)
+                .foregroundStyle(CLColor.ink2)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 8)
         }
         .clCard()
     }
 }
 
-/// "Topics" as constellations: each with its glyph, how many of its stars are bright and dim, and a way to practise it.
-/// The brightest sit above, the ones that are fading below, each with Practice.
+/// "Topics" as constellations: the ones with questions fading first, each with Practice (weakest for its course's next exam
+/// first), then the brightest. Counts only, in the sky's own words.
 private struct ConstellationsSection: View {
     let sky: SkyScene
-    let strongest: [ProgressModel.ConstellationLine]
-    let weakest: [ProgressModel.ConstellationLine]
+    let brightest: [ProgressModel.ConstellationLine]
+    let fading: [ProgressModel.ConstellationLine]
     @Environment(AppModel.self) private var app
 
     var body: some View {
-        if !strongest.isEmpty {
+        if !brightest.isEmpty || !fading.isEmpty {
             CLSectionHeader(title: "Constellations", actionTitle: sky.isEmpty ? nil : "See the sky",
                             action: sky.isEmpty ? nil : { app.router.push(.sky) })
             VStack(alignment: .leading, spacing: 8) {
-                CLEyebrow(text: "Brightest").padding(.leading, 4)
-                CLList {
-                    ForEach(strongest) { line in
-                        NavigationLink(value: Route.course(line.topic.courseID)) {
-                            ConstellationRow(line: line, sky: sky, trailing: .chevron)
-                        }
-                        .buttonStyle(LibraryRowButtonStyle())
-                    }
-                }
-                if !weakest.isEmpty {
-                    CLEyebrow(text: "Fading").padding(.leading, 4).padding(.top, 12)
+                if !fading.isEmpty {
+                    CLEyebrow(text: "Fading").padding(.leading, 4)
                     CLList {
-                        ForEach(weakest) { line in
+                        ForEach(fading) { line in
                             Button { relight(line) } label: {
                                 ConstellationRow(line: line, sky: sky, trailing: .practice)
                             }
@@ -461,12 +451,24 @@ private struct ConstellationsSection: View {
                         }
                     }
                 }
+                if !brightest.isEmpty {
+                    CLEyebrow(text: "Brightest").padding(.leading, 4).padding(.top, fading.isEmpty ? 0 : 12)
+                    CLList {
+                        ForEach(brightest) { line in
+                            NavigationLink(value: Route.course(line.topic.courseID)) {
+                                ConstellationRow(line: line, sky: sky, trailing: .chevron)
+                            }
+                            .buttonStyle(LibraryRowButtonStyle())
+                        }
+                    }
+                }
             }
         }
     }
 
     private func relight(_ line: ProgressModel.ConstellationLine) {
-        if let index = line.index, sky.layout.constellations.indices.contains(index) {
+        let index = line.topic.index
+        if sky.layout.constellations.indices.contains(index) {
             app.router.present(.session(app.relightRequest(sky.layout.constellations[index], in: sky)))
         } else {
             app.router.present(.session(SessionRequest(kind: .practice, courseID: line.topic.courseID, topicID: line.topic.id)))
@@ -494,10 +496,8 @@ private struct ConstellationRow: View {
                     Circle().fill(topic.color.fill).frame(width: 7, height: 7).accessibilityHidden(true)
                     Text(topic.courseName).clFont(.caption).foregroundStyle(CLColor.ink3)
                 }
-                if let index = line.index {
-                    Text(verbatim: SkyCopy.detail(index, in: sky)).clFont(.footnote).foregroundStyle(CLColor.ink2)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
+                Text(verbatim: detail).clFont(.footnote).foregroundStyle(CLColor.ink2)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             switch trailing {
@@ -517,7 +517,14 @@ private struct ConstellationRow: View {
         .padding(.vertical, 12)
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
-        .accessibilityValue(Text("\(CLFormat.percent(topic.value)) mastery"))
+    }
+
+    /// Fading: "2 questions fading"; brightest: the sky's own line, "8 of 14 bright · 2 dim".
+    private var detail: String {
+        switch trailing {
+        case .practice: ProgressPresentation.fadingLine(line.topic.dimCount)
+        case .chevron: SkyCopy.detail(line.topic.index, in: sky)
+        }
     }
 }
 

@@ -351,7 +351,8 @@ final class SkyCopyTests: XCTestCase {
         XCTAssertTrue(text.contains("3 of 8 stars bright"), text)
         XCTAssertTrue(text.contains("2 dim"), text)
         XCTAssertTrue(text.contains("3 not yet lit"), text)
-        XCTAssertTrue(text.contains("Recall about"), text)
+        XCTAssertFalse(text.contains("Recall"), "no percentage: an exam's readiness is the only one")
+        XCTAssertFalse(text.contains("%"), text)
     }
 
     func testTheDetailLineSaysHowAConstellationIsDoing() {

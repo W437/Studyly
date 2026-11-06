@@ -271,21 +271,12 @@ extension AppModel {
         return exam
     }
 
-    /// How much of a course the person knows now: current recall summed over every active item (unstudied count
-    /// as 0), over the number of items. Honest for a fresh set, where mastery over studied items alone would
-    /// read 100% after two right answers.
-    func knownShare(of course: Course) -> Double {
-        let items = itemSnapshots(in: course)
-        guard !items.isEmpty else { return 0 }
-        let f = fsrs
-        return items.reduce(0) { $0 + f.retrievability(of: $1.memory, at: now) } / Double(items.count)
-    }
-
     // MARK: - DEBUG
 
     #if DEBUG
     /// The world an onboarding step expects (`CRAMLESS_STEP`, with `CRAMLESS_SEED=0`): a course with the sample
-    /// page's checked questions, an exam date 23 days out, and (`answered`) the quick check already taken.
+    /// page's checked questions, an exam date 23 days out (none with `CRAMLESS_STEP_NODATE=1`), and (`answered`) the quick check
+    /// already taken.
     func debugPrepareOnboardingWorld(answered: Bool) {
         if courses.isEmpty {
             let course = Course(name: "Bio 101", color: .sky, symbol: "leaf", now: now)
@@ -301,7 +292,8 @@ extension AppModel {
                 course.items.append(item)
             }
             var s = settings
-            s.nextExamDate = calendar.date(bySettingHour: 9, minute: 0, second: 0, of: calendar.adding(days: 23, to: now))
+            s.nextExamDate = TestHarness.value("CRAMLESS_STEP_NODATE") == "1"
+                ? nil : calendar.date(bySettingHour: 9, minute: 0, second: 0, of: calendar.adding(days: 23, to: now))
             s.dailyMinutes = 15
             settings = s
             save()

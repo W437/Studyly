@@ -1,7 +1,7 @@
 import Foundation
 
-/// Arranges the engine's habit and mastery values for the Progress and Streak screens: weeks of the heatmap, last
-/// week beside this one, a month's calendar, strongest and weakest topics. Pure: nothing here computes recall.
+/// Arranges the engine's habit values and the sky's counts for the Progress and Streak screens: weeks of the heatmap, last
+/// week beside this one, a month's calendar, the fading and brightest topics. Pure: nothing here computes recall.
 enum ProgressPresentation {
     // MARK: Heatmap
 
@@ -137,23 +137,54 @@ enum ProgressPresentation {
 
     // MARK: Topics
 
-    struct TopicEntry: Equatable, Sendable, Identifiable {
+    /// A topic as its constellation in the sky, for the Progress tab's lists. Counts only: readiness for the topic's next exam orders
+    /// the fading list and is never shown.
+    struct TopicLight: Equatable, Sendable, Identifiable {
         var id: UUID
         var name: String
         var courseID: UUID
         var courseName: String
         var color: CourseColor
-        var value: Double
-        var itemCount: Int
+        /// Its place in the sky's constellations.
+        var index: Int
+        /// Studied stars under the sky's dim line (`ReviewOutcome.fadingRecall`): "2 questions fading".
+        var dimCount: Int
+        var brightCount: Int
+        /// Studied stars (bright or dim).
+        var litCount: Int
+        /// Mean recall of its studied stars (the sky's own measure): orders the brightest, never shown.
+        var meanRecall: Double?
+        /// Readiness for its course's next exam, when the topic is on that exam: orders the fading list, never shown.
+        var readiness: Double?
     }
 
-    /// The strongest and weakest topics that have been studied, without overlap: at most `count` each.
-    static func topicExtremes(_ entries: [TopicEntry], count: Int = 3) -> (strongest: [TopicEntry], weakest: [TopicEntry]) {
-        let studied = entries.filter { $0.value > 0 && $0.itemCount > 0 }
-            .sorted { $0.value != $1.value ? $0.value > $1.value : $0.name < $1.name }
-        let half = min(count, studied.count / 2 + studied.count % 2)
-        let strongest = Array(studied.prefix(half))
-        let weakest = Array(studied.dropFirst(half).suffix(min(count, studied.count - half)).reversed())
-        return (strongest, weakest)
+    /// Topics with questions fading, at most `count`: the ones on an exam first, weakest for that exam first; then the others, most
+    /// fading first.
+    static func fading(_ topics: [TopicLight], count: Int = 3) -> [TopicLight] {
+        let sorted = topics.filter { $0.dimCount > 0 }.sorted { a, b in
+            switch (a.readiness, b.readiness) {
+            case let (x?, y?) where abs(x - y) > 1e-9: return x < y
+            case (.some, nil): return true
+            case (nil, .some): return false
+            default: return a.dimCount != b.dimCount ? a.dimCount > b.dimCount : a.name < b.name
+            }
+        }
+        return Array(sorted.prefix(count))
     }
+
+    /// The best-remembered topics, at most `count`, leaving out the ones in `excluding` (the fading list): at least two studied stars,
+    /// the brightest share first, then the sky's mean recall.
+    static func brightest(_ topics: [TopicLight], excluding: Set<UUID> = [], count: Int = 3) -> [TopicLight] {
+        let sorted = topics.filter { !excluding.contains($0.id) && $0.litCount >= 2 && $0.brightCount > 0 }.sorted { a, b in
+            let sa = Double(a.brightCount) / Double(a.litCount), sb = Double(b.brightCount) / Double(b.litCount)
+            if abs(sa - sb) > 1e-9 { return sa > sb }
+            let ra = a.meanRecall ?? 0, rb = b.meanRecall ?? 0
+            if abs(ra - rb) > 1e-9 { return ra > rb }
+            return a.name < b.name
+        }
+        return Array(sorted.prefix(count))
+    }
+
+    /// "2 questions fading".
+    static func fadingLine(_ dim: Int) -> String { String(localized: "\(dim) questions fading") }
 }

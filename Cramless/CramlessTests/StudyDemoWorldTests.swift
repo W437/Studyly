@@ -47,7 +47,8 @@ final class StudyDemoWorldTests: XCTestCase {
             lines.append("  topics: " + r.topics.map { "\($0.name) \($0.value.map(pct) ?? "no material")" }.joined(separator: ", "))
         }
         for course in app.courses {
-            lines.append("Mastery \(course.name): \(pct(app.mastery(of: course)))")
+            let next = app.courseReadiness(course)
+            lines.append("Library \(course.name): \(next.map { "\(pct($0.value)) ready for \($0.exam.title)" } ?? "Add a date")")
         }
         lines.append("Bio plan: " + plan.days.prefix(8).map { "\(cal.dayKey(for: $0.date.addingTimeInterval(43_200)).suffix(5)) \($0.kind.rawValue) \($0.minutes)m/\($0.sessionMinutes)m +\($0.newItems)n \($0.reviews)r" }.joined(separator: " | "))
         lines.append("Bio curve: " + plan.curve.enumerated().filter { $0.offset % 4 == 0 || $0.offset == plan.curve.count - 1 }.map { pct($0.element.value) }.joined(separator: " → ") + " · suggested \(plan.suggestedMinutes.map(String.init) ?? "–")")

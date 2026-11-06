@@ -84,7 +84,11 @@ enum TestHarness {
             let exams = app.upcomingExams()
             let index = Int(arg ?? "") ?? 0
             if exams.indices.contains(index) { r.push(.exam(exams[index].id), on: .today) }
-        case "course": if let c = firstCourse { r.push(.course(c.id), on: .library) }
+        // `course:<n>`: the nth course in Library order (`course:3` is Spanish II, with no exam); the first without a number.
+        case "course":
+            let courses = app.courses
+            let index = Int(arg ?? "") ?? 0
+            if courses.indices.contains(index) { r.push(.course(courses[index].id), on: .library) }
         case "source": if let s = firstSource { r.push(.source(s.id), on: .library) }
         case "sourcePage":
             if let s = firstSource {

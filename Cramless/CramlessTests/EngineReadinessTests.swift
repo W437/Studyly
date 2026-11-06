@@ -41,15 +41,18 @@ final class EngineReadinessTests: XCTestCase {
         XCTAssertEqual(engine.topicReadiness(for: scoped, items: items, topics: topics).map(\.name), ["B"])
     }
 
-    func testMasteryIsCurrentRecallOfStudiedItems() {
-        let items = [EngineTest.studied(course: course, recall: 0.8, daysAgo: 3, now: now, cal: cal),
-                     EngineTest.studied(course: course, recall: 0.6, daysAgo: 3, now: now, cal: cal),
-                     EngineTest.fresh(course: course)]
-        XCTAssertEqual(engine.mastery(of: items), 0.7, accuracy: 1e-9)
-        XCTAssertEqual(engine.mastery(of: [EngineTest.fresh(course: course)]), 0)
-        let byTopic = engine.topicMastery(courseID: course, items: [EngineTest.fresh(topic: topicB, course: course)],
-                                          topics: topics)
-        XCTAssertEqual(byTopic.map(\.value), [nil, 0, nil])
+    /// Topic recall is internal (Ask Cap and Teach Cap pick a weak topic with it): current recall of the studied questions, 0 for a
+    /// topic none of whose questions is studied, nil for a gap. The course-wide mastery number is gone: readiness is the only one.
+    func testTopicRecallIsCurrentRecallOfStudiedItems() {
+        let items = [EngineTest.studied(topic: topicA, course: course, recall: 0.8, daysAgo: 3, now: now, cal: cal),
+                     EngineTest.studied(topic: topicA, course: course, recall: 0.6, daysAgo: 3, now: now, cal: cal),
+                     EngineTest.fresh(topic: topicA, course: course),
+                     EngineTest.fresh(topic: topicB, course: course)]
+        let byTopic = engine.topicMastery(courseID: course, items: items, topics: topics)
+        XCTAssertEqual(byTopic[0].value ?? -1, 0.7, accuracy: 1e-9)
+        XCTAssertEqual(byTopic.map(\.itemCount), [3, 1, 0])
+        XCTAssertEqual(byTopic[1].value, 0)
+        XCTAssertNil(byTopic[2].value)
     }
 
     func testDeltaThisWeekComesFromTheReviewLog() {

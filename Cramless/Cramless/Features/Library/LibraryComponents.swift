@@ -10,8 +10,10 @@ struct LibraryCourseModel: Identifiable, Equatable {
     var color: CourseColor
     var symbol: String
     var examLine: String
-    /// Mean current recall over studied questions, 0…1; nil before anything is studied.
-    var mastery: Double?
+    /// Readiness for the course's next exam (`AppModel.courseReadiness`), 0…1: the course's one number. Nil with no exam to come.
+    var readiness: Double?
+    /// That exam's title, for VoiceOver ("53 percent ready for the Midterm").
+    var examTitle: String?
     var sources: Int
     var questions: Int
 
@@ -21,19 +23,25 @@ struct LibraryCourseModel: Identifiable, Equatable {
         name = course.name
         color = course.color
         symbol = course.symbol
-        let startOfToday = app.calendar.startOfDay(for: app.now)
-        let next = course.liveExams.first { $0.date >= startOfToday }
-        examLine = LibraryFormat.examLine(title: next?.title, courseName: course.name, date: next?.date, now: app.now,
+        let next = app.courseReadiness(course)
+        examLine = LibraryFormat.examLine(title: next?.exam.title, courseName: course.name, date: next?.exam.date, now: app.now,
                                           calendar: app.calendar)
-        let active = course.activeItems
-        let studied = active.contains { $0.stateRaw != CardState.new.rawValue && $0.lastReview != nil }
-        mastery = studied ? app.mastery(of: course) : nil
+        readiness = next?.value
+        examTitle = next?.exam.title
         sources = course.liveSources.count
-        questions = active.count
+        questions = course.activeItems.count
+    }
+
+    /// "53 percent ready for the Midterm" / "No exam date yet".
+    var readinessAccessibility: String {
+        guard let readiness, let examTitle else { return String(localized: "No exam date yet") }
+        return LibraryFormat.ringAccessibility(value: readiness, examTitle: examTitle, courseName: name)
     }
 }
 
-/// A course on the Library: its badge, name, next exam, mastery and counts.
+/// A course on the Library: its badge, name, next exam and counts, with that exam's readiness ring. A course with no exam to come
+/// keeps the ring's place for "Add a date": the card reserves it (`LibraryAddDateSlot`) and the Library lays the real button over
+/// it, outside the card's link, so the two taps stay apart.
 struct LibraryCourseCard: View {
     let model: LibraryCourseModel
     @Environment(\.dynamicTypeSize) private var typeSize
@@ -45,7 +53,7 @@ struct LibraryCourseCard: View {
                     HStack {
                         CLIconBadge(systemImage: model.symbol, tint: model.color, size: 44)
                         Spacer()
-                        masteryText
+                        trailing
                     }
                     Text(model.name).clFont(.headline).foregroundStyle(CLColor.ink)
                     Text(model.examLine).clFont(.subheadline).foregroundStyle(CLColor.ink2)
@@ -58,16 +66,13 @@ struct LibraryCourseCard: View {
                         Text(model.examLine).clFont(.subheadline).foregroundStyle(CLColor.ink2)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    masteryText
+                    trailing
                 }
             }
-            CLBar(value: model.mastery ?? 0)
-                .padding(.top, 14)
-                .accessibilityHidden(true)
             Text(LibraryFormat.courseCounts(sources: model.sources, questions: model.questions))
                 .clFont(.footnoteEmphasis)
                 .foregroundStyle(CLColor.ink3)
-                .padding(.top, 8)
+                .padding(.top, 10)
         }
         .clCard(padding: 16)
         .accessibilityElement(children: .ignore)
@@ -77,28 +82,88 @@ struct LibraryCourseCard: View {
     }
 
     @ViewBuilder
-    private var masteryText: some View {
-        if let mastery = model.mastery {
-            Text(CLFormat.percent(mastery)).clFont(.number(19)).foregroundStyle(CLColor.ink)
+    private var trailing: some View {
+        if let readiness = model.readiness {
+            ReadinessRing(value: readiness, size: 52, lineWidth: 6)
+                .accessibilityHidden(true)
         } else {
-            Text(model.questions == 0 ? "Empty" : "New").clFont(.footnoteEmphasis).foregroundStyle(CLColor.ink3)
+            LibraryAddDateSlot()
         }
     }
 
     private var accessibilityValue: String {
-        var parts = [model.examLine]
-        if let mastery = model.mastery { parts.append("\(CLFormat.percent(mastery)) mastery") } else { parts.append("Not studied yet") }
-        parts.append(LibraryFormat.courseCounts(sources: model.sources, questions: model.questions))
-        return parts.joined(separator: ", ")
+        [model.examLine, model.readinessAccessibility, LibraryFormat.courseCounts(sources: model.sources, questions: model.questions)]
+            .joined(separator: ", ")
     }
 }
 
-/// A mastery value with its bar: "Cell cycle ……… 92%" over a thin meter, or a coverage gap.
+/// "Add a date": the button a course with no exam to come shows where its ring would be. It opens the exam editor for that course.
+struct LibraryAddDateButton: View {
+    let courseName: String
+    var action: () -> Void
+
+    var body: some View {
+        Button {
+            CLHaptics.tap()
+            action()
+        } label: {
+            LibraryAddDateLabel()
+        }
+        .buttonStyle(.pressable)
+        .accessibilityLabel(Text("Add an exam date for \(courseName)"))
+    }
+}
+
+private struct LibraryAddDateLabel: View {
+    var body: some View {
+        Label("Add a date", systemImage: "calendar.badge.plus")
+            .clFont(.footnoteEmphasis)
+            .foregroundStyle(CLColor.skyInk)
+            .padding(.horizontal, 12)
+            .frame(minHeight: CLMetrics.minHitTarget)
+            .background(CLColor.skySoft, in: Capsule())
+            .fixedSize()
+    }
+}
+
+/// The place an "Add a date" button takes in a card: the label, hidden, with its bounds handed up (`LibraryAddDateAnchor`) so the
+/// screen can put the real button exactly there, outside the card's own tap.
+struct LibraryAddDateSlot: View {
+    var body: some View {
+        LibraryAddDateLabel()
+            .hidden()
+            .accessibilityHidden(true)
+            .anchorPreference(key: LibraryAddDateAnchor.self, value: .bounds) { $0 }
+    }
+}
+
+struct LibraryAddDateAnchor: PreferenceKey {
+    static let defaultValue: Anchor<CGRect>? = nil
+    static func reduce(value: inout Anchor<CGRect>?, nextValue: () -> Anchor<CGRect>?) { value = value ?? nextValue() }
+}
+
+extension View {
+    /// Lays the "Add a date" button over the slot a card reserved for it (`LibraryAddDateSlot`), when it reserved one.
+    func addDateOverlay(courseName: String, action: @escaping () -> Void) -> some View {
+        overlayPreferenceValue(LibraryAddDateAnchor.self) { anchor in
+            GeometryReader { proxy in
+                if let anchor {
+                    let rect = proxy[anchor]
+                    LibraryAddDateButton(courseName: courseName, action: action)
+                        .frame(width: rect.width, height: rect.height)
+                        .offset(x: rect.minX, y: rect.minY)
+                }
+            }
+        }
+    }
+}
+
+/// A topic on the course page: its readiness for the next exam with a meter, a coverage gap with "Add material", "Not on the
+/// Midterm", or (no exam to come) just its questions. Only the first shows a number.
 struct LibraryTopicRow: View {
     let name: String
-    /// nil: a topic with no material yet.
-    let value: Double?
-    var itemCount: Int = 0
+    let state: LibraryFormat.TopicLine.State
+    var questionCount: Int = 0
     var onAdd: (() -> Void)?
 
     var body: some View {
@@ -106,17 +171,22 @@ struct LibraryTopicRow: View {
             HStack(alignment: .firstTextBaseline, spacing: 10) {
                 Text(name).clFont(.subheadlineEmphasis).foregroundStyle(CLColor.ink)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                if let value {
-                    Text(itemCount > 0 && value == 0 ? "New" : CLFormat.percent(value))
+                switch state {
+                case .value(let value):
+                    Text(questionCount > 0 && value < 0.005 ? "New" : CLFormat.percent(value))
                         .clFont(.number(15, .bold))
-                        .foregroundStyle(itemCount > 0 && value == 0 ? CLColor.ink3 : CLColor.ink)
-                } else {
+                        .foregroundStyle(questionCount > 0 && value < 0.005 ? CLColor.ink3 : CLColor.ink)
+                case .gap:
                     CLPill(text: "No material yet", tone: .rose)
+                case .notOnExam(let exam):
+                    Text("Not on the \(exam)").clFont(.footnote).foregroundStyle(CLColor.ink3)
+                case .noExam:
+                    Text("\(questionCount) questions").clFont(.footnote).foregroundStyle(CLColor.ink3)
                 }
             }
-            if let value {
+            if case .value(let value) = state {
                 CLBar(value: value).accessibilityHidden(true)
-            } else if let onAdd {
+            } else if case .gap = state, let onAdd {
                 Button(action: onAdd) {
                     Label("Add material", systemImage: "plus")
                         .clFont(.footnoteEmphasis)
@@ -129,13 +199,19 @@ struct LibraryTopicRow: View {
         }
         .padding(.vertical, 4)
         .accessibilityElement(children: .combine)
+        .accessibilityLabel(Text(name))
         .accessibilityValue(Text(accessibilityValue))
     }
 
     private var accessibilityValue: String {
-        guard let value else { return "No material yet" }
-        if itemCount > 0 && value == 0 { return "Not studied yet" }
-        return "\(CLFormat.percent(value)) mastery"
+        switch state {
+        case .value(let value):
+            if questionCount > 0 && value < 0.005 { return String(localized: "Not studied yet") }
+            return String(localized: "\(Int((value * 100).rounded())) percent ready")
+        case .gap: return String(localized: "No material yet")
+        case .notOnExam(let exam): return String(localized: "Not on the \(exam)")
+        case .noExam: return String(localized: "\(questionCount) questions")
+        }
     }
 }
 

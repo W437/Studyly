@@ -2,8 +2,11 @@ import SwiftUI
 
 /// Onboarding's readiness reveal. Makes the person's exam from the date they gave (`settings.nextExamDate`) when
 /// they have none yet, titled after the course; then the ring climbs to today's honest value ("You're 10% ready for
-/// your Bio 101 exam") with the same climb as the session summary, and the topics fill in. With no exam date, it
-/// shows how much of the course they know instead.
+/// your Bio 101 exam") with the same climb as the session summary, and the topics fill in. With no exam date there is no
+/// number to show (readiness is for an exam): Cap says the first questions are in, and each topic reads "Started" or
+/// "Not started".
+///
+/// Harness: `CRAMLESS_STEP=readiness` (with `CRAMLESS_SEED=0`); add `CRAMLESS_STEP_NODATE=1` for a person who gave no date.
 ///
 /// Plugged into `OnboardingFlow` by the orchestrator:
 ///
@@ -43,9 +46,18 @@ struct OnboardingReadinessStep: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 0) {
-                ReadinessRing(value: ring, size: 156, lineWidth: 16, caption: model?.caption)
-                    .padding(.top, 12)
-                    .accessibilityHidden(!told)
+                switch model?.hasExam {
+                case false?:
+                    CapView(pose: .proud, size: 156, idle: .breathe)
+                        .padding(.top, 12)
+                        .accessibilityHidden(true)
+                case true?:
+                    ReadinessRing(value: ring, size: 156, lineWidth: 16, caption: model?.caption)
+                        .padding(.top, 12)
+                        .accessibilityHidden(!told)
+                case nil:
+                    Color.clear.frame(width: 156, height: 156).padding(.top, 12)
+                }
                 if let model {
                     Text(model.title)
                         .clFont(.brandTitle(28))
@@ -92,9 +104,45 @@ struct OnboardingReadinessStep: View {
         .task { await reveal() }
     }
 
+    @ViewBuilder
     private func topics(_ model: Model) -> some View {
+        if model.hasExam {
+            readinessTopics(model)
+        } else {
+            startedTopics(model)
+        }
+    }
+
+    /// With no exam: which topics have had a first look. No numbers, no bars.
+    private func startedTopics(_ model: Model) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            CLEyebrow(text: "Your topics")
+            ForEach(model.topics) { topic in
+                let started = (topic.value ?? 0) > 0
+                HStack(alignment: .firstTextBaseline, spacing: 10) {
+                    Image(systemName: started ? "checkmark.circle.fill" : "circle")
+                        .foregroundStyle(started ? CLColor.mintInk : CLColor.ink4)
+                        .accessibilityHidden(true)
+                    Text(topic.name)
+                        .clFont(.subheadlineEmphasis)
+                        .foregroundStyle(CLColor.ink)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    Text(started ? "Started" : "Not started")
+                        .clFont(.footnoteEmphasis)
+                        .foregroundStyle(started ? CLColor.ink : CLColor.ink3)
+                }
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(topic.name)
+                .accessibilityValue(Text(started ? "Started" : "Not started"))
+            }
+        }
+        .clCard()
+    }
+
+    private func readinessTopics(_ model: Model) -> some View {
         VStack(alignment: .leading, spacing: 14) {
-            CLEyebrow(text: model.hasExam ? "By topic, on exam day" : "By topic, today")
+            CLEyebrow(text: "By topic, on exam day")
             ForEach(Array(model.topics.enumerated()), id: \.element.id) { index, topic in
                 VStack(alignment: .leading, spacing: 6) {
                     HStack(alignment: .firstTextBaseline) {
@@ -164,14 +212,13 @@ struct OnboardingReadinessStep: View {
                          caption: "ready", topics: Array(topics))
         }
         if let course {
-            let known = app.knownShare(of: course)
+            // Whether each topic has had a first look (its recall above 0), never how much: there is no exam to be ready for.
             let topics = app.topicMastery(course: course).filter { $0.itemCount > 0 }.prefix(6).map {
                 Model.Topic(id: $0.id, name: $0.name, value: $0.value, itemCount: $0.itemCount)
             }
-            return Model(value: known, hasExam: false,
-                         title: "You know about \(CLFormat.percent(known)) of \(SessionCopy.unbroken(course.name)) so far",
-                         detail: "Add your exam date any time and Capling will plan backwards from it.",
-                         caption: "known", topics: Array(topics))
+            return Model(value: 0, hasExam: false, title: "Your first questions are in",
+                         detail: "Add your exam date any time, and Capling shows how ready you are, topic by topic.",
+                         caption: "", topics: Array(topics))
         }
         return Model(value: 0, hasExam: false, title: "Let's get you ready",
                      detail: "Add some material and your readiness shows up here.", caption: "ready", topics: [])

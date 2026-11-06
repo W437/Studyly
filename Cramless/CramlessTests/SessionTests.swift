@@ -340,20 +340,6 @@ final class SessionTests: XCTestCase {
         XCTAssertEqual(app.quickCheckItemIDs(courseID: UUID()), [cloze.id, card.id], "an unknown course means the first")
     }
 
-    func testKnownShareCountsUnstudiedItemsAsZero() {
-        let course = makeCourse()
-        let a = makeItem(in: course)
-        makeItem(in: course)
-        makeItem(in: course)
-        makeItem(in: course)
-        app.save()
-        XCTAssertEqual(app.knownShare(of: course), 0)
-        app.recordReview(itemID: a.id, rating: .good)
-        let share = app.knownShare(of: course)
-        XCTAssertGreaterThan(share, 0)
-        XCTAssertLessThanOrEqual(share, 0.25)
-    }
-
     // MARK: Confusions
 
     private func swappedPair() -> (StudyItem, StudyItem, UUID) {

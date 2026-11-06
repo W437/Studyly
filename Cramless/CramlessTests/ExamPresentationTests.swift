@@ -58,19 +58,6 @@ final class ExamPresentationTests: XCTestCase {
         XCTAssertEqual(path.projectedAtExam, curve.last!.value, accuracy: 1e-9, "the exam-day projection is still the plan's")
     }
 
-    func testPathSummary() {
-        var path = ExamPresentation.path(history: [], plan: plan(days: [], curve: [ReadinessPoint(date: now, value: 0.5, isProjection: false),
-                                                                                ReadinessPoint(date: day(9), value: 0.84, isProjection: true)]),
-                                         examDate: day(9, hour: 9), now: now, calendar: cal)
-        XCTAssertEqual(ExamPresentation.pathSummary(path, suggestedMinutes: 25, calendar: cal),
-                       "The plan gets you to 84% by exam day. About 25 minutes on the busy days would get you closer to 90%.")
-        path.targetReachedOn = day(6)
-        XCTAssertTrue(ExamPresentation.pathSummary(path, suggestedMinutes: nil, calendar: cal).hasPrefix("On track for 90% by "))
-        path.targetReachedOn = now
-        XCTAssertEqual(ExamPresentation.pathSummary(path, suggestedMinutes: nil, calendar: cal),
-                       "You're at your 90% target. The plan keeps you there.")
-    }
-
     // MARK: Week strip
 
     func testAMissedYesterdayLeadsTheStripAndTodayAbsorbsIt() {
@@ -165,11 +152,17 @@ final class ExamPresentationTests: XCTestCase {
         XCTAssertEqual(LibraryFormat.coverageLine(share: 1, kind: .lecture), "Questions cover 100% of this lecture")
     }
 
-    func testGradeComparisonCopy() {
-        let lines = ExamPresentation.gradeComparison(projected: 0.87, got: 0.91, calibratedNow: false)
-        XCTAssertEqual(lines.headline, "Capling projected 87%, you got 91%.")
-        XCTAssertEqual(lines.note, "Projections will calibrate as you log more grades.")
-        XCTAssertEqual(ExamPresentation.gradeComparison(projected: 0.8, got: 0.7, calibratedNow: true).note,
-                       "Projections are now calibrated to your grades.")
+    /// After the exam, the grade sits beside readiness on the day (never beside a projection the student was never shown).
+    func testPastExamComparesReadinessOnTheDay() {
+        let lines = ExamPresentation.gradeComparison(onTheDay: 0.74, got: 0.81, calibratingExams: 1)
+        XCTAssertEqual(lines.headline, "You got 81%, at 74% ready on the day.")
+        XCTAssertEqual(lines.note, "Log one more grade and Capling can project yours.")
+        XCTAssertEqual(ExamPresentation.gradeComparison(onTheDay: 0.8, got: 0.7, calibratingExams: 2).note,
+                       "Capling now projects your grades from your readiness.")
+        XCTAssertEqual(ExamPresentation.gradeComparison(onTheDay: nil, got: 0.7, calibratingExams: 0).headline, "You got 70%.")
+        XCTAssertEqual(ExamPresentation.logGradeInvite(onTheDay: 0.74),
+                       "You were 74% ready on the day. Log your grade and Capling learns how your readiness turns into grades.")
+        XCTAssertEqual(ExamPresentation.logGradeInvite(onTheDay: nil),
+                       "Log your grade and Capling learns how your readiness turns into grades.")
     }
 }

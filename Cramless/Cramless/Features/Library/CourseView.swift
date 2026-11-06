@@ -1,7 +1,11 @@
 import SwiftUI
 
-/// One course: its header (next exam, mastery), exams, the topic map with its coverage gaps, sources, and the
-/// questions (filter by topic and format; tap to edit; swipe to suspend or delete).
+/// One course: its header (the next exam and its readiness ring, or "Add a date"), exams, the topics (readiness for the next exam,
+/// coverage gaps, "Not on the Midterm"), sources, and the questions (filter by topic and format; tap to edit; swipe to suspend or
+/// delete).
+///
+/// Harness: `CRAMLESS_ROUTE=course:<n>` opens the nth course (`course:3` is Spanish II, with no exam); `CRAMLESS_SCENARIO=past`
+/// first moves the soonest exam three days back.
 struct CourseView: View {
     let courseID: UUID
 
@@ -12,7 +16,7 @@ struct CourseView: View {
     @State private var confirmCourseDelete = false
     @State private var topicEditor: TopicEditor?
     @State private var topicName = ""
-    @State private var topicToDelete: TopicReadiness?
+    @State private var topicToDelete: LibraryFormat.TopicLine?
 
     private struct TopicEditor: Identifiable {
         /// nil: a new topic.
@@ -34,7 +38,11 @@ struct CourseView: View {
     // MARK: Content
 
     private func content(_ course: Course) -> some View {
-        let topics = app.topicMastery(course: course)
+        let courseTopics = app.courseTopics(course)
+        let next = app.nextExam(of: course.id)
+        let lines = LibraryFormat.topicLines(courseTopics: courseTopics, examTopics: next.map { app.topicReadiness(for: $0) },
+                                             examTitle: next?.title, courseName: course.name)
+        let topics = lines
         let topicNames = Dictionary(uniqueKeysWithValues: topics.map { ($0.id, $0.name) })
         let topicOrder = Dictionary(uniqueKeysWithValues: topics.enumerated().map { ($0.element.id, $0.offset) })
         let items = course.liveItems.filter { $0.status == .active || $0.status == .suspended }
@@ -47,8 +55,8 @@ struct CourseView: View {
         let sources = course.liveSources.sorted { $0.createdAt > $1.createdAt }
         let questionCounts = Dictionary(grouping: items.compactMap { $0.sourceRef?.sourceID }, by: { $0 }).mapValues(\.count)
         let exams = course.liveExams
-        let startOfToday = app.calendar.startOfDay(for: app.now)
-        let readiness = Dictionary(uniqueKeysWithValues: exams.filter { $0.date >= startOfToday }
+        // Live readiness for the exams still to come; one that has started (or passed) shows its grade instead.
+        let readiness = Dictionary(uniqueKeysWithValues: exams.filter { $0.date > app.now }
             .map { ($0.id, app.readinessValue(of: ExamSnapshot($0))) })
 
         return ScrollViewReader { proxy in
@@ -58,6 +66,8 @@ struct CourseView: View {
                         app.router.present(.session(SessionRequest(kind: .practice, courseID: course.id)))
                     } addMaterial: {
                         app.router.present(.capture(courseID: course.id))
+                    } addDate: {
+                        app.router.present(.newExam(courseID: course.id))
                     }
                     .listRowBackground(Color.clear)
                     .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
@@ -65,7 +75,7 @@ struct CourseView: View {
                 }
 
                 examsSection(exams, course: course, readiness: readiness)
-                topicsSection(topics, course: course, proxy: proxy)
+                topicsSection(topics, course: course, exam: next, proxy: proxy)
                 sourcesSection(sources, course: course, counts: questionCounts)
                 questionsSection(items: items, filtered: filtered, topics: topics, topicNames: topicNames, course: course)
             }
@@ -78,6 +88,9 @@ struct CourseView: View {
             .navigationTitle(course.name)
             .navigationBarTitleDisplayMode(.large)
             .toolbar { toolbar(course) }
+            #if DEBUG
+            .task { app.applyHarnessScenarioOnce(examID: app.upcomingExams().first?.id) }
+            #endif
             .animation(CLMotion.settle, value: filtered.map(\.id))
             .confirmationDialog("Delete this question?", isPresented: Binding(
                 get: { itemToDelete != nil }, set: { if !$0 { itemToDelete = nil } }), titleVisibility: .visible) {
@@ -120,7 +133,7 @@ struct CourseView: View {
                 Button("Cancel", role: .cancel) { topicToDelete = nil }
             } message: {
                 if let topic = topicToDelete {
-                    Text(topic.itemCount > 0 ? "Its \(CLFormat.count(topic.itemCount, "question")) stay in \(course.name), without a topic." : "It has no questions.")
+                    Text(topic.questionCount > 0 ? "Its \(CLFormat.count(topic.questionCount, "question")) stay in \(course.name), without a topic." : "It has no questions.")
                 }
             }
         }
@@ -153,8 +166,8 @@ struct CourseView: View {
     }
 
     @ViewBuilder
-    private func topicsSection(_ topics: [TopicReadiness], course: Course, proxy: ScrollViewProxy) -> some View {
-        let gaps = topics.filter { $0.value == nil }.count
+    private func topicsSection(_ topics: [LibraryFormat.TopicLine], course: Course, exam: Exam?, proxy: ScrollViewProxy) -> some View {
+        let gaps = topics.filter { $0.state == .gap }.count
         Section {
             ForEach(topics) { topic in
                 Button {
@@ -163,19 +176,19 @@ struct CourseView: View {
                         topicFilter = topicFilter == topic.id ? nil : topic.id
                         formatFilter = nil
                     }
-                    if topic.itemCount > 0 {
+                    if topic.questionCount > 0 {
                         withAnimation(CLMotion.calm) { proxy.scrollTo("questions", anchor: .top) }
                     }
                 } label: {
-                    LibraryTopicRow(name: topic.name, value: topic.value, itemCount: topic.itemCount,
-                                    onAdd: topic.value == nil ? { app.router.present(.capture(courseID: course.id)) } : nil)
+                    LibraryTopicRow(name: topic.name, state: topic.state, questionCount: topic.questionCount,
+                                    onAdd: topic.state == .gap ? { app.router.present(.capture(courseID: course.id)) } : nil)
                 }
                 .buttonStyle(.plain)
                 .listRowBackground(topicFilter == topic.id ? CLColor.surface2 : CLColor.surface)
                 .id(topic.id == topics.first?.id ? AnyHashable("topics") : AnyHashable(topic.id))
-                .accessibilityHint(Text(topic.itemCount > 0 ? "Shows this topic's questions" : ""))
+                .accessibilityHint(Text(topic.questionCount > 0 ? "Shows this topic's questions" : ""))
                 .contextMenu {
-                    if topic.itemCount > 0 {
+                    if topic.questionCount > 0 {
                         Button("Practice this topic", systemImage: "play") {
                             app.router.present(.session(SessionRequest(kind: .practice, courseID: course.id, topicID: topic.id)))
                         }
@@ -196,12 +209,17 @@ struct CourseView: View {
         } header: {
             LibrarySectionTitle(title: "Topics")
         } footer: {
-            if gaps > 0 {
-                Text(gaps == 1 ? "One topic has no material yet. Add some and it joins your sessions."
-                     : "\(gaps) topics have no material yet. Add some and they join your sessions.")
-                    .clFont(.footnote)
-                    .foregroundStyle(CLColor.ink2)
+            VStack(alignment: .leading, spacing: 6) {
+                if let exam, topics.contains(where: { if case .value = $0.state { true } else { false } }) {
+                    Text(verbatim: LibraryFormat.topicsFootnote(examTitle: exam.title, courseName: course.name, date: exam.date,
+                                                                calendar: app.calendar))
+                }
+                if gaps > 0 {
+                    Text("\(gaps) topics have no material yet. Add some and they join your sessions.")
+                }
             }
+            .clFont(.footnote)
+            .foregroundStyle(CLColor.ink2)
         }
     }
 
@@ -232,7 +250,7 @@ struct CourseView: View {
     }
 
     @ViewBuilder
-    private func questionsSection(items: [StudyItem], filtered: [StudyItem], topics: [TopicReadiness],
+    private func questionsSection(items: [StudyItem], filtered: [StudyItem], topics: [LibraryFormat.TopicLine],
                                   topicNames: [UUID: String], course: Course) -> some View {
         Section {
             QuestionFilters(items: items, topics: topics, format: $formatFilter, topic: $topicFilter)
@@ -327,12 +345,14 @@ struct CourseView: View {
 
 // MARK: - Pieces
 
-/// The course header: badge, next exam, counts and the mastery ring, then Practice and Add material.
+/// The course header: badge, next exam, counts and that exam's readiness ring (the course's one number), then Practice and Add
+/// material. With no exam to come, "Add a date" and what it brings instead of a ring.
 private struct CourseHeader: View {
     let model: LibraryCourseModel
     let canPractice: Bool
     var practice: () -> Void
     var addMaterial: () -> Void
+    var addDate: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -344,10 +364,23 @@ private struct CourseHeader: View {
                         .clFont(.subheadline).foregroundStyle(CLColor.ink2)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                ReadinessRing(value: model.mastery ?? 0, size: 76, lineWidth: 9, caption: "mastery",
-                              animatesFromZero: true)
-                    .accessibilityLabel(Text("\(model.name) mastery"))
-                    .accessibilityValue(Text(model.mastery.map { "\(CLFormat.percent($0))" } ?? "Not studied yet"))
+                if let readiness = model.readiness {
+                    ReadinessRing(value: readiness, size: 76, lineWidth: 9, caption: "ready", animatesFromZero: true)
+                        .accessibilityLabel(Text(model.name))
+                        .accessibilityValue(Text(model.readinessAccessibility))
+                }
+            }
+            if model.readiness == nil {
+                HStack(alignment: .center, spacing: 12) {
+                    Text("Add an exam date and Capling shows how ready you are.")
+                        .clFont(.subheadline)
+                        .foregroundStyle(CLColor.ink2)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    LibraryAddDateButton(courseName: model.name, action: addDate)
+                }
+                .padding(14)
+                .background(CLColor.surface, in: RoundedRectangle(cornerRadius: CLRadius.option, style: .continuous))
             }
             ReflowStack(spacing: 10) {
                 Button(action: practice) {
@@ -406,7 +439,7 @@ private struct CourseExamRow: View {
 /// Filter chips over the questions: all, each format present, and a topic menu.
 private struct QuestionFilters: View {
     let items: [StudyItem]
-    let topics: [TopicReadiness]
+    let topics: [LibraryFormat.TopicLine]
     @Binding var format: ItemKind?
     @Binding var topic: UUID?
 
@@ -417,7 +450,7 @@ private struct QuestionFilters: View {
             HStack(spacing: 8) {
                 Menu {
                     Button("All topics") { pick(topic: nil) }
-                    ForEach(topics.filter { $0.itemCount > 0 }) { t in
+                    ForEach(topics.filter { $0.questionCount > 0 }) { t in
                         Button { pick(topic: t.id) } label: {
                             if topic == t.id { Label(t.name, systemImage: "checkmark") } else { Text(t.name) }
                         }

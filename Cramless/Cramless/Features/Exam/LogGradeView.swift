@@ -1,8 +1,9 @@
 import SwiftUI
 
-/// After the exam: the grade the person got, then how it compares with what Capling projected. Saving it
-/// (`AppModel.logGrade`) is what lets later projections calibrate. The field starts empty (a logged grade must be
-/// the person's own number, never the projection nudged into place); a grade logged before shows for changing.
+/// After the exam: the grade the person got, then beside it how ready they were on the day ("You got 81%, at 74% ready on the
+/// day."). Saving it (`AppModel.logGrade`) is what lets Capling learn how readiness turns into grades: from two such exams it projects
+/// a letter. The field starts empty (a logged grade must be the person's own number, never a projection nudged into place); a grade
+/// logged before shows for changing.
 ///
 /// Harness: `CRAMLESS_SCENARIO=past` first moves the exam three days back; `CRAMLESS_GRADE=<percent>` logs that grade
 /// on appear and shows the result.
@@ -18,9 +19,11 @@ struct LogGradeView: View {
 
     /// What the result shows, fixed at the moment of saving.
     private struct Saved: Equatable {
-        var projected: Double
+        /// Readiness on exam morning (nil when it couldn't be kept, e.g. nothing was in scope).
+        var onTheDay: Double?
         var got: Double
-        var calibratedNow: Bool
+        /// Exams with readiness on the day and a grade, this one included.
+        var calibratingExams: Int
     }
 
     var body: some View {
@@ -125,7 +128,7 @@ struct LogGradeView: View {
                 .buttonStyle(.cl(.primary))
                 .disabled(percent == nil)
 
-            Text("Capling compares it with what it projected, so later projections fit how you do.")
+            Text("Capling puts it beside how ready you were on the day, to learn how your readiness turns into grades.")
                 .clFont(.footnote)
                 .foregroundStyle(CLColor.ink2)
                 .multilineTextAlignment(.center)
@@ -134,8 +137,8 @@ struct LogGradeView: View {
     }
 
     private func result(_ saved: Saved, title: String) -> some View {
-        let lines = ExamPresentation.gradeComparison(projected: saved.projected, got: saved.got, calibratedNow: saved.calibratedNow)
-        let beat = saved.got >= saved.projected - 0.005
+        let lines = ExamPresentation.gradeComparison(onTheDay: saved.onTheDay, got: saved.got, calibratingExams: saved.calibratingExams)
+        let beat = saved.got >= (saved.onTheDay ?? 0) - 0.005
         return VStack(spacing: 16) {
             CapView(pose: beat ? .celebrate : .study, size: 130)
                 .padding(.top, 8)
@@ -143,14 +146,14 @@ struct LogGradeView: View {
                 .font(.system(size: 56, weight: .heavy, design: .rounded))
                 .foregroundStyle(CLColor.ink)
                 .accessibilityLabel(Text("You got \(CLFormat.percent(saved.got))"))
-            Text(lines.headline)
+            Text(verbatim: lines.headline)
                 .clFont(.headline)
                 .foregroundStyle(CLColor.ink)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
-            GradeBars(projected: saved.projected, got: saved.got)
+            GradeBars(onTheDay: saved.onTheDay, got: saved.got)
                 .clCard(padding: 18)
-            Text(lines.note)
+            Text(verbatim: lines.note)
                 .clFont(.subheadline)
                 .foregroundStyle(CLColor.ink2)
                 .multilineTextAlignment(.center)
@@ -165,12 +168,11 @@ struct LogGradeView: View {
         guard let percent else { return }
         fieldFocused = false
         let got = Double(min(100, max(0, percent))) / 100
-        let projected = app.projectedGrade(for: exam).percent
         app.logGrade(examID: exam.id, score: got)
-        let calibratedNow = app.calibratingExamCount >= 2
+        let calibrating = app.calibratingExamCount
         CLHaptics.success()
         withAnimation(CLMotion.settle) {
-            saved = Saved(projected: projected, got: got, calibratedNow: calibratedNow)
+            saved = Saved(onTheDay: exam.readinessAtExam, got: got, calibratingExams: calibrating)
         }
     }
 }

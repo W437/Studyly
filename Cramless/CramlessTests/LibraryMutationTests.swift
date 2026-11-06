@@ -221,6 +221,9 @@ final class LibraryMutationTests: XCTestCase {
         XCTAssertEqual(first.resultLoggedAt, now)
         XCTAssertNotNil(first.readinessAtExam, "logging fills readiness on exam morning first")
         XCTAssertEqual(app.calibratingExamCount, 1)
+        let soon = try XCTUnwrap(app.createExam(ExamDraft(title: "Quiz 3", courseID: course.id, date: day(9))))
+        XCTAssertFalse(ExamPresentation.showsLetter(app.readiness(for: soon).projectedGrade), "no letter until calibrated")
+        XCTAssertNil(ExamPresentation.shownGrade(app.readiness(for: soon).projectedGrade))
 
         let second = try XCTUnwrap(app.createExam(ExamDraft(title: "Quiz 2", courseID: course.id, date: day(10))))
         second.createdAt = day(-30)
@@ -230,6 +233,7 @@ final class LibraryMutationTests: XCTestCase {
         XCTAssertEqual(app.calibratingExamCount, 2)
         let upcoming = try XCTUnwrap(app.createExam(ExamDraft(title: "Final", courseID: course.id, date: day(12))))
         XCTAssertTrue(app.readiness(for: upcoming).projectedGrade.isCalibrated)
+        XCTAssertTrue(ExamPresentation.showsLetter(app.readiness(for: upcoming).projectedGrade), "two logged grades: the letter shows")
         XCTAssertTrue(app.projectedGrade(for: second).isCalibrated == false,
                       "an exam's own grade never calibrates its own projection (only one other exam has a grade)")
     }
