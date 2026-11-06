@@ -42,6 +42,9 @@ struct SessionEntry: Sendable, Hashable, Identifiable {
     var estimatedSeconds: Double
     /// 0 the first time in a session; 1, 2 for re-queued repeats.
     var attempt: Int = 0
+    /// The soonest upcoming exam that covers the question (the exam an eve session is for): what `SessionFocus` reads. Set when the
+    /// session is built; never stored.
+    var examID: UUID? = nil
 
     var id: String { "\(itemID.uuidString)#\(attempt)" }
 }
@@ -233,15 +236,15 @@ struct SessionBuilder: Sendable {
         return c
     }
 
+    /// Recall on an exam's date, forecast in hours (`FSRS.forecastRecall`), as readiness counts it.
     func examRecall(_ memory: MemoryState, on date: Date) -> Double {
         guard memory.state != .new, let last = memory.lastReview, memory.stability > 0 else { return 0 }
-        return fsrs.retrievability(elapsedDays: Double(max(0, FSRS.elapsedDays(from: last, to: date))),
-                                   stability: memory.stability)
+        return fsrs.forecastRecall(stability: memory.stability, last: last, at: date)
     }
 
     private func entry(_ c: Candidate, _ reason: SessionEntry.Reason) -> SessionEntry {
         SessionEntry(itemID: c.item.id, reason: reason, kind: c.item.kind, topicID: c.item.topicID,
-                     courseID: c.item.courseID, estimatedSeconds: c.cost)
+                     courseID: c.item.courseID, estimatedSeconds: c.cost, examID: c.exam?.id)
     }
 
     // MARK: Daily and catch-up

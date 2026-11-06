@@ -92,7 +92,9 @@ struct GradeModel: Sendable, Equatable {
 }
 
 /// Readiness and mastery, from item memories (now) and the review log (the past).
-/// - Exam readiness: mean predicted recall on exam day over the exam's active items; never-studied items count 0.
+/// - Exam readiness: mean predicted recall on exam day over the exam's active items; never-studied items count 0. Recall is
+///   forecast in hours (`FSRS.forecastRecall`), so a question reviewed the evening before is not certain on the morning.
+/// - After today (`valueAfter`): the same mean with today's session done, each of its questions at its expected state.
 /// - Topic readiness: the same per topic; nil when a topic has no items (a coverage gap).
 /// - Mastery: mean current recall of studied items.
 /// - The past (a week ago, a chart's history): each item's state rebuilt from the last review-log entry before
@@ -110,7 +112,7 @@ struct ReadinessEngine: Sendable {
     }
 
     func recall(stability: Double, last: Date, on date: Date) -> Double {
-        fsrs.retrievability(elapsedDays: Double(max(0, FSRS.elapsedDays(from: last, to: date))), stability: stability)
+        fsrs.forecastRecall(stability: stability, last: last, at: date)
     }
 
     func examRecall(_ memory: MemoryState, on date: Date) -> Double {
@@ -127,6 +129,28 @@ struct ReadinessEngine: Sendable {
         let scope = scope(of: exam, in: items)
         guard !scope.isEmpty else { return 0 }
         return scope.reduce(0) { $0 + examRecall($1.memory, on: exam.date) } / Double(scope.count)
+    }
+
+    /// Readiness on exam day once `entries` (today's session) are done: the ring's own function, `value(of:items:)`, with each
+    /// session question in the exam's scope at its expected state after a review now (`ExpectedReview`: right as often as its recall
+    /// now, else relearned) and each new one after a first look that succeeds at the person's first-try rate (`newItemSuccess`).
+    /// No adherence factor: it is today's work, not a plan. Studying never lowers a question's forecast, so the result is at least
+    /// the value now; with no entries in scope, it is the value now.
+    func valueAfter(_ entries: [SessionEntry], exam: ExamSnapshot, items: [ItemSnapshot], newItemSuccess: Double) -> Double {
+        let scope = scope(of: exam, in: items)
+        guard !scope.isEmpty else { return 0 }
+        let studying = Set(entries.map(\.itemID))
+        var sum = 0.0
+        for item in scope {
+            let before = examRecall(item.memory, on: exam.date)
+            guard studying.contains(item.id) else {
+                sum += before
+                continue
+            }
+            let step = fsrs.expectedReview(of: item.memory, at: now) ?? fsrs.expectedFirstLook(success: newItemSuccess, at: now)
+            sum += max(before, min(1, step.recall(at: exam.date, fsrs: fsrs)))
+        }
+        return sum / Double(scope.count)
     }
 
     /// Readiness as it stood at `date`, rebuilt from the review log. `logsByItem` must be sorted by time.
@@ -168,21 +192,30 @@ struct ReadinessEngine: Sendable {
         Dictionary(grouping: logs, by: \.itemID).mapValues { $0.sorted { $0.reviewedAt < $1.reviewedAt } }
     }
 
-    /// Per topic in the exam's scope (the scope's topics, or all the course's topics), in topic order.
+    /// Per topic in the exam's scope (the scope's topics, or all the course's topics), in topic order, with the seconds a practice
+    /// round on it takes: its questions under the exam's goal on exam day, and its unseen ones twice (a first look and its step).
     func topicReadiness(for exam: ExamSnapshot, items: [ItemSnapshot], topics: [TopicSnapshot]) -> [TopicReadiness] {
         let scope = scope(of: exam, in: items)
-        var sums: [UUID: (Double, Int)] = [:]
+        var sums: [UUID: (sum: Double, count: Int, practice: Double)] = [:]
         for item in scope {
             guard let t = item.topicID else { continue }
             let r = examRecall(item.memory, on: exam.date)
-            let s = sums[t] ?? (0, 0)
-            sums[t] = (s.0 + r, s.1 + 1)
+            var s = sums[t] ?? (0, 0, 0)
+            s.sum += r
+            s.count += 1
+            if !item.isStudied {
+                s.practice += item.kind.typicalSeconds * 2
+            } else if r < exam.target {
+                s.practice += item.kind.typicalSeconds
+            }
+            sums[t] = s
         }
         let listed = topics.filter { $0.courseID == exam.courseID && (exam.wholeCourse || exam.scope.contains($0.id)) }
             .sorted { $0.sortOrder != $1.sortOrder ? $0.sortOrder < $1.sortOrder : $0.name < $1.name }
         return listed.map { t in
             let s = sums[t.id]
-            return TopicReadiness(id: t.id, name: t.name, value: s.map { $0.0 / Double($0.1) }, itemCount: s?.1 ?? 0)
+            return TopicReadiness(id: t.id, name: t.name, value: s.map { $0.sum / Double($0.count) }, itemCount: s?.count ?? 0,
+                                  practiceSeconds: s?.practice ?? 0)
         }
     }
 
@@ -238,7 +271,9 @@ struct ReadinessEngine: Sendable {
                    plan: StudyPlan, grade: GradeModel, coverage: Double? = nil) -> ExamReadiness {
         let scope = scope(of: exam, in: items)
         let current = value(of: exam, items: items)
-        let weekAgo = value(of: exam, items: items, at: calendar.adding(days: -7, to: now), logsByItem: Self.byItem(logs))
+        let byItem = Self.byItem(logs)
+        let weekAgo = value(of: exam, items: items, at: calendar.adding(days: -7, to: now), logsByItem: byItem)
+        let morning = value(of: exam, items: items, at: calendar.startOfDay(for: now), logsByItem: byItem)
         let topicList = topicReadiness(for: exam, items: items, topics: topics)
         return ExamReadiness(examID: exam.id, value: current, projected: plan.projectedReadiness,
                              deltaThisWeek: current - weekAgo,
@@ -246,6 +281,7 @@ struct ReadinessEngine: Sendable {
                              projectedGrade: grade.grade(plan.projectedReadiness, coverage: coverage), itemsInScope: scope.count,
                              unseenItems: scope.filter { !$0.isStudied }.count, target: exam.target,
                              targetReachedOn: plan.targetReachedOn,
-                             coverageGaps: topicList.filter { $0.value == nil }.count, coverage: coverage)
+                             coverageGaps: topicList.filter { $0.value == nil }.count, coverage: coverage,
+                             deltaToday: current - morning)
     }
 }

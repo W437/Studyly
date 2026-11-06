@@ -58,6 +58,8 @@ final class AppModel {
     @ObservationIgnored let gameCache = GameCache()
     /// The sections of each source (`AppModel+Coverage.swift`), worked out again only when the source changes.
     @ObservationIgnored let coverageCache = CoverageCache()
+    /// Every upcoming exam's plan, sharing the daily goal (`AppModel+Insights.swift`), worked out again per revision and hour.
+    @ObservationIgnored let examPlanCache = ExamPlanCache()
     /// Switches the app icon (the system's, or a fake in tests).
     @ObservationIgnored var iconSwitcher: any AppIconSwitching = SystemIconSwitcher()
     #if DEBUG

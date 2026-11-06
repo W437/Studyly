@@ -9,8 +9,9 @@ import Foundation
 ///
 /// Faithful details that matter for parity:
 /// - Elapsed days are whole 24-hour periods since the last review (Python's `timedelta.days`, a floor), not
-///   calendar days. This is the one place in the app that counts days from seconds, because the reference does;
-///   everything a person sees (streaks, days left, plans) counts calendar days.
+///   calendar days. Scheduling counts days from seconds this way because the reference does; everything a person
+///   sees (streaks, days left, plans) counts calendar days. Forecasts don't floor: `forecastRecall` counts the hours,
+///   so a review the evening before a morning exam is not certain recall.
 /// - Python's `round` is round-half-to-even, so intervals use `.toNearestOrEven`.
 /// - A new item is a learning item at step 0 with no stability or difficulty yet.
 /// - `math.e ** x` is `pow(e, x)` here (the same libm call), so results agree to the last bits.
@@ -72,6 +73,12 @@ struct FSRS: Sendable, Equatable {
     func retrievability(elapsedDays: Double, stability: Double) -> Double {
         guard stability > 0 else { return 0 }
         return pow(1 + factor * max(0, elapsedDays) / stability, decay)
+    }
+
+    /// Probability of recall at `date` after a review at `last`, counting the hours (fractional days). Every forecast uses it
+    /// (readiness on exam day, plans, "after today"); scheduling keeps py-fsrs's whole days, so its results don't change.
+    func forecastRecall(stability: Double, last: Date, at date: Date) -> Double {
+        retrievability(elapsedDays: max(0, date.timeIntervalSince(last) / 86_400), stability: stability)
     }
 
     /// An item's probability of recall at `date` (0 for an item never studied), as py-fsrs computes it.
