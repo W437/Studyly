@@ -16,13 +16,15 @@ extension AppModel {
     }
 
     /// "Your plan": two days back, today and four ahead, across every exam's share of the daily goal (`TodayPlanStrip`).
-    func todayStrip(summary: TodaySummary) -> [TodayPlanDay] {
+    /// `tonightMinutes`: the eve session built for tonight, when today is an eve.
+    func todayStrip(summary: TodaySummary, tonightMinutes: Int? = nil) -> [TodayPlanDay] {
         let titles = Dictionary(examSnapshots(upcomingOnly: true).map { ($0.id, $0.title) }, uniquingKeysWith: { a, _ in a })
         let plans = examPlans().map { TodayPlanStrip.ExamPlan(title: titles[$0.examID] ?? "", days: $0.days) }
         let past = daySnapshots(since: calendar.adding(days: -TodayPlanStrip.back, to: now))
-        let done = summary.studiedToday && summary.minutesDone >= summary.minutesGoal
+        let done = (summary.studiedToday && summary.minutesDone >= summary.minutesGoal) || eveSessionDone(summary)
         return TodayPlanStrip.make(today: now, plans: plans, past: past, todayMinutes: summary.plannedMinutes, todayDone: done,
-                                   goal: settings.dailyMinutes, easyDays: settings.easyDays, calendar: calendar)
+                                   goal: settings.dailyMinutes, easyDays: settings.easyDays, tonightMinutes: tonightMinutes,
+                                   calendar: calendar)
     }
 
     /// What "Why these?" says about today's session (`TodayReasons`): its exam and scope, the exam's weakest topic and how many of
@@ -35,6 +37,8 @@ extension AppModel {
         if let id = focus.examID, let snapshot = exams.first(where: { $0.id == id }), let model = exam(id) {
             input.examTitle = snapshot.title
             input.when = TodayCopy.when(snapshot.date, now: now, calendar: calendar)
+            input.daysLeft = calendar.dayDistance(from: now, to: snapshot.date)
+            input.focusSeconds = focus.focusSeconds
             input.courseName = model.course?.name ?? ""
             input.scopeTopics = topicSnapshots(in: model.course)
                 .filter { snapshot.scope.contains($0.id) }
@@ -58,9 +62,11 @@ extension AppModel {
         input.others = exams.filter { $0.id != focus.examID }.compactMap { other in
             let id = other.id
             let courseName = other.courseID.flatMap { self.course($0) }?.name ?? ""
+            let seconds = focus.secondsByExam[id] ?? 0
             return TodayReasons.Other(name: courseName.isEmpty ? other.title : courseName,
                                       daysLeft: calendar.dayDistance(from: now, to: other.date),
-                                      inToday: (focus.secondsByExam[id] ?? 0) > 0)
+                                      inToday: seconds > 0, seconds: seconds,
+                                      due: !session.entries.contains { $0.examID == id && $0.reason == .new })
         }
         return input
     }

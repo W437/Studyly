@@ -53,7 +53,7 @@ DERIVED=build-x scripts/xc.sh build                   # another derived-data fol
       every card state in `build/review/s1-today/render/`, and the SE fit), `HeroWorldTests`, `HeroRefreshTests`, `WelcomeSkyTests`. The memory sky: `SkyEngineTests`,
       `SkyViewTests`, `SkyDerivedTests`, `SkyAppModelTests`.
     - A session and the engines (`Engine/`): `SessionTests`, `SessionFeelTests`, `EngineFSRSTests`, `EngineSchedulerTests`,
-      `EngineSessionBuilderTests`, `EngineReadinessTests`, `EngineStreakTests`.
+      `EngineSessionBuilderTests`, `EngineSessionFocusTests`, `EngineStudyHabitsTests`, `EngineReadinessTests`, `EngineStreakTests`.
     - The game loop (quests, badges, skies, icons, celebrations): `GameEngineTests`, `GameAppModelTests`, `GameRenderTests`,
       `CelebrationTests`. Cap and the feel: `CapClipTests`, `CapTouchTests`, `FeelTests`.
     - Progress, exams, library: `ProgressPresentationTests`, `ExamPresentationTests`, `Library*Tests`, `DraftTests`,
@@ -156,7 +156,8 @@ sleep 4; xcrun simctl io <udid> screenshot shot.png
 ```
 
 - `CRAMLESS_UITEST=1`: in-memory store, the seeded demo world (`Model/SampleData.swift`), mock AI, onboarding
-  skipped. `CRAMLESS_SEED=0` empty world; `CRAMLESS_MOCK_AI=0` local AI instead of mock.
+  skipped. `CRAMLESS_SEED=0` empty world; `CRAMLESS_MOCK_AI=0` turns mock off: local AI with a blank `Secrets.xcconfig`, but with a filled
+  `Secrets.xcconfig` it calls the live relay.
 - `CRAMLESS_ROUTE=<name>[:<arg>]`: one screen; the list is `TestHarness.apply(route:)`.
 - `CRAMLESS_ONBOARDING=1`, `CRAMLESS_ROUTE=onboarding:<page>`, `CRAMLESS_NOW=<ISO 8601>`, `CRAMLESS_THEME=dark`,
   `CRAMLESS_DYSLEXIC=1`, `CRAMLESS_PLAN=pro`, `CRAMLESS_CONSENT=0`, `CRAMLESS_QUIET=1` (Quiet mode on).
@@ -168,8 +169,8 @@ sleep 4; xcrun simctl io <udid> screenshot shot.png
   (`TEST_RUNNER_CRAMLESS_STOREKIT_TESTS=1`): they can leave a "Sign in to Apple Account" prompt on a simulator until
   it's erased.
 - Screen states (each documented beside its view):
-  - Today: `CRAMLESS_TODAY=catchup|partway|split|noExam|examEve|eveDone|done|caughtUp|noMaterial|empty` (`split`: no exam holds
-    40% of the session, so no chip; `noExam`: no exams at all; `done` also fills the done card's exam, +10%);
+  - Today: `CRAMLESS_TODAY=catchup|partway|split|noExam|examEve|twoEves|eveDone|done|caughtUp|noMaterial|empty` (`split`: the session
+    serves no one exam, so no chip; `noExam`: no exams at all; `twoEves`: the first two exams share tomorrow; `done` also fills the done card's exam, +10%);
     `CRAMLESS_TODAY_NOTICES=0|1|2|3` deals that many of Cap's cards; `CRAMLESS_TODAY_WHY=<ms>`, `CRAMLESS_TODAY_QUESTS=<ms>` open
     "Why these?" and the quests sheet, `CRAMLESS_TODAY_LATER=<ms>` presses Cap's "Later", each that long after launch;
     `CRAMLESS_TODAY_SCROLL=1` scrolls down to the exams row and back (for a film); `CRAMLESS_TODAY_OPEN=<ms>` opens the sky that
@@ -182,7 +183,8 @@ sleep 4; xcrun simctl io <udid> screenshot shot.png
     - `CRAMLESS_SESSION_PICK=wrong`, `CRAMLESS_SESSION_ANSWER=<text>`
     - `CRAMLESS_SESSION_AUTOPLAY=rrrrrpwk` answers every question by that pattern (`r` right, `p` partly, `w` wrong,
       `k` "I don't know") and presses Continue `CRAMLESS_AUTOPLAY_BEAT` ms after each panel, through to the summary.
-      Film it with `CRAMLESS_MOCK_AI=0`, so the feedback is the real offline grade of that answer.
+      Film it with `CRAMLESS_MOCK_AI=0` on a build with a blank `Secrets.xcconfig`, so the feedback is the real offline grade of that
+      answer (with a filled `Secrets.xcconfig` it calls the live relay).
     - `CRAMLESS_SESSION_MINUTES=<n>` makes the session that long (a 5-minute one reaches its summary inside a film).
     - `CRAMLESS_SESSION_DRAFT=<text>` (with `ownwords`): the first question's editor opens with those words "Kept from before"
       (`AnswerDrafts`). `CRAMLESS_SESSION_RESUME=1` (with `session` or `session:catchUp|examEve`): a session of that kind was cut off
@@ -203,7 +205,7 @@ sleep 4; xcrun simctl io <udid> screenshot shot.png
     `CRAMLESS_FIRSTSET=choose|processing|review` (with `CRAMLESS_ROUTE=scanner`).
   - Capture: `CRAMLESS_CAPTURE_PHASE=reading|ideas|writing|checking|done|review|error:<kind>`,
     `CRAMLESS_CAPTURE_INPUT=photo|text`, `CRAMLESS_REVIEW_EDIT|UNTICK|SCROLL|PEEK|APPROVE|ALLOW`,
-    `CRAMLESS_RECORD_FLAG|PAUSE|STOP`, `CRAMLESS_NOTES_FOCUS`, `CRAMLESS_IMPORT`, `CRAMLESS_PASTE_TEXT`,
+    `CRAMLESS_RECORD_FLAG|PAUSE|STOP`, `CRAMLESS_NOTES_FOCUS`, `CRAMLESS_IMPORT`, `CRAMLESS_PASTE_TEXT` (`sample`, or `long`: about 21 pages),
     `CRAMLESS_CANVAS=375x667` (SE size).
   - Library and exams: `CRAMLESS_SCENARIO=eve|past|graded|missed|repair|thin|calibrated|ontrack|crowded|empty|bright|mocked|fewItems` (each documented in
     `AppModel.applyHarnessScenario`; `calibrated` logs two past grades so the letter shows; `bright`: nothing is fading), `CRAMLESS_SCROLL=<section>`,
@@ -351,7 +353,7 @@ sleep 4; xcrun simctl io <udid> screenshot shot.png
 - Spacing and shape: `CLSpace`, `CLRadius`, `CLMetrics`. Cards `.clCard()`, the night card `.clNightCard()`,
   lists `CLList` + `CLRow`, `CLSectionHeader`, `CLChip`, `CLSourceChip`, `CLPill`, `CLBar`, `ReadinessRing`,
   `HighlightedText`, `CapView`/`CapFace`, buttons `.buttonStyle(.cl(.primary))`. Floating controls use the
-  system's Liquid Glass (`.glassEffect`, `.buttonStyle(.glass)`).
+  system's Liquid Glass (`.glassEffect`, `.buttonStyle(.glass)`); a toast sits on the solid surface, so it reads over anything.
 - Motion: `CLMotion` tokens only (they handle Reduce Motion). Scripted sequences use `nap(_:)` (throws on
   cancel). Views read `@Environment(\.clReduceMotion)` and `\.clDifferentiateWithoutColor`, never the system keys,
   so the DEBUG overrides reach them.

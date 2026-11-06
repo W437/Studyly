@@ -136,6 +136,24 @@ final class TodayHeroContentTests: XCTestCase {
         XCTAssertTrue(c.twinkles)
     }
 
+    /// The button, its spoken words and the reason all say the session's own minutes.
+    func testTheEveSaysItsSessionsOwnMinutes() throws {
+        var snap = snapshot(.examEve(examID))
+        snap.eveMinutes = 4
+        var c = TodayHeroContent.make(snap)
+        var action = try XCTUnwrap(c.actions.first)
+        XCTAssertEqual(text(action.title), "Tonight · 4 min")
+        XCTAssertEqual(text(try XCTUnwrap(action.spoken)), "Tonight, 4 minutes")
+        XCTAssertEqual(c.reason, "4 minutes on Limiting reagents and Stoichiometry, then sleep. That's the whole plan tonight.")
+        snap.eveMinutes = 1
+        snap.eveTopics = []
+        c = TodayHeroContent.make(snap)
+        action = try XCTUnwrap(c.actions.first)
+        XCTAssertEqual(text(action.title), "Tonight · 1 min")
+        XCTAssertEqual(text(try XCTUnwrap(action.spoken)), "Tonight, 1 minute")
+        XCTAssertEqual(c.reason, "1 minute on your weak spots, then sleep. That's the whole plan tonight.")
+    }
+
     func testExamEveWithNothingWeakSaysSleepInsteadOfOfferingWork() throws {
         let c = content(.examEve(examID), eveHasWork: false)
         XCTAssertTrue(c.actions.isEmpty)
@@ -186,9 +204,11 @@ final class TodayHeroContentTests: XCTestCase {
         snap.practice = TodayPractice(name: "Limiting reagents", topicID: topic, courseID: course)
         let c = TodayHeroContent.make(snap)
         XCTAssertEqual(c.title, "All lit")
-        XCTAssertEqual(c.reason, "Nothing due right now. A short practice keeps it fresh.")
+        XCTAssertEqual(c.reason, "Nothing due right now. A short practice on Limiting reagents keeps it fresh.",
+                       "the reason names the topic: the button may be too narrow to")
         let action = try XCTUnwrap(c.actions.first)
         XCTAssertEqual(text(action.title), "Practice Limiting reagents · 5 min")
+        XCTAssertEqual(text(try XCTUnwrap(action.shortTitle)), "Practice · 5 min")
         XCTAssertTrue(action.prominent)
         let request = try XCTUnwrap(action.request)
         XCTAssertEqual(request.kind, .practice)
@@ -196,8 +216,9 @@ final class TodayHeroContentTests: XCTestCase {
         XCTAssertEqual(request.courseID, course)
         XCTAssertEqual(request.minutes, 5)
         XCTAssertEqual(c.cap.pose, .relax)
-        XCTAssertEqual(text(try XCTUnwrap(content(.caughtUp, summary(ready: false)).actions.first).title), "Practice · 5 min",
-                       "with no topic to name, a short practice")
+        let noTopic = content(.caughtUp, summary(ready: false))
+        XCTAssertEqual(text(try XCTUnwrap(noTopic.actions.first).title), "Practice · 5 min", "with no topic to name, a short practice")
+        XCTAssertEqual(noTopic.reason, "Nothing due right now. A short practice keeps it fresh.")
     }
 
     func testWithNoQuestionsYetTheSkyIsUnlitOutlinesAndTheWayInIsASamplePage() throws {

@@ -583,6 +583,16 @@ final class SessionTests: XCTestCase {
         XCTAssertEqual(second.current?.itemID, onScreen, "the question that was on screen comes first")
         second.start()
         XCTAssertEqual(second.sessionID, sessionID, "the same StudySession goes on")
+        // The clock goes on from the 60 s already spent (the 3 hours between aren't in it), and the bar counts the two earlier answers.
+        XCTAssertEqual(Date().timeIntervalSince(second.startedAt), 60, accuracy: 10)
+        XCTAssertEqual(second.earlier, [.right, .right])
+        XCTAssertEqual(second.segmentCount, second.queue.count + 2)
+        XCTAssertEqual(second.segmentPosition, 2)
+        XCTAssertEqual(second.segment(0), .done(.right))
+        XCTAssertEqual(second.segment(1), .done(.right))
+        XCTAssertEqual(second.segment(2), .current, "the question on screen")
+        XCTAssertEqual(second.segment(3), .pending)
+        XCTAssertEqual(second.rightSoFar, 2)
         second.record(rating: .good, score: -1, answer: nil, gradedBy: "person", durationMs: 5000, outcome: .right)
         clock.advance(30)
         second.close()
@@ -596,6 +606,19 @@ final class SessionTests: XCTestCase {
         XCTAssertEqual(app.dayRecordSnapshot(for: clock.now)?.studySeconds ?? 0, 90, accuracy: 0.5)
         XCTAssertNil(app.sessionCheckpoint(), "finished: nothing left to pick up")
         XCTAssertNil(app.answerDraft(for: onScreen), "its answer was recorded")
+    }
+
+    /// A session that isn't picked up has no earlier answers and a clock from zero.
+    func testAFreshSessionStartsTheClockAndTheBarAtZero() throws {
+        let course = makeCourse()
+        for i in 0..<4 { makeItem(in: course, prompt: "Card \(i)") }
+        app.save()
+        let runner = SessionRunner(app: app, request: SessionRequest(kind: .daily), options: .init(liveActivity: false))
+        runner.start()
+        XCTAssertEqual(Date().timeIntervalSince(runner.startedAt), 0, accuracy: 5)
+        XCTAssertTrue(runner.earlier.isEmpty)
+        XCTAssertEqual(runner.segmentCount, runner.queue.count)
+        XCTAssertEqual(runner.segment(0), .current)
     }
 
     func testOnlyTodaysOpenSessionIsPickedUp() throws {

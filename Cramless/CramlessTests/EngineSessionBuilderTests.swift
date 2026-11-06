@@ -48,6 +48,110 @@ final class EngineSessionBuilderTests: XCTestCase {
         for e in built.entries { XCTAssertEqual(e.estimatedSeconds, e.reason == .new ? e.kind.typicalSeconds * 2 : e.kind.typicalSeconds) }
     }
 
+    // MARK: After an exam
+
+    /// `count` reviews overdue on `course`.
+    private func due(_ count: Int, course: UUID, recall: Double = 0.5) -> [ItemSnapshot] {
+        (0..<count).map { _ in EngineTest.studied(kind: .mcq, topic: topics[0], course: course, recall: recall, daysAgo: 5, now: now, cal: cal) }
+    }
+
+    /// The day after one exam: its reviews used to fill the review share, and the next exam's new questions stopped at 40%, so the next exam
+    /// got half its plan. Questions only on a finished exam now wait behind everything for one still to come.
+    func testQuestionsWhoseExamIsOverWaitBehindTheNextExam() {
+        let next = UUID()
+        let over = ExamSnapshot(courseID: course, title: "Networks final", date: cal.adding(days: -1, to: now))
+        let apush = ExamSnapshot(courseID: next, title: "APUSH exam", date: cal.adding(days: 3, to: now))
+        let items = due(60, course: course) + (0..<90).map { _ in EngineTest.fresh(kind: .mcq, topic: topics[1], course: next, createdAt: cal.adding(days: -2, to: now)) }
+        let built = builder(minutes: 25).build(SessionSpec(kind: .daily), items: items, exams: [over, apush], topicNames: names)
+        XCTAssertLessThanOrEqual(built.entries.filter { $0.courseID == course }.count, 1, "only the seconds no new question fits into")
+        let forNext = built.entries.filter { $0.examID == apush.id }.reduce(0) { $0 + $1.estimatedSeconds }
+        XCTAssertGreaterThan(forNext, 0.8 * built.budgetSeconds)
+        XCTAssertNil(built.catchUp, "they aren't a backlog either")
+        XCTAssertEqual(built.dueTotal, 0)
+        XCTAssertTrue(built.weakSpots.isEmpty, "nor a weak spot")
+    }
+
+    func testWithTimeLeftTheyStillComeUp() {
+        let next = UUID()
+        let over = ExamSnapshot(courseID: course, date: cal.adding(days: -1, to: now))
+        let apush = ExamSnapshot(courseID: next, date: cal.adding(days: 3, to: now))
+        let items = due(40, course: course) + due(2, course: next, recall: 0.8)
+        let built = builder(minutes: 15).build(SessionSpec(kind: .daily), items: items, exams: [over, apush], topicNames: names)
+        XCTAssertEqual(built.entries.filter { $0.courseID == next }.count, 2, "the next exam's first")
+        XCTAssertGreaterThan(built.entries.filter { $0.courseID == course && $0.reason == .due }.count, 5, "then what's left of the day")
+        XCTAssertLessThanOrEqual(built.plannedSeconds, built.budgetSeconds + 0.5)
+    }
+
+    func testWithNoExamToComeTheyAreJustReviews() {
+        let over = ExamSnapshot(courseID: course, date: cal.adding(days: -1, to: now))
+        let items = due(10, course: course)
+        let alone = builder(minutes: 15).build(SessionSpec(kind: .daily), items: items, exams: [over], topicNames: names)
+        XCTAssertEqual(alone.dueTotal, 10)
+        XCTAssertEqual(alone.reviewCount, builder(minutes: 15).build(SessionSpec(kind: .daily), items: items, topicNames: names).reviewCount)
+    }
+
+    /// A course that never had an exam isn't "over": it keeps its place among the reviews, by recall.
+    func testACourseThatNeverHadAnExamKeepsItsPlace() {
+        let spanish = UUID(), bio = UUID()
+        let midterm = ExamSnapshot(courseID: bio, date: cal.adding(days: 20, to: now))
+        let items = due(3, course: spanish, recall: 0.4) + due(3, course: bio, recall: 0.8)
+        let built = builder(minutes: 15).build(SessionSpec(kind: .daily), items: items, exams: [midterm], topicNames: names)
+        XCTAssertEqual(built.entries.filter { $0.courseID == spanish }.count, 3)
+        XCTAssertEqual(built.dueTotal, 6)
+    }
+
+    /// A quiz on one topic is over, the final on the whole course isn't: its questions are still for the final.
+    func testAQuestionStillOnALaterExamIsNotDoneWith() {
+        let quiz = ExamSnapshot(courseID: course, date: cal.adding(days: -1, to: now), scope: [topics[0]])
+        let final = ExamSnapshot(courseID: course, date: cal.adding(days: 10, to: now))
+        let built = builder(minutes: 15).build(SessionSpec(kind: .daily), items: due(5, course: course), exams: [quiz, final], topicNames: names)
+        XCTAssertEqual(built.entries.filter { $0.examID == final.id }.count, 5)
+        XCTAssertEqual(built.dueTotal, 5)
+    }
+
+    func testAMixUpOnAFinishedExamWaitsToo() {
+        let next = UUID()
+        let over = ExamSnapshot(courseID: course, date: cal.adding(days: -1, to: now))
+        let apush = ExamSnapshot(courseID: next, date: cal.adding(days: 3, to: now))
+        let old = due(4, course: course)
+        let mixUp = ConfusionSnapshot(id: UUID(), courseID: course, name: "TCP vs UDP", itemIDs: old.map(\.id), status: .open)
+        let items = old + (0..<40).map { _ in EngineTest.fresh(kind: .mcq, topic: topics[1], course: next, createdAt: cal.adding(days: -2, to: now)) }
+        let built = builder(minutes: 15).build(SessionSpec(kind: .daily), items: items, exams: [over, apush], confusions: [mixUp], topicNames: names)
+        XCTAssertTrue(built.weakSpots.isEmpty)
+        XCTAssertEqual(built.entries.filter { $0.courseID == course }.count, 0)
+    }
+
+    // MARK: Two exams on one day
+
+    /// They share the evening: one session with each exam's own weak spots, up to 10 minutes each, whichever page starts it.
+    func testExamsOnOneDayShareTheEvening() {
+        let other = UUID()
+        let a = ExamSnapshot(courseID: course, title: "Hydrology", date: cal.adding(days: 1, to: now), target: 0.9)
+        let b = ExamSnapshot(courseID: other, title: "Org Chem", date: cal.adding(days: 1, to: now).addingTimeInterval(3 * 3600), target: 0.9)
+        let later = ExamSnapshot(courseID: UUID(), title: "Later", date: cal.adding(days: 2, to: now))
+        let items = due(60, course: course) + due(60, course: other)
+        let spec = SessionSpec(kind: .examEve, examID: a.id)
+        let built = builder().build(spec, items: items, exams: [a, b, later], topicNames: names)
+        XCTAssertEqual(built.examID, a.id, "tracked under the one it started from")
+        XCTAssertEqual(built.budgetSeconds, 1200)
+        XCTAssertEqual(Set(built.entries.compactMap(\.examID)), [a.id, b.id])
+        for exam in [a, b] {
+            let seconds = built.entries.filter { $0.examID == exam.id }.reduce(0) { $0 + $1.estimatedSeconds }
+            XCTAssertGreaterThan(seconds, 300, exam.title)
+            XCTAssertLessThanOrEqual(seconds, 600, "each up to its 10 minutes")
+        }
+        XCTAssertEqual(built.tonightMinutes, built.plannedMinutes)
+        XCTAssertGreaterThan(built.tonightMinutes, 10)
+        XCTAssertNil(built.courseID, "two courses")
+        let fromTheOther = builder().build(SessionSpec(kind: .examEve, examID: b.id), items: items, exams: [a, b, later], topicNames: names)
+        XCTAssertEqual(fromTheOther.examID, b.id)
+        XCTAssertEqual(Set(fromTheOther.entries.map(\.itemID)), Set(built.entries.map(\.itemID)), "the same evening")
+        // An exam alone keeps its evening to itself.
+        let alone = builder().build(SessionSpec(kind: .examEve, examID: later.id), items: items, exams: [a, b, later], topicNames: names)
+        XCTAssertEqual(alone.budgetSeconds, 600)
+        XCTAssertLessThanOrEqual(alone.tonightMinutes, 10)
+    }
+
     func testNoTopicTwiceInARowWhenAvoidable() {
         let built = builder(minutes: 30).build(SessionSpec(kind: .daily), items: world(), topicNames: names)
         let topicsInOrder = built.entries.map(\.topicID)

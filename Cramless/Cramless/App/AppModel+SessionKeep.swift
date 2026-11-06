@@ -80,6 +80,13 @@ extension AppModel {
         return checkpoint
     }
 
+    /// The ratings a session has so far, oldest first (a session picked up shows them on its progress bar).
+    func sessionRatings(_ sessionID: UUID) -> [Rating] {
+        let id: UUID? = sessionID
+        return fetch(FetchDescriptor<ReviewLog>(predicate: #Predicate { $0.sessionID == id },
+                                                sortBy: [SortDescriptor(\.reviewedAt)])).map(\.rating)
+    }
+
     /// Everything kept here goes (deleting everything on this iPhone).
     func clearSessionKeep() {
         defaults.removeObject(forKey: AnswerDrafts.defaultsKey)

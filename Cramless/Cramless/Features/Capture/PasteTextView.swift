@@ -3,7 +3,7 @@ import SwiftUI
 /// Paste text: a title, the course, and the text itself. "Make questions" runs the capture flow on it, the same
 /// processing and review as a scanned page.
 ///
-/// DEBUG hook: `CRAMLESS_PASTE_TEXT=sample` fills in sample notes.
+/// DEBUG hook: `CRAMLESS_PASTE_TEXT=sample` fills in sample notes; `=long` about 21 pages of them, for the line on what a long reading takes.
 struct PasteTextView: View {
     let courseID: UUID?
 
@@ -11,6 +11,8 @@ struct PasteTextView: View {
     @State private var title = ""
     @State private var text = ""
     @State private var selectedCourseID: UUID?
+    /// What this text will take of the free scans, when it is long (worked out a moment after the typing stops).
+    @State private var allowance: LocalizedStringResource?
     @FocusState private var focused: Field?
 
     private enum Field { case title, text }
@@ -71,22 +73,46 @@ struct PasteTextView: View {
                 }
             }
             .safeAreaBar(edge: .bottom) {
-                Button(action: go) {
-                    Text(canGo ? "Make questions" : "Add a few sentences first")
+                VStack(spacing: 8) {
+                    if let allowance {
+                        AllowanceLine(text: allowance)
+                            .multilineTextAlignment(.center)
+                    }
+                    Button(action: go) {
+                        Text(canGo ? "Make questions" : "Add a few sentences first")
+                    }
+                    .buttonStyle(.cl(.primary))
+                    .disabled(!canGo)
                 }
-                .buttonStyle(.cl(.primary))
-                .disabled(!canGo)
                 .padding(.horizontal, CLSpace.gutter)
                 .padding(.top, 10)
+            }
+            .task(id: text) {
+                // Only a text longer than a scan's pages can take more than one: a short one isn't paginated at each keystroke.
+                guard words >= TextPaginator.wordsPerPage else {
+                    allowance = nil
+                    return
+                }
+                try? await Task.sleep(for: .milliseconds(300))
+                guard !Task.isCancelled else { return }
+                let pageWords = TextPaginator.pages(from: text).map { page in
+                    page.lines.reduce(0) { $0 + $1.text.split(whereSeparator: \.isWhitespace).count }
+                }
+                allowance = app.ai.readingAllowance(pageWords: pageWords)
             }
         }
         .presentationDragIndicator(.visible)
         .onAppear {
             if selectedCourseID == nil { selectedCourseID = app.defaultCourseID(preferring: courseID) }
             #if DEBUG
-            if TestHarness.once("CRAMLESS_PASTE_TEXT") == "sample" {
+            let debugText = TestHarness.once("CRAMLESS_PASTE_TEXT")
+            if debugText == "sample" || debugText == "long" {
                 title = "Cell division notes"
                 text = DebugCapture.notes
+                if debugText == "long" {
+                    let notesWords = max(1, words)
+                    text = Array(repeating: DebugCapture.notes, count: 21 * TextPaginator.wordsPerPage / notesWords + 1).joined(separator: "\n\n")
+                }
             }
             #endif
         }

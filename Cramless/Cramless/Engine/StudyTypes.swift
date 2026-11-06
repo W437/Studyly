@@ -62,9 +62,11 @@ struct SessionSummary: Sendable, Equatable {
     var starsRelit: Int = 0
     var starsSaved: Int = 0
 
+    /// The change as it reads beside "53% → 67%": the difference of the two rounded percentages (+14%), never a rounding of the raw gap.
     var readinessDelta: Double? {
         guard let readinessBefore, let readinessAfter else { return nil }
-        return readinessAfter - readinessBefore
+        func shown(_ value: Double) -> Int { Int((max(0, min(1, value)) * 100).rounded()) }
+        return Double(shown(readinessAfter) - shown(readinessBefore)) / 100
     }
 }
 

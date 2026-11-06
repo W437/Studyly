@@ -46,8 +46,7 @@ extension AppModel {
             items = itemSnapshots()
         }
         return SessionBuilder(settings: settings, calendar: calendar, now: now).build(
-            spec, items: items, exams: examSnapshots(upcomingOnly: true), confusions: confusionSnapshots(),
-            topicNames: topicNames())
+            spec, items: items, exams: examSnapshots(), confusions: confusionSnapshots(), topicNames: topicNames())
     }
 
     /// "Study Bio 101 · 15 min" on the course page: the daily rules limited to this course, at the whole daily goal (not what today has
@@ -87,12 +86,12 @@ extension AppModel {
         return (startSession(built), built)
     }
 
-    /// The exam a session's readiness before and after is for: its own exam, else the exam it mostly serves (`SessionFocus`: the
+    /// The exam a session's readiness before and after is for: its own exam, else the exam it serves (`SessionFocus`: the
     /// one Today's card names), else the soonest exam among the session's courses, else the soonest exam.
     func trackedExam(for built: BuiltSession) -> ExamSnapshot? {
         let exams = examSnapshots(upcomingOnly: true)
         if let id = built.examID, let exam = exams.first(where: { $0.id == id }) { return exam }
-        if let id = SessionFocus.make(built, exams: exams).examID, let exam = exams.first(where: { $0.id == id }) { return exam }
+        if let id = SessionFocus.make(built, exams: exams, now: now, calendar: calendar).examID, let exam = exams.first(where: { $0.id == id }) { return exam }
         let courses = Set(built.entries.compactMap(\.courseID))
         return exams.first { $0.courseID.map(courses.contains) ?? false } ?? exams.first
     }

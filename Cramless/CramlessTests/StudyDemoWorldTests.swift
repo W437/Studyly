@@ -143,5 +143,16 @@ final class StudyDemoWorldTests: XCTestCase {
         XCTAssertLessThan(skipped.projectedReadiness, rChem.projected, "skipping the eve costs readiness")
         XCTAssertGreaterThanOrEqual(after, rFocus.value)
         XCTAssertLessThanOrEqual(after, 1)
+
+        // The day card: the quiz in two days, though Bio has more of the session.
+        XCTAssertEqual(focus.examID, chem.id)
+        let snapshot = TodaySnapshot.make(app: app)
+        let names2 = snapshot.focus?.topics ?? []
+        XCTAssertEqual(snapshot.focus?.exam.title, "Chem 110 Quiz")
+        let input = app.todayReasonsInput()
+        XCTAssertEqual(names2.first, input.weakestName, "the title and \"Why these?\" agree on the weakest")
+        let saturdayStrip = try XCTUnwrap(snapshot.strip.first { $0.offset == 1 })
+        XCTAssertEqual(saturdayStrip.mark, .eve(minutes: saturday.shownMinutes), "the strip and the exam page's plan say one number")
+        print("\n===== DEMO CARD =====\n\(TodayHeroContent.make(snapshot).chip?.text ?? "") · \(TodayHeroContent.make(snapshot).when ?? "") · \(TodayHeroContent.make(snapshot).title) · \(pct(snapshot.focus?.exam.readiness ?? 0)) → \(pct(snapshot.focus?.forecast ?? 0)) · strip Sat \(saturdayStrip.mark)\nWhy: " + TodayReasons.make(input).map { "\($0.title) [\($0.detail ?? "")]" }.joined(separator: " | ") + "\n=====================\n")
     }
 }

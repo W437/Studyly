@@ -171,7 +171,8 @@ final class TodayTests: XCTestCase {
         world(quizIn: 2)
         let strip = TodaySnapshot.make(app: app).strip
         XCTAssertEqual(strip.map(\.offset), [-2, -1, 0, 1, 2, 3, 4])
-        XCTAssertEqual(strip[3].mark, .eve(minutes: 10))
+        let eve = try XCTUnwrap(app.examPlans().first?.days.first { $0.kind == .examEve })
+        XCTAssertEqual(strip[3].mark, .eve(minutes: eve.shownMinutes), "what the exam page's plan says about that evening")
         XCTAssertEqual(strip[3].examTitles, ["Chem 110 Quiz"])
         XCTAssertEqual(strip[4].mark, .exam(count: 1))
         XCTAssertEqual(strip[0].mark, .missed, "no record: a hollow circle")
@@ -190,8 +191,125 @@ final class TodayTests: XCTestCase {
                        "Cap is quiet tonight. Bio 101 can wait until after Chem 110 Quiz.")
         let content = TodayHeroContent.make(snapshot)
         XCTAssertEqual(content.title, "Tonight: weak spots only")
-        XCTAssertTrue(content.reason.hasPrefix("10 minutes on "), content.reason)
+        // The button, the reason and the week all say tonight's session's own minutes.
+        let built = app.buildSession(SessionRequest(kind: .examEve, examID: quiz.id))
+        XCTAssertEqual(snapshot.eveMinutes, built.plannedMinutes)
+        XCTAssertTrue((1...10).contains(snapshot.eveMinutes), "\(snapshot.eveMinutes)")
+        XCTAssertEqual(String(localized: try XCTUnwrap(content.actions.first).title), "Tonight · \(snapshot.eveMinutes) min")
+        XCTAssertTrue(content.reason.hasPrefix("\(snapshot.eveMinutes) minute"), content.reason)
+        XCTAssertEqual(snapshot.strip.first { $0.isToday }?.mark, .eve(minutes: snapshot.eveMinutes))
         XCTAssertTrue(content.when?.hasPrefix("Tomorrow · ") ?? false, content.when ?? "")
+    }
+
+    /// A quiz this week with a fifth of the session is what the day is for, however much of it goes to a midterm further off; the
+    /// session's readiness follows it.
+    func testAQuizThisWeekTakesTheCardFromABiggerMidtermFurtherOff() throws {
+        let (_, quiz, bio) = world(withBio: true)
+        let course = try XCTUnwrap(bio)
+        for i in 0..<12 {
+            let item = StudyItem(course: course, kind: .flashcard, status: .active, origin: .person, prompt: "M\(i)", answer: "A", now: clock.now)
+            item.memory = due(cal, clock.now)
+            app.context.insert(item)
+            course.items.append(item)
+        }
+        app.save()
+        let session = app.todayBuiltSession()
+        let focus = app.sessionFocus(session)
+        XCTAssertEqual(focus.examID, quiz.id)
+        let midterm = try XCTUnwrap(app.examSnapshots(upcomingOnly: true).first { $0.title == "Bio 101 Midterm" })
+        XCTAssertGreaterThan(focus.secondsByExam[midterm.id] ?? 0, focus.focusSeconds, "the midterm has more of the session")
+        XCTAssertEqual(TodaySnapshot.make(app: app).focus?.exam.id, quiz.id)
+        XCTAssertEqual(app.trackedExam(for: session)?.id, quiz.id)
+        // "Why these?" says what is true: not "a few", not "a smaller share".
+        let row = try XCTUnwrap(TodayReasons.make(app.todayReasonsInput()).first { $0.id == "alsoIn" })
+        XCTAssertEqual(row.title, "Bio 101 questions are in too", "one of them is new, so not \"because they're due\"")
+        XCTAssertEqual(row.detail, "Its exam is further off.")
+    }
+
+    /// The card's title and "Why these?" agree on what is weakest.
+    func testTheTitleLeadsWithTheTopicWhyTheseCallsWeakest() throws {
+        let (chem, _, _) = world()
+        // Moles barely remembered, Limiting reagents well: readiness says Moles, the session's own order says otherwise.
+        for item in chem.items {
+            let weak = item.topicID == chem.topics.first { $0.name == "Moles" }?.id
+            item.memory = MemoryState(state: .review, stability: weak ? 0.5 : 30, difficulty: 5, due: cal.adding(days: -1, to: clock.now),
+                                      lastReview: cal.adding(days: weak ? -4 : -2, to: clock.now), reps: 3)
+        }
+        app.save()
+        let snapshot = TodaySnapshot.make(app: app)
+        let focus = try XCTUnwrap(snapshot.focus)
+        XCTAssertEqual(focus.topics.first, "Moles")
+        XCTAssertEqual(app.todayReasonsInput().weakestName, focus.topics.first)
+        XCTAssertTrue(TodayHeroContent.make(snapshot).title.hasPrefix("Moles"))
+    }
+
+    /// Two exams tomorrow share the evening: the card names both, the session holds both, and neither "can wait" for the other.
+    func testTwoExamsTomorrowShareTheEvening() throws {
+        let (_, quiz, bio) = world(quizIn: 1, withBio: true)
+        let course = try XCTUnwrap(bio)
+        for i in 0..<6 {
+            let item = StudyItem(course: course, kind: .flashcard, status: .active, origin: .person, prompt: "M\(i)", answer: "A", now: clock.now)
+            item.memory = due(cal, clock.now)
+            app.context.insert(item)
+            course.items.append(item)
+        }
+        let midterm = try XCTUnwrap(course.exams.first)
+        midterm.date = quiz.date.addingTimeInterval(3 * 3600)
+        let third = Course(name: "AP Psychology", now: clock.now)
+        app.context.insert(third)
+        let far = Exam(course: third, title: "AP Psych Exam", date: EngineTest.date(2026, 11, 14, 9, in: cal), now: clock.now)
+        app.context.insert(far)
+        third.exams.append(far)
+        app.save()
+
+        XCTAssertEqual(app.todaySummary().examEveExamIDs, [quiz.id, midterm.id])
+        let snapshot = TodaySnapshot.make(app: app)
+        XCTAssertEqual(snapshot.hero, .examEve(quiz.id))
+        XCTAssertEqual(snapshot.eveTitle, "Chem 110 Quiz and Bio 101 Midterm")
+        XCTAssertEqual(snapshot.eveOthers, ["AP Psychology"], "Bio isn't waiting for anything")
+        XCTAssertEqual(TodayCopy.quietLine(examTitle: try XCTUnwrap(snapshot.eveTitle), others: snapshot.eveOthers),
+                       "Cap is quiet tonight. AP Psychology can wait until after Chem 110 Quiz and Bio 101 Midterm.")
+        let content = TodayHeroContent.make(snapshot)
+        XCTAssertEqual(content.chip?.text, "Chem 110 Quiz and Bio 101 Midterm")
+
+        let built = app.buildSession(SessionRequest(kind: .examEve, examID: quiz.id))
+        XCTAssertEqual(Set(built.entries.compactMap(\.examID)), [quiz.id, midterm.id], "both exams' weak spots")
+        XCTAssertEqual(snapshot.eveMinutes, built.tonightMinutes)
+
+        // Done once, from either exam's page, the evening is done for both.
+        let session = app.startSession(built)
+        for entry in built.entries { app.recordReview(itemID: entry.itemID, rating: .good, sessionID: session.id) }
+        app.finishSession(session)
+        let after = TodaySnapshot.make(app: app)
+        XCTAssertEqual(after.hero, .examEveDone(quiz.id))
+        XCTAssertEqual(TodayHeroContent.make(after).reason, "Chem 110 Quiz and Bio 101 Midterm are tomorrow. Sleep is part of studying.")
+        XCTAssertTrue(app.eveSessionDone(app.todaySummary()))
+        XCTAssertEqual(after.strip.first { $0.isToday }?.mark, .done)
+    }
+
+    /// The day after an exam the card names the next one, whatever was due on the finished one.
+    func testTheDayAfterAnExamTheSessionServesTheNext() throws {
+        let (chem, quiz, bio) = world(quizIn: 2, withBio: true)
+        let course = try XCTUnwrap(bio)
+        for i in 0..<120 {
+            let item = StudyItem(course: course, kind: .flashcard, status: .active, origin: .person, prompt: "M\(i)", answer: "A", now: clock.now)
+            app.context.insert(item)
+            course.items.append(item)
+        }
+        for i in 0..<20 {
+            let item = StudyItem(course: chem, kind: .flashcard, status: .active, origin: .person, prompt: "D\(i)", answer: "A", now: clock.now)
+            item.memory = due(cal, clock.now)
+            app.context.insert(item)
+            chem.items.append(item)
+        }
+        quiz.date = clock.now.addingTimeInterval(-3600)
+        let midterm = try XCTUnwrap(course.exams.first)
+        midterm.date = cal.adding(days: 3, to: clock.now)
+        app.save()
+        let session = app.todayBuiltSession()
+        XCTAssertEqual(session.entries.filter { $0.courseID == chem.id }.count, 0, "the quiz is over")
+        XCTAssertEqual(app.sessionFocus(session).examID, midterm.id)
+        XCTAssertEqual(TodaySnapshot.make(app: app).focus?.exam.id, midterm.id)
     }
 
     func testTheDoneCardsGainBelongsToTheExamTheSessionCountedToward() throws {
@@ -275,6 +393,19 @@ final class TodayTests: XCTestCase {
         let rows = TodayReasons.make(input)
         XCTAssertEqual(rows.first?.id, "exam")
         XCTAssertTrue(rows.contains { $0.id == "few" }, "six questions is a thin guess")
+    }
+
+    // MARK: The exams row
+
+    /// The third tile always shows at the edge of the screen, so the row says it scrolls.
+    func testTheNextTilePeeks() {
+        for width in [375.0, 393, 402, 430, 440] {
+            let tile = TodayExamsRow.tileWidth(rowWidth: width)
+            let third = CLSpace.gutter + 2 * (tile + 12)
+            XCTAssertGreaterThanOrEqual(width - third, 24, "\(width)")
+            XCTAssertLessThan(third, width)
+            XCTAssertGreaterThanOrEqual(tile, 150)
+        }
     }
 
     // MARK: Words

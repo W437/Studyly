@@ -355,5 +355,33 @@
   "%lld questions to review": {
     "one": "%lld question to review",
     "other": "%lld questions to review"
+  },
+  "%lld minutes on %@, then sleep. That's the whole plan tonight.": {
+    "value": "%#@minutes@ on %2$@, then sleep. That's the whole plan tonight.",
+    "substitutions": {
+      "minutes": {
+        "argNum": 1,
+        "one": "%arg minute",
+        "other": "%arg minutes"
+      }
+    }
+  },
+  "%lld minutes on your weak spots, then sleep. That's the whole plan tonight.": {
+    "one": "%lld minute on your weak spots, then sleep. That's the whole plan tonight.",
+    "other": "%lld minutes on your weak spots, then sleep. That's the whole plan tonight."
+  },
+  "Tonight, %lld minutes": {
+    "one": "Tonight, %lld minute",
+    "other": "Tonight, %lld minutes"
+  },
+  "You have %lld free AI scans left, so Cap reads the first %lld of %lld pages.": {
+    "value": "You have %#@scans@ left, so Cap reads the first %2$lld of %3$lld pages.",
+    "substitutions": {
+      "scans": {
+        "argNum": 1,
+        "one": "%arg free AI scan",
+        "other": "%arg free AI scans"
+      }
+    }
   }
 }
