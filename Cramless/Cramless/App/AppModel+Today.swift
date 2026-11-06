@@ -21,7 +21,7 @@ extension AppModel {
         let titles = Dictionary(examSnapshots(upcomingOnly: true).map { ($0.id, $0.title) }, uniquingKeysWith: { a, _ in a })
         let plans = examPlans().map { TodayPlanStrip.ExamPlan(title: titles[$0.examID] ?? "", days: $0.days) }
         let past = daySnapshots(since: calendar.adding(days: -TodayPlanStrip.back, to: now))
-        let done = summary.studiedToday && summary.minutesDone >= summary.minutesGoal
+        let done = (summary.studiedToday && summary.minutesDone >= summary.minutesGoal) || eveSessionDone(summary)
         return TodayPlanStrip.make(today: now, plans: plans, past: past, todayMinutes: summary.plannedMinutes, todayDone: done,
                                    goal: settings.dailyMinutes, easyDays: settings.easyDays, tonightMinutes: tonightMinutes,
                                    calendar: calendar)

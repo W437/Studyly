@@ -50,6 +50,8 @@ struct ExamDetailModel {
     var study: ExamPresentation.StudyAction?
     /// On the eve, tonight's session's own minutes (0: nothing to review): the button and the plan's "Tonight" say this number.
     var tonightMinutes: Int?
+    /// On the eve, tonight's session is finished.
+    var eveDone = false
     var skip: ExamPresentation.SkipOption?
     var result: Double?
     var readinessAtExam: Double?
@@ -96,9 +98,12 @@ struct ExamDetailModel {
         today = ExamPresentation.todayWork(entries: session.entries, sessionMinutes: summary.sessionReady ? summary.plannedMinutes : 0,
                                            exam: ExamSnapshot(exam), topicNames: app.topicNames(), studiedToday: summary.studiedToday,
                                            missedYesterday: strip.first.map { $0.kind == .missed || $0.kind == .frozen } == true)
-        if case .eve = phase { tonightMinutes = app.buildSession(SessionRequest(kind: .examEve, examID: exam.id)).tonightMinutes }
+        if case .eve = phase {
+            tonightMinutes = app.buildSession(SessionRequest(kind: .examEve, examID: exam.id)).tonightMinutes
+            eveDone = app.eveSessionDone(summary)
+        }
         study = ExamPresentation.studyAction(phase: phase, today: today, weakest: topics.first { $0.isWeakest }, courseName: course.name,
-                                             eveMinutes: tonightMinutes ?? SessionBuilder.examEveMinutes)
+                                             eveMinutes: tonightMinutes ?? SessionBuilder.examEveMinutes, eveDone: eveDone)
         skip = ExamPresentation.skipOption(plan: plan, phase: phase, calendar: app.calendar)
         result = exam.resultScore
         readinessAtExam = exam.readinessAtExam
@@ -317,7 +322,7 @@ private struct ExamDetailContent: View {
         ExamPresentation.projection(phase: model.phase, plan: shownSkipPlan ?? model.plan, questionCount: model.readiness.itemsInScope,
                                     weakestTopic: model.topics.first { $0.isWeakest }?.name,
                                     grade: model.readiness.projectedGrade, examDate: model.date, now: model.now,
-                                    calendar: model.calendar, skipping: shownSkipPlan == nil ? nil : model.skip)
+                                    calendar: model.calendar, skipping: shownSkipPlan == nil ? nil : model.skip, eveDone: model.eveDone)
     }
 
     private func projectionCard(_ p: ExamPresentation.Projection) -> some View {
@@ -487,7 +492,7 @@ private struct ExamDetailContent: View {
         let stops = ExamPresentation.stops(plan: shownSkipPlan ?? model.plan, phase: model.phase, examTitle: model.title,
                                            examDate: model.date, today: model.today,
                                            skipped: shownSkipPlan == nil ? nil : model.skip?.offset,
-                                           tonightMinutes: model.tonightMinutes, now: model.now, calendar: model.calendar)
+                                           tonightMinutes: model.tonightMinutes, eveDone: model.eveDone, now: model.now, calendar: model.calendar)
         if !stops.isEmpty, model.readiness.itemsInScope > 0 {
             CLSectionHeader(title: "The plan", actionTitle: "Adjust") { app.router.push(.settingsPage(.study)) }
             ExamPlanPath(stops: stops, skip: model.skip, skipping: shownSkipPlan != nil, cost: skipCost) { toggleSkip() }

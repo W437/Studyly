@@ -81,7 +81,7 @@ final class TodayPlanStripTests: XCTestCase {
         seconds.days[1].seconds = 70
         XCTAssertEqual(make([seconds])[3].mark, .eve(minutes: seconds.days[1].shownMinutes))
         XCTAssertEqual(make([seconds])[3].mark, .eve(minutes: 1), "as the plan's stop rounds it")
-        XCTAssertEqual(make([plan("A", examIn: 3, eve: 4), plan("B", examIn: 3, eve: 7)])[4].mark, .eve(minutes: 7), "two eves: the longer")
+        XCTAssertEqual(make([plan("A", examIn: 3, eve: 4), plan("B", examIn: 3, eve: 7)])[4].mark, .eve(minutes: 11), "two exams share one evening")
     }
 
     /// Tonight, the session that is really built says the minutes (the card's button and the plan's "Tonight" say the same).
@@ -103,7 +103,18 @@ final class TodayPlanStripTests: XCTestCase {
         let week = make([plan("Chem 110 Quiz", examIn: 3), plan("Bio 101 Quiz", examIn: 3)])
         XCTAssertEqual(week[5].mark, .exam(count: 2))
         XCTAssertEqual(week[5].examTitles, ["Chem 110 Quiz", "Bio 101 Quiz"])
-        XCTAssertEqual(week[4].mark, .eve(minutes: 10))
+        XCTAssertEqual(week[4].mark, .eve(minutes: 20), "each with its own 10")
+        XCTAssertEqual(week[4].examTitles, ["Chem 110 Quiz", "Bio 101 Quiz"])
+    }
+
+    /// Today says the session really planned, whatever yesterday's strip said of it; the days ahead keep the goal as a floor.
+    func testTodayIsTheRealSessionAndTheDaysAheadKeepTheGoalAsAFloor() {
+        let week = make([plan("Final", examIn: 10, session: 6)], todayMinutes: 11, goal: 25)
+        XCTAssertEqual(week[2].mark, .minutes(11))
+        XCTAssertEqual(week[3].mark, .minutes(25))
+        let nothing = make([], todayMinutes: 0)[2]
+        XCTAssertEqual(TodayCopy.stripCaption(nothing), "", "no session yet: no minutes")
+        XCTAssertEqual(TodayCopy.stripDay(nothing, calendar: cal), "Today: nothing planned")
     }
 
     func testAnEasyDayPlansHalfTheGoalUnlessAnExamNeedsMore() {

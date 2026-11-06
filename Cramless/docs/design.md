@@ -267,7 +267,8 @@ same sky, taken apart.
   them in a sheet.
 - **Cap noticed** (`TodayNoticeCard`, `CapNotice`): one card at a time with "1 of N", its action ("Fix it · 2 min") and Later
   (until tomorrow, with a toast). In Stage 1 the cards are today's open mix-ups; Stage 2's notice engine deals them. On an exam's
-  eve the slot is his quiet line instead: "Cap is quiet tonight. Bio 101 and AP Psychology can wait until after Chem 110 Quiz."
+  eve the slot is his quiet line instead: "Cap is quiet tonight. Bio 101 and AP Psychology can wait until after Chem 110 Quiz." Two exams on one day share the evening: one
+  session, both named, and neither waits.
 - **Exams** (`TodayExamsRow`): tiles in a row, two and the edge of the next on any phone (a 46 pt ring, the name, when, rose within three days, "+15% this week" with an
   arrow), "See all" to the Progress tab. With material and no exam: "When is your next exam?" and "Add an exam" (the editor asks
   for a course's name when there is none). Hidden on the eve.

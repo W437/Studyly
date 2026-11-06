@@ -21,7 +21,7 @@ extension AppModel {
         let exams = examSnapshots(upcomingOnly: true)
         let built = SessionBuilder(settings: settings, calendar: calendar, now: now).build(
             SessionSpec(kind: .daily, minutes: dailyBudgetMinutes(done: minutesDone)),
-            items: itemSnapshots(), exams: exams, confusions: confusionSnapshots(), topicNames: topicNames())
+            items: itemSnapshots(), exams: examSnapshots(), confusions: confusionSnapshots(), topicNames: topicNames())
         var summary = TodaySummary(minutesGoal: settings.dailyMinutes, minutesDone: minutesDone,
                                    plannedMinutes: built.plannedMinutes, reviews: built.reviewCount,
                                    newItems: built.newCount, weakSpots: built.weakSpots.count,
@@ -29,7 +29,8 @@ extension AppModel {
                                    sessionReady: !built.isEmpty, catchUp: built.catchUp != nil)
         summary.dueTotal = built.dueTotal
         summary.catchUpDaysToClear = built.catchUp?.daysToClear ?? 0
-        summary.examEveExamID = exams.first { calendar.dayDistance(from: now, to: $0.date) == 1 }?.id
+        summary.examEveExamIDs = exams.filter { calendar.dayDistance(from: now, to: $0.date) == 1 }.map(\.id)
+        summary.examEveExamID = summary.examEveExamIDs.first
         return (summary, built)
     }
 
@@ -205,23 +206,13 @@ extension AppModel {
         let firstLooks = fetch(FetchDescriptor<ReviewLog>(predicate: #Predicate {
             $0.reviewedAt >= since && $0.stateBeforeRaw == newState
         }))
-        var success = 0.75
-        if firstLooks.count >= 20 {
-            let good = firstLooks.filter { $0.ratingRaw >= Rating.hard.rawValue }.count
-            success = Double(good) / Double(firstLooks.count)
-        }
+        let right = firstLooks.filter { $0.ratingRaw >= Rating.hard.rawValue }.count
         let windowStart = calendar.adding(days: -14, to: calendar.startOfDay(for: now))
         let records = fetch(FetchDescriptor<DayRecord>(predicate: #Predicate { $0.day >= windowStart }))
             .filter { calendar.dayDistance(from: $0.day, to: now) >= 1 }
-        var adherence = 0.8
-        if let first = records.map(\.day).min() {
-            let span = min(14, calendar.dayDistance(from: first, to: now))
-            if span >= 7 {
-                let studied = records.filter { $0.sessions > 0 }.count
-                adherence = Double(studied) / Double(span)
-            }
-        }
-        return (min(0.95, max(0.4, success)), min(0.95, max(0.5, adherence)))
+        let span = records.map(\.day).min().map { min(14, calendar.dayDistance(from: $0, to: now)) } ?? 0
+        return (StudyHabits.firstLookSuccess(right: right, looks: firstLooks.count),
+                StudyHabits.followThrough(studied: records.filter { $0.sessions > 0 }.count, span: span))
     }
 
     // MARK: Courses

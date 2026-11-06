@@ -53,7 +53,7 @@ DERIVED=build-x scripts/xc.sh build                   # another derived-data fol
       every card state in `build/review/s1-today/render/`, and the SE fit), `HeroWorldTests`, `HeroRefreshTests`, `WelcomeSkyTests`. The memory sky: `SkyEngineTests`,
       `SkyViewTests`, `SkyDerivedTests`, `SkyAppModelTests`.
     - A session and the engines (`Engine/`): `SessionTests`, `SessionFeelTests`, `EngineFSRSTests`, `EngineSchedulerTests`,
-      `EngineSessionBuilderTests`, `EngineReadinessTests`, `EngineStreakTests`.
+      `EngineSessionBuilderTests`, `EngineSessionFocusTests`, `EngineStudyHabitsTests`, `EngineReadinessTests`, `EngineStreakTests`.
     - The game loop (quests, badges, skies, icons, celebrations): `GameEngineTests`, `GameAppModelTests`, `GameRenderTests`,
       `CelebrationTests`. Cap and the feel: `CapClipTests`, `CapTouchTests`, `FeelTests`.
     - Progress, exams, library: `ProgressPresentationTests`, `ExamPresentationTests`, `Library*Tests`, `DraftTests`,
@@ -169,8 +169,8 @@ sleep 4; xcrun simctl io <udid> screenshot shot.png
   (`TEST_RUNNER_CRAMLESS_STOREKIT_TESTS=1`): they can leave a "Sign in to Apple Account" prompt on a simulator until
   it's erased.
 - Screen states (each documented beside its view):
-  - Today: `CRAMLESS_TODAY=catchup|partway|split|noExam|examEve|eveDone|done|caughtUp|noMaterial|empty` (`split`: the session
-    serves no one exam, so no chip; `noExam`: no exams at all; `done` also fills the done card's exam, +10%);
+  - Today: `CRAMLESS_TODAY=catchup|partway|split|noExam|examEve|twoEves|eveDone|done|caughtUp|noMaterial|empty` (`split`: the session
+    serves no one exam, so no chip; `noExam`: no exams at all; `twoEves`: the first two exams share tomorrow; `done` also fills the done card's exam, +10%);
     `CRAMLESS_TODAY_NOTICES=0|1|2|3` deals that many of Cap's cards; `CRAMLESS_TODAY_WHY=<ms>`, `CRAMLESS_TODAY_QUESTS=<ms>` open
     "Why these?" and the quests sheet, `CRAMLESS_TODAY_LATER=<ms>` presses Cap's "Later", each that long after launch;
     `CRAMLESS_TODAY_SCROLL=1` scrolls down to the exams row and back (for a film); `CRAMLESS_TODAY_OPEN=<ms>` opens the sky that
@@ -205,7 +205,7 @@ sleep 4; xcrun simctl io <udid> screenshot shot.png
     `CRAMLESS_FIRSTSET=choose|processing|review` (with `CRAMLESS_ROUTE=scanner`).
   - Capture: `CRAMLESS_CAPTURE_PHASE=reading|ideas|writing|checking|done|review|error:<kind>`,
     `CRAMLESS_CAPTURE_INPUT=photo|text`, `CRAMLESS_REVIEW_EDIT|UNTICK|SCROLL|PEEK|APPROVE|ALLOW`,
-    `CRAMLESS_RECORD_FLAG|PAUSE|STOP`, `CRAMLESS_NOTES_FOCUS`, `CRAMLESS_IMPORT`, `CRAMLESS_PASTE_TEXT`,
+    `CRAMLESS_RECORD_FLAG|PAUSE|STOP`, `CRAMLESS_NOTES_FOCUS`, `CRAMLESS_IMPORT`, `CRAMLESS_PASTE_TEXT` (`sample`, or `long`: about 21 pages),
     `CRAMLESS_CANVAS=375x667` (SE size).
   - Library and exams: `CRAMLESS_SCENARIO=eve|past|graded|missed|repair|thin|calibrated|ontrack|crowded|empty` (each documented in
     `AppModel.applyHarnessScenario`; `calibrated` logs two past grades so the letter shows), `CRAMLESS_SCROLL=<section>`,

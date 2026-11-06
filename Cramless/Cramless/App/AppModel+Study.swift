@@ -44,8 +44,7 @@ extension AppModel {
             items = itemSnapshots()
         }
         return SessionBuilder(settings: settings, calendar: calendar, now: now).build(
-            spec, items: items, exams: examSnapshots(upcomingOnly: true), confusions: confusionSnapshots(),
-            topicNames: topicNames())
+            spec, items: items, exams: examSnapshots(), confusions: confusionSnapshots(), topicNames: topicNames())
     }
 
     /// Starts a session: inserts its StudySession (with readiness before, for the exam it counts toward) and

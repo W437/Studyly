@@ -399,6 +399,25 @@ final class StudyAppModelTests: XCTestCase {
         XCTAssertEqual(app.trackedExam(for: eve)?.id, midterm.id)
     }
 
+    /// Follow-through moves a little each day with the record: no day where it jumps from a default to the student's own figure.
+    func testHabitsMoveWithTheRecordWithoutASuddenJump() throws {
+        makeCourse()
+        XCTAssertEqual(app.studyHabits().adherence, StudyHabits.followThroughPrior, accuracy: 1e-9, "no record, no mark against them")
+        XCTAssertEqual(app.studyHabits().newItemSuccess, StudyHabits.firstLookPrior, accuracy: 1e-9)
+        var previous = app.studyHabits().adherence
+        var pattern = Array("ssxsxsssxssxss").makeIterator()
+        for _ in 0..<14 {
+            let today = app.dayRecord(for: clock.now)
+            if pattern.next() == "s" { today.sessions = 1 }
+            app.save()
+            clock.advance(86_400)
+            let now = app.studyHabits().adherence
+            XCTAssertLessThan(abs(now - previous), 0.125, "a step of \(now - previous)")
+            previous = now
+        }
+        XCTAssertLessThan(previous, 0.95, "a student who skips comes down")
+    }
+
     func testNextExamIsTheSoonestStillToCome() throws {
         let course = makeCourse()
         let other = makeCourse("Chem 110")

@@ -137,8 +137,10 @@ enum TodayCopy {
         return String(localized: "Nothing due right now. A short practice on \(topic) keeps it fresh.")
     }
 
-    /// "Chem 110 Quiz is tomorrow. Sleep is part of studying." (with its time once tonight's session is done).
-    static func eveRest(title: String, time: String?) -> String {
+    /// "Chem 110 Quiz is tomorrow. Sleep is part of studying." (with its time once tonight's session is done). `several`: `title` names
+    /// the exams sharing the evening.
+    static func eveRest(title: String, several: Bool = false, time: String?) -> String {
+        if several { return String(localized: "\(title) are tomorrow. Sleep is part of studying.") }
         guard let time else { return String(localized: "\(title) is tomorrow. Sleep is part of studying.") }
         return String(localized: "\(title) is tomorrow at \(time). Sleep is part of studying.")
     }
@@ -164,7 +166,7 @@ enum TodayCopy {
         switch day.mark {
         case .studied, .frozen, .missed: return ""
         case .done: return String(localized: "Done")
-        case .eve(0): return ""
+        case .minutes(0), .eve(0): return ""
         case .minutes(let m), .eve(let m): return String(localized: "\(m)m")
         case .exam: return String(localized: "Exam")
         }
@@ -181,6 +183,7 @@ enum TodayCopy {
         case .frozen: what = String(localized: "covered by a freeze")
         case .missed: what = String(localized: "not studied")
         case .done: what = String(localized: "done")
+        case .minutes(0): what = String(localized: "nothing planned")
         case .minutes(let m): what = String(localized: "\(m) minutes planned")
         case .eve(0):
             what = String(localized: "the night before \(day.examTitles.formatted(.list(type: .and)))")
@@ -206,7 +209,8 @@ enum TodayCopy {
     /// "1 of 2" over Cap's card.
     static func noticeCount(_ index: Int, of total: Int) -> String { String(localized: "\(index) of \(total)") }
 
-    /// The eve's quiet line in Cap's place: the other exams wait. `others` are the other courses, soonest first.
+    /// The eve's quiet line in Cap's place: the other exams wait. `examTitle` names tonight's exams, all of them; `others` are the other
+    /// courses, soonest first.
     static func quietLine(examTitle: String, others: [String]) -> String {
         let quiet = String(localized: "Cap is quiet tonight.")
         switch others.count {

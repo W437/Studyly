@@ -148,12 +148,13 @@ struct TodayHeroContent: Equatable, Sendable {
 
         case .examEve(let id):
             let exam = snapshot.exams.first { $0.id == id }
-            let title = exam?.title ?? String(localized: "Your exam")
+            let title = snapshot.eveTitle ?? exam?.title ?? String(localized: "Your exam")
+            let several = snapshot.eveExams.count > 1
             let chip = Chip(text: title, symbol: "moon.stars.fill", tone: .eve)
             guard snapshot.eveHasWork else {
                 return TodayHeroContent(
                     cap: .asleep, sky: .regionLit(id), twinkles: false, chip: chip, when: exam?.when,
-                    title: String(localized: "Nothing left to review tonight"), reason: TodayCopy.eveRest(title: title, time: nil))
+                    title: String(localized: "Nothing left to review tonight"), reason: TodayCopy.eveRest(title: title, several: several, time: nil))
             }
             return TodayHeroContent(
                 cap: .watchingTheSky, sky: .regionLit(id), chip: chip, when: exam?.when,
@@ -163,12 +164,13 @@ struct TodayHeroContent: Equatable, Sendable {
 
         case .examEveDone(let id):
             let exam = snapshot.exams.first { $0.id == id }
-            let title = exam?.title ?? String(localized: "Your exam")
-            let time = exam.map { $0.date.formatted(.dateTime.hour().minute()) }
+            let title = snapshot.eveTitle ?? exam?.title ?? String(localized: "Your exam")
+            let several = snapshot.eveExams.count > 1
+            let time = several ? nil : exam.map { $0.date.formatted(.dateTime.hour().minute()) }
             return TodayHeroContent(
                 cap: .asleep, sky: .regionLit(id), twinkles: false,
                 chip: Chip(text: title, symbol: "moon.stars.fill", tone: .eve), when: exam?.when,
-                title: String(localized: "That's enough for tonight"), reason: TodayCopy.eveRest(title: title, time: time))
+                title: String(localized: "That's enough for tonight"), reason: TodayCopy.eveRest(title: title, several: several, time: time))
 
         case .done:
             let extra = summary.sessionReady

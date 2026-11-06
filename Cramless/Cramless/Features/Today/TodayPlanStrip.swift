@@ -68,7 +68,8 @@ enum TodayPlanStrip {
                 case .exam: examDays[offset, default: []].append(plan.title)
                 case .examEve:
                     eves[offset, default: []].append(plan.title)
-                    eveMinutes[offset] = max(eveMinutes[offset] ?? 0, day.shownMinutes)
+                    // Exams on one day share one evening, each with its own minutes.
+                    eveMinutes[offset, default: 0] += day.shownMinutes
                 case .study, .light, .rest:
                     if !day.isSkipped { busiest[offset] = max(busiest[offset] ?? 0, day.sessionMinutes) }
                 }

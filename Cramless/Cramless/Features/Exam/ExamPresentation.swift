@@ -266,9 +266,10 @@ enum ExamPresentation {
     }
 
     /// The projection for an exam still to come. `plan` is the exam's shared plan, or its what-if plan with `skipping` (the day
-    /// skipped). `weakestTopic`: the weakest topic under the goal with questions. Nil on exam day and after.
+    /// skipped). `weakestTopic`: the weakest topic under the goal with questions. `eveDone`: tonight's session is finished, so the
+    /// sentence is the rest, not what tonight will add. Nil on exam day and after.
     static func projection(phase: Phase, plan: StudyPlan, questionCount: Int, weakestTopic: String?, grade: ProjectedGrade?,
-                           examDate: Date, now: Date, calendar: Calendar, skipping: SkipOption? = nil) -> Projection? {
+                           examDate: Date, now: Date, calendar: Calendar, skipping: SkipOption? = nil, eveDone: Bool = false) -> Projection? {
         switch phase {
         case .today, .past: return nil
         case .ahead, .eve: break
@@ -295,6 +296,13 @@ enum ExamPresentation {
         }
         if case .eve = phase {
             let morning = calendar.component(.hour, from: examDate) < 12
+            if eveDone {
+                let ready = CLFormat.percent(plan.currentReadiness)
+                result.sentence = morning
+                    ? String(localized: "That's enough for tonight. You're about \(ready) ready for tomorrow morning.")
+                    : String(localized: "That's enough for tonight. You're about \(ready) ready for tomorrow.")
+                return result
+            }
             result.sentence = morning
                 ? String(localized: "Tonight's weak spots take you to about \(projected) by tomorrow morning.")
                 : String(localized: "Tonight's weak spots take you to about \(projected) by tomorrow.")
@@ -340,9 +348,21 @@ enum ExamPresentation {
         var studiedToday: Bool
         /// Yesterday wasn't studied while the exam was set: today picks up its reviews.
         var missedYesterday: Bool
+        /// The session's planned seconds (0: not known, and `sessionMinutes` stands in).
+        var sessionSeconds: Double = 0
+
+        /// About all of the session is for this exam: at 90% or more, saying "11 of the 12 minutes" only shows two ways of rounding.
+        var isWholeSession: Bool {
+            let total = sessionSeconds > 0 ? sessionSeconds : Double(sessionMinutes * 60)
+            return total > 0 && examSeconds >= Self.wholeShare * total
+        }
+        static let wholeShare = 0.9
 
         /// "About 4" of the session's minutes.
-        var examMinutes: Int { examSeconds > 0 ? max(1, Int((examSeconds / 60).rounded())) : 0 }
+        var examMinutes: Int {
+            guard examSeconds > 0 else { return 0 }
+            return isWholeSession ? sessionMinutes : max(1, Int((examSeconds / 60).rounded()))
+        }
     }
 
     /// Today's share for `exam`: the session's questions it covers (by topic and course, so an exam shares the questions a sooner
@@ -362,7 +382,7 @@ enum ExamPresentation {
             byTopic[a.element]! != byTopic[b.element]! ? byTopic[a.element]! > byTopic[b.element]! : a.offset < b.offset
         }.compactMap { topicNames[$0.element] }
         return TodayWork(sessionMinutes: sessionMinutes, examSeconds: seconds, topics: topics, studiedToday: studiedToday,
-                         missedYesterday: missedYesterday)
+                         missedYesterday: missedYesterday, sessionSeconds: entries.reduce(0) { $0 + $1.estimatedSeconds })
     }
 
     /// The page's main button: the day's session ("Study · 15 min"), tonight's on the eve, or a practice round once today is done.
@@ -382,12 +402,13 @@ enum ExamPresentation {
     }
 
     /// `eveMinutes`: the eve session built for tonight (`BuiltSession.tonightMinutes`); with 0 there is nothing to review and no button.
+    /// `eveDone`: tonight's session is finished, and no button either.
     static func studyAction(phase: Phase, today: TodayWork, weakest: TopicRow?, courseName: String,
-                            eveMinutes: Int = SessionBuilder.examEveMinutes) -> StudyAction? {
+                            eveMinutes: Int = SessionBuilder.examEveMinutes, eveDone: Bool = false) -> StudyAction? {
         switch phase {
         case .today, .past: return nil
         case .eve:
-            guard eveMinutes > 0 else { return nil }
+            guard eveMinutes > 0, !eveDone else { return nil }
             return StudyAction(kind: .examEve, title: String(localized: "Tonight · \(eveMinutes) min"),
                                subline: String(localized: "About \(eveMinutes) minutes on what you're shakiest on. Then stop: sleep does the rest."))
         case .ahead: break
@@ -396,7 +417,7 @@ enum ExamPresentation {
             let subline: String
             if today.examSeconds <= 0 {
                 subline = String(localized: "Today's session is for your other exams.")
-            } else if today.examMinutes >= today.sessionMinutes {
+            } else if today.isWholeSession {
                 subline = String(localized: "The whole session is for this exam.")
             } else {
                 subline = String(localized: "About \(today.examMinutes) of the \(today.sessionMinutes) minutes are for this exam.")
@@ -472,9 +493,9 @@ enum ExamPresentation {
 
     /// The plan as stops. Within `nearDays`: today, each later study day, the eve, the exam. Further: today, "Then about N min a day
     /// until <date>", the eve, the exam. A skipped day (the what-if) shows as its own stop. `tonightMinutes`: on the eve, the session
-    /// built for tonight, so the "Tonight" stop and the button say one number (0: nothing to review).
+    /// built for tonight, so the "Tonight" stop and the button say one number (0: nothing to review). `eveDone`: tonight's session is finished.
     static func stops(plan: StudyPlan, phase: Phase, examTitle: String, examDate: Date, today: TodayWork, skipped: Int?,
-                      tonightMinutes: Int? = nil, now: Date, calendar: Calendar) -> [Stop] {
+                      tonightMinutes: Int? = nil, eveDone: Bool = false, now: Date, calendar: Calendar) -> [Stop] {
         switch phase {
         case .today, .past: return []
         case .ahead, .eve: break
@@ -491,10 +512,14 @@ enum ExamPresentation {
         if case .eve = phase {
             let eve = plan.days.first { $0.kind == .examEve }
             let tonight = tonightMinutes ?? minutes(eve?.seconds ?? PlanBuilder.examEveSeconds)
-            stops.append(tonight > 0
-                         ? Stop(id: "eve", kind: .eve, title: String(localized: "Tonight · about \(tonight) min"), detail: eveLine)
-                         : Stop(id: "eve", kind: .eve, title: String(localized: "Tonight · nothing to review"),
-                                detail: String(localized: "Sleep is part of studying.")))
+            if eveDone {
+                stops.append(Stop(id: "eve", kind: .eve, title: String(localized: "Tonight · done"), detail: String(localized: "Sleep is part of studying.")))
+            } else if tonight > 0 {
+                stops.append(Stop(id: "eve", kind: .eve, title: String(localized: "Tonight · about \(tonight) min"), detail: eveLine))
+            } else {
+                stops.append(Stop(id: "eve", kind: .eve, title: String(localized: "Tonight · nothing to review"),
+                                  detail: String(localized: "Sleep is part of studying.")))
+            }
         } else {
             let todayStop: Stop
             if today.sessionMinutes > 0 {
@@ -539,11 +564,15 @@ enum ExamPresentation {
                 let middle = later.filter { $0.kind != .examEve }
                 if let off = middle.first(where: { $0.isSkipped || $0.offset == skipped }) { stops.append(dayStop(off)) }
                 let span = middle.filter { !($0.isSkipped || $0.offset == skipped) }
-                let total = span.reduce(0) { $0 + $1.seconds }
+                let working = span.filter { $0.seconds > 0 }
+                let total = working.reduce(0) { $0 + $1.seconds }
                 if let last = span.last, total > 0 {
-                    let perDay = minutes(total / Double(span.count))
-                    stops.append(Stop(id: "span", kind: .span,
-                                      title: String(localized: "Then about \(perDay) min a day until \(LibraryFormat.shortDate(last.date, calendar: calendar))")))
+                    // The average of the days that have work; with days off between them, it says so.
+                    let perDay = minutes(total / Double(working.count))
+                    let until = LibraryFormat.shortDate(last.date, calendar: calendar)
+                    let title = working.count == span.count ? String(localized: "Then about \(perDay) min a day until \(until)")
+                        : String(localized: "Then about \(perDay) min on study days until \(until)")
+                    stops.append(Stop(id: "span", kind: .span, title: title))
                 }
                 if let eve = later.first(where: { $0.kind == .examEve }) { stops.append(dayStop(eve)) }
             }

@@ -243,6 +243,75 @@ final class TodayTests: XCTestCase {
         XCTAssertTrue(TodayHeroContent.make(snapshot).title.hasPrefix("Moles"))
     }
 
+    /// Two exams tomorrow share the evening: the card names both, the session holds both, and neither "can wait" for the other.
+    func testTwoExamsTomorrowShareTheEvening() throws {
+        let (_, quiz, bio) = world(quizIn: 1, withBio: true)
+        let course = try XCTUnwrap(bio)
+        for i in 0..<6 {
+            let item = StudyItem(course: course, kind: .flashcard, status: .active, origin: .person, prompt: "M\(i)", answer: "A", now: clock.now)
+            item.memory = due(cal, clock.now)
+            app.context.insert(item)
+            course.items.append(item)
+        }
+        let midterm = try XCTUnwrap(course.exams.first)
+        midterm.date = quiz.date.addingTimeInterval(3 * 3600)
+        let third = Course(name: "AP Psychology", now: clock.now)
+        app.context.insert(third)
+        let far = Exam(course: third, title: "AP Psych Exam", date: EngineTest.date(2026, 11, 14, 9, in: cal), now: clock.now)
+        app.context.insert(far)
+        third.exams.append(far)
+        app.save()
+
+        XCTAssertEqual(app.todaySummary().examEveExamIDs, [quiz.id, midterm.id])
+        let snapshot = TodaySnapshot.make(app: app)
+        XCTAssertEqual(snapshot.hero, .examEve(quiz.id))
+        XCTAssertEqual(snapshot.eveTitle, "Chem 110 Quiz and Bio 101 Midterm")
+        XCTAssertEqual(snapshot.eveOthers, ["AP Psychology"], "Bio isn't waiting for anything")
+        XCTAssertEqual(TodayCopy.quietLine(examTitle: try XCTUnwrap(snapshot.eveTitle), others: snapshot.eveOthers),
+                       "Cap is quiet tonight. AP Psychology can wait until after Chem 110 Quiz and Bio 101 Midterm.")
+        let content = TodayHeroContent.make(snapshot)
+        XCTAssertEqual(content.chip?.text, "Chem 110 Quiz and Bio 101 Midterm")
+
+        let built = app.buildSession(SessionRequest(kind: .examEve, examID: quiz.id))
+        XCTAssertEqual(Set(built.entries.compactMap(\.examID)), [quiz.id, midterm.id], "both exams' weak spots")
+        XCTAssertEqual(snapshot.eveMinutes, built.tonightMinutes)
+
+        // Done once, from either exam's page, the evening is done for both.
+        let session = app.startSession(built)
+        for entry in built.entries { app.recordReview(itemID: entry.itemID, rating: .good, sessionID: session.id) }
+        app.finishSession(session)
+        let after = TodaySnapshot.make(app: app)
+        XCTAssertEqual(after.hero, .examEveDone(quiz.id))
+        XCTAssertEqual(TodayHeroContent.make(after).reason, "Chem 110 Quiz and Bio 101 Midterm are tomorrow. Sleep is part of studying.")
+        XCTAssertTrue(app.eveSessionDone(app.todaySummary()))
+        XCTAssertEqual(after.strip.first { $0.isToday }?.mark, .done)
+    }
+
+    /// The day after an exam the card names the next one, whatever was due on the finished one.
+    func testTheDayAfterAnExamTheSessionServesTheNext() throws {
+        let (chem, quiz, bio) = world(quizIn: 2, withBio: true)
+        let course = try XCTUnwrap(bio)
+        for i in 0..<120 {
+            let item = StudyItem(course: course, kind: .flashcard, status: .active, origin: .person, prompt: "M\(i)", answer: "A", now: clock.now)
+            app.context.insert(item)
+            course.items.append(item)
+        }
+        for i in 0..<20 {
+            let item = StudyItem(course: chem, kind: .flashcard, status: .active, origin: .person, prompt: "D\(i)", answer: "A", now: clock.now)
+            item.memory = due(cal, clock.now)
+            app.context.insert(item)
+            chem.items.append(item)
+        }
+        quiz.date = clock.now.addingTimeInterval(-3600)
+        let midterm = try XCTUnwrap(course.exams.first)
+        midterm.date = cal.adding(days: 3, to: clock.now)
+        app.save()
+        let session = app.todayBuiltSession()
+        XCTAssertEqual(session.entries.filter { $0.courseID == chem.id }.count, 0, "the quiz is over")
+        XCTAssertEqual(app.sessionFocus(session).examID, midterm.id)
+        XCTAssertEqual(TodaySnapshot.make(app: app).focus?.exam.id, midterm.id)
+    }
+
     func testTheDoneCardsGainBelongsToTheExamTheSessionCountedToward() throws {
         let (chem, quiz, _) = world(withBio: true)
         let (session, built) = app.startSession(SessionRequest(kind: .daily))
