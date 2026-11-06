@@ -18,6 +18,16 @@
         }
       }
     },
+    "%@ %lld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ %2$lld"
+          }
+        }
+      }
+    },
     "%@ (new)" : {},
     "%@ Midterm" : {},
     "%@ at %@" : {
@@ -144,6 +154,7 @@
     },
     "%@ made from it" : {},
     "%@ questions" : {},
+    "%@ ready" : {},
     "%@ ready now" : {},
     "%@ saved.%@" : {
       "localizations" : {
@@ -156,7 +167,6 @@
       }
     },
     "%@ so far" : {},
-    "%@ studied" : {},
     "%@ this week" : {},
     "%@ to review" : {},
     "%@ today" : {},
@@ -350,6 +360,28 @@
                 "stringUnit" : {
                   "state" : "translated",
                   "value" : "%lld days in a row"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld days studied" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld day studied"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld days studied"
                 }
               }
             }
@@ -1270,6 +1302,28 @@
         }
       }
     },
+    "%lld questions to review" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld question to review"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld questions to review"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "%lld questions you're about to forget, and %lld new ones." : {
       "localizations" : {
         "en" : {
@@ -1761,6 +1815,7 @@
     "Aha… no. Hold on." : {},
     "Ahh. Tea time." : {},
     "All" : {},
+    "All %lld" : {},
     "All caught up" : {},
     "All courses" : {},
     "All four seats are taken. Remove a member to invite someone new." : {},
@@ -2176,7 +2231,6 @@
     },
     "Confetti is free. Take some." : {},
     "Constellation spotted." : {},
-    "Constellations" : {},
     "Continue" : {},
     "Continue free" : {},
     "Copied" : {},
@@ -2500,6 +2554,7 @@
     "How repairs work" : {},
     "How sure you'll be" : {},
     "How well did you know it?" : {},
+    "How you remember" : {},
     "Hum hum. Okay, ready." : {},
     "Hydration station: you." : {},
     "I already have an account" : {},
@@ -2546,7 +2601,6 @@
     "I've pencilled in a nap, too." : {},
     "Import" : {},
     "Import %@" : {},
-    "Import a deck" : {},
     "Import cards" : {},
     "Import from" : {},
     "Import from Anki" : {},
@@ -2644,6 +2698,7 @@
     "Key ideas" : {},
     "Key terms" : {},
     "Labels" : {},
+    "Last 12 weeks" : {},
     "Last 12 weeks of studying" : {},
     "Last mock: %@ on %@" : {
       "localizations" : {
@@ -2722,7 +2777,6 @@
     "Looking at the calendar" : {},
     "Lunch for the brain?" : {},
     "Made for students 13 and up. Your notes are never used to train AI models." : {},
-    "Make a card" : {},
     "Make a wish. Then a review." : {},
     "Make cards from this chat" : {},
     "Make cards yourself" : {},
@@ -2769,13 +2823,13 @@
     "Maya's four courses, exams and history" : {},
     "Meet 5 new questions" : {},
     "Members" : {},
-    "Memory" : {},
     "Memory sky" : {},
     "Mic drop? Gently." : {},
     "Microphone lost" : {},
     "Midterm" : {},
     "Midterm in 23 days" : {},
     "Milestones" : {},
+    "Milestones and how freezes work" : {},
     "Minutes" : {},
     "Missed %@ · %@ · a 2-minute fix" : {
       "localizations" : {
@@ -2819,6 +2873,7 @@
     "Nap loading… 87%." : {},
     "Nearly there. Keep going." : {},
     "Nearly. Which part's missing?" : {},
+    "Needs attention %lld" : {},
     "Never leave home without a highlighter." : {},
     "Never used for training" : {},
     "New" : {},
@@ -2931,7 +2986,9 @@
     "Nothing has been added to a course yet." : {},
     "Nothing in your notes for “%@”" : {},
     "Nothing is due right now. Add pages to study more." : {},
+    "Nothing is fading right now." : {},
     "Nothing left to review tonight" : {},
+    "Nothing needs attention right now." : {},
     "Nothing planned. The plan is made at launch and after each change." : {},
     "Nothing that day in this what-if." : {},
     "Nothing to delete: this build never sends anything to Cloud AI." : {},
@@ -2994,6 +3051,7 @@
     "Opens the Capling scanner to turn pages of notes into questions." : {},
     "Opens the lecture at this moment" : {},
     "Opens the lecture notes" : {},
+    "Opens the month" : {},
     "Opens the page" : {},
     "Opens the page in Safari" : {},
     "Opens the page this question came from" : {},
@@ -3120,7 +3178,6 @@
     "Privacy and access" : {},
     "Profile and settings" : {},
     "Progress" : {},
-    "Projected %@ from your grades" : {},
     "Projected, if you follow the plan" : {},
     "Proud paws on hips." : {},
     "Purchasing" : {},
@@ -3151,6 +3208,7 @@
     },
     "Question for Cap" : {},
     "Questions" : {},
+    "Questions %lld" : {},
     "Questions are my snacks." : {},
     "Questions are no longer read aloud. The speaker button still reads one on request." : {},
     "Questions are read aloud as they appear in a session." : {},
@@ -3214,6 +3272,7 @@
       }
     },
     "Ready on the day" : {},
+    "Recent" : {},
     "Recent chats" : {},
     "Recognised text" : {},
     "Record a lecture" : {},
@@ -3357,6 +3416,7 @@
     "Short answer" : {},
     "Short questions, quick grades and Cap's short answers can run on this iPhone: private, free and offline." : {},
     "Short sessions win." : {},
+    "Show" : {},
     "Show all %lld" : {},
     "Show answer" : {},
     "Show fewer" : {},
@@ -3461,6 +3521,7 @@
     "Sounds follow Settings ▸ Accessibility ▸ Sounds and the Silent switch." : {},
     "Source: %@" : {},
     "Sources" : {},
+    "Sources %lld" : {},
     "Spa day, capybara style." : {},
     "Spaced repetition. Trust it." : {},
     "Speak up, I'm listening." : {},
@@ -3471,6 +3532,7 @@
     "Stars checked, every one." : {},
     "Start" : {},
     "Start a %@ session" : {},
+    "Start a streak today." : {},
     "Start my plan" : {},
     "Start today's session" : {},
     "Start today's session, %lld minutes" : {
@@ -3541,6 +3603,16 @@
         }
       }
     },
+    "Study %@ · %lld min" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Study %1$@ · %2$lld min"
+          }
+        }
+      }
+    },
     "Study %@, and you'll be about %@ ready by %@." : {
       "localizations" : {
         "en" : {
@@ -3578,6 +3650,7 @@
     "Study something else" : {},
     "Study today to make it %lld." : {},
     "Study today to start a new streak." : {},
+    "Study · %@" : {},
     "Study · %lld min" : {},
     "Studying" : {},
     "Subscription" : {},
@@ -3585,6 +3658,7 @@
     "Sunrise study? Lovely." : {},
     "Suspend" : {},
     "Suspended" : {},
+    "Suspended %lld" : {},
     "Sweet dreams, scholar." : {},
     "Swipe a question to suspend it or delete it. Questions you write are free and unlimited." : {},
     "Switches reading text back to the system font." : {},
@@ -3668,6 +3742,7 @@
     "The exam couldn't be added." : {},
     "The labels come from the page, so they stay as they were read." : {},
     "The labels come from the text on your page, so they stay as they are." : {},
+    "The month" : {},
     "The night before %@" : {},
     "The note came out empty. Try asking again." : {},
     "The note was empty." : {},
@@ -4154,6 +4229,9 @@
     "Zzzoom." : {},
     "Zzz… oh! Hi." : {},
     "about %@ after today" : {},
+    "added %lld days ago" : {},
+    "added today" : {},
+    "added yesterday" : {},
     "and %lld more" : {},
     "by “Let Cap do it”" : {},
     "capl" : {},
@@ -4165,6 +4243,7 @@
     "days" : {},
     "done" : {},
     "down %lld points this week" : {},
+    "fading" : {},
     "for %lld days, one time. Doesn't renew." : {
       "localizations" : {
         "en" : {
@@ -4209,9 +4288,14 @@
         }
       }
     },
+    "in a mix-up" : {},
+    "log your grade" : {},
     "min" : {},
     "ng" : {},
     "not studied" : {},
+    "opened %lld days ago" : {},
+    "opened today" : {},
+    "opened yesterday" : {},
     "p. %@" : {},
     "ready" : {},
     "rest" : {},
@@ -4251,7 +4335,9 @@
     },
     "them" : {},
     "today" : {},
+    "tomorrow" : {},
     "up %lld points this week" : {},
+    "you got %@" : {},
     "|" : {},
     "·" : {},
     "ı" : {},

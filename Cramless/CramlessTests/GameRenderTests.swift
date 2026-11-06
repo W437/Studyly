@@ -137,6 +137,30 @@ final class GameRenderTests: XCTestCase {
         }
     }
 
+    /// Progress's badge tile holds its medals at the largest text size (a real screenshot of the tab checks they don't draw twice).
+    func testTheBadgeTilesMedalsAtTheLargestTextSize() throws {
+        let statuses = [BadgeStatus(badge: .streak30, progress: BadgeProgress(value: 12, target: 30), earnedAt: nil),
+                        BadgeStatus(badge: .firstSession, progress: BadgeProgress(value: 1, target: 1), earnedAt: Date(timeIntervalSince1970: 1_800_000_000)),
+                        BadgeStatus(badge: .streak7, progress: BadgeProgress(value: 7, target: 7), earnedAt: Date(timeIntervalSince1970: 1_790_000_000))]
+        for scheme in [ColorScheme.light, .dark] {
+            let tile = VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: -6) {
+                    ForEach(statuses.featured(limit: 3)) { status in
+                        BadgeMedal(badge: status.badge, earned: status.isEarned, size: 40)
+                    }
+                }
+                Text("Badges").clFont(.headline)
+                Text(BadgeCopy.count(earned: 2, of: 13)).clFont(.footnote)
+            }
+            .clCard(padding: 16)
+            .environment(\.dynamicTypeSize, .accessibility3)
+            .frame(width: 370)
+            .padding(16)
+            .background(background(scheme))
+            try render(tile, "badge-tile-ax", scheme)
+        }
+    }
+
     func testTheQuestsCardInThreeStates() throws {
         func quests(_ done: Int, week: Int) -> QuestsToday {
             let kinds: [QuestKind] = [.finishSession, .rescueFading, .ownWords]

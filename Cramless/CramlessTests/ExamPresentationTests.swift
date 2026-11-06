@@ -254,14 +254,12 @@ final class ExamPresentationTests: XCTestCase {
     func testTheLetterWaitsForCalibration() throws {
         let projected = ProjectedGrade(percent: 0.88, letter: "B+", isCalibrated: false)
         XCTAssertFalse(ExamPresentation.showsLetter(projected))
-        XCTAssertNil(ExamPresentation.shownGrade(projected))
         XCTAssertNil(projection(sundayQuiz(projected: 0.74), grade: projected)?.letter, "no letter from a projection alone")
 
         let calibrated = ProjectedGrade(percent: 0.88, letter: "B+", isCalibrated: true)
         XCTAssertEqual(projection(sundayQuiz(projected: 0.74), grade: calibrated)?.letter, "From your past grades, that's about a B+.")
         XCTAssertEqual(ExamPresentation.calibratedProjectionLine(ProjectedGrade(percent: 0.94, letter: "A", isCalibrated: true)),
                        "From your past grades, that's about an A.")
-        XCTAssertEqual(ExamPresentation.calibratedGradeLine(calibrated), "Projected B+ from your grades")
     }
 
     private var chemToday: ExamPresentation.TodayWork {

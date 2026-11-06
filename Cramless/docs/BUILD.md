@@ -1458,6 +1458,14 @@ trust rules and the screens are in `docs/assistant.md`, the wire format in `docs
 - **Entry:** the exam page's card (`ExamPresentation.mockCard`), hidden on the eve, the day and after, as `mockOffer(for:)` is, however the screen was reached. Too few questions: "Write more questions" when a reading has more to give (`restRequest(for:)`), and "Add material". `MockSuggestion.isDue` (2 to 7 days out, enough questions, none in the last 4 days) is for Today's card.
 - **Also:** "Mock exams" on the Always free card; the exam editor asks for the number of questions and the minutes; `LibraryFormat.formatLine` says them. `ChoiceOptionTile` and `AnswerEditor` moved out of their question views to be shared.
 
+### Stage 2: Library, the course page and Progress (2026-11-06, lane `s2-mock`)
+
+- **Library:** "Recent" (`LibraryRecent`, pure; `AppModel.noteOpened(sourceID:)` keeps the last 20 opens in the defaults `capling.library.opened`, not settings, whose changes refresh widgets; `libraryRecent()`; no model or sync change). The toolbar's Add menu is gone and "Bring your stuff" is only for the empty state: the tab bar's + is the way in.
+- **The course page:** exam chips (`LibraryFormat.examChips`), "Study Bio 101 · 15 min" (`AppModel.courseStudy`: `.daily` for the course at the whole daily goal, then `.practice`, then nil and "Add material"; kept per revision in `CourseStudyCache`, so a filter doesn't rebuild it), tabs (segmented, or chips at the accessibility sizes) and `CourseQuestions` (pure filters and counts; "Needs attention" is `ReviewOutcome.fadingRecall` or an open mix-up, weakest first). A session for one course says "Study · Bio 101" on its context line and Live Activity; a practice round says "Practice", not "Bonus round".
+- **Progress:** rewritten in about 1.3 screens (`design.md`). Gone from it: the exam cards with their region stills and letter, the badges row, the streak section with its heatmap, the week section, the due chart, Constellations and Brightest. `ProgressPresentation.fading` orders by the nearest exam covering the topic (`daysToNearestExam`, from the regions' `covers`), then the most fading.
+- **The month and the sky:** `StreakMonthCard` (extracted, with its arrows and legend) is on the streak page and in `StreakMonthSheet` (`AppSheet.streakMonth`), the streak page gains "Last 12 weeks" (`StudyHeatmap`), and the due chart and the brightest topics moved into `SkyMemoryPanel` (`SkyScene.brightest`; `AppSheet.skyMemory` over the sky, at the head of the list). No percentage in any of it.
+- **The dim line:** Progress's fading rows read the sky's own `SkyLight.isDim`, which is `ReviewOutcome.fadingRecall` (0.7); Cap's fading card should read the same.
+
 ## App Store Connect (2026-11-01)
 
 The Capling record on the Loopware team (app 6828649543) is filled in by `scripts/asc/`. Every command is re-runnable and has

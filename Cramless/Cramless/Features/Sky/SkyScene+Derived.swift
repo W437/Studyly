@@ -66,6 +66,34 @@ extension SkyScene {
     }
 }
 
+/// A best-remembered topic.
+struct SkyBrightTopic: Equatable, Sendable, Identifiable {
+    var id: UUID
+    var name: String
+    /// Its place in the sky's constellations.
+    var index: Int
+    var brightCount: Int
+    var meanRecall: Double
+}
+
+extension SkyScene {
+    /// The best-remembered topics, at most `count`: at least two studied stars and something bright, by the sky's mean recall. It orders
+    /// them and is never shown: the rows say how many stars are bright.
+    func brightest(count: Int = 3) -> [SkyBrightTopic] {
+        let topics = layout.constellations.enumerated().compactMap { index, c -> SkyBrightTopic? in
+            guard let topicID = c.topicID, let recall = light.meanRecall(c) else { return nil }
+            let lit = c.stars.filter { !light.hollow[$0] }.count
+            let bright = light.brightCount(c)
+            guard lit >= 2, bright > 0 else { return nil }
+            return SkyBrightTopic(id: topicID, name: c.name, index: index, brightCount: bright, meanRecall: recall)
+        }
+        return Array(topics.sorted { a, b in
+            if abs(a.meanRecall - b.meanRecall) > 1e-9 { return a.meanRecall > b.meanRecall }
+            return a.name < b.name
+        }.prefix(count))
+    }
+}
+
 /// A constellation as a picture a few dozen points wide.
 struct SkyGlyph: Equatable, Sendable {
     struct Star: Equatable, Sendable {

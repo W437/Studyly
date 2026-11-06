@@ -239,6 +239,8 @@ struct SheetDestination: View {
         case .todayReasons: TodayReasonsSheet()
         case .quests: TodayQuestsSheet()
         case .help: HelpSheet()
+        case .streakMonth: StreakMonthSheet()
+        case .skyMemory: SkyMemorySheet()
         }
     }
 }

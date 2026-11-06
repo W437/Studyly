@@ -5,21 +5,14 @@ import SwiftUI
 /// repairs work, in plain words. Today's "Your plan" opens it from "Calendar".
 struct StreakView: View {
     @Environment(AppModel.self) private var app
-    @State private var monthOffset = 0
 
     var body: some View {
         let _ = app.revision
         let streak = app.streak()
         let cells = app.heatmap(weeks: 20)
         let calendar = app.calendar
-        let byDay = Dictionary(cells.map { (calendar.dayNumber(for: $0.date), $0) }, uniquingKeysWith: { a, _ in a })
-        let earliest = cells.first { $0.level > 0 || $0.frozen || $0.repaired }?.date ?? app.now
-        let monthsBack = max(0, monthsBetween(earliest, app.now, calendar: calendar))
-        let month = calendar.date(byAdding: .month, value: monthOffset, to: app.now) ?? app.now
         let dailyMinutes = app.settings.dailyMinutes
         let run = streak.repairableDay.map { ProgressPresentation.runBefore($0, cells: cells, calendar: calendar) } ?? 0
-        let marks = ExamMarks(app.upcomingExams().filter { $0.course?.deletedAt == nil && $0.date > app.now }
-            .map { (title: $0.title, date: $0.date) }, calendar: calendar)
 
         ScrollViewReader { proxy in
         ScrollView {
@@ -27,39 +20,19 @@ struct StreakView: View {
                 header(streak, run: run)
                     .padding(.top, 8)
 
-                VStack(alignment: .leading, spacing: 14) {
-                    HStack {
-                        Text(month.formatted(LibraryFormat.dateStyle(calendar).month(.wide).year()))
-                            .clFont(.headline)
-                            .foregroundStyle(CLColor.ink)
-                            .contentTransition(.opacity)
-                        Spacer()
-                        CLIconButton(systemImage: "chevron.left", label: "Previous month") {
-                            CLHaptics.select()
-                            withAnimation(CLMotion.settle) { monthOffset -= 1 }
-                        }
-                        .disabled(-monthOffset >= monthsBack)
-                        .opacity(-monthOffset >= monthsBack ? 0.35 : 1)
-                        CLIconButton(systemImage: "chevron.right", label: "Next month") {
-                            CLHaptics.select()
-                            withAnimation(CLMotion.settle) { monthOffset += 1 }
-                        }
-                        .disabled(monthOffset >= Self.monthsAhead)
-                        .opacity(monthOffset >= Self.monthsAhead ? 0.35 : 1)
-                    }
-                    MonthCalendar(month: month, byDay: byDay, marks: marks, today: calendar.dayNumber(for: app.now), calendar: calendar)
-                        .id(monthOffset)
-                        .transition(.opacity)
-                    CalendarLegend(showsExams: !marks.isEmpty)
-                }
-                .clCard()
-                .padding(.top, 20)
+                StreakMonthCard(cells: cells)
+                    .padding(.top, 20)
 
                 if let day = streak.repairableDay {
                     RepairOffer(day: day, run: run, dailyMinutes: dailyMinutes, calendar: calendar)
                         .clCard()
                         .padding(.top, 16)
                 }
+
+                CLSectionHeader(title: "Last 12 weeks")
+                    .id("heatmap")
+                StudyHeatmap(cells: app.heatmap(weeks: 12), calendar: calendar)
+                    .clCard()
 
                 CLSectionHeader(title: "Milestones")
                     .id("milestones")
@@ -90,9 +63,6 @@ struct StreakView: View {
         .navigationBarTitleDisplayMode(.inline)
     }
 
-    /// How far ahead the calendar goes: the next month, where the exams and their eves are marked.
-    static let monthsAhead = 1
-
     private func header(_ streak: StreakState, run: Int) -> some View {
         let onHold = streak.current == 0 && streak.repairableDay != nil && run > 0
         let days = onHold ? run : streak.current
@@ -119,6 +89,57 @@ struct StreakView: View {
             }
         }
         .accessibilityElement(children: .combine)
+    }
+
+}
+
+/// The month's card, on the streak page and in Progress's month sheet: the calendar with its arrows and its legend.
+struct StreakMonthCard: View {
+    /// The days that can be shown, with what was studied on each.
+    let cells: [HeatmapCell]
+
+    @Environment(AppModel.self) private var app
+    @State private var monthOffset = 0
+
+    /// How far ahead the calendar goes: the next month, where the exams and their eves are marked.
+    static let monthsAhead = 1
+
+    var body: some View {
+        let calendar = app.calendar
+        let byDay = Dictionary(cells.map { (calendar.dayNumber(for: $0.date), $0) }, uniquingKeysWith: { a, _ in a })
+        let earliest = cells.first { $0.level > 0 || $0.frozen || $0.repaired }?.date ?? app.now
+        let monthsBack = max(0, monthsBetween(earliest, app.now, calendar: calendar))
+        let month = calendar.date(byAdding: .month, value: monthOffset, to: app.now) ?? app.now
+        let marks = ExamMarks(app.upcomingExams().filter { $0.course?.deletedAt == nil && $0.date > app.now }
+            .map { (title: $0.title, date: $0.date) }, calendar: calendar)
+        VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                Text(month.formatted(LibraryFormat.dateStyle(calendar).month(.wide).year()))
+                    .clFont(.headline)
+                    .foregroundStyle(CLColor.ink)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.5)
+                    .contentTransition(.opacity)
+                Spacer()
+                CLIconButton(systemImage: "chevron.left", label: "Previous month") {
+                    CLHaptics.select()
+                    withAnimation(CLMotion.settle) { monthOffset -= 1 }
+                }
+                .disabled(-monthOffset >= monthsBack)
+                .opacity(-monthOffset >= monthsBack ? 0.35 : 1)
+                CLIconButton(systemImage: "chevron.right", label: "Next month") {
+                    CLHaptics.select()
+                    withAnimation(CLMotion.settle) { monthOffset += 1 }
+                }
+                .disabled(monthOffset >= Self.monthsAhead)
+                .opacity(monthOffset >= Self.monthsAhead ? 0.35 : 1)
+            }
+            MonthCalendar(month: month, byDay: byDay, marks: marks, today: calendar.dayNumber(for: app.now), calendar: calendar)
+                .id(monthOffset)
+                .transition(.opacity)
+            CalendarLegend(showsExams: !marks.isEmpty)
+        }
+        .clCard()
     }
 
     private func monthsBetween(_ a: Date, _ b: Date, calendar: Calendar) -> Int {

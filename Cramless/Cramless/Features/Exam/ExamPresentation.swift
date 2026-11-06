@@ -226,14 +226,6 @@ enum ExamPresentation {
     /// The letter grade shows only once logged grades calibrate it: two or more other exams with readiness on the day and a grade.
     static func showsLetter(_ grade: ProjectedGrade) -> Bool { grade.isCalibrated }
 
-    /// The grade to show, or nil before it is calibrated.
-    static func shownGrade(_ grade: ProjectedGrade) -> ProjectedGrade? { showsLetter(grade) ? grade : nil }
-
-    /// Progress's line: "Projected B+ from your grades".
-    static func calibratedGradeLine(_ grade: ProjectedGrade) -> String {
-        String(localized: "Projected \(grade.letter) from your grades")
-    }
-
     /// The exam page's line: "From your past grades, that's about a B+."
     static func calibratedProjectionLine(_ grade: ProjectedGrade) -> String {
         let vowel = grade.letter.hasPrefix("A") || grade.letter.hasPrefix("F")

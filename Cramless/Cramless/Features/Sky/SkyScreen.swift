@@ -40,7 +40,9 @@ struct SkyScreen: View {
             ZStack {
                 if listMode {
                     CLColor.background.ignoresSafeArea()
-                    if let scene { SkyListView(scene: scene, onRelight: start, onOpenCourse: openCourse) }
+                    if let scene {
+                        SkyListView(scene: scene, due: app.dueForecast(days: 7), calendar: app.calendar, onRelight: start, onOpenCourse: openCourse)
+                    }
                 } else {
                     sky(geo)
                 }
@@ -73,7 +75,8 @@ struct SkyScreen: View {
 
     @ViewBuilder
     private func sky(_ geo: GeometryProxy) -> some View {
-        let top = geo.safeAreaInsets.top + 54
+        // Room for the pill and "How you remember" under the navigation bar.
+        let top = geo.safeAreaInsets.top + 98
         let bottom = geo.safeAreaInsets.bottom + (focus == nil ? 64 : 262)
         ZStack {
             if let scene {
@@ -86,6 +89,24 @@ struct SkyScreen: View {
                 } else {
                     VStack(spacing: 0) {
                         SkyHeader(scene: scene).padding(.top, 8)
+                        Button {
+                            CLHaptics.tap()
+                            app.router.present(.skyMemory)
+                        } label: {
+                            HStack(spacing: 3) {
+                                Text("How you remember")
+                                Image(systemName: "chevron.right").font(.system(size: 11, weight: .bold))
+                            }
+                            .clFont(.footnoteEmphasis)
+                            .foregroundStyle(.white.opacity(0.9))
+                            .padding(.horizontal, 14)
+                            .frame(minHeight: 36)
+                            .glassEffect(.regular.interactive(), in: .capsule)
+                            .environment(\.colorScheme, .dark)
+                            .frame(minHeight: CLMetrics.minHitTarget)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
                         Spacer(minLength: 0)
                         if let i = focus, scene.layout.constellations.indices.contains(i) {
                             SkyFocusCard(scene: scene, index: i, onRelight: { relightConstellation(i) },
@@ -167,6 +188,10 @@ struct SkyScreen: View {
     /// forgetting, a focused constellation, the list.
     private func runHooks() async {
         if debug.list { asList = true }
+        if debug.memory {
+            try? await nap(700)
+            app.router.present(.skyMemory)
+        }
         if let age = debug.age { date = app.now.addingTimeInterval(age * 86_400) }
         if let n = debug.focus {
             for _ in 0..<40 where scene == nil { try? await nap(100) }
@@ -380,6 +405,9 @@ private struct SkyEmpty: View {
 /// practise it. What VoiceOver gets by default, and anyone at large text sizes (where each row stacks).
 struct SkyListView: View {
     let scene: SkyScene
+    /// The panel at its head: what's coming due.
+    let due: [DueForecastDay]
+    let calendar: Calendar
     var onRelight: (SkyLayout.Constellation) -> Void
     var onOpenCourse: (UUID) -> Void
 
@@ -412,6 +440,10 @@ struct SkyListView: View {
                 Text(SkyCopy.summary(scene))
                     .clFont(.callout).foregroundStyle(CLColor.ink2)
                     .padding(.top, 8)
+                if !scene.isEmpty {
+                    SkyMemoryPanel(scene: scene, due: due, calendar: calendar)
+                        .padding(.top, 14)
+                }
                 ForEach(groups) { group in
                     header(group)
                     CLList {
@@ -496,7 +528,8 @@ private struct SkyListRow: View {
 /// - `lapse:<days>`: the same, as a time-lapse over about ten seconds.
 /// - `focus:<n>`: focuses the nth constellation.
 /// - `tour`: focuses the three constellations with the most dim stars, one after another, then the whole sky.
-/// - `list`: starts as a list.
+/// - `list`: starts as a list, with the panel of what's coming due and the brightest topics at its head.
+/// - `memory`: opens that panel as a sheet over the sky.
 /// - `fill:<n>`: adds n more studied items to the demo world first, for a fuller sky.
 struct SkyDebug {
     var still = false
@@ -507,6 +540,7 @@ struct SkyDebug {
     var focus: Int?
     var tour = false
     var list = false
+    var memory = false
     var fill: Int?
 
     @MainActor static func read() -> SkyDebug {
@@ -524,6 +558,7 @@ struct SkyDebug {
             case "focus": out.focus = arg.flatMap(Int.init) ?? 0
             case "tour": out.tour = true
             case "list": out.list = true
+            case "memory": out.memory = true
             case "fill": out.fill = arg.flatMap(Int.init) ?? 200
             default: break
             }

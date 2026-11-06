@@ -221,7 +221,7 @@ answering relights it. It is the one picture of "how ready am I", and it can't l
 | Where | What shows |
 |---|---|
 | Today, the top | The sky edge to edge, with Cap on the horizon and "63 stars · 20 dim ›" (see Today and Progress) |
-| Progress | Each exam's region as a small still; each topic as a constellation glyph with Practice |
+| Progress | Each fading topic as a constellation glyph with Practice |
 | The sky screen | The sky, full screen: tap a constellation to focus it, drag to look, pinch to zoom |
 | A focused constellation | Its name and course, a bar of bright, dim and not-yet-lit stars, "Practice Meiosis · 4 min" (a practice session for that topic, its dim stars first) and "Open course" |
 | During a session | When "Saved it." comes up, a gold four-point star blooms over the question with a ring and a few motes, about a second, with no sound of its own (the save's marimba note plays with the verdict). A flashcard flares as you rate it |
@@ -309,14 +309,20 @@ parts):
 - **It rests**: nothing moves under Reduce Motion, nothing ambient in Low Power Mode, nothing while the band is scrolled away or
   the app is in the background, and on exam eve once there is nothing left to do it holds still.
 
-**Progress** has no second sky. Each part is a piece of the first:
-- Each exam's card has a small still of its region (`SkyRegionStill`): the stars it covers, lit or fading, beside the
-  readiness number.
-- "Topics" is "Constellations": each topic's shape drawn small (`SkyGlyphView`), how many of its stars are bright, dim
-  and not yet lit, and Practice on the weakest, under "Fading". "See the sky" opens the full one.
-- The study heatmap's days are stars: a dot that grows and brightens with the minutes, a sparkle from the third step,
-  a glow at the top. Size and shape carry the scale as well as colour does, so it holds without colour.
-- A readiness sparkline ends in a star.
+**Progress** has no second sky, and takes about a screen and a third. In order:
+- **This week**: the flame and the run ("12-day streak"; on hold, an outline and "On hold"), the minutes against last week and the week's chart. All of it one tap: the month (`StreakMonthSheet`, a fitted sheet with the calendar and today's notes, and a way on to the streak page). A repair offer sits under it, outside that tap.
+- **Exams** as rows: a ring, the name, "in 2 days · +15% this week" (rose within three days), a sparkline ending in a star. Readiness is the one percentage; no letter here (the exam page has it once logged grades calibrate it).
+- **Fading**: topics with questions under the sky's dim line, for the nearest exam first, as their constellations drawn small (`SkyGlyphView`), "Chem 110 · 2 questions fading" and Practice. "Nothing is fading right now." when so.
+- **Mix-ups**, when there are any.
+- Two tiles: **Badges** (three medals, "3 of 13 earned") and **Memory sky** ("63 stars · 17 dim").
+
+The streak page has the twelve weeks of studying (the heatmap's days are stars: a dot that grows and brightens with the minutes, a sparkle from the third step, a glow at the top, so size and shape carry the scale as well as colour does). The sky has "How you remember": what's coming due and the brightest topics, counts only, as a fitted sheet over the sky and at the head of its list.
+
+**Library**: "Recent" (questions to review first, then what was opened or added on this iPhone in two weeks; three at most, none under two), then the courses, each with its next exam's ring or "Add a date". The tab bar's + is the way in; "Bring your stuff" is for a person with no courses yet.
+
+**A course**: the ring, a chip for each exam ("Midterm · Nov 29 · 53% ready", "Quiz · log your grade", "Quiz · you got 91%"), "Study Bio 101 · 15 min" (the daily rules limited to the course, at the whole goal) with a round +, and three tabs: Topics (readiness for the next exam, gaps first by their course order, "Not on the Midterm" apart with counts only; a tap shows the topic's questions, Practice is its own button), Sources, and Questions (needs attention, meaning fading or in an open mix-up, weakest first; suspended; format; topic).
+
+**A mock exam** (`Features/Mock/`): free, built from the exam's own questions and shaped like it. No marks until the end: Back, Next and Flag, a countdown nothing has to redraw for, a grid to look over. "Time's up." offers "Finish untimed" before the score. "Cap predicted" is the fair score for these questions, recall now plus a guess on multiple choice, not the exam-day ring: a mock taken early would otherwise beat Cap and teach that the number is wrong. Never on the eve or the day: tonight is for weak spots and sleep.
 
 ## Celebrations
 

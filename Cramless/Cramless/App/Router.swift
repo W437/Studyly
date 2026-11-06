@@ -127,6 +127,10 @@ enum AppSheet: Identifiable, Hashable, Sendable {
     case quests
     /// Help: write to a real person, what is always free, restore.
     case help
+    /// The month's calendar, from Progress's week card.
+    case streakMonth
+    /// The reviews coming due and the brightest topics, over the sky.
+    case skyMemory
 
     var id: String { String(describing: self) }
 }

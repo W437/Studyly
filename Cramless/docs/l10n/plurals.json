@@ -337,5 +337,13 @@
         "other": "%arg short answers"
       }
     }
+  },
+  "%lld days studied": {
+    "one": "%lld day studied",
+    "other": "%lld days studied"
+  },
+  "%lld questions to review": {
+    "one": "%lld question to review",
+    "other": "%lld questions to review"
   }
 }

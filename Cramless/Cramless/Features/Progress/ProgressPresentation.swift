@@ -135,10 +135,35 @@ enum ProgressPresentation {
         return (0..<7).map { symbols[(calendar.firstWeekday - 1 + $0) % 7] }
     }
 
+    // MARK: Exams
+
+    /// An exam's row: "in 2 days · +15% this week".
+    static func examLine(days: Int, delta: Double) -> String {
+        let when: String
+        switch days {
+        case ...0: when = String(localized: "today")
+        case 1: when = String(localized: "tomorrow")
+        default: when = String(localized: "in \(days) days")
+        }
+        return "\(when) · \(String(localized: "\(CLFormat.delta(delta)) this week"))"
+    }
+
+    // MARK: The month and the sky
+
+    /// The month sheet's line: "12-day streak · Best 12 · 1 freeze saved".
+    static func monthHeadline(days: Int, best: Int, freezes: Int) -> String {
+        [String(localized: "\(days)-day streak"), String(localized: "Best \(best)"), String(localized: "\(freezes) freezes saved")]
+            .joined(separator: " · ")
+    }
+
+    /// The sky's tile: "63 stars · 17 dim".
+    static func skyLine(stars: Int, dim: Int) -> String {
+        "\(String(localized: SkyCopy.stars(stars))) · \(String(localized: SkyCopy.dim(dim)))"
+    }
+
     // MARK: Topics
 
-    /// A topic as its constellation in the sky, for the Progress tab's lists. Counts only: readiness for the topic's next exam orders
-    /// the fading list and is never shown.
+    /// A topic as its constellation in the sky, for the Fading list. Counts only, never a percentage.
     struct TopicLight: Equatable, Sendable, Identifiable {
         var id: UUID
         var name: String
@@ -149,38 +174,30 @@ enum ProgressPresentation {
         var index: Int
         /// Studied stars under the sky's dim line (`ReviewOutcome.fadingRecall`): "2 questions fading".
         var dimCount: Int
-        var brightCount: Int
-        /// Studied stars (bright or dim).
-        var litCount: Int
-        /// Mean recall of its studied stars (the sky's own measure): orders the brightest, never shown.
-        var meanRecall: Double?
-        /// Readiness for its course's next exam, when the topic is on that exam: orders the fading list, never shown.
-        var readiness: Double?
+        /// Days to the nearest exam that covers it; nil when none does.
+        var examDays: Int?
     }
 
-    /// Topics with questions fading, at most `count`: the ones on an exam first, weakest for that exam first; then the others, most
-    /// fading first.
+    /// Days to the nearest exam covering each constellation, by its index: an exam's region records what it covers.
+    static func daysToNearestExam(regions: [SkyLayout.Region], examDates: [UUID: Date], now: Date, calendar: Calendar) -> [Int: Int] {
+        var nearest: [Int: Int] = [:]
+        for region in regions {
+            guard let date = examDates[region.examID], date > now else { continue }
+            let days = calendar.dayDistance(from: now, to: date)
+            for index in region.covers { nearest[index] = min(nearest[index] ?? days, days) }
+        }
+        return nearest
+    }
+
+    /// Topics with questions fading, at most `count`: the nearest exam's first, then most fading; topics on no exam after.
     static func fading(_ topics: [TopicLight], count: Int = 3) -> [TopicLight] {
         let sorted = topics.filter { $0.dimCount > 0 }.sorted { a, b in
-            switch (a.readiness, b.readiness) {
-            case let (x?, y?) where abs(x - y) > 1e-9: return x < y
+            switch (a.examDays, b.examDays) {
+            case let (x?, y?) where x != y: return x < y
             case (.some, nil): return true
             case (nil, .some): return false
             default: return a.dimCount != b.dimCount ? a.dimCount > b.dimCount : a.name < b.name
             }
-        }
-        return Array(sorted.prefix(count))
-    }
-
-    /// The best-remembered topics, at most `count`, leaving out the ones in `excluding` (the fading list): at least two studied stars,
-    /// the brightest share first, then the sky's mean recall.
-    static func brightest(_ topics: [TopicLight], excluding: Set<UUID> = [], count: Int = 3) -> [TopicLight] {
-        let sorted = topics.filter { !excluding.contains($0.id) && $0.litCount >= 2 && $0.brightCount > 0 }.sorted { a, b in
-            let sa = Double(a.brightCount) / Double(a.litCount), sb = Double(b.brightCount) / Double(b.litCount)
-            if abs(sa - sb) > 1e-9 { return sa > sb }
-            let ra = a.meanRecall ?? 0, rb = b.meanRecall ?? 0
-            if abs(ra - rb) > 1e-9 { return ra > rb }
-            return a.name < b.name
         }
         return Array(sorted.prefix(count))
     }

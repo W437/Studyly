@@ -218,6 +218,18 @@ final class SkyDerivedTests: XCTestCase {
         }
     }
 
+    func testBrightestAreTheBestRememberedTopics() throws {
+        let hand = handmade().scene
+        // A has recall 0.5 to 0.6, B 0.65 to 0.75 with one hollow star, C 0.8 to 0.9: the sky's own mean orders them.
+        XCTAssertEqual(hand.brightest(count: 3).map(\.name), ["C", "B"], "nothing bright in A")
+        XCTAssertEqual(hand.brightest(count: 1).map(\.name), ["C"])
+        let fresh = scene(world(), daysOn: 1)
+        XCTAssertEqual(fresh.brightest(count: 3).count, 3)
+        XCTAssertTrue(fresh.brightest(count: 3).allSatisfy { $0.brightCount > 0 })
+        let empty = SkyScene(layout: SkyLayout(), light: SkyLight(), courseColors: [:], courseNames: [:], examDates: [:], dimSeconds: [], date: start)
+        XCTAssertTrue(empty.brightest().isEmpty)
+    }
+
     func testAGlyphCountsMatchTheSkysLight() throws {
         let sky = scene(world())
         var checked = 0
