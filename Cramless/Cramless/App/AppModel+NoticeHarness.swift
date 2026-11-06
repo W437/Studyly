@@ -5,7 +5,7 @@ import SwiftData
 // Launch hooks for Cap's cards (DEBUG only). They shape the demo world so the real engines find each kind:
 //
 // - `CRAMLESS_NOTICES=mixup,lookalike,fading,back,mock|all|none`: those kinds and no others. `lookalike`: the Bio midterm 9 days out, with the
-//   sample page's look-alikes. `fading`: the midterm 6 days out, and its questions 20 days overdue, more of them than today's session
+//   sample page's look-alikes. `fading`: the midterm 6 days out, and its questions 20 days overdue, with 30 more added, so that more of them than today's session
 //   holds. `back`: 8 days without study after a 23-day run. `mock`: the midterm 5 days out. `mixup` needs nothing: the demo world has an open mix-up.
 // - `CRAMLESS_NOTICE_STATE=second|later|done|allLater`, once the deck is dealt: `second` the first card acted on, so "2 of N" shows; `later` the
 //   first put off with "Later"; `done` "Fix my week" pressed on a fading card ("Plan updated"); `allLater` all put off.
@@ -86,9 +86,20 @@ extension AppModel {
         touch(exam)
     }
 
-    /// Every question of the course studied 25 days ago with a memory that has long since gone: 20 days overdue, more than a session holds.
+    /// Every question of the course studied 25 days ago with a memory that has long since gone: 20 days overdue. The demo course alone fits
+    /// in one session, which would leave too few to fade, so it gets 30 slower own-words questions too, on the same topics and sources.
     private func debugMakeOverdue(course: Course?) {
         guard let course else { return }
+        let existing = course.items.filter { $0.deletedAt == nil && $0.status == .active }.sorted { $0.id.uuidString < $1.id.uuidString }
+        ModelID.seeded("notice-harness") {
+            for index in 0..<30 where !existing.isEmpty {
+                let like = existing[index % existing.count]
+                let extra = StudyItem(course: course, topicID: like.topicID, kind: .recall, status: .active, origin: .person,
+                                      prompt: "In your own words: \(like.prompt)", answer: like.answer, sourceRef: like.sourceRef, now: now)
+                context.insert(extra)
+                course.items.append(extra)
+            }
+        }
         let lastReview = calendar.adding(days: -25, to: now)
         let due = calendar.adding(days: -20, to: now)
         for item in course.items where item.deletedAt == nil && item.status == .active {

@@ -345,7 +345,10 @@ extension AppModel {
     /// Active items in live courses.
     func itemSnapshots() -> [ItemSnapshot] {
         let active = ItemStatus.active.rawValue
-        let items = fetch(FetchDescriptor<StudyItem>(predicate: #Predicate { $0.deletedAt == nil && $0.statusRaw == active }))
+        // In a fixed order: the store's own can change from launch to launch, and the engines break ties by the order they're given, so the
+        // same questions could otherwise make a different session, and a different count on Cap's card, each time the app opens.
+        let items = fetch(FetchDescriptor<StudyItem>(predicate: #Predicate { $0.deletedAt == nil && $0.statusRaw == active },
+                                                     sortBy: [SortDescriptor(\.id)]))
         return items.compactMap { item in
             let course = item.course
             if let course, course.deletedAt != nil { return nil }

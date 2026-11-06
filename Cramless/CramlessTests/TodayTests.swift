@@ -297,6 +297,64 @@ final class TodayTests: XCTestCase {
         return (card, rescue)
     }
 
+    /// The whole way from the store to the plan: the planner's own tests hand it a ping, so they can't see the app failing to make one.
+    private func plannedNotices() -> [NotificationPlanner.Planned] {
+        NotificationPlanner.plan(app.notifications.planInput(for: app), calendar: cal).filter { $0.kind == .notice }
+    }
+
+    func testAFadingCardIsPlannedAsANotificationTonight() throws {
+        try fadingWorld()
+        app.settings.reminderMinutes = 19 * 60
+        let planned = plannedNotices()
+        XCTAssertEqual(planned.count, 1, "one card, once")
+        XCTAssertEqual(planned.first.map { cal.dayKey(for: $0.date) }, cal.dayKey(for: clock.now))
+    }
+
+    func testAFadingCardFirstDealtAfterTheReminderTimeGoesOutTomorrow() throws {
+        try fadingWorld()
+        app.settings.reminderMinutes = 19 * 60
+        clock.now = EngineTest.date(2026, 10, 22, 21, in: cal)
+        app.save()
+        let planned = plannedNotices()
+        XCTAssertEqual(planned.count, 1, "tonight's time has gone by")
+        XCTAssertEqual(planned.first.map { cal.dayKey(for: $0.date) }, cal.dayKey(for: cal.adding(days: 1, to: clock.now)))
+    }
+
+    func testAFadingCardAlreadySeenTodayGoesOutTomorrow() throws {
+        try fadingWorld()
+        app.settings.reminderMinutes = 19 * 60
+        app.noteNoticeShown(try fadingCard().card.id)
+        XCTAssertEqual(plannedNotices().map { cal.dayKey(for: $0.date) }, [cal.dayKey(for: cal.adding(days: 1, to: clock.now))])
+    }
+
+    /// The store's order changes between launches, and here every question ties, so the engines' ties are all decided by it.
+    func testTheSameQuestionsMakeTheSameSessionAndCardHoweverTheyWereStored() throws {
+        let ids = (0..<80).map { _ in UUID() }
+        func make(_ order: [UUID]) throws -> (session: [UUID], dim: Int?) {
+            let app = try StudyTestApp.make(clock: clock, calendar: cal)
+            let chem = Course(name: "Chem 110", now: clock.now)
+            app.context.insert(chem)
+            for id in order {
+                let item = StudyItem(id: id, course: chem, kind: .recall, status: .active, origin: .person, prompt: "Q", answer: "A long enough answer.", now: clock.now)
+                item.memory = MemoryState(state: .review, stability: 1.4, difficulty: 5, due: cal.adding(days: -20, to: clock.now),
+                                          lastReview: cal.adding(days: -25, to: clock.now), reps: 3)
+                app.context.insert(item)
+                chem.items.append(item)
+            }
+            let quiz = Exam(course: chem, title: "Chem 110 Quiz", date: EngineTest.date(2026, 10, 28, 10, in: cal), now: clock.now)
+            app.context.insert(quiz)
+            chem.exams.append(quiz)
+            app.save()
+            var dim: Int?
+            if case .fading(let rescue)? = app.noticeDeck().first(where: { $0.kind == .fading })?.evidence { dim = rescue.dimCount }
+            return (app.todayBuiltSession().entries.map(\.itemID), dim)
+        }
+        let first = try make(ids), second = try make(ids.reversed())
+        XCTAssertEqual(first.session, second.session)
+        XCTAssertEqual(first.dim, second.dim)
+        XCTAssertNotNil(first.dim)
+    }
+
     func testFixMyWeekAddsMinutesToTheDayCardAndThePlanStrip() throws {
         try fadingWorld()
         let before = TodaySnapshot.make(app: app)
