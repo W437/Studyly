@@ -1502,12 +1502,60 @@ trust rules and the screens are in `docs/assistant.md`, the wire format in `docs
   springing back, a flick, a vertical drag and a swipe on an unflipped card doing nothing, Undo by a tap on the pill (flashcard and own-words marks), the app going to the background
   committing the last question. Not checked: haptics, ⌘Z and the arrow keys with a hardware keyboard, a live VoiceOver session.
 
+### Stage 1: fixes after the first review (2026-11-06, lane `s1-polish`)
+
+- **The day card names the nearest exam.** `SessionFocus.make` takes `now` and `calendar`: an exam within 7 days holding at least 20% of
+  the session's seconds is the focus (soonest first); otherwise the old rule (at least 40%, the most seconds, ties to the sooner). The
+  session itself is unchanged; `trackedExam` follows. `SessionFocus.topicsWeakestFirst(readiness:)` orders the card's title by readiness
+  for that exam, the order "Why these?" reads.
+- **"Why these?" says only what is true in any order** (`TodayReasons`, `Input.daysLeft`/`focusSeconds`, `Other.seconds`/`due`): "a few"
+  only when each other exam has less of today than the focus, "further off, so a smaller share" only when that is true of them all,
+  "because they're due" only when none of their questions is new.
+- **One number for the eve.** `BuiltSession.tonightMinutes` (the built session's planned minutes, rounded up, at most 10; 0 with nothing to
+  review) drives Today's button, its spoken words, its reason and tonight's mark in the strip, and on the exam page the button, its line
+  and the plan's "Tonight". An eve ahead in the strip shows `PlanDay.shownMinutes`, what the exam page's stop shows. With nothing to review
+  the exam page has no button and its stop says "Tonight · nothing to review". The evening notification still says "10 minutes of weak spots"
+  (written ahead of time).
+- **A picked-up session** (`SessionRunner`): the clock counts from the time already spent (the checkpoint's wall seconds, or the session's
+  active seconds if those are more; the closed time is never in it), and the bar starts with the earlier answers (`earlier`, from the log;
+  `segmentCount`, `segmentPosition`). A run of right answers still starts with this runner. The Live Activity still counts this runner's
+  questions only.
+- **The summary's delta** (`SessionSummary.readinessDelta`) is the difference of the two rounded percentages, so "53% → 67%" sits beside +14%.
+- **Layout.** Toasts sit on `CLColor.surface` with a hairline and a shadow (glass let the greeting and the streak show through).
+  `ReflowPill` wraps whenever it doesn't fit, not only at accessibility sizes; the exams row uses it, and its tiles are sized so the next
+  one peeks (`TodayExamsRow.tileWidth`). The day card's chip row is a `ViewThatFits`. `DotLine` (parts on one line, or one part to a line) is
+  used by the exam page's hero, the summary's readiness line, the done card's line and the chip's when-line. `FittingLabel` really picks the
+  first title that fits; the all-lit button and the exam page's practice button shorten to "Practice · 5 min", and the all-lit reason names the topic.
+
+### Stage 1: fixes from the 14-day user test (2026-11-06, lane `s1-polish`)
+
+Measured offline on the harness in `~/Documents/capling-user-test/stage1` (its multi-exam timetables over five seeds, its seven students over twenty), before and after.
+
+- **After an exam, the session goes on to the next one.** `SessionBuilder` used to fill the review share with due questions whose exams were over, before the next exam's new
+  questions, which then stopped at 40%. While an exam is still to come, questions only on finished exams (`ExamIndex.isDone(with:)`, so `exams:` now carries the past ones too) come
+  last of all: not in the catch-up count, not a weak spot, not in the day's new quota until the rest is done. A course that never had an exam keeps its place by recall. "Three exams"
+  (25 min): 15 of 55 mornings with 40% or more on a finished exam became 0; APUSH's unseen questions 60.6 of 90 became 14.8, its expected result 45 became 76, and the last number on its page
+  went from 33 (41.9 expected) to 68 (74.7 expected), with no collapse in the last two days. "What if I skip Sunday?" says 36 points; skipping it now really costs 27 (it said 36 against a real 7).
+- **Exams on one day share the evening** (`buildExamEve`): one session with each exam's own up-to-10 minutes of weak spots, whichever page starts it; done once, it is done for both
+  (`AppModel.eveSessionDone`). `TodaySummary.examEveExamIDs` lists them; the card and the quiet line name both, and only other days' exams "can wait". The strip adds their minutes.
+- **"Then about N min"** averages the days that have work, and says "on study days" when days off lie between. Sessions still run longer than the line (11.8 said, 16.9 run, over the replays):
+  the session tops up to its goal and wrong answers come back, neither of which the plan's seconds hold.
+- **"The whole session is for this exam"** at 90% of the session's seconds or more (`TodayWork.isWholeSession`): "About 11 of the 12 minutes" went from 713 of 1,820 mornings to 0.
+- **Follow-through and first-try rate are blends** (`Engine/StudyHabits.swift`), so no day jumps when a threshold passes (a week of record, 20 first looks). Follow-through is
+  `(days studied + 0.95 × 7) / (days + 7)`, within 0.5 to 0.95: a student with no record starts at 95%, one who skips comes down day by day. Off by, in points, against the expected result, on the
+  seven recorded fortnights (projection read back from their traces): days 1 to 4, 10.3 to 5.7; days 5 to 9, 6.5 to 4.8; days 10 to 13, 3.7 to 3.5. On the twenty replays each: 17.6 to 5.9, 11.2 to 5.7, 4.3 to 3.6.
+  The step at day 8: Mateo +4 to +1, Aiko +4 to +2, Grace +4 to 0; APUSH in "three exams" 61 to 72 became 72 to 72.
+- **A long reading says what it takes** (`AllowanceCopy.reading`, `AIRouter.readingAllowance`, cut the way the run will cut it): above "Make questions" when pasting, and under the steps while a PDF or photos
+  are read (they have no confirm step). "This is 21 pages, so it takes 3 of your free AI scans." "You have 1 free AI scan left, so Cap reads the first 10 of 12 pages."
+- **Small.** After tonight's session the exam page says "That's enough for tonight…" with today's number, no button, "Tonight · done"; the strip marks tonight done. A day with no session has no "0m".
+  (Today's own circle already read the real session: Priyanka's 25 was yesterday's look ahead at it, where the goal stays the floor.)
+
 ## Stage 2a: Cap's cards (2026-11-06)
 
 The engine that fills Today's "Cap noticed" slot, and its first four kinds. Plan: `~/.claude/plans/capling-build-plan.md` ▸ 2a, appendix 5.
 
 - **The engine** (`Engine/Notices.swift`, pure; `NoticeEngine`, `Notice`, `NoticeKind`, `NoticeLedger`, `NoticeSlot`, `NoticePing`): `candidates()` (every
-  kind, ranked: welcome back 1000; fading 500 + 200·share − 10·days; mix-up 400 + 20·min(misses, 10); look-alike 300 + 100·similarity (+50 linked)
+  kind, ranked: welcome back 1000; fading 500 + 200·share − 10·days; mix-up 400 + 20·min(misses, 10), or 100 + min(misses, 10) when its questions are only on finished exams and another is to come (`isBehindTheStudent`, the session's own rule), read last among the five; look-alike 300 + 100·similarity (+50 linked)
   − 10·days; none when any exam is tomorrow), `dealt(_:)` (at most 3 a day, one per kind; dealt once, later arrivals join while there's room),
   `deck(_:ledger:)` (dealt, still true, not put off or acted on within 7 days), `slot` ("2 of 3") and `pings`. The file's head says how to add a kind:
   `gap`, `lectureDate`, `busyDay`, `tooEasy`, `teachBack` and `sameIdea` are reserved raw values.

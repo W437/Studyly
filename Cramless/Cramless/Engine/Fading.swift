@@ -57,7 +57,8 @@ struct FadeRescue: Equatable, Sendable, Hashable {
 /// long before they fall that low, and the last days before an exam pull in anything under its target. It is for a break, or a backlog
 /// bigger than the daily goal.
 ///
-/// A question counts when it is in the exam's scope, studied, overdue, under the line on the exam's date and not in today's session.
+/// A question counts when it is in the exam's scope, studied, overdue, under the line on the exam's date and not in today's session. So one
+/// only on a finished exam never counts: only exams still to come are looked at.
 /// With at least 5, the rescue takes today (unless the goal is met), then the next days that aren't lighter days, an exam or an
 /// exam's eve; 3 days at most, 10 minutes each at most, the dimmest questions first. It is offered only if at least 5 of them would be
 /// over the line on exam day after their review (`ExpectedReview`).

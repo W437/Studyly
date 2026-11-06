@@ -361,7 +361,15 @@ extension AppModel {
         let minutesDone = Int((dayRecordSnapshot(for: now)?.studySeconds ?? 0) / 60)
         inputs.items = items
         inputs.exams = exams
-        inputs.mixUps = openConfusions().prefix(5).map { confusion in
+        inputs.finishedExams = examSnapshots().filter { $0.date <= now }
+        // Only five are read, and mix-ups on finished exams go last, so they can't crowd out the ones that matter next.
+        let index = ExamIndex(exams + inputs.finishedExams, after: now)
+        let itemsByID = Dictionary(items.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+        let open = openConfusions()
+        let isBehind = { (confusion: Confusion) in
+            NoticeEngine.isBehindTheStudent(confusion.itemIDs.compactMap { itemsByID[$0] }, index: index)
+        }
+        inputs.mixUps = (open.filter { !isBehind($0) } + open.filter(isBehind)).prefix(5).map { confusion in
             NoticeMixUp(note: confusionNote(confusion), itemIDs: confusion.itemIDs, courseID: confusion.course?.id,
                         courseName: confusion.course?.name ?? "")
         }

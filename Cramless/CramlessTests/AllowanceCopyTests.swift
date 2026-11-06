@@ -14,6 +14,36 @@ final class AllowanceCopyTests: XCTestCase {
         XCTAssertNil(AllowanceCopy.scans(left: nil), "nothing to say on a paid plan, without consent, or for a child")
     }
 
+    /// A long reading says what it takes before the work, once its pages are known.
+    func testALongReadingSaysWhatItTakes() {
+        XCTAssertEqual(text(AllowanceCopy.reading(pages: 21, needed: 3, readable: 21, left: 3)),
+                       "This is 21 pages, so it takes 3 of your free AI scans.")
+        XCTAssertEqual(text(AllowanceCopy.reading(pages: 12, needed: 2, readable: 10, left: 1)),
+                       "You have 1 free AI scan left, so Cap reads the first 10 of 12 pages.")
+        XCTAssertEqual(text(AllowanceCopy.reading(pages: 25, needed: 3, readable: 20, left: 2)),
+                       "You have 2 free AI scans left, so Cap reads the first 20 of 25 pages.")
+        XCTAssertNil(AllowanceCopy.reading(pages: 8, needed: 1, readable: 8, left: 3), "one scan: nothing to warn of")
+        XCTAssertNil(AllowanceCopy.reading(pages: 21, needed: 3, readable: 21, left: nil), "a paid plan")
+        XCTAssertEqual(text(AllowanceCopy.reading(pages: 21, needed: 3, readable: 0, left: 0)),
+                       "Free AI scans are used up until Monday. Cap still writes questions on your iPhone.")
+    }
+
+    /// The line agrees with how the reading is really cut.
+    func testTheRouterCutsTheReadingTheWayTheRunWill() throws {
+        let app = try StudyTestApp.make(clock: TestClock(EngineTest.date(2026, 11, 6, 10, in: EngineTest.calendar())),
+                                        calendar: EngineTest.calendar())
+        app.ai.modeOverride = .mock
+        app.settings.cloudConsentVersion = AIConsent.currentVersion
+        let pages = { (n: Int) in Array(repeating: 500, count: n) }
+        app.ai.setServerQuota(TestHarness.quota("scans:3"))
+        XCTAssertEqual(text(app.ai.readingAllowance(pageWords: pages(21))), "This is 21 pages, so it takes 3 of your free AI scans.")
+        XCTAssertNil(app.ai.readingAllowance(pageWords: pages(9)))
+        app.ai.setServerQuota(TestHarness.quota("scans:1"))
+        XCTAssertEqual(text(app.ai.readingAllowance(pageWords: pages(12))), "You have 1 free AI scan left, so Cap reads the first 10 of 12 pages.")
+        app.settings.ageBand = .under13
+        XCTAssertNil(app.ai.readingAllowance(pageWords: pages(21)), "a child's account has no allowance to talk about")
+    }
+
     func testLectureNotesLeftThisWeek() {
         XCTAssertEqual(text(AllowanceCopy.lectures(left: 1)), "AI notes for 1 lecture left this week")
         XCTAssertEqual(text(AllowanceCopy.lectures(left: 2)), "AI notes for 2 lectures left this week")

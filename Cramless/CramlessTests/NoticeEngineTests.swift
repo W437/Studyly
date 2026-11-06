@@ -272,6 +272,24 @@ final class NoticeEngineTests: XCTestCase {
         XCTAssertEqual(ReviewOutcome.fadingRecall, 0.7, "the sky's dim line, not the exam's target")
     }
 
+    func testFadingLeavesOutQuestionsOnlyOnAFinishedExam() throws {
+        let over = UUID(), ahead = UUID()
+        var past = exam(in: -3)
+        past.scope = [over]
+        var midterm = exam(in: 6)
+        midterm.scope = [ahead]
+        let done = faded(20, on: past, topic: over)
+        let coming = faded(6, on: midterm, topic: ahead)
+        let i = inputs {
+            $0.items = done + coming
+            $0.exams = [midterm]
+            $0.finishedExams = [past]
+        }
+        let card = try XCTUnwrap(NoticeEngine(i).candidates().first { $0.kind == .fading })
+        guard case .fading(let rescue) = card.evidence else { return XCTFail("a fading card") }
+        XCTAssertEqual(rescue.dimCount, 6, "not the 20 from the exam that's over")
+    }
+
     func testFadingLeavesOutTodaysSessionAndWhatsAlreadyBoosted() {
         let midterm = exam(in: 6)
         let items = faded(7, on: midterm)
@@ -494,6 +512,64 @@ final class NoticeEngineTests: XCTestCase {
         let missed = ConfusionNote(id: UUID(), name: "Metaphase vs telophase", missCount: 1, recentMisses: 1, recentAnswers: 1)
         XCTAssertEqual(NoticeContent.card(for: missed).title, "You keep mixing up metaphase and telophase.")
         XCTAssertEqual(SessionCopy.missLine(missed), "Missed it lately. Want a 2-minute fix?")
+    }
+
+    /// A course whose finished exam covers its questions, and an exam still to come in another course (or none).
+    private func finishedMixUp(misses: Int = 4, another: Bool = true) throws -> Notice {
+        let item = ItemSnapshot(courseID: course)
+        var past = exam(in: -3)
+        past.courseID = course
+        var next = exam(in: 12, title: "Chem 110 Quiz")
+        next.courseID = UUID()
+        return try XCTUnwrap(NoticeEngine(inputs {
+            $0.items = [item]
+            $0.exams = another ? [next] : []
+            $0.finishedExams = [past]
+            var note = mixUp(items: [item.id])
+            note.note.missCount = misses
+            $0.mixUps = [note]
+        }).candidates().first)
+    }
+
+    func testAMixUpOnAFinishedExamWaitsBehindEverythingForTheNextExam() throws {
+        let card = try finishedMixUp(misses: 10)
+        XCTAssertEqual(card.rank, NoticeEngine.Rank.finishedMixUp(misses: 10))
+        XCTAssertFalse(card.notifiable)
+        XCTAssertNil(card.examID)
+        // The lowest anything for an exam can reach: a barely alike pair, three weeks out.
+        let lowest = NoticeEngine.Rank.lookAlike(similarity: 0.45, linked: false, daysLeft: LookAlikeFinder.examDays)
+        XCTAssertLessThan(card.rank, lowest)
+    }
+
+    func testAMixUpKeepsItsPlaceWithNoExamToCome() throws {
+        XCTAssertEqual(try finishedMixUp(misses: 4, another: false).rank, NoticeEngine.Rank.mixUp(misses: 4), "nothing to wait for")
+    }
+
+    func testAMixUpInACourseThatNeverHadAnExamKeepsItsPlace() throws {
+        let item = ItemSnapshot(courseID: course)
+        var next = exam(in: 12, title: "Chem 110 Quiz")
+        next.courseID = UUID()
+        let card = try XCTUnwrap(NoticeEngine(inputs {
+            $0.items = [item]
+            $0.exams = [next]
+            $0.mixUps = [mixUp(items: [item.id])]
+        }).candidates().first)
+        XCTAssertEqual(card.rank, NoticeEngine.Rank.mixUp(misses: mixUp().note.missCount))
+    }
+
+    func testAMixUpStillOnAnExamToComeIsntBehindTheStudent() throws {
+        let item = ItemSnapshot(courseID: course)
+        var past = exam(in: -3)
+        past.courseID = course
+        let midterm = exam(in: 6)
+        let card = try XCTUnwrap(NoticeEngine(inputs {
+            $0.items = [item]
+            $0.exams = [midterm]
+            $0.finishedExams = [past]
+            $0.mixUps = [mixUp(items: [item.id])]
+        }).candidates().first)
+        XCTAssertEqual(card.rank, NoticeEngine.Rank.mixUp(misses: mixUp().note.missCount))
+        XCTAssertEqual(card.examID, midterm.id)
     }
 
     func testAMixUpMayNotifyOnlyWithAnExamInAWeek() throws {

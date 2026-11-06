@@ -167,6 +167,21 @@ final class StudyAppModelTests: XCTestCase {
         XCTAssertGreaterThan(try XCTUnwrap(summary.readinessDelta), 0.5)
     }
 
+    /// The delta beside "53% → 67%" is the difference of the two numbers on screen, not a rounding of the raw gap (13.2 points).
+    func testTheSummarysDeltaIsTheDifferenceOfTheRoundedNumbers() throws {
+        var summary = SessionSummary(sessionID: UUID(), kind: .daily, answers: 1, itemsReviewed: 1, correctFirstTry: 1, accuracy: 1, newLearned: 0,
+                                     minutes: 1, examID: nil, examTitle: nil, readinessBefore: 0.534, readinessAfter: 0.666,
+                                     streak: StreakState(), streakExtended: false, repairedDay: nil, stopNow: false)
+        XCTAssertEqual(CLFormat.percent(0.534), "53%")
+        XCTAssertEqual(CLFormat.percent(0.666), "67%")
+        XCTAssertEqual(CLFormat.delta(try XCTUnwrap(summary.readinessDelta)), "+14%")
+        summary.readinessBefore = 0.671
+        summary.readinessAfter = 0.666
+        XCTAssertEqual(CLFormat.delta(try XCTUnwrap(summary.readinessDelta)), "±0%")
+        summary.readinessAfter = nil
+        XCTAssertNil(summary.readinessDelta)
+    }
+
     func testRolloverFreezesASingleMissedDay() throws {
         makeCourse()
         addDays("sssssss", endingDaysAgo: 2)
@@ -383,6 +398,25 @@ final class StudyAppModelTests: XCTestCase {
         // A session for one exam keeps it.
         let eve = app.buildSession(SessionRequest(kind: .examEve, examID: midterm.id))
         XCTAssertEqual(app.trackedExam(for: eve)?.id, midterm.id)
+    }
+
+    /// Follow-through moves a little each day with the record: no day where it jumps from a default to the student's own figure.
+    func testHabitsMoveWithTheRecordWithoutASuddenJump() throws {
+        makeCourse()
+        XCTAssertEqual(app.studyHabits().adherence, StudyHabits.followThroughPrior, accuracy: 1e-9, "no record, no mark against them")
+        XCTAssertEqual(app.studyHabits().newItemSuccess, StudyHabits.firstLookPrior, accuracy: 1e-9)
+        var previous = app.studyHabits().adherence
+        var pattern = Array("ssxsxsssxssxss").makeIterator()
+        for _ in 0..<14 {
+            let today = app.dayRecord(for: clock.now)
+            if pattern.next() == "s" { today.sessions = 1 }
+            app.save()
+            clock.advance(86_400)
+            let now = app.studyHabits().adherence
+            XCTAssertLessThan(abs(now - previous), 0.125, "a step of \(now - previous)")
+            previous = now
+        }
+        XCTAssertLessThan(previous, 0.95, "a student who skips comes down")
     }
 
     func testNextExamIsTheSoonestStillToCome() throws {

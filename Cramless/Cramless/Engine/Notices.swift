@@ -190,6 +190,8 @@ struct NoticeInputs: Sendable {
     var items: [ItemSnapshot] = []
     /// Upcoming exams.
     var exams: [ExamSnapshot] = []
+    /// Exams already over: what tells a mix-up that's behind the student from one in a course that never had an exam.
+    var finishedExams: [ExamSnapshot] = []
     /// Open mix-ups.
     var mixUps: [NoticeMixUp] = []
     /// Look-alike pairs, best first (`LookAlikeFinder`).
@@ -301,6 +303,9 @@ struct NoticeEngine: Sendable {
         static let welcomeBack = 1000.0
         static func fading(dimShare: Double, daysLeft: Int) -> Double { 500 + 200 * dimShare - 10 * Double(daysLeft) }
         static func mixUp(misses: Int) -> Double { 400 + 20 * Double(min(misses, 10)) }
+        /// A mix-up only on finished exams, while another exam is to come: after all of it, as in the session (`ExamIndex.isDone(with:)`).
+        /// Below the lowest a look-alike reaches, three weeks out.
+        static func finishedMixUp(misses: Int) -> Double { 100 + Double(min(misses, 10)) }
         static func mockOffer(daysLeft: Int) -> Double { 450 - 10 * Double(daysLeft) }
         static func lookAlike(similarity: Double, linked: Bool, daysLeft: Int) -> Double {
             300 + 100 * similarity + (linked ? 50 : 0) - 10 * Double(daysLeft)
@@ -410,20 +415,28 @@ struct NoticeEngine: Sendable {
     /// Every open mix-up, the most missed first. It leaves when it is fixed.
     private func mixUpCards() -> [Notice] {
         guard !inputs.mixUps.isEmpty else { return [] }
-        let index = ExamIndex(inputs.exams, after: inputs.now, calendar: inputs.calendar)
+        let index = ExamIndex(inputs.exams + inputs.finishedExams, after: inputs.now, calendar: inputs.calendar)
         var byID: [UUID: ItemSnapshot] = [:]
         let wanted = Set(inputs.mixUps.flatMap(\.itemIDs))
         for item in inputs.items where wanted.contains(item.id) { byID[item.id] = item }
         return inputs.mixUps.map { mixUp in
-            let exam = mixUp.itemIDs.compactMap { byID[$0] }.compactMap { index.soonest(covering: $0) }.min { $0.date < $1.date }
+            let items = mixUp.itemIDs.compactMap { byID[$0] }
+            let exam = items.compactMap { index.soonest(covering: $0) }.min { $0.date < $1.date }
             let daysLeft = exam.flatMap { index.daysLeft[$0.id] }
-            return Notice(id: Self.mixUpID(mixUp.note.id), kind: .mixUp, rank: Rank.mixUp(misses: mixUp.note.missCount),
+            let misses = mixUp.note.missCount
+            let rank = Self.isBehindTheStudent(items, index: index) ? Rank.finishedMixUp(misses: misses) : Rank.mixUp(misses: misses)
+            return Notice(id: Self.mixUpID(mixUp.note.id), kind: .mixUp, rank: rank,
                           examID: exam?.id, examDate: exam?.date, examTitle: exam?.title, evidence: .mixUp(mixUp.note),
                           notifiable: daysLeft.map { $0 <= Self.mixUpPingDays } ?? false)
         }
     }
 
     static func mixUpID(_ confusion: UUID) -> String { "mix-\(confusion.uuidString)" }
+
+    /// These questions' exams are all over, and another exam is still to come.
+    static func isBehindTheStudent(_ items: [ItemSnapshot], index: ExamIndex) -> Bool {
+        !index.all.isEmpty && !items.isEmpty && items.allSatisfy { index.isDone(with: $0) }
+    }
 
     // MARK: Look-alikes
 

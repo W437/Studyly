@@ -252,23 +252,24 @@ same sky, taken apart.
   bottom left; "17 stars dimming ›" (or "63 stars") at the bottom right. A tap anywhere opens the full sky, where the
   constellations, their cards and Practice live; on the first day's outline sky a tap ripples. The welcome keeps the tall world
   (`style: .world`).
-- **The day card** (`TodayDayCard`, words in `TodayHeroContent` and `TodayCopy`): a chip naming the exam today's session mostly
-  serves (`SessionFocus`, 40% of its minutes) and when it is ("For Chem 110 Quiz" · "Sun · in 2 days"), a title of up to two
-  topics ("Limiting reagents and Stoichiometry", more counted, never "then"), one reason ("The weakest topics for this exam, plus
+- **The day card** (`TodayDayCard`, words in `TodayHeroContent` and `TodayCopy`): a chip naming the exam today's session
+  serves (`SessionFocus`: an exam within a week with 20% of its minutes, the soonest first, else the one with 40%) and when it is ("For Chem 110 Quiz" · "Sun · in 2 days"), a title of up to two
+  topics, weakest first ("Limiting reagents and Stoichiometry", more counted, never "then"), one reason ("The weakest topics for this exam, plus
   12 questions you're about to forget."), readiness now beside a dashed ring for about where today's session takes it ("42% ready
   now" / "about 52% after today": the ring's own function over today's actual session, `ReadinessEngine.valueAfter`; "Based on
   7 questions so far." under 15 questions), "Study · 15 min" and "Why these?" (a fitted sheet, `TodayReasons`: the exam's scope,
   its weakest topic and how many of today's questions are on it, what is due, what waits and why; "Study something else" opens
   the sky as a list).
 - **Your plan** (`TodayPlanCard`, `TodayPlanStrip`): two days back (a check, a snowflake or a hollow circle: never red), today
-  (its minutes, ringed, or a check), four days ahead with each exam's eve (a moon, "10m") and day (a mortarboard, "2" when two
+  (its minutes, ringed, or a check), four days ahead with each exam's eve (a moon, and the minutes its plan gives it: "1m", what the exam page says) and day (a mortarboard, "2" when two
   share it) from the shared exam plans. "Calendar" opens the streak page, whose month marks exams and eves and goes one month
   ahead. Once a first session is done, today's quests fold into one line ("0 of 3 quests today · 5 of 12 this week") that opens
   them in a sheet.
 - **Cap noticed** (`TodayNoticeCard`, `CapNotice`, dealt by `NoticeEngine`, said by `NoticeContent`): one card at a time with "2 of 3", its
   action, Later (until tomorrow, with a toast), what the action costs ("No AI", "Under 1¢") and a menu with "Don't show these". At most three
   a day, one per kind; a card acted on stays away for 7 days. Counts and minutes, never a percentage. On an exam's eve (any exam tomorrow) the
-  slot is his quiet line instead: "Cap is quiet tonight. Bio 101 and AP Psychology can wait until after Chem 110 Quiz."
+  slot is his quiet line instead: "Cap is quiet tonight. Bio 101 and AP Psychology can wait until after Chem 110 Quiz." Two exams on one day share the
+  evening: one session, both named, and neither waits.
   - Mix-up: "You keep mixing up anaphase and telophase." / "Missed 3 of the last 4 times. Want a 2-minute fix?" / "Fix it · 2 min" / "No AI".
   - Look-alike: "Metaphase and telophase look alike" / "Both are on Wednesday's Bio 101 Midterm. Learn the one difference now?" / "Show me" /
     "Under 1¢" ("No AI" when Cloud AI won't be asked). The sheet (`LookAlikeView`) sets the two side by side with their sources and the one
@@ -282,7 +283,7 @@ same sky, taken apart.
   - Mock offer: "A mock exam for your Bio 101 Midterm" / "20 questions like the real one · 25 min" / "Take it" / "Free". 2 to 7 days before the exam, never on the eve or the day.
   - In the week before an exam a card may also come as one notification instead of that day's reminder and streak nudge: no counts, because they
     would be stale (`NoticeContent.pingBody`). Settings ▸ Study has a switch per kind, Settings ▸ Notifications the "Cap noticed" switch.
-- **Exams** (`TodayExamsRow`): tiles in a row (a 46 pt ring, the name, when, rose within three days, "+15% this week" with an
+- **Exams** (`TodayExamsRow`): tiles in a row, two and the edge of the next on any phone (a 46 pt ring, the name, when, rose within three days, "+15% this week" with an
   arrow), "See all" to the Progress tab. With material and no exam: "When is your next exam?" and "Add an exam" (the editor asks
   for a course's name when there is none). Hidden on the eve.
 
@@ -290,17 +291,19 @@ same sky, taken apart.
 |---|---|---|---|
 | A plan day | "For Chem 110 Quiz" · "Sun · in 2 days" | its topics | "Study · 15 min", "Why these?" |
 | Catch-up | the same | the same; the backlog is the reason | "Study · 15 min" |
-| No exam, or none holds 40% | none (no rings) | its topics or courses | "Study · 15 min" |
-| Exam eve | a moon, the exam · "Tomorrow · 10:00" | "Tonight: weak spots only" | "Tonight · 10 min" |
+| No exam, or none the session serves | none (no rings) | its topics or courses | "Study · 15 min" |
+| Exam eve | a moon, the exam · "Tomorrow · 10:00" | "Tonight: weak spots only" | "Tonight · 4 min" (the session's own minutes, at most 10) |
 | Eve, nothing weak or done | the same; the sky stops twinkling, Cap sleeps | "Nothing left to review tonight" / "That's enough for tonight" | none |
 | Done | "Done for today" · "15 min · 24 answers" | "Bright tonight", with "Chem 110 Quiz: 52% ready" and "+10% today · 2 days to go" | "5 more minutes" (quiet) |
-| All lit | none | "All lit" | "Practice Limiting reagents · 5 min" |
+| All lit | none | "All lit" | "Practice Limiting reagents · 5 min", or "Practice · 5 min" when that won't fit (the reason names the topic) |
 | No questions yet | none (outline sky) | "Let's make your first set" / "Add your first material" | "Try a sample page", "Scan a page" |
 
 - One big button a day; one word per job ("Study", "Practice", "Tonight"); "questions", never "cards".
 - Readiness is the only percentage; the projection ring is dashed, so it reads without colour.
 - Large text: the band is low with only the streak and avatar on it and the greeting below; the rings sit above their words; the
-  week is five rows in words; the exams are rows.
+  week is five rows in words; the exams are rows, and a pill wraps rather than cutting off.
+- A chip and its when-line take two lines when one won't hold them, and a line of parts joined by "·" (`DotLine`) breaks into one part
+  to a line, so no line ends on a hanging dot.
 - VoiceOver: the greeting, the streak, the avatar, "Your memory sky" (opens the sky; a Refresh action), the card (chip, title,
   reason, "42 percent ready now, about 52 percent after today, projected", the button, "Why these?"), the week as one element read
   day by day, Cap's card ("Cap noticed, 1 of 2"), the exams.

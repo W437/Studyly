@@ -49,6 +49,10 @@ struct ExamDetailModel {
     var topics: [ExamPresentation.TopicRow]
     var today: ExamPresentation.TodayWork
     var study: ExamPresentation.StudyAction?
+    /// On the eve, tonight's session's own minutes (0: nothing to review): the button and the plan's "Tonight" say this number.
+    var tonightMinutes: Int?
+    /// On the eve, tonight's session is finished.
+    var eveDone = false
     var skip: ExamPresentation.SkipOption?
     var result: Double?
     var readinessAtExam: Double?
@@ -97,7 +101,12 @@ struct ExamDetailModel {
         today = ExamPresentation.todayWork(entries: session.entries, sessionMinutes: summary.sessionReady ? summary.plannedMinutes : 0,
                                            exam: ExamSnapshot(exam), topicNames: app.topicNames(), studiedToday: summary.studiedToday,
                                            missedYesterday: strip.first.map { $0.kind == .missed || $0.kind == .frozen } == true)
-        study = ExamPresentation.studyAction(phase: phase, today: today, weakest: topics.first { $0.isWeakest }, courseName: course.name)
+        if case .eve = phase {
+            tonightMinutes = app.buildSession(SessionRequest(kind: .examEve, examID: exam.id)).tonightMinutes
+            eveDone = app.eveSessionDone(summary)
+        }
+        study = ExamPresentation.studyAction(phase: phase, today: today, weakest: topics.first { $0.isWeakest }, courseName: course.name,
+                                             eveMinutes: tonightMinutes ?? SessionBuilder.examEveMinutes, eveDone: eveDone)
         skip = ExamPresentation.skipOption(plan: plan, phase: phase, calendar: app.calendar)
         result = exam.resultScore
         readinessAtExam = exam.readinessAtExam
@@ -261,14 +270,12 @@ private struct ExamDetailContent: View {
                           projected: ahead && model.readiness.itemsInScope > 0 ? (shownSkipPlan ?? model.plan).projectedReadiness : nil)
                 .accessibilityLabel(Text(model.isPast ? "Readiness on the day" : "Readiness"))
             VStack(alignment: .leading, spacing: 6) {
-                Text(whenLine)
+                DotLine(parts: whenParts)
                     .clFont(.title3)
                     .foregroundStyle(CLColor.ink)
-                    .fixedSize(horizontal: false, vertical: true)
-                Text(subline)
+                DotLine(parts: sublineParts)
                     .clFont(.subheadline)
                     .foregroundStyle(CLColor.ink2)
-                    .fixedSize(horizontal: false, vertical: true)
                 if ahead {
                     ReflowPill(text: "\(CLFormat.delta(model.readiness.deltaThisWeek)) this week",
                                tone: model.readiness.deltaThisWeek > 0.004 ? .mint : .neutral,
@@ -302,13 +309,14 @@ private struct ExamDetailContent: View {
         return model.readiness.value
     }
 
-    /// "Sun, Nov 8 · 10:00 AM".
-    private var whenLine: String {
+    /// "Sun, Nov 8", "10:00 AM".
+    private var whenParts: [String] {
         let style = LibraryFormat.dateStyle(model.calendar)
-        return "\(model.date.formatted(style.weekday(.abbreviated).month(.abbreviated).day())) · \(model.date.formatted(style.hour().minute()))"
+        return [model.date.formatted(style.weekday(.abbreviated).month(.abbreviated).day()), model.date.formatted(style.hour().minute())]
     }
 
-    private var subline: String {
+    /// "2 days to go", then the exam's format.
+    private var sublineParts: [String] {
         let when: String
         switch model.phase {
         case .ahead(let days): when = LibraryFormat.countdown(days: days)
@@ -316,7 +324,7 @@ private struct ExamDetailContent: View {
         case .today: when = "Today"
         case .past(let days): when = days == 0 ? "Earlier today" : LibraryFormat.countdown(days: -days)
         }
-        return "\(when) · \(model.formatLine)"
+        return [when] + model.formatLine.components(separatedBy: " · ").filter { !$0.isEmpty }
     }
 
     // MARK: The projection
@@ -325,7 +333,7 @@ private struct ExamDetailContent: View {
         ExamPresentation.projection(phase: model.phase, plan: shownSkipPlan ?? model.plan, questionCount: model.readiness.itemsInScope,
                                     weakestTopic: model.topics.first { $0.isWeakest }?.name,
                                     grade: model.readiness.projectedGrade, examDate: model.date, now: model.now,
-                                    calendar: model.calendar, skipping: shownSkipPlan == nil ? nil : model.skip)
+                                    calendar: model.calendar, skipping: shownSkipPlan == nil ? nil : model.skip, eveDone: model.eveDone)
     }
 
     private func projectionCard(_ p: ExamPresentation.Projection) -> some View {
@@ -382,7 +390,8 @@ private struct ExamDetailContent: View {
                 Button {
                     start(study)
                 } label: {
-                    FittingLabel(titles: [study.title], systemImage: study.kind == .examEve ? "moon.stars.fill" : "play.fill")
+                    FittingLabel(titles: [study.title] + [study.shortTitle].compactMap { $0 },
+                                 systemImage: study.kind == .examEve ? "moon.stars.fill" : "play.fill")
                 }
                 .buttonStyle(.cl(.primary))
                 if let subline = study.subline {
@@ -555,7 +564,7 @@ private struct ExamDetailContent: View {
         let stops = ExamPresentation.stops(plan: shownSkipPlan ?? model.plan, phase: model.phase, examTitle: model.title,
                                            examDate: model.date, today: model.today,
                                            skipped: shownSkipPlan == nil ? nil : model.skip?.offset,
-                                           now: model.now, calendar: model.calendar)
+                                           tonightMinutes: model.tonightMinutes, eveDone: model.eveDone, now: model.now, calendar: model.calendar)
         if !stops.isEmpty, model.readiness.itemsInScope > 0 {
             CLSectionHeader(title: "The plan", actionTitle: "Adjust") { app.router.push(.settingsPage(.study)) }
             ExamPlanPath(stops: stops, skip: model.skip, skipping: shownSkipPlan != nil, cost: skipCost) { toggleSkip() }

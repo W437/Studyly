@@ -250,10 +250,10 @@ struct SessionSegments: View {
     @State private var shines = 0
 
     var body: some View {
-        let count = runner.queue.count
+        let count = runner.segmentCount
         // Up to 16 questions read as separate segments; a longer session reads as one bar with fine ticks.
         let dense = count > 16
-        let newest = runner.provisional != nil ? runner.queue.position : runner.queue.position - 1
+        let newest = runner.provisional != nil ? runner.segmentPosition : runner.segmentPosition - 1
         let run = runner.liveCombo
         let glowing = Set(run >= ComboRun.shownFrom ? Self.runSegments(runner, from: newest) : [])
         HStack(spacing: dense ? 1 : 4) {
@@ -284,7 +284,7 @@ struct SessionSegments: View {
         }
         .accessibilityElement()
         .accessibilityLabel("Progress")
-        .accessibilityValue("Question \(min(runner.queue.position + 1, count)) of \(count). \(runner.rightFirstTime) right so far.")
+        .accessibilityValue("Question \(min(runner.segmentPosition + 1, count)) of \(count). \(runner.rightSoFar) right so far.")
     }
 
     private func color(_ state: SessionRunner.SegmentState) -> Color {
@@ -300,11 +300,12 @@ struct SessionSegments: View {
         return .clear
     }
 
-    /// The segments of the run ending at `newest`: right answers back to the last one that wasn't.
+    /// The segments of the run ending at `newest`: right answers back to the last one that wasn't. A run starts with this runner (the
+    /// answers from before a close don't count toward it).
     static func runSegments(_ runner: SessionRunner, from newest: Int) -> [Int] {
         guard newest >= 0 else { return [] }
         var indices: [Int] = []
-        for index in stride(from: newest, through: 0, by: -1) {
+        for index in stride(from: newest, through: runner.earlier.count, by: -1) {
             guard case .done(let outcome) = runner.segment(index), outcome == .right else { break }
             indices.append(index)
         }
