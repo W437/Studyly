@@ -64,6 +64,15 @@ struct ChatPane: View {
     @State private var endGap: CGFloat = 0
     @State private var choosingSnap = false
     @State private var snapSession: SnapSession?
+    /// The camera shows when a problem's words could reach Cap (a relay, an account that isn't under 13) and there are notes for it to rest on. Read
+    /// once per change of the library: this body runs for every word of an answer, and the notes are a fetch away.
+    @State private var canSnap = false
+
+    private struct SnapGate: Equatable {
+        var courseID: UUID?
+        var revision: Int
+        var age: AppSettings.AgeBand
+    }
 
     private var streams: AskStreams { AskStreams.shared }
 
@@ -139,6 +148,10 @@ struct ChatPane: View {
         .modifier(SnapFlow(isChoosing: $choosingSnap, session: $snapSession) { text in
             ask(text, sendAs: nil, fromPhoto: true)
         })
+        .onChange(of: SnapGate(courseID: courseID, revision: app.revision, age: app.settings.ageBand), initial: true) { _, _ in
+            let can = app.ai.canSnapProblem && hasMaterial
+            if can != canSnap { canSnap = can }
+        }
         .task(id: courseID) {
             guard showsEmptyState else { return }
             starters = nil
@@ -148,9 +161,6 @@ struct ChatPane: View {
         .task { applySnapHarness() }
         #endif
     }
-
-    /// The camera shows when a problem's words could reach Cap (a relay, an account that isn't under 13) and there are notes for it to rest on.
-    private var canSnap: Bool { app.ai.canSnapProblem && hasMaterial }
 
     private func snap() {
         CLHaptics.tap()

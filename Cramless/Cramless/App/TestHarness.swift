@@ -206,7 +206,9 @@ enum TestHarness {
         case "editItem": if let i = firstCourse?.activeItems.first { r.present(.editItem(i.id)) }
         case "newItem": r.present(.newItem(courseID: firstCourse?.id))
         case "explain":
-            if let i = firstCourse?.activeItems.first(where: { $0.kind.isOwnWords }) {
+            // The question this wrong answer is wrong about, which is what the mock's three steps explain; another own-words one without it.
+            let ownWords = firstCourse?.activeItems.filter(\.kind.isOwnWords) ?? []
+            if let i = ownWords.first(where: { $0.prompt.contains("meiosis different from mitosis") }) ?? ownWords.first {
                 r.present(.explain(itemID: i.id, given: "Cells divide so they can make sex cells."))
             }
         case "makeCards":

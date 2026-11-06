@@ -78,6 +78,7 @@ struct ExplainMistakeView: View {
         }
         .safeAreaInset(edge: .bottom) { bottomBar(steps: steps, shown: shown, thread: thread, live: live) }
         .clScreenBackground()
+        .captureDebugCanvas()
         #if DEBUG
         .onChange(of: steps.pages.count, initial: true) { _, _ in applyHarnessStep(steps) }
         #endif
@@ -161,13 +162,14 @@ struct ExplainMistakeView: View {
                 .frame(maxWidth: .infinity)
             }
             .scrollDismissesKeyboard(.interactively)
-            // A quick check's answer and a follow-up arrive below: they scroll into view.
-            .onChange(of: entries.count) { _, _ in
+            // A quick check's answer and a follow-up arrive below: they scroll into view. The explanation arriving doesn't move the page.
+            .onChange(of: laterEntries(entries).count) { _, _ in
                 guard shown == .check else { return }
                 withAnimation(CLMotion.settle) { proxy.scrollTo("end", anchor: .bottom) }
             }
-            .onChange(of: live?.text.count ?? 0) { _, _ in
-                guard shown == .check, first != nil else { return }
+            .onChange(of: live?.text.count ?? 0) { _, count in
+                // A stream ending counts as a change too, down to nothing: only one still arriving moves the page.
+                guard shown == .check, first != nil, count > 0 else { return }
                 proxy.scrollTo("end", anchor: .bottom)
             }
         }
@@ -218,7 +220,7 @@ struct ExplainMistakeView: View {
         let later = laterEntries(entries)
         let reply = later.first { $0.role == .user }?.text
         if let check = steps.check {
-            QuickCheckCard(check: check, isActive: first != nil && live == nil, answered: reply) { answer in
+            QuickCheckCard(check: check, isActive: first != nil && live == nil, answered: reply, showsLabel: false) { answer in
                 ask(answer, sendAs: "Quick check: \(check.question) My answer: \(answer)")
             }
         } else if !steps.checkDraft.isEmpty {

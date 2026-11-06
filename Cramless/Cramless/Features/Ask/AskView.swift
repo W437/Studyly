@@ -21,6 +21,7 @@ struct AskView: View {
         let _ = app.revision
         let thread = app.thread(threadID).flatMap { $0.modelContext != nil ? $0 : nil }
         ChatPane(threadID: $threadID, pendingCourseID: $courseID)
+            .captureDebugCanvas()
             .navigationTitle("Ask Cap")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

@@ -120,22 +120,6 @@ final class OCRTests: CaptureTestCase {
         return try XCTUnwrap(PageImageStore.stage(imageData: [Render.jpeg(image)]).first)
     }
 
-    func testZZProbeProblemConfidences() async throws {
-        for (name, lines) in [("words", ["A cell goes through mitosis.", "How many daughter cells does it make?"]),
-                              ("digits", ["Problem 3.", "A cell with 46 chromosomes goes through mitosis.", "How many chromosomes does each daughter cell have?"]),
-                              ("short", ["Problem 3."]),
-                              ("algebra", ["Solve for x: 2x + 3 = 11", "Then find y when y = 3x - 2"]),
-                              ("sup", ["Solve for x: 2x² + 3x − 5 = 0", "Find ∫ x dx from 0 to 3"]),
-                              ("chem", ["How many moles of water are in 54 g of water?", "2H2 + O2 -> 2H2O"]),
-                              ("homework", ["Homework 3, question 5", "4 mol H2 and 3 mol O2 react. Which is the limiting reagent?"])] {
-            let image = Render.textImage(lines)
-            let staged = try XCTUnwrap(PageImageStore.stage(imageData: [Render.jpeg(image)]).first)
-            let direct = try await TextRecognizer.read(XCTUnwrap(image.cgImage), pageIndex: 0, preferredLanguages: ["en-US"])
-            let viaFile = try await TextRecognizer.read(imageAt: staged, pageIndex: 0, preferredLanguages: ["en-US"])
-            print("PROBE \(name): direct conf \(direct.read.confidence) issue \(String(describing: direct.read.issue)) dropped \(direct.read.droppedLines) lines \(direct.lines.map(\.text)) | file conf \(viaFile.read.confidence) issue \(String(describing: viaFile.read.issue)) dropped \(viaFile.read.droppedLines) lines \(viaFile.lines.map(\.text)) | langs \(Locale.preferredLanguages)")
-        }
-    }
-
     func testAPrintedProblemIsReadAndItsPhotoIsGone() async throws {
         let path = try stagedProblem(["Problem 3.", "A cell with 46 chromosomes goes through mitosis.", "How many chromosomes does each daughter cell have?"])
         XCTAssertTrue(FileManager.default.fileExists(atPath: FileStore.url(for: path).path))
@@ -181,6 +165,27 @@ final class OCRTests: CaptureTestCase {
         XCTAssertEqual(reading.text, "Solve 2x² + 3x = 5")
         XCTAssertEqual(reading.issue, .mathLike)
         XCTAssertTrue(reading.hasWords)
+    }
+
+    func testLinesBrokenByThePageRunOnAndPartsKeepTheirOwn() {
+        XCTAssertEqual(SnapReader.flowing(["Homework 3", "Problem 4. A cell with 46 chromosomes goes through",
+                                           "mitosis. How many chromosomes does each daughter", "cell have?"]),
+                       "Homework 3\nProblem 4. A cell with 46 chromosomes goes through mitosis. How many chromosomes does each daughter cell have?")
+        XCTAssertEqual(SnapReader.flowing(["1. Name the phases of mitosis in the order they happen", "2. Say what happens in the last of them, in a sentence"]),
+                       "1. Name the phases of mitosis in the order they happen\n2. Say what happens in the last of them, in a sentence")
+        XCTAssertEqual(SnapReader.flowing(["Solve for x and show every step of your working", "2x + 3 = 11"]),
+                       "Solve for x and show every step of your working\n2x + 3 = 11")
+        XCTAssertEqual(SnapReader.flowing(["What is it?"]), "What is it?")
+        XCTAssertEqual(SnapReader.flowing([]), "")
+    }
+
+    func testOneLineOfNotationIsEnoughForTheNoteOnAProblem() {
+        func reading(_ lines: [String]) -> SnapReader.Reading {
+            let textLines = lines.enumerated().map { TextLine(id: "p0.l\($0.offset)", text: $0.element, box: nil) }
+            return SnapReader.reading(from: CapturedPage(pageIndex: 0, label: "1", lines: textLines, read: PageRead(engine: .vision)))
+        }
+        XCTAssertEqual(reading(["Solve for x:", "2x + 3 = 11"]).issue, .mathLike)
+        XCTAssertNil(reading(["Problem 3.", "A cell with 46 chromosomes goes through mitosis."]).issue, "a number is not notation")
     }
 
     func testAWholePageReadByMistakeIsCut() {

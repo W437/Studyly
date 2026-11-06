@@ -343,6 +343,8 @@ struct QuickCheckCard: View {
     let isActive: Bool
     /// The person's reply, once there is one.
     let answered: String?
+    /// False where the screen's own title already says it (step 3 of Explain my mistake).
+    var showsLabel = true
     let onAnswer: (String) -> Void
 
     @State private var typed = ""
@@ -350,10 +352,12 @@ struct QuickCheckCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Label(check.isLabelled ? "Quick check" : "Your turn",
-                  systemImage: check.isLabelled ? "checkmark.circle" : "lightbulb")
-                .clFont(.eyebrow)
-                .foregroundStyle(check.isLabelled ? CLColor.tangerineInk : CLColor.skyInk)
+            if showsLabel {
+                Label(check.isLabelled ? "Quick check" : "Your turn",
+                      systemImage: check.isLabelled ? "checkmark.circle" : "lightbulb")
+                    .clFont(.eyebrow)
+                    .foregroundStyle(check.isLabelled ? CLColor.tangerineInk : CLColor.skyInk)
+            }
             Text(CapMarkdown.inline(check.question))
                 .clFont(.body)
                 .foregroundStyle(CLColor.ink)
