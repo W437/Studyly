@@ -182,17 +182,19 @@ struct MockSummaryView: View {
     }
 
     private func topicRow(_ topic: MockResult.Topic, practice: Bool) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(alignment: .firstTextBaseline) {
-                Text(verbatim: topic.name)
-                    .clFont(.subheadlineEmphasis)
-                    .foregroundStyle(CLColor.ink)
-                    .fixedSize(horizontal: false, vertical: true)
-                Spacer(minLength: 8)
-                Text(CLFormat.percent(topic.score)).clFont(.number(15, .bold)).foregroundStyle(CLColor.ink)
+        ReflowStack(verticalAlignment: .center, spacing: 12) {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text(verbatim: topic.name)
+                        .clFont(.subheadlineEmphasis)
+                        .foregroundStyle(CLColor.ink)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 8)
+                    Text(CLFormat.percent(topic.score)).clFont(.number(15, .bold)).foregroundStyle(CLColor.ink)
+                }
+                .accessibilityElement(children: .combine)
+                CLBar(value: topic.score).accessibilityHidden(true)
             }
-            .accessibilityElement(children: .combine)
-            CLBar(value: topic.score).accessibilityHidden(true)
             if practice {
                 Button {
                     CLHaptics.tap()
@@ -205,6 +207,7 @@ struct MockSummaryView: View {
                         .padding(.horizontal, 14)
                         .frame(minHeight: CLMetrics.minHitTarget)
                         .background(CLColor.tangerineSoft, in: Capsule())
+                        .fixedSize()
                 }
                 .buttonStyle(.pressable)
                 .accessibilityLabel(Text("Practice \(topic.name)"))

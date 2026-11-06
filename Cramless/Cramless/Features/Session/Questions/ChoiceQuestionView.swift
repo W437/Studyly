@@ -215,7 +215,6 @@ enum ChoiceOptionState {
         switch self {
         case .right: CLColor.mintSoft
         case .wrong: CLColor.roseSoft
-        case .chosen: CLColor.tangerineSoft
         default: CLColor.surface2
         }
     }

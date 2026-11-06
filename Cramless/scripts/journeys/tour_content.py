@@ -153,7 +153,7 @@ SECTIONS: list[dict] = [
          look="anything missing from privacy, accessibility or your data."),
     dict(id="plans", group="Around it", chip="Plans", film="plans", title="Free, Pro, Exam Pass and Squad",
          lede=("Free is unlimited flashcard reviews, 3 scans a week and 20 graded answers a day. Pro adds unlimited scans, PDFs and "
-               "lectures, answers graded in your own words without the daily limit, the tutor, and exam plans with practice tests. "
+               "lectures, answers graded in your own words without the daily limit, and the tutor. Plans, readiness and mock exams are free. "
                "Exam Pass is Pro for the 30 days around one exam, paid once. Squad is Pro for you and three friends on one plan."),
          look="whether the free plan feels fair and the prices feel right."),
 ]

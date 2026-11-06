@@ -444,9 +444,14 @@ private struct MockReviewView: View {
                 Text(verbatim: "\(index + 1)")
                     .clFont(.number(17, .bold))
                     .foregroundStyle(answered ? CLColor.ink : CLColor.ink3)
-                Image(systemName: flagged ? "flag.fill" : answered ? "checkmark" : "minus")
-                    .font(.system(size: 11, weight: .bold))
-                    .foregroundStyle(flagged ? CLColor.tangerineInk : answered ? CLColor.mintInk : CLColor.ink4)
+                HStack(spacing: 4) {
+                    Image(systemName: answered ? "checkmark" : "minus")
+                        .foregroundStyle(answered ? CLColor.mintInk : CLColor.ink4)
+                    if flagged {
+                        Image(systemName: "flag.fill").foregroundStyle(CLColor.tangerineInk)
+                    }
+                }
+                .font(.system(size: 11, weight: .bold))
             }
             .frame(maxWidth: .infinity, minHeight: tile)
             .background(answered ? CLColor.surface : CLColor.surface2, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
@@ -559,7 +564,7 @@ enum MockDebug {
             if let first = runner.current { runner.debugAnswer(first, step: "r") }
         case "short":
             runner.start(timed: timed.wrappedValue, elapsed: elapsed)
-            if let index = runner.plan.entries.firstIndex(where: { $0.kind != .mcq }) {
+            if let index = runner.plan.entries.firstIndex(where: { $0.kind.isOwnWords }) {
                 runner.go(to: index)
                 runner.debugAnswer(runner.plan.entries[index], step: "p")
             }
