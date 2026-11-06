@@ -11,7 +11,9 @@ import SwiftData
 // - `CRAMLESS_NOTICES=tooeasy` (or `CRAMLESS_LADDER=offer`): one of the Bio midterm's questions has become too easy, with three real reviews
 //   behind it, and the midterm is 20 days out.
 // - `CRAMLESS_NOTICE_STATE=second|later|done|allLater`, once the deck is dealt: `second` the first card acted on, so "2 of N" shows; `later` the
-//   first put off with "Later"; `done` "Fix my week" pressed on a fading card ("Plan updated"); `allLater` all put off.
+//   first put off with "Later"; `done` "Fix my week" pressed on a fading card, or "Move them" on a long day ("Plan updated"); `allLater` all put off.
+// - `CRAMLESS_NOTICES=busy`: the midterm 9 days out, and a demo calendar with a long day. `CRAMLESS_BUSY=<offset>[:<hours>]` says which (3 days ahead, 6 hours, by default);
+//   `CRAMLESS_BUSY=ask` hasn't been asked yet ("Check my calendar" says yes, and the card follows), `=askno` answers no, `=denied` was refused long ago.
 // - `CRAMLESS_NOTICE_TAP=<ms>` presses the button on the card that long after launch (`TodayView`).
 // - `CRAMLESS_ROUTE=lookAlike` opens the sheet on the best pair; `CRAMLESS_LOOKALIKE=rules|cloud|writing` (`LookAlikeView`).
 //
@@ -24,7 +26,7 @@ extension AppModel {
         let asked = Set(raw.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces).lowercased() })
         let all = asked.contains("all")
         let kinds: [(String, NoticeKind)] = [("mixup", .mixUp), ("lookalike", .lookAlike), ("fading", .fading), ("back", .welcomeBack), ("mock", .mockOffer),
-                                            ("gap", .gap), ("lecturedate", .lectureDate), ("tooeasy", .tooEasy)]
+                                            ("gap", .gap), ("lecturedate", .lectureDate), ("tooeasy", .tooEasy), ("busy", .busyDay)]
         var off = Set<NoticeKind>()
         for (name, kind) in kinds where !all && !asked.contains(name) { off.insert(kind) }
         settings.notices.off = off
@@ -51,6 +53,11 @@ extension AppModel {
             debugMoveExam(midterm, toDays: 12)
             debugMoveExam(chem, toDays: 40)
         }
+        if asked.contains("busy") {
+            debugMoveExam(midterm, toDays: 9)
+            debugMoveExam(chem, toDays: 40)
+            debugFillCalendar()
+        }
         if asked.contains("lecturedate") || all { debugHearExamDate("new") }
         if asked.contains("back") || all { debugWentAway() }
         save()
@@ -70,10 +77,29 @@ extension AppModel {
         case "done":
             for card in deck {
                 if case .fading(let rescue) = card.evidence { applyFadeRescue(rescue) }
+                if case .busyDay(let move) = card.evidence { applyBusyMove(move) }
             }
         default:
             break
         }
+    }
+
+    /// A demo calendar with one long day (`CRAMLESS_BUSY`).
+    private func debugFillCalendar() {
+        let raw = TestHarness.value("CRAMLESS_BUSY") ?? ""
+        let parts = raw.split(separator: ":").compactMap { Int($0) }
+        let offset = parts.first ?? 3, hours = parts.count > 1 ? parts[1] : 6
+        let day = calendar.adding(days: offset, to: calendar.startOfDay(for: now))
+        let start = calendar.date(bySettingHour: 9, minute: 0, second: 0, of: day) ?? day
+        let blocks = [BusyBlock(start: start, end: start.addingTimeInterval(Double(hours) * 3600))]
+        let access: CalendarAccess = switch raw {
+        case "ask", "askno": .notAsked
+        case "denied": .denied
+        default: .granted
+        }
+        let demo = DemoBusyCalendar(access: access, answers: raw == "askno" ? .denied : .granted, blocks: blocks)
+        busyCalendar = demo
+        noticeCache.busyBlocks = demo.heldBlocks
     }
 
     /// The best pair, for `CRAMLESS_ROUTE=lookAlike`: every exam counted as 9 days off, and nothing already solid.

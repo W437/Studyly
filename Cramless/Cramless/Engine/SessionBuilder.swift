@@ -19,6 +19,8 @@ struct SessionSpec: Sendable, Equatable {
     var focusItemIDs: [UUID] = []
     /// A mock's size. Nil: what the exam's format says, else `MockExamBuilder.defaultSize`.
     var questionCount: Int? = nil
+    /// What a backlog is measured against when `minutes` is less than the usual day ("Monday looks busy"). Nil: `minutes`.
+    var backlogMinutes: Int? = nil
 }
 
 /// One question in a session.
@@ -330,10 +332,11 @@ struct SessionBuilder: Sendable {
 
         let dueSeconds = (learning + due).reduce(0) { $0 + $1.cost }
         session.dueTotal = learning.count + due.count
-        let catchUp = spec.kind == .catchUp || (budget > 0 && dueSeconds > Self.catchUpFactor * budget)
+        let usualDay = spec.backlogMinutes.map { Double($0) * 60 } ?? budget
+        let catchUp = spec.kind == .catchUp || (budget > 0 && dueSeconds > Self.catchUpFactor * usualDay)
         if catchUp {
             session.catchUp = CatchUpInfo(backlog: session.dueTotal, backlogMinutes: Int((dueSeconds / 60).rounded(.up)),
-                                          daysToClear: budget > 0 ? max(1, Int((dueSeconds / budget).rounded(.up))) : 0)
+                                          daysToClear: budget > 0 ? max(1, Int((dueSeconds / usualDay).rounded(.up))) : 0)
         }
 
         // Ranking.

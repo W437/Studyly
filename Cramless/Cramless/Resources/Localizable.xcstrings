@@ -184,6 +184,7 @@
         }
       }
     },
+    "%@ looks busy" : {},
     "%@ made from it" : {},
     "%@ questions" : {},
     "%@ questions are in too" : {},
@@ -695,6 +696,38 @@
                 "stringUnit" : {
                   "state" : "translated",
                   "value" : "%lld minutes left"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld minutes moved from %@ to %@." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%#@minutes@ moved from %2$@ to %3$@."
+          },
+          "substitutions" : {
+            "minutes" : {
+              "argNum" : 1,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg minute"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg minutes"
+                    }
+                  }
                 }
               }
             }
@@ -1987,6 +2020,28 @@
         }
       }
     },
+    "About %lld hours in your calendar." : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "About %lld hour in your calendar."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "About %lld hours in your calendar."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "About %lld min for this exam" : {},
     "About %lld min for this exam: %@" : {
       "localizations" : {
@@ -2463,6 +2518,7 @@
     "Cap asks first" : {},
     "Cap asks you a question back" : {},
     "Cap brings it up tomorrow" : {},
+    "Cap can plan around your long days" : {},
     "Cap checked the questions you reported." : {},
     "Cap couldn't back this question with %@, so it's out of your sessions." : {},
     "Cap couldn't do that one." : {},
@@ -2607,6 +2663,7 @@
     "Check" : {},
     "Check it yourself" : {},
     "Check my answer" : {},
+    "Check my calendar" : {},
     "Check the problem" : {},
     "Check them before they join your sessions." : {},
     "Check this question" : {},
@@ -3000,6 +3057,7 @@
     "Hard" : {},
     "Harness routes" : {},
     "Have a code?" : {},
+    "He'd look at your calendar for long busy stretches, only their times, on this iPhone. Nothing leaves it." : {},
     "Hear an example" : {},
     "Hearing now" : {},
     "Hearing sound" : {},
@@ -3272,6 +3330,7 @@
     "Look-alikes" : {},
     "Looked again. All good." : {},
     "Looking at the calendar" : {},
+    "Looks at when your calendar is busy, on this iPhone, never at what's in it." : {},
     "Looks right" : {},
     "Looks wrong?" : {},
     "Lunch for the brain?" : {},
@@ -3376,6 +3435,39 @@
         }
       }
     },
+    "Move %lld minutes to %@?" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Move %#@minutes@ to %2$@?"
+          },
+          "substitutions" : {
+            "minutes" : {
+              "argNum" : 1,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg minute"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg minutes"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "Move them" : {},
     "Multiple choice" : {},
     "My answer should count" : {},
     "My brain is buffering." : {},
@@ -3512,6 +3604,7 @@
     "Nothing is due right now. Add pages to study more." : {},
     "Nothing is fading right now." : {},
     "Nothing left to review tonight" : {},
+    "Nothing long this week. Cap will keep an eye out." : {},
     "Nothing needs attention right now." : {},
     "Nothing planned. The plan is made at launch and after each change." : {},
     "Nothing that day in this what-if." : {},
@@ -3532,6 +3625,7 @@
     "Offline rules, always" : {},
     "Oh, hello there." : {},
     "Okay okay, I'm awake!" : {},
+    "Okay. Cap won't look at your calendar." : {},
     "On hold" : {},
     "On the exam" : {},
     "On the web" : {},
@@ -4531,6 +4625,7 @@
     "Today's session is in." : {},
     "Today: a tiny bit. Perfect." : {},
     "Tomorrow" : {},
+    "Tomorrow looks busy" : {},
     "Tomorrow · %@" : {},
     "Tomorrow's brain says thanks." : {},
     "Tomorrow-us will be ready." : {},

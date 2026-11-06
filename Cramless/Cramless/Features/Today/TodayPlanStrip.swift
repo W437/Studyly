@@ -5,7 +5,7 @@ import Foundation
 /// red, nothing is owed); today says its planned minutes, or a check once the goal is met; each exam's eve is a moon with the minutes
 /// the exam's plan gives it (at least 1, what the exam page says; tonight, the eve session's own), the exam day a mortarboard ("2"
 /// when two exams share it); other days the minutes planned: the daily goal (half on an easy day), more when an exam's share of the
-/// shared plan (`AppModel.examPlans()`) needs more.
+/// shared plan (`AppModel.examPlans()`) needs more, or what "Fix my week" and a long day's move changed (`boosts`).
 struct TodayPlanDay: Equatable, Sendable, Identifiable {
     enum Mark: Equatable, Sendable {
         /// A past day you studied (or repaired).
@@ -50,9 +50,10 @@ enum TodayPlanStrip {
 
     /// The week. `today` is now; `past` are the day records (any range; only the two days back are read); `todayMinutes` is the
     /// session planned now and `todayDone` that the day's goal is met; `goal` the daily minutes; `easyDays` the weekdays (1 Sunday
-    /// ... 7 Saturday) that are easy; `tonightMinutes` the eve session built for tonight, when today is an eve (0: nothing to review).
+    /// ... 7 Saturday) that are easy; `tonightMinutes` the eve session built for tonight, when today is an eve (0: nothing to review);
+    /// `boosts` the minutes added to or taken off a day, by its offset from today (`AppModel.planBoosts()`).
     static func make(today: Date, plans: [ExamPlan], past: [DaySnapshot], todayMinutes: Int, todayDone: Bool, goal: Int,
-                     easyDays: [Int], tonightMinutes: Int? = nil, calendar: Calendar) -> [TodayPlanDay] {
+                     easyDays: [Int], tonightMinutes: Int? = nil, boosts: [Int: Int] = [:], calendar: Calendar) -> [TodayPlanDay] {
         let todayNumber = calendar.dayNumber(for: today)
         let records = Dictionary(past.map { (calendar.dayNumber(for: $0.day), $0) }, uniquingKeysWith: { a, b in a.studied ? a : b })
         // What each exam's plan says about each day ahead.
@@ -105,7 +106,8 @@ enum TodayPlanStrip {
             } else if offset == 0 {
                 day.mark = todayDone ? .done : .minutes(todayMinutes)
             } else {
-                day.mark = .minutes(max(dayGoal(number), busiest[offset] ?? 0))
+                // A day's own goal, moved by what's been added or taken off. The plan can still need more.
+                day.mark = .minutes(max(dayGoal(number) + (boosts[offset] ?? 0), busiest[offset] ?? 0))
             }
             week.append(day)
         }

@@ -24,7 +24,7 @@ extension AppModel {
         let done = (summary.studiedToday && summary.minutesDone >= summary.minutesGoal) || eveSessionDone(summary)
         return TodayPlanStrip.make(today: now, plans: plans, past: past, todayMinutes: summary.plannedMinutes, todayDone: done,
                                    goal: settings.dailyMinutes, easyDays: settings.easyDays, tonightMinutes: tonightMinutes,
-                                   calendar: calendar)
+                                   boosts: planBoosts().minutes, calendar: calendar)
     }
 
     /// What "Why these?" says about today's session (`TodayReasons`): its exam and scope, the exam's weakest topic and how many of

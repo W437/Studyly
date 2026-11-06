@@ -73,6 +73,8 @@ final class AppModel {
     @ObservationIgnored let lectureCache = LectureCache()
     /// The last look's quiet job is under way (`AppModel+LastLook.swift`).
     @ObservationIgnored var lastLookPreparing = false
+    /// When the calendar says the person is taken: the system's on a real launch, nothing in tests and the harness (`CRAMLESS_NOTICES=busy` gives it a demo one).
+    @ObservationIgnored var busyCalendar: any BusyCalendarReading = NoBusyCalendar()
     /// Switches the app icon (the system's, or a fake in tests).
     @ObservationIgnored var iconSwitcher: any AppIconSwitching = SystemIconSwitcher()
     #if DEBUG
@@ -94,6 +96,7 @@ final class AppModel {
         if loaded.installedAt == nil { loaded.installedAt = Date() }
         self.settings = loaded
         self.sideEffectsEnabled = config.environment["XCTestConfigurationFilePath"] == nil
+        if sideEffectsEnabled, !config.isHarness { busyCalendar = LiveBusyCalendar() }
         #if DEBUG
         if let frozen = config.environment["CRAMLESS_NOW"], let date = ISO8601DateFormatter().date(from: frozen) {
             clock = { date }

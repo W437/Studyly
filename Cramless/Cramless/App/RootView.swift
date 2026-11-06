@@ -50,7 +50,10 @@ struct RootView: View {
             started = true
             await app.start()
             Task { await app.answerLaterOnLaunch() }
-            if app.sideEffectsEnabled { Task(priority: .utility) { await app.prepareLastLooks() } }
+            if app.sideEffectsEnabled {
+                Task(priority: .utility) { await app.prepareLastLooks() }
+                Task(priority: .utility) { await app.refreshBusyBlocks() }
+            }
             #if DEBUG
             try? await Task.sleep(for: .milliseconds(350))
             TestHarness.applyRoute(to: app)
@@ -73,7 +76,10 @@ struct RootView: View {
             app.applyDailyRollover()
             if app.sideEffectsEnabled { app.widgets.refresh() }
             Task { await app.runPendingRechecks() }
-            if app.sideEffectsEnabled { Task(priority: .utility) { await app.prepareLastLooks() } }
+            if app.sideEffectsEnabled {
+                Task(priority: .utility) { await app.prepareLastLooks() }
+                Task(priority: .utility) { await app.refreshBusyBlocks() }
+            }
             app.answerLaterOnActive()
         }
     }

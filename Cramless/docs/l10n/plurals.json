@@ -460,5 +460,29 @@
   "Your last look: %lld ideas, no quiz": {
     "one": "Your last look: %lld idea, no quiz",
     "other": "Your last look: %lld ideas, no quiz"
+  },
+  "About %lld hours in your calendar.": {
+    "one": "About %lld hour in your calendar.",
+    "other": "About %lld hours in your calendar."
+  },
+  "Move %lld minutes to %@?": {
+    "value": "Move %#@minutes@ to %2$@?",
+    "substitutions": {
+      "minutes": {
+        "argNum": 1,
+        "one": "%arg minute",
+        "other": "%arg minutes"
+      }
+    }
+  },
+  "%lld minutes moved from %@ to %@.": {
+    "value": "%#@minutes@ moved from %2$@ to %3$@.",
+    "substitutions": {
+      "minutes": {
+        "argNum": 1,
+        "one": "%arg minute",
+        "other": "%arg minutes"
+      }
+    }
   }
 }
