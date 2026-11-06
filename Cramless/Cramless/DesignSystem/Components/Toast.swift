@@ -1,7 +1,8 @@
 import SwiftUI
 
 /// A short confirmation that floats at the top: "Added 14 questions to Bio 101". One at a time; a new toast
-/// replaces the old. Raise one with `router.toast(...)`; RootView hosts the view.
+/// replaces the old. Raise one with `router.toast(...)`; RootView hosts the view. It floats over anything (the band, a card, a
+/// question), so it sits on the solid surface, with a hairline for a dark page, where glass would let what's under it show through.
 struct Toast: Identifiable, Equatable, Sendable {
     enum Tone: Sendable { case neutral, success, warning }
 
@@ -44,7 +45,9 @@ struct ToastView: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
-        .glassEffect(.regular, in: Capsule())
+        .background(CLColor.surface, in: Capsule())
+        .overlay(Capsule().strokeBorder(CLColor.hairline, lineWidth: 1))
+        .shadow(color: CLColor.night.opacity(0.16), radius: 14, y: 6)
         .padding(.horizontal, 20)
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(.isStaticText)

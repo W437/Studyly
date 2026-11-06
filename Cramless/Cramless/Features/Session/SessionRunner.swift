@@ -138,13 +138,16 @@ final class SessionRunner: Identifiable {
     /// The current question's grade before it is committed (colours its segment early).
     private(set) var provisional: Outcome?
     private(set) var answers: [Answer] = []
+    /// A session picked up after a close: how its earlier answers went, oldest first. They lead the progress bar.
+    private(set) var earlier: [Outcome] = []
     /// The rating being held for Undo, if any.
     private(set) var pending: PendingGrade?
     /// How the next question comes on screen (`SessionQuestionHost` reads it).
     private(set) var arrival: Arrival = .forward
     /// The streak as it was when the session started (the summary shows what changed).
     private(set) var streakBefore: StreakState
-    /// Wall clock, for the timer and answer durations (the app clock may be frozen by the harness).
+    /// Wall clock, for the timer and answer durations (the app clock may be frozen by the harness). A session picked up after a close
+    /// counts from the time already spent, so the clock goes on from there; the gap while the app was closed isn't in it.
     private(set) var startedAt = Date()
     private(set) var questionShownAt = Date()
     /// The current question has an answer that isn't recorded yet: typed, picked or graded.
@@ -231,6 +234,9 @@ final class SessionRunner: Identifiable {
         return right
     }
 
+    /// Right answers so far for VoiceOver, the ones from before a close included.
+    var rightSoFar: Int { rightFirstTime + earlier.filter { $0 == .right }.count }
+
     /// The tally of the flashcards rated so far (ratings, not distinct cards: a card that came back counts again).
     var flashcardTally: FlashcardTally {
         var tally = FlashcardTally()
@@ -252,8 +258,14 @@ final class SessionRunner: Identifiable {
     /// The course a session is limited to.
     var courseName: String? { request.courseID.flatMap { app.course($0)?.name } }
 
-    /// The segment colour for queue position `index`.
+    /// The progress bar's length and where it stands: the answers from before a close, then this runner's queue.
+    var segmentCount: Int { earlier.count + queue.count }
+    var segmentPosition: Int { earlier.count + queue.position }
+
+    /// The colour of the bar's segment `index`.
     func segment(_ index: Int) -> SegmentState {
+        if earlier.indices.contains(index) { return .done(earlier[index]) }
+        let index = index - earlier.count
         let entries = queue.entries
         guard entries.indices.contains(index) else { return .pending }
         if let outcome = outcomes[entries[index].id] { return .done(outcome) }
@@ -335,11 +347,13 @@ final class SessionRunner: Identifiable {
         if let resumedSession, resumedSession.modelContext != nil, resumedSession.endedAt == nil {
             session = resumedSession
             StudyRuntime.setLoad(app.currentDueLoad(), for: resumedSession.id)
+            earlier = app.sessionRatings(resumedSession.id).map(Outcome.init(rating:))
+            priorWallSeconds = max(priorWallSeconds, resumedSession.activeSeconds)
         } else {
             session = app.startSession(built)
         }
         clockStart = app.now
-        startedAt = Date()
+        startedAt = Date().addingTimeInterval(-priorWallSeconds)
         questionShownAt = Date()
         phase = .question
         activityTotal = Set(queue.entries.map(\.itemID)).count

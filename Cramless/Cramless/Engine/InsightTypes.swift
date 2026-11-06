@@ -27,6 +27,8 @@ struct TodaySummary: Equatable, Sendable {
     var catchUpDaysToClear: Int = 0
     /// An exam tomorrow: offer its exam-eve session (weak spots only, then stop).
     var examEveExamID: UUID? = nil
+    /// Every exam tomorrow, soonest first (`examEveExamID` is the first): they share tonight's session.
+    var examEveExamIDs: [UUID] = []
 }
 
 struct TopicReadiness: Equatable, Sendable, Identifiable {

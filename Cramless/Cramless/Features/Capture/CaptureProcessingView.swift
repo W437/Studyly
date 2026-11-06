@@ -39,6 +39,13 @@ struct CaptureProcessingView: View {
                         .padding(.top, 14)
                         .padding(.horizontal, CLSpace.gutter)
                         .frame(maxWidth: CLMetrics.readableWidth)
+                    if let line = run.allowanceLine {
+                        AllowanceLine(text: line)
+                            .multilineTextAlignment(.center)
+                            .padding(.top, 12)
+                            .padding(.horizontal, CLSpace.gutter)
+                            .frame(maxWidth: CLMetrics.readableWidth)
+                    }
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.bottom, 28)

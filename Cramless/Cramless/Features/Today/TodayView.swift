@@ -5,7 +5,7 @@ import SwiftUI
 /// plan" for the week (`TodayPlanCard`, with today's quests in one line); one of Cap's cards (`TodayNoticeCard`; on an exam's eve his
 /// quiet line instead); and the exams as a row (`TodayExamsRow`, or "When is your next exam?" with material and no exam).
 ///
-/// DEBUG hooks: `CRAMLESS_TODAY=catchup|partway|split|noExam|examEve|eveDone|done|caughtUp|noMaterial|empty` (see `TodaySnapshot`);
+/// DEBUG hooks: `CRAMLESS_TODAY=catchup|partway|split|noExam|examEve|twoEves|eveDone|done|caughtUp|noMaterial|empty` (see `TodaySnapshot`);
 /// `CRAMLESS_TODAY_NOTICES=0|1|2|3` deals that many of Cap's cards; `CRAMLESS_TODAY_WHY=<ms>`, `CRAMLESS_TODAY_QUESTS=<ms>` open "Why
 /// these?" and the quests that long after launch, and `CRAMLESS_TODAY_LATER=<ms>` presses Cap's "Later"; `CRAMLESS_TODAY_SCROLL=1`
 /// scrolls down to the exams and back, to film it; `CRAMLESS_SKY_TOUR=<ms>` shows each sky behind the stars in turn;
@@ -172,7 +172,7 @@ struct TodayView: View {
                           onCalendar: { open(.streak) }, onQuests: { present(.quests) })
         }
         if snap.isEve, let eve = snap.eveExam {
-            TodayQuietLine(text: TodayCopy.quietLine(examTitle: eve.title, others: snap.eveOthers))
+            TodayQuietLine(text: TodayCopy.quietLine(examTitle: snap.eveTitle ?? eve.title, others: snap.eveOthers))
         } else if snap.hasMaterial, let notice = notices(snap).first {
             TodayNoticeCard(notice: notice, index: 1, total: notices(snap).count,
                             onAction: { act(on: $0) }, onLater: { later(notice) }, onOpen: { follow($0) })
