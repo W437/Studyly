@@ -3,12 +3,12 @@ import UIKit
 
 /// One question of a mock, in its format, with no verdict: an answer can be changed until it is handed in. Each page holds what it shows in
 /// its own state and writes it through to the runner.
-struct MockQuestionPage: View {
+struct MockQuestionPage<Extras: View>: View {
     let runner: MockRunner
     let entry: SessionEntry
     let item: StudyItem
-    /// The question's number on this sitting, from 0.
-    let position: Int
+    /// Back, Flag and the grid at the accessibility text sizes, where the pinned footer has no room for them.
+    @ViewBuilder var extras: Extras
 
     var body: some View {
         QuestionScroll {
@@ -21,6 +21,7 @@ struct MockQuestionPage: View {
                 default: MockWrittenBody(runner: runner, item: item)
                 }
             }
+            AccessibilityOnly { extras }
         }
         .task { app.readAloud(question: item) }
     }

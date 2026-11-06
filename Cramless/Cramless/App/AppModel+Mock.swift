@@ -27,14 +27,14 @@ extension AppModel {
 
     /// The mock for this exam now. `seed`: a new one each day and each sitting, unless a caller pins it.
     func mockPlan(for exam: Exam, seed: UInt64? = nil, size: Int? = nil) -> MockPlan? {
-        let items = mockEligibleItems(for: exam)
+        // How many options each multiple-choice question has: what a blind guess is worth in "Cap predicted".
         var choices: [UUID: Int] = [:]
-        for snapshot in items where snapshot.kind == .mcq {
-            choices[snapshot.id] = item(snapshot.id)?.choices.count
-        }
-        let builder = MockExamBuilder(fsrs: fsrs, calendar: calendar, now: now)
-        return builder.build(exam: ExamSnapshot(exam), items: items, choices: choices, seed: seed ?? mockSeed(for: exam), size: size)
+        for item in exam.course?.items ?? [] where item.kind == .mcq { choices[item.id] = item.choices.count }
+        return mockBuilder().build(exam: ExamSnapshot(exam), items: mockEligibleItems(for: exam), choices: choices,
+                                   seed: seed ?? mockSeed(for: exam), size: size)
     }
+
+    private func mockBuilder() -> MockExamBuilder { MockExamBuilder(fsrs: fsrs, calendar: calendar, now: now) }
 
     private func mockSeed(for exam: Exam) -> UInt64 {
         let sittings = mockSessions(of: exam.id).count
@@ -43,9 +43,10 @@ extension AppModel {
 
     func mockOffer(for exam: Exam) -> MockOffer {
         guard case .ahead = ExamPresentation.phase(examDate: exam.date, now: now, calendar: calendar) else { return .hidden }
-        // The plan is built with a pinned seed: the card only reads its size, and the sitting deals its own.
-        if let plan = mockPlan(for: exam, seed: 0) { return .ready(plan) }
-        return .tooFew(have: mockEligibleItems(for: exam).count)
+        // A plan with a pinned seed and no guesses worked out: the page reads only its size and mix, and the sitting deals its own.
+        let items = mockEligibleItems(for: exam)
+        if let plan = mockBuilder().build(exam: ExamSnapshot(exam), items: items, seed: 0) { return .ready(plan) }
+        return .tooFew(have: items.count)
     }
 
     /// Finished mocks of an exam with at least one answer, the newest first.

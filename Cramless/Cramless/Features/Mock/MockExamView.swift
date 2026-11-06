@@ -29,6 +29,7 @@ struct MockExamView: View {
                 MockUnavailableView(examID: examID)
             }
         }
+        .captureDebugCanvas()
         .task {
             guard !loaded else { return }
             #if DEBUG
@@ -228,7 +229,7 @@ private struct MockSittingView: View {
             ZStack {
                 if let entry = runner.current {
                     if let item = runner.item(entry) {
-                        MockQuestionPage(runner: runner, entry: entry, item: item, position: runner.position)
+                        MockQuestionPage(runner: runner, entry: entry, item: item) { secondary }
                             .id(entry.id)
                             .transition(reduceMotion ? .opacity : .asymmetric(
                                 insertion: .move(edge: forward ? .trailing : .leading).combined(with: .opacity),

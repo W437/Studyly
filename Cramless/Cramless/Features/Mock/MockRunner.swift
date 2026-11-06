@@ -330,14 +330,13 @@ final class MockRunner: Identifiable {
         game.badges += outcome.badges
     }
 
-    /// The person left before handing in: with nothing answered there is nothing to mark, and the session simply ends.
+    /// The screen went away before hand-in: what has been answered is marked, and with nothing answered the session simply ends.
     func abandon() {
-        guard phase == .intro || phase == .answering || phase == .review || phase == .timeUp else { return }
-        if answeredCount > 0, phase != .intro {
+        guard phase == .answering || phase == .review || phase == .timeUp else { return }
+        if answeredCount > 0 {
             Task { await handIn() }
-        } else if phase != .intro {
-            phase = .summary
-            if let session { summary = app.finishSession(session) }
+        } else if let session, session.endedAt == nil {
+            summary = app.finishSession(session)
         }
     }
 

@@ -124,9 +124,12 @@ struct ExamDetailModel {
         offersExamPass = ExamPresentation.offersExamPass(plan: app.purchases.plan, examDate: exam.date,
                                                          examDates: app.upcomingExams().map(\.date), now: app.now,
                                                          calendar: app.calendar)
-        let last = app.lastMock(for: exam.id)
-        mock = ExamPresentation.mockCard(offer: app.mockOffer(for: exam), lastScore: last?.score, lastDate: last?.date,
-                                         canWrite: app.restRequest(for: exam) != nil, calendar: app.calendar)
+        let offer = app.mockOffer(for: exam)
+        let last = offer == .hidden ? nil : app.lastMock(for: exam.id)
+        // Only a card that asks for more questions needs to know whether a reading has more to give.
+        var canWrite = false
+        if case .tooFew = offer { canWrite = app.restRequest(for: exam) != nil }
+        mock = ExamPresentation.mockCard(offer: offer, lastScore: last?.score, lastDate: last?.date, canWrite: canWrite, calendar: app.calendar)
     }
 
     var isPast: Bool { if case .past = phase { true } else { false } }
