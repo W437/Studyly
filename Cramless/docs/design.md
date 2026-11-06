@@ -279,6 +279,7 @@ same sky, taken apart.
     card and the plan strip.
   - Welcome back: "Welcome back, Maya" / "Your best streak, 23 days, is still yours. 5 minutes today lights your flame again." / "Start 5 min" /
     "No AI". Never a restored streak: nothing to lose, nothing faked. In Quiet mode the card stays and says "Your stars waited for you. 5 minutes today is a good start."
+  - Mock offer: "A mock exam for your Bio 101 Midterm" / "20 questions like the real one · 25 min" / "Take it" / "Free". 2 to 7 days before the exam, never on the eve or the day.
   - In the week before an exam a card may also come as one notification instead of that day's reminder and streak nudge: no counts, because they
     would be stale (`NoticeContent.pingBody`). Settings ▸ Study has a switch per kind, Settings ▸ Notifications the "Cap noticed" switch.
 - **Exams** (`TodayExamsRow`): tiles in a row (a 46 pt ring, the name, when, rose within three days, "+15% this week" with an

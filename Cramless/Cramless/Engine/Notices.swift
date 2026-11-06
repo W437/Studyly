@@ -31,14 +31,14 @@ enum NoticeKind: String, Codable, CaseIterable, Sendable {
     case fading
     /// Back after a week or more away.
     case welcomeBack
+    /// A mock exam is due for an exam 2 to 7 days away (`MockSuggestion`).
+    case mockOffer
 
     // Reserved for cards still to come, so the settings and the ledger can already name them.
     case gap, lectureDate, busyDay, tooEasy, teachBack, sameIdea
-    /// "Try a mock exam": the mock exam's own card.
-    case mockOffer
 
     /// The kinds that deal cards in this build, in the order Settings lists their switches.
-    static let live: [NoticeKind] = [.mixUp, .lookAlike, .fading, .welcomeBack]
+    static let live: [NoticeKind] = [.mixUp, .lookAlike, .fading, .welcomeBack, .mockOffer]
 }
 
 /// The person's switches: which kinds Cap may bring up, and whether he may send a notification about them.
@@ -206,6 +206,17 @@ struct NoticeInputs: Sendable {
     var topicNames: [UUID: String] = [:]
     /// The look-alike lesson would use Cloud AI (which also decides what its card says it costs).
     var cloudLessons = false
+    /// The exams a mock is due for.
+    var mockOffers: [NoticeMockOffer] = []
+}
+
+/// A mock that is due for an exam: which exam, and how long the mock would be.
+struct NoticeMockOffer: Equatable, Sendable {
+    var examID: UUID
+    var examTitle: String
+    var examDate: Date
+    var questions: Int
+    var minutes: Int
 }
 
 // MARK: - A card
@@ -218,6 +229,7 @@ struct Notice: Identifiable, Equatable, Sendable {
         case fading(FadeRescue)
         /// `best`: the person's best streak, in days; 0 in Quiet mode, where the card doesn't name it.
         case welcomeBack(best: Int)
+        case mockOffer(NoticeMockOffer)
     }
 
     /// What pressing its button costs, as the card says it.
@@ -225,9 +237,11 @@ struct Notice: Identifiable, Equatable, Sendable {
         case none
         case cloud
         case drafts(Int)
+        /// May use AI as it always does, and costs nothing (a mock marks short answers with what the person's plan allows).
+        case free
     }
 
-    /// Stable for what it is about: `mix-<confusion>`, `pair-<hash of the two questions>`, `fade-<exam>-<day>`, `back-<last day studied>`.
+    /// Stable for what it is about: `mix-<confusion>`, `pair-<hash of the two questions>`, `fade-<exam>-<day>`, `back-<last day studied>`, `mock-<exam>`.
     var id: String
     var kind: NoticeKind
     var rank: Double
@@ -287,6 +301,7 @@ struct NoticeEngine: Sendable {
         static let welcomeBack = 1000.0
         static func fading(dimShare: Double, daysLeft: Int) -> Double { 500 + 200 * dimShare - 10 * Double(daysLeft) }
         static func mixUp(misses: Int) -> Double { 400 + 20 * Double(min(misses, 10)) }
+        static func mockOffer(daysLeft: Int) -> Double { 450 - 10 * Double(daysLeft) }
         static func lookAlike(similarity: Double, linked: Bool, daysLeft: Int) -> Double {
             300 + 100 * similarity + (linked ? 50 : 0) - 10 * Double(daysLeft)
         }
@@ -303,7 +318,7 @@ struct NoticeEngine: Sendable {
     func candidates() -> [Notice] {
         let calendar = inputs.calendar, now = inputs.now
         guard !inputs.exams.contains(where: { $0.date > now && calendar.dayDistance(from: now, to: $0.date) == 1 }) else { return [] }
-        let cards = mixUpCards() + lookAlikeCards() + fadingCards() + welcomeBackCards()
+        let cards = mixUpCards() + lookAlikeCards() + fadingCards() + welcomeBackCards() + mockOfferCards()
         return cards.filter { inputs.settings.allows($0.kind) }
             .sorted { $0.rank != $1.rank ? $0.rank > $1.rank : $0.id < $1.id }
     }
@@ -369,7 +384,10 @@ struct NoticeEngine: Sendable {
             eligible(card, dayOffset: 0) && !ledger.snoozed.contains(card.id) && !ledger.wasSeen(card.id, on: today)
         }
         if let first { out.append((first, 0)) }
-        if let second = candidates.first(where: { eligible($0, dayOffset: 1) && $0.linkID != first?.linkID }) {
+        // Tomorrow: another card if there is one, else this one again, for when today's time has already gone by. The planner sends a card
+        // once, on the first of these days it can.
+        let later = candidates.filter { eligible($0, dayOffset: 1) }
+        if let second = later.first(where: { $0.linkID != first?.linkID }) ?? later.first {
             out.append((second, 1))
         }
         return out
@@ -446,4 +464,17 @@ struct NoticeEngine: Sendable {
         guard days.count < Self.welcomeBackDays || days.contains(dayKey) else { return [] }
         return [Notice(id: id, kind: .welcomeBack, rank: Rank.welcomeBack, evidence: .welcomeBack(best: inputs.bestStreak))]
     }
+
+    /// One card per kind means one exam's mock at a time: the nearest ranks first. Never sent as a notification, and never on the eve or
+    /// the day (`MockSuggestion.days`).
+    private func mockOfferCards() -> [Notice] {
+        inputs.mockOffers.compactMap { offer in
+            let days = inputs.calendar.dayDistance(from: inputs.now, to: offer.examDate)
+            guard MockSuggestion.days.contains(days) else { return nil }
+            return Notice(id: Self.mockOfferID(offer.examID), kind: .mockOffer, rank: Rank.mockOffer(daysLeft: days), examID: offer.examID,
+                          examDate: offer.examDate, examTitle: offer.examTitle, evidence: .mockOffer(offer), cost: .free)
+        }
+    }
+
+    static func mockOfferID(_ examID: UUID) -> String { "mock-\(examID.uuidString)" }
 }

@@ -20,6 +20,8 @@ struct CapNotice: Identifiable, Equatable, Sendable {
             case fixMyWeek(FadeRescue)
             /// Takes "Fix my week" back.
             case undoFixMyWeek(noticeID: String)
+            /// "Take it": a mock of this exam.
+            case takeMock(examID: UUID)
         }
 
         /// "Fix it · 2 min".

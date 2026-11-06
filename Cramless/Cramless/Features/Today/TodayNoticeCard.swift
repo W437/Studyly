@@ -4,7 +4,7 @@ import SwiftUI
 /// tomorrow) and what the button costs. Today shows the first of `AppModel.todayNotices()`. The menu's "Don't show these" switches the
 /// kind off (Settings ▸ Study turns it on again). "Plan updated" (after "Fix my week") has "OK" and Undo instead.
 ///
-/// DEBUG: `CRAMLESS_TODAY_NOTICES=0|1|2|3` deals that many (see `TodaySnapshot`), `CRAMLESS_NOTICES=mixup,lookalike,fading,back|all|none`
+/// DEBUG: `CRAMLESS_TODAY_NOTICES=0|1|2|3` deals that many (see `TodaySnapshot`), `CRAMLESS_NOTICES=mixup,lookalike,fading,back,mock|all|none`
 /// shapes the world so the real engine finds them and `CRAMLESS_NOTICE_STATE=second|later|done|allLater` puts them part way through the
 /// day (`AppModel+NoticeHarness`); `CRAMLESS_TODAY_LATER=<ms>` presses Later and `CRAMLESS_NOTICE_TAP=<ms>` the button, that long after
 /// launch (`TodayView`).

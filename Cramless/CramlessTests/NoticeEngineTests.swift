@@ -237,8 +237,8 @@ final class NoticeEngineTests: XCTestCase {
         XCTAssertTrue(settings.allows(.mockOffer), "a new kind starts on")
         let empty = try JSONDecoder.cramless.decode(NoticeSettings.self, from: Data("{}".utf8))
         XCTAssertEqual(empty, NoticeSettings())
-        XCTAssertEqual(NoticeKind.live, [.mixUp, .lookAlike, .fading, .welcomeBack])
-        for kind in ["gap", "lectureDate", "busyDay", "tooEasy", "teachBack", "sameIdea", "mockOffer"] {
+        XCTAssertEqual(NoticeKind.live, [.mixUp, .lookAlike, .fading, .welcomeBack, .mockOffer])
+        for kind in ["gap", "lectureDate", "busyDay", "tooEasy", "teachBack", "sameIdea"] {
             XCTAssertNotNil(NoticeKind(rawValue: kind), "\(kind) is reserved")
         }
     }
@@ -415,6 +415,72 @@ final class NoticeEngineTests: XCTestCase {
         } else { XCTFail("a 5-minute session") }
         XCTAssertEqual(NoticeContent.welcomeBackDetail(best: 1), "Your stars waited for you. 5 minutes today is a good start.")
         for word in ["restore", "back to", "lost"] { XCTAssertFalse(card.detail.lowercased().contains(word), word) }
+    }
+
+    // MARK: Mock exams
+
+    private func mockOffer(for exam: ExamSnapshot, questions: Int = 20) -> NoticeMockOffer {
+        NoticeMockOffer(examID: exam.id, examTitle: exam.title, examDate: exam.date, questions: questions, minutes: 25)
+    }
+
+    func testAMockIsOfferedTwoToSevenDaysBeforeItsExamAndNeverOnTheEveOrTheDay() {
+        for (days, shown) in [(0, false), (1, false), (2, true), (7, true), (8, false)] {
+            let midterm = exam(in: days)
+            let deck = deal(inputs {
+                $0.exams = [midterm]
+                $0.mockOffers = [mockOffer(for: midterm)]
+            }).deck
+            XCTAssertEqual(deck.contains { $0.kind == .mockOffer }, shown, "\(days) days out")
+        }
+    }
+
+    func testAnotherExamsEveSilencesTheMockToo() {
+        let midterm = exam(in: 5), quiz = exam(in: 1)
+        XCTAssertTrue(deal(inputs {
+            $0.exams = [midterm, quiz]
+            $0.mockOffers = [mockOffer(for: midterm)]
+        }).deck.isEmpty)
+    }
+
+    func testTheNearestExamsMockIsTheOneDealt() throws {
+        let later = exam(in: 7), sooner = exam(in: 3)
+        let deck = deal(inputs {
+            $0.exams = [later, sooner]
+            $0.mockOffers = [mockOffer(for: later), mockOffer(for: sooner)]
+        }).deck
+        XCTAssertEqual(deck.count, 1, "one card per kind")
+        XCTAssertEqual(try XCTUnwrap(deck.first).examID, sooner.id)
+        XCTAssertGreaterThan(NoticeEngine.Rank.mockOffer(daysLeft: 2), NoticeEngine.Rank.mockOffer(daysLeft: 7))
+    }
+
+    func testAMockCardSaysItsSizeAndOpensTheMock() throws {
+        let midterm = exam(in: 5)
+        let i = inputs {
+            $0.exams = [midterm]
+            $0.mockOffers = [mockOffer(for: midterm)]
+        }
+        let notice = try XCTUnwrap(deal(i).deck.first)
+        let card = NoticeContent.card(notice, firstName: "Maya", now: now, calendar: cal)
+        XCTAssertEqual(card.title, "A mock exam for your \(midterm.title)")
+        XCTAssertEqual(card.detail, "20 questions like the real one · 25 min")
+        XCTAssertEqual(card.action?.title, "Take it")
+        XCTAssertEqual(card.action?.run, .takeMock(examID: midterm.id))
+        XCTAssertEqual(card.link, .exam(midterm.id))
+        XCTAssertEqual(card.cost, "Free", "its short answers may use AI, so it can't say No AI")
+    }
+
+    func testAMockCardIsNeverSentAndHasASwitch() {
+        let midterm = exam(in: 5)
+        let i = inputs {
+            $0.exams = [midterm]
+            $0.mockOffers = [mockOffer(for: midterm)]
+        }
+        let engine = NoticeEngine(i)
+        XCTAssertTrue(engine.pings(engine.candidates()).isEmpty)
+        XCTAssertNil(NoticeContent.pingBody(Notice(id: "o", kind: .mockOffer, rank: 0, evidence: .mockOffer(mockOffer(for: midterm)))))
+        var off = i
+        off.settings.off = [.mockOffer]
+        XCTAssertTrue(NoticeEngine(off).candidates().isEmpty)
     }
 
     // MARK: Mix-ups
@@ -700,9 +766,9 @@ final class NoticeEngineTests: XCTestCase {
 
     func testPingsOnlyInTheWeekBeforeTheExam() {
         for (days, offsets) in [(7, [1]), (6, [0, 1]), (3, [0, 1]), (2, [0]), (1, [])] as [(Int, [Int])] {
-            // One candidate, so tomorrow's is the same card only if today's wasn't eligible.
+            // One candidate: tomorrow's is the same card, for when today's time has passed (the planner sends it once).
             let found = pings(pingInputs(examIn: days)).map(\.dayOffset)
-            XCTAssertEqual(found, offsets.first.map { [$0] } ?? [], "\(days) days out")
+            XCTAssertEqual(found, offsets, "\(days) days out")
         }
     }
 
@@ -754,7 +820,7 @@ final class NoticeEngineTests: XCTestCase {
             $0.lookAlikes = base.lookAlikes
             $0.ledger.pinged[card.linkID] = self.now.addingTimeInterval(3600)
         })
-        XCTAssertEqual(planned.count, 1, "planned for later today: it can be planned again")
+        XCTAssertEqual(Set(planned.map(\.linkID)), [card.linkID], "planned for later today: it can be planned again")
     }
 
     func testPingWordsHaveNoCounts() {
@@ -829,6 +895,7 @@ final class NoticeEngineTests: XCTestCase {
             Notice(id: "b", kind: .lookAlike, rank: 0, evidence: .lookAlike(pair()), cost: .cloud),
             Notice(id: "c", kind: .fading, rank: 0, evidence: .fading(rescue)),
             Notice(id: "d", kind: .welcomeBack, rank: 0, evidence: .welcomeBack(best: 23)),
+            Notice(id: "e", kind: .mockOffer, rank: 0, evidence: .mockOffer(mockOffer(for: midterm)), cost: .free),
         ]
         for notice in notices {
             let card = NoticeContent.card(notice, firstName: "Maya", now: now, calendar: cal)

@@ -97,6 +97,21 @@ final class NotificationPlannerTests: XCTestCase {
         XCTAssertEqual(quiet.filter { $0.kind == .notice }.map { hm($0.date) }, ["10-22 17:30"], "moved out of quiet hours")
     }
 
+    func testACardGoesOutOnceOnTheFirstDayItCan() {
+        let both: (inout NotificationPlanner.Input) -> Void = { i in
+            i.notices.append(NoticePing(linkID: "pair-1", kind: .lookAlike, examDate: i.notices[0].examDate, dayOffset: 1, body: "Cap noticed something"))
+        }
+        let early = noticed(change: both).filter { $0.kind == .notice }
+        XCTAssertEqual(early.map { hm($0.date) }, ["10-22 19:00"], "tonight, and not again tomorrow")
+        let late = plan { i in
+            i.now = cal.date(bySettingHour: 21, minute: 0, second: 0, of: now)!
+            let date = cal.date(bySettingHour: 9, minute: 0, second: 0, of: cal.date(byAdding: .day, value: 5, to: now)!)!
+            i.exams = [.init(id: bioID, title: "Bio 101 Midterm", courseName: "Bio 101", date: date)]
+            i.notices = [0, 1].map { NoticePing(linkID: "pair-1", kind: .lookAlike, examDate: date, dayOffset: $0, body: "Cap noticed something") }
+        }.filter { $0.kind == .notice }
+        XCTAssertEqual(late.map { hm($0.date) }, ["10-23 19:00"], "tonight's time has gone by: tomorrow instead")
+    }
+
     func testCapNoticedGoesWithItsCardAndLeavesTrialAlone() {
         let planned = noticed()
         let without = plan()

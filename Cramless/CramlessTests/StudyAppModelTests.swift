@@ -438,6 +438,43 @@ final class StudyAppModelTests: XCTestCase {
         return (course, try XCTUnwrap(app.lookAlikeDraft(a: pair.a, b: pair.b)), a, b, pair)
     }
 
+    /// An exam `days` out, with `count` multiple-choice questions a mock can use.
+    private func mockWorld(examIn days: Int, questions count: Int = 10) -> Exam {
+        let course = makeCourse()
+        for index in 0..<count {
+            let item = StudyItem(course: course, kind: .mcq, status: .active, origin: .person, prompt: "A question that has number \(index) in it", answer: "A long answer that names nothing \(index)",
+                                 choices: [Choice(text: "Right \(index)", correct: true), Choice(text: "Wrong \(index)", correct: false)], now: clock.now)
+            app.context.insert(item)
+            course.items.append(item)
+        }
+        let exam = Exam(course: course, title: "Bio 101 Midterm", date: cal.adding(days: days, to: clock.now), now: clock.now)
+        app.context.insert(exam)
+        course.exams.append(exam)
+        app.save()
+        return exam
+    }
+
+    func testTakeItOpensTheMockAndTheCardStaysAway() throws {
+        let exam = mockWorld(examIn: 5)
+        let notice = try XCTUnwrap(app.noticeDeck().first { $0.kind == .mockOffer })
+        let card = NoticeContent.card(notice, firstName: "", now: clock.now, calendar: cal)
+        XCTAssertEqual(card.title, "A mock exam for your Bio 101 Midterm")
+        XCTAssertEqual(card.detail, "10 questions like the real one · 10 min")
+        XCTAssertNil(app.perform(try XCTUnwrap(card.action)), "the mock is its own screen, not a session")
+        XCTAssertEqual(app.router.cover, .mockExam(examID: exam.id))
+        XCTAssertFalse(app.noticeDeck().contains { $0.kind == .mockOffer })
+    }
+
+    func testNoMockCardWithTooFewQuestions() {
+        _ = mockWorld(examIn: 5, questions: 5)
+        XCTAssertFalse(app.noticeDeck().contains { $0.kind == .mockOffer })
+    }
+
+    func testNoMockCardAWeekAndADayOut() {
+        _ = mockWorld(examIn: 8)
+        XCTAssertFalse(app.noticeDeck().contains { $0.kind == .mockOffer })
+    }
+
     func testQuietModeTakesTheStreakOutOfWelcomeBack() throws {
         let course = makeCourse()
         let item = StudyItem(course: course, kind: .flashcard, status: .active, origin: .person, prompt: "Mitosis", answer: "Cell division", now: clock.now)

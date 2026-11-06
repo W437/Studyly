@@ -139,6 +139,7 @@ final class TodayRenderTests: XCTestCase {
             ("lookalike", Notice(id: "p", kind: .lookAlike, rank: 0, evidence: .lookAlike(pair), cost: .cloud)),
             ("fading", Notice(id: "f", kind: .fading, rank: 0, evidence: .fading(rescue))),
             ("back", Notice(id: "b", kind: .welcomeBack, rank: 0, evidence: .welcomeBack(best: 23))),
+            ("mock", Notice(id: "o", kind: .mockOffer, rank: 0, evidence: .mockOffer(NoticeMockOffer(examID: examID, examTitle: "Bio 101 Midterm", examDate: examDate, questions: 20, minutes: 25)), cost: .free)),
         ]
         var cards = notices.map { ($0.0, NoticeContent.card($0.1, firstName: "Maya", now: now, calendar: cal)) }
         let boosts = days.map { PlanBoost(noticeID: "fade", examID: examID, examTitle: "Bio 101 Midterm", origin: "Lecture 3", dayKey: $0.dayKey, minutes: 6, itemIDs: []) }

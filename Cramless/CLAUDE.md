@@ -178,8 +178,8 @@ sleep 4; xcrun simctl io <udid> screenshot shot.png
     simulator for iOS 27; no status-bar inset); `CRAMLESS_TODAY_TYPE=xxxl|ax1…ax5` draws Today at that text size without changing
     the simulator's own setting (others may share it). Routes `todayWhy`, `quests` (the sheets) and `skyList` (the sky as a list,
     "Study something else"); `streak` shows the month with exams and eves marked.
-  - Cap's cards, from the real engine (`App/AppModel+NoticeHarness.swift`): `CRAMLESS_NOTICES=mixup,lookalike,fading,back|all|none` shapes the demo world so those kinds and no others fire
-    (`lookalike`: the Bio midterm 9 days out; `fading`: 6 days out with its questions 20 days overdue; `back`: 8 days away after a 23-day run); `CRAMLESS_NOTICE_STATE=second|later|done|allLater`
+  - Cap's cards, from the real engine (`App/AppModel+NoticeHarness.swift`): `CRAMLESS_NOTICES=mixup,lookalike,fading,back,mock|all|none` shapes the demo world so those kinds and no others fire
+    (`lookalike`: the Bio midterm 9 days out; `fading`: 6 days out with its questions 20 days overdue; `back`: 8 days away after a 23-day run; `mock`: the Bio midterm 5 days out); `CRAMLESS_NOTICE_STATE=second|later|done|allLater`
     puts the deck part way through the day (`done`: "Plan updated"). `CRAMLESS_ROUTE=lookAlike` opens the sheet on the best pair, `CRAMLESS_LOOKALIKE=rules|cloud|writing` holds its lesson in that state.
     `CRAMLESS_ROUTE=settings:notifications CRAMLESS_NOTICES=fading` shows the ping in the page's planned list.
   - Sessions:

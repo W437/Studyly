@@ -140,6 +140,10 @@ extension AppModel {
         case .undoFixMyWeek(let id):
             undoFadeRescue(id)
             return nil
+        case .takeMock(let examID):
+            markNoticeActed(NoticeEngine.mockOfferID(examID))
+            router.present(.mockExam(examID: examID))
+            return nil
         }
         if let request { router.present(.session(request)) }
         return request
@@ -370,7 +374,17 @@ extension AppModel {
         inputs.sources = fadeSources(items: items, exams: exams)
         inputs.topicNames = topicNames()
         inputs.cloudLessons = ai.route(.confusions).usesCloud
+        inputs.mockOffers = noticeMockOffers()
         return inputs
+    }
+
+    /// The upcoming exams a mock is due for, with the mock's size. Only exams in the mock's window are read.
+    private func noticeMockOffers() -> [NoticeMockOffer] {
+        upcomingExams().compactMap { exam in
+            guard MockSuggestion.days.contains(calendar.dayDistance(from: now, to: exam.date)), mockIsDue(for: exam),
+                  case .ready(let plan) = mockOffer(for: exam) else { return nil }
+            return NoticeMockOffer(examID: exam.id, examTitle: exam.title, examDate: exam.date, questions: plan.entries.count, minutes: plan.minutes)
+        }
     }
 
     /// The pairs for the exams ahead. They change slowly and reading every question's words isn't free, so they are worked out once a day

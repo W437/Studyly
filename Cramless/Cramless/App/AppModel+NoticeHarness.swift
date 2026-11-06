@@ -4,9 +4,9 @@ import SwiftData
 
 // Launch hooks for Cap's cards (DEBUG only). They shape the demo world so the real engines find each kind:
 //
-// - `CRAMLESS_NOTICES=mixup,lookalike,fading,back|all|none`: those kinds and no others. `lookalike`: the Bio midterm 9 days out, with the
+// - `CRAMLESS_NOTICES=mixup,lookalike,fading,back,mock|all|none`: those kinds and no others. `lookalike`: the Bio midterm 9 days out, with the
 //   sample page's look-alikes. `fading`: the midterm 6 days out, and its questions 20 days overdue, more of them than today's session
-//   holds. `back`: 8 days without study after a 23-day run. `mixup` needs nothing: the demo world has an open mix-up.
+//   holds. `back`: 8 days without study after a 23-day run. `mock`: the midterm 5 days out. `mixup` needs nothing: the demo world has an open mix-up.
 // - `CRAMLESS_NOTICE_STATE=second|later|done|allLater`, once the deck is dealt: `second` the first card acted on, so "2 of N" shows; `later` the
 //   first put off with "Later"; `done` "Fix my week" pressed on a fading card ("Plan updated"); `allLater` all put off.
 // - `CRAMLESS_NOTICE_TAP=<ms>` presses the button on the card that long after launch (`TodayView`).
@@ -19,7 +19,7 @@ extension AppModel {
         guard config.isHarness, let raw = TestHarness.value("CRAMLESS_NOTICES") else { return }
         let asked = Set(raw.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces).lowercased() })
         let all = asked.contains("all")
-        let kinds: [(String, NoticeKind)] = [("mixup", .mixUp), ("lookalike", .lookAlike), ("fading", .fading), ("back", .welcomeBack)]
+        let kinds: [(String, NoticeKind)] = [("mixup", .mixUp), ("lookalike", .lookAlike), ("fading", .fading), ("back", .welcomeBack), ("mock", .mockOffer)]
         var off = Set<NoticeKind>()
         for (name, kind) in kinds where !all && !asked.contains(name) { off.insert(kind) }
         settings.notices.off = off
@@ -35,6 +35,9 @@ extension AppModel {
             debugMoveExam(midterm, toDays: 9)
             debugMoveExam(chem, toDays: 40)
             debugSoften(course: midterm?.course)
+        } else if asked.contains("mock") {
+            debugMoveExam(midterm, toDays: 5)
+            debugMoveExam(chem, toDays: 40)
         }
         if asked.contains("back") || all { debugWentAway() }
         save()

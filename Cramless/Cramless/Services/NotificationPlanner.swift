@@ -159,11 +159,14 @@ enum NotificationPlanner {
         }
 
         // Cap noticed: at the reminder time (18:00 with reminders off), at most one a day, in the week before the card's exam.
-        var noticeDays = Set<Int>()
-        for ping in input.notices where noticeDays.insert(ping.dayOffset).inserted {
+        // A card goes out once: on the first day whose time hasn't passed.
+        var noticeDays = Set<Int>(), noticeLinks = Set<String>()
+        for ping in input.notices.sorted(by: { $0.dayOffset < $1.dayOffset }) {
             let left = dayOffset(of: ping.examDate) - ping.dayOffset
-            guard NoticeEngine.pingWindow.contains(left),
+            guard !noticeDays.contains(ping.dayOffset), !noticeLinks.contains(ping.linkID), NoticeEngine.pingWindow.contains(left),
                   let date = time(input.reminderMinutes ?? fallbackMinutes, onDay: ping.dayOffset) else { continue }
+            noticeDays.insert(ping.dayOffset)
+            noticeLinks.insert(ping.linkID)
             out.append(Planned(id: "\(prefix)notice.\(dayKey(date, calendar))", kind: .notice, date: date, body: ping.body,
                                url: CramlessLink.today(notice: ping.linkID), category: noticeCategory, thread: noticeCategory))
         }

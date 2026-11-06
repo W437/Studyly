@@ -29,6 +29,11 @@ enum NoticeContent {
                              action: .init(title: String(localized: "Start 5 min"), systemImage: "play",
                                            run: .session(kind: .daily, minutes: welcomeBackMinutes, courseID: nil, topicID: nil, examID: nil)),
                              link: nil, cost: costLine(notice.cost))
+        case .mockOffer(let offer):
+            return CapNotice(id: notice.id, kind: .mockOffer, title: String(localized: "A mock exam for your \(offer.examTitle)"),
+                             detail: MockCopy.cardLine(questions: offer.questions, minutes: offer.minutes),
+                             action: .init(title: String(localized: "Take it"), systemImage: "doc.text", run: .takeMock(examID: offer.examID)),
+                             link: .exam(offer.examID), cost: costLine(notice.cost))
         }
     }
 
@@ -56,12 +61,13 @@ enum NoticeContent {
             : String(localized: "Your stars waited for you. 5 minutes today is a good start.")
     }
 
-    /// "No AI", "Under 1¢", "1 draft".
+    /// "No AI", "Under 1¢", "1 draft", "Free".
     static func costLine(_ cost: Notice.Cost) -> String {
         switch cost {
         case .none: String(localized: "No AI")
         case .cloud: String(localized: "Under 1¢")
         case .drafts(let n): String(localized: "\(n) drafts")
+        case .free: String(localized: "Free")
         }
     }
 
@@ -154,7 +160,7 @@ enum NoticeContent {
         case .mixUp(let note):
             if note.name == ConfusionCandidate.unnamed { return String(localized: "Still tripping on the same questions? A 2-minute fix is ready.") }
             return String(localized: "Still mixing up \(SessionCopy.mixUpPair(note.name))? A 2-minute fix is ready.")
-        case .welcomeBack:
+        case .welcomeBack, .mockOffer:
             return nil
         }
     }
