@@ -45,8 +45,11 @@ export function gradeFixture(req: GradeRequest): "grade-correct" | "grade-partia
   return hit > 0 ? "grade-partial" : "grade-incorrect";
 }
 
-/** Hints first (always for a minor), else the explaining script. */
-export function tutorFixture(req: TutorRequest): "tutor-hints" | "tutor-explain" {
+/** A problem from a photo, then "Explain my mistake", then hints first (always for a minor), else the explaining script. The app's
+ * mock transport (MockRelayTransport.swift) chooses the same way. */
+export function tutorFixture(req: TutorRequest): "tutor-photo" | "tutor-mistake" | "tutor-hints" | "tutor-explain" {
+  if (req.fromPhoto) return "tutor-photo";
+  if (req.context) return "tutor-mistake";
   return req.minor || req.mode === "hints" ? "tutor-hints" : "tutor-explain";
 }
 

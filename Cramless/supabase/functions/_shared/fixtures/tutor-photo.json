@@ -1,0 +1,111 @@
+{
+  "events": [
+    {
+      "event": "start",
+      "delayMs": 650,
+      "data": {
+        "model": "mock"
+      }
+    },
+    {
+      "event": "delta",
+      "delayMs": 55,
+      "data": {
+        "text": "Let's find the "
+      }
+    },
+    {
+      "event": "delta",
+      "delayMs": 55,
+      "data": {
+        "text": "idea first. Your "
+      }
+    },
+    {
+      "event": "delta",
+      "delayMs": 55,
+      "data": {
+        "text": "textbook has a "
+      }
+    },
+    {
+      "event": "delta",
+      "delayMs": 55,
+      "data": {
+        "text": "line about what "
+      }
+    },
+    {
+      "event": "delta",
+      "delayMs": 55,
+      "data": {
+        "text": "each daughter cell "
+      }
+    },
+    {
+      "event": "delta",
+      "delayMs": 55,
+      "data": {
+        "text": "gets from the "
+      }
+    },
+    {
+      "event": "delta",
+      "delayMs": 55,
+      "data": {
+        "text": "parent cell after "
+      }
+    },
+    {
+      "event": "delta",
+      "delayMs": 55,
+      "data": {
+        "text": "mitosis. Read it, "
+      }
+    },
+    {
+      "event": "delta",
+      "delayMs": 55,
+      "data": {
+        "text": "then tell me: "
+      }
+    },
+    {
+      "event": "delta",
+      "delayMs": 55,
+      "data": {
+        "text": "what does it "
+      }
+    },
+    {
+      "event": "delta",
+      "delayMs": 55,
+      "data": {
+        "text": "say about the "
+      }
+    },
+    {
+      "event": "delta",
+      "delayMs": 55,
+      "data": {
+        "text": "number of chromosomes?"
+      }
+    },
+    {
+      "event": "citation",
+      "delayMs": 30,
+      "data": {
+        "sourceId": "s1",
+        "label": "Textbook p. 87",
+        "quote": "Each daughter cell is genetically identical to the parent cell, with the same number of chromosomes."
+      }
+    },
+    {
+      "event": "done",
+      "delayMs": 40,
+      "data": {
+        "model": "mock"
+      }
+    }
+  ]
+}

@@ -32,12 +32,14 @@ export function systemFor(task: Task): string {
   return `${prompt("rules")}\n\n${prompt(task)}`;
 }
 
-/** The tutor's system prompt: hints first (always for a minor) or explain, plus the teen-safe scope. */
+/** The tutor's system prompt: hints first (always for a minor and for a problem from a photo) or explain, plus the teen-safe
+ * scope and what a problem from a photo adds. */
 export function tutorSystem(req: TutorRequest): string {
   const parts = [prompt("rules"), prompt("tutor")];
-  const hints = req.minor || req.mode === "hints";
+  const hints = req.minor || req.mode === "hints" || req.fromPhoto === true;
   parts.push(prompt(hints ? "tutor-hints" : "tutor-explain"));
   if (req.minor) parts.push(prompt("tutor-minor"));
+  if (req.fromPhoto) parts.push(prompt("tutor-problem"));
   if (req.course) parts.push(`The student's course: ${oneLine(req.course)}.`);
   // Last, as it was when it was measured (tools/tutor_figure_ab.ts): what to do with the labels of a photographed picture.
   parts.push(prompt("tutor-figures"));
@@ -279,6 +281,23 @@ export function citableBlocks(text: string, maxBlocks = 80): { type: "text"; tex
   return (blocks.length > 0 ? blocks : [text]).map((t) => ({ type: "text", text: t }));
 }
 
+/** How "Explain my mistake" wants its reply: three short parts the app shows one page at a time (`MistakeSteps` in the app). It goes
+ * with the question they got wrong, in the last turn, so the instructions and the material before it stay the same bytes for the
+ * prompt cache. The app shows the right answer beside theirs, so a part may say it; on hints first, the second part still points
+ * instead of telling. */
+export function mistakeInstruction(hints: boolean): string {
+  const why = hints
+    ? "2. A nudge toward why: point to the passage that holds the reason, with its citation, without spelling the reason out. One or two sentences."
+    : "2. Why, from the sources, with the citation. Two or three sentences.";
+  return [
+    "Write this reply as three short parts, separated by one blank line, with no labels, headings or numbers:",
+    "1. What their answer got right, then the one thing that's off. One or two sentences.",
+    why,
+    '3. One quick check question on the same idea, starting "Quick check:". Not a question this reply already answered.',
+    "If the sources don't hold the idea, say only that you couldn't find it, as one part.",
+  ].join("\n");
+}
+
 /** The conversation for the tutor, in the order that lets OpenAI's prompt cache serve the biggest part of each request
  * again: the student's material first (the passages, then what they have added), then the earlier turns, then the last
  * question with what belongs to it alone (a note that no passage matched, or the question they got wrong for "Explain my
@@ -310,6 +329,7 @@ export function tutorMessages(req: TutorRequest): Message[] {
       text: `The student is asking about a question they got wrong.\n<question>${req.context.itemPrompt}</question>\n` +
         `<expected>${req.context.expected}</expected>\n<their_answer>${req.context.given}</their_answer>`,
     });
+    content.push({ type: "text", text: mistakeInstruction(req.minor || req.mode === "hints") });
   }
   content.push({ type: "text", text: last.text });
   out.push({ role: "user", content });

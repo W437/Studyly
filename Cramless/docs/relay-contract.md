@@ -181,18 +181,20 @@ Request `TutorRequest`: `mode` (`hints`, `explain`), `minor` (always hints first
 passages the app chose, up to 100 (each text up to 20,000 characters, 200,000 in all: a request over that is a plain `bad_request`, 413, before anything is metered); the model never searches], `context?` (`{itemPrompt, expected, given}` for "Explain my
 mistake"), `materials?` [what the student has added, one line a source: `"Cardiac cycle (6 pages)"`, `"Lecture 7 (38 min)"`,
 `"Classmate deck (21 cards)"`; at most 20 lines of 120 characters; left out when there is nothing to say, and ignored by a
-relay that predates it], so the model can say what it looked at.
+relay that predates it], so the model can say what it looked at, `fromPhoto?` (boolean, the chat is about a problem snapped with the
+camera: the words were read off the photo on the phone and the photo is never sent; left out of an ordinary request, and ignored by a
+relay that predates it).
 
-Which passages (`TutorSelection` in the app): the student's whole material, in reading order, when it is 6,000 words or fewer.
+Which passages (`TutorSelection` in the app): the student's whole material, in reading order, when it is 4,000 words or fewer.
 When that is more than the 100 passages a request holds (a deck of 150 cards, a 120-page PDF), neighbouring passages are joined
 until they fit, so nothing is left out: first those of one page (the shortest pairs first), then those of one source across its
 pages and a deck's consecutive cards (labelled `Deck: <name> · cards 1-4`, `Slides p. 11-14`), and, with more than 100 sources, any
 neighbours; a card's text stays whole inside the group. The list is the same for every question about the material, so the
-provider's prompt cache can pay for it once. Above 6,000 words: the sources whose titles share a word with what the student asked
-(their own words only, never Cap's last answer), best match first, as long as they come to 6,000 words in all (a source of more
+provider's prompt cache can pay for it once. Above 4,000 words: the sources whose titles share a word with what the student asked
+(their own words only, never Cap's last answer), best match first, as long as they come to 4,000 words in all (a source of more
 words goes as its best 60 passages), plus the best 12 passages of the other sources; with no such source, the best 30 passages and
-the neighbours of the top 6, at most 80 in all; and nothing at all (no model is asked) when the question shares no word with the
-material. The passages never hold more than 180,000 characters in all (150,000 for the assistant, whose lookups add more in
+the neighbours of the top 6, at most 80 in all; and an even spread of the notes when the question shares no word with the
+material (the model decides what the notes cover). The passages never hold more than 180,000 characters in all (150,000 for the assistant, whose lookups add more in
 later rounds): the relay refuses a request over 200,000, and a language written without spaces has few "words" for a lot of text,
 so the likeliest passages stay and the rest go. A deck's card is a passage (`Front: … Back: …`, label `Deck: <name> · card <n>`,
 no page). Every string is cut to the
@@ -217,7 +219,20 @@ Errors before the stream starts (auth, validation, quota) are ordinary JSON enve
 as tagged text and the model answers in a strict JSON schema, `{answer, citations: [{source_id, quote}]}`: the answer is
 read out of it as it arrives, and a quote is sent as a `citation` only if it is really in a source (the app checks again).
 Closing the connection stops the model. Meter: `tutor` (given back if the stream fails before any text). MOCK: the
-`tutor-hints` script (or `tutor-explain` when `mode` is `explain` and the person isn't a minor), with its delays.
+`tutor-photo` script with `fromPhoto`, else `tutor-mistake` with `context`, else `tutor-hints` (or `tutor-explain` when `mode` is `explain`
+and the person isn't a minor), with its delays. `tutor-photo-uncited` (through `X-Cramless-Fixture`) is a problem the notes don't hold.
+
+**`fromPhoto`.** Always hints first, whatever `mode` says, and `prompts/tutor-problem.md` after the mode: "in the sources" means a source
+holds the idea or the method, not the problem's own numbers; if none does, exactly "I couldn't find this topic in what you've added.";
+every other reply cites the method; never the final answer, even when asked; one step at a time; after two real tries (the student's own
+attempts, not "just tell me") walk through the method from the notes and stop before the last step. The app holds this reply until it is complete,
+shows it only with at least one quote it finds in the notes, and otherwise says so in its own words. The assistant route never takes
+such a chat. Meter: one `tutor` message a turn, as any other. A photo is never part of this route.
+
+**`context` ("Explain my mistake").** The last turn also asks for three short parts separated by a blank line, with no labels: what their answer
+got right and the one thing off; why, cited (on hints first and for a minor, a nudge toward why that points at the passage); one question
+starting "Quick check:". It goes in the last turn, so the instructions and the material stay the same bytes for the prompt cache. The app
+pages through the parts (`MistakeSteps`), and copes with other shapes.
 
 What the model reads, in this order: the instructions (the same for a whole chat), then the student's material (the passages as
 tagged text, then a short "The student has added:" block when `materials` came), then the earlier turns as plain messages, then
@@ -419,7 +434,7 @@ real backend without a model key.
 | `generate` | `generate.json` | 2.5 s |
 | `check` | `check.json` | 1.5 s |
 | `grade` | `grade-correct`, `grade-partial` or `grade-incorrect`: every key idea named in the answer (a term or the label, case-insensitive) → correct, some → partial, none → incorrect | 0.9 s |
-| `tutor` | `tutor-hints.json` (or `tutor-explain.json`), events at the script's `delayMs` | per event |
+| `tutor` | `tutor-photo.json` with `fromPhoto`, `tutor-mistake.json` with `context`, else `tutor-hints.json` (or `tutor-explain.json`), events at the script's `delayMs` | per event |
 | `confusions` | `confusions.json` | 1.8 s |
 | `lecture` | `lecture.json` | 2.5 s |
 | `cards-from-chat` | `cards-from-chat.json` | 1.2 s |

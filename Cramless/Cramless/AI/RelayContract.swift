@@ -220,6 +220,15 @@ struct TutorRequest: Codable, Hashable, Sendable {
     /// "Classmate deck (21 cards)"), at most 20 lines of 120 characters, so the model can say what it looked at. Optional:
     /// a relay that doesn't know it ignores it, and it is left out of the body when empty.
     var materials: [String]? = nil
+    /// The chat is about a problem the student snapped: the words were read off the photo on this iPhone, and the photo is never sent.
+    /// The relay stays on hints and walks through the method from the notes, never the final answer. Optional, and left out of an
+    /// ordinary request: a relay that doesn't know it ignores it.
+    var fromPhoto: Bool? = nil
+}
+
+extension TutorRequest {
+    /// The student has said one thing so far: the problem itself.
+    var isFirstTurn: Bool { messages.filter { $0.role == .user }.count <= 1 }
 }
 
 /// The tutor's server-sent events, normalized.

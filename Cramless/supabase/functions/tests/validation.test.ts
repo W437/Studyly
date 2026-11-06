@@ -60,6 +60,8 @@ Deno.test("the new optional request fields are accepted at their limits, and a r
     ["tutor", fixtureJson("requests/tutor")],
     ["tutor", { ...fixtureJson("requests/tutor"), materials: Array(20).fill("m".repeat(120)) }],
     ["tutor", { ...fixtureJson("requests/tutor"), materials: [] }],
+    ["tutor", { ...fixtureJson("requests/tutor"), fromPhoto: true }],
+    ["tutor", { ...fixtureJson("requests/tutor"), fromPhoto: false }],
     ["tutor", { ...fixtureJson("requests/tutor"), sources: Array(100).fill(tutorSource()) }],
     ["assistant", fixtureJson("requests/assistant")],
     ["assistant", { ...fixtureJson("requests/assistant"), materials: ["Lecture 7 (38 min)"] }],
@@ -205,6 +207,7 @@ Deno.test("validation names the first problem, never a value", async () => {
     ],
     ["tutor", { ...fixtureJson("requests/tutor"), materials: ["x".repeat(121)] }, "/materials/0 is longer than 120"],
     ["tutor", { ...fixtureJson("requests/tutor"), materials: "Deck" }, "/materials expected array"],
+    ["tutor", { ...fixtureJson("requests/tutor"), fromPhoto: "yes" }, "/fromPhoto expected boolean"],
     [
       "tutor",
       { ...fixtureJson("requests/tutor"), sources: Array(101).fill(tutorSource()) },

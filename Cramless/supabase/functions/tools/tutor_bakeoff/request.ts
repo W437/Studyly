@@ -1,10 +1,10 @@
 // How a case becomes a request: the four passages its question finds, the tutor request the app would send, and the
 // conversation as OpenAI gets it. Shared by the run and by the check that prints what each question retrieves.
 
-import { tutorSystem } from "../../_shared/prompts.ts";
+import { mistakeInstruction, tutorSystem } from "../../_shared/prompts.ts";
 import type { TutorRequest, TutorSource } from "../../_shared/contract.ts";
 import type { Case } from "./cases.ts";
-import { type Passage, search } from "./corpus.ts";
+import { CORPUS, type Passage, search } from "./corpus.ts";
 
 export const SCHEMA = {
   type: "object",
@@ -32,8 +32,18 @@ Never write a source id (like s1) in the answer. If you point to a source, use i
 
 const attr = (value: string) => value.replace(/["<>]/g, "");
 
-/** The four passages a question finds; a follow-up that is a few words long searches with the turns before it too. */
+/** The titles of what each course holds. */
+const NOTES: Record<string, string[]> = {
+  "Bio 101": ["Biology textbook", "Lecture 6: Cell division", "Week 5 slides"],
+  "Chem 110": ["Chapter 3 notes"],
+  "AP Psychology": ["Myers, chapter 7"],
+};
+
+/** The four passages a question finds; a follow-up that is a few words long searches with the turns before it too. A problem from
+ * a photo gets the whole course, as the app sends it for a course of this size (`TutorSelection`): a keyword search finds nothing for
+ * a problem the notes don't hold, and the model would never be tempted. */
 export function retrieve(c: Case): Passage[] {
+  if (c.fromPhoto) return CORPUS.filter((p) => (NOTES[c.course] ?? []).includes(p.title));
   const users = c.messages.filter((m) => m.role === "user").map((m) => m.text);
   const question = users[users.length - 1];
   const asked = c.context ? `${c.context.itemPrompt} ${c.context.expected} ${question}` : question;
@@ -55,7 +65,15 @@ export function requestFor(c: Case, hits: Passage[]): TutorRequest {
     label: p.label,
     text: p.text,
   }));
-  return { mode: c.mode, minor: c.minor ?? false, course: c.course, messages: c.messages, sources, context: c.context };
+  return {
+    mode: c.mode,
+    minor: c.minor ?? false,
+    course: c.course,
+    messages: c.messages,
+    sources,
+    context: c.context,
+    ...(c.fromPhoto ? { fromPhoto: true } : {}),
+  };
 }
 
 /** The relay's tutor system prompt, plus the output format OpenAI needs. */
@@ -75,7 +93,8 @@ export function inputFor(req: TutorRequest) {
     : "(No passages from the student's material matched this question.)";
   const context = req.context
     ? `\nThe student is asking about a question they got wrong.\n<question>${req.context.itemPrompt}</question>\n` +
-      `<expected>${req.context.expected}</expected>\n<their_answer>${req.context.given}</their_answer>`
+      `<expected>${req.context.expected}</expected>\n<their_answer>${req.context.given}</their_answer>\n` +
+      mistakeInstruction(req.minor || req.mode === "hints")
     : "";
   out.push({ role: "user", content: `${sources}${context}\n\n${last.text}` });
   return out;
