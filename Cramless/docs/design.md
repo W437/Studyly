@@ -266,13 +266,13 @@ same sky, taken apart.
   ahead. Once a first session is done, today's quests fold into one line ("0 of 3 quests today · 5 of 12 this week") that opens
   them in a sheet.
 - **Cap noticed** (`TodayNoticeCard`, `CapNotice`, dealt by `NoticeEngine`, said by `NoticeContent`): one card at a time with "2 of 3", its
-  action, Later (until tomorrow, with a toast), what the action costs ("No AI", "Under 1¢") and a menu with "Don't show these". At most three
+  action, Later (until tomorrow, with a toast), what the action uses ("No AI", "Uses Cloud AI") and a menu with "Don't show these". At most three
   a day, one per kind; a card acted on stays away for 7 days. Counts and minutes, never a percentage. On an exam's eve (any exam tomorrow) the
   slot is his quiet line instead: "Cap is quiet tonight. Bio 101 and AP Psychology can wait until after Chem 110 Quiz." Two exams on one day share the
   evening: one session, both named, and neither waits.
   - Mix-up: "You keep mixing up anaphase and telophase." / "Missed 3 of the last 4 times. Want a 2-minute fix?" / "Fix it · 2 min" / "No AI".
   - Look-alike: "Metaphase and telophase look alike" / "Both are on Wednesday's Bio 101 Midterm. Learn the one difference now?" / "Show me" /
-    "Under 1¢" ("No AI" when Cloud AI won't be asked). The sheet (`LookAlikeView`) sets the two side by side with their sources and the one
+    "Uses Cloud AI" ("No AI" when Cloud AI won't be asked). The sheet (`LookAlikeView`) sets the two side by side with their sources and the one
     difference: at once by the rules when Cloud AI won't be asked; otherwise "Cap is writing it" until the lesson is ready, shown once, "Written by
     Cap from your two questions". "Try 2 questions" or "Not a look-alike".
   - Fading: "18 questions will be dim by exam day" / "From Lecture 3, for your Bio 101 Midterm. 6 more minutes today and tomorrow keeps them." /
