@@ -261,12 +261,48 @@ final class LooksWrongTests: CaptureTestCase {
             UIHostingController(rootView: view.environment(w.app).dynamicTypeSize(.large))
                 .sizeThatFits(in: CGSize(width: CGFloat.greatestFiniteMagnitude, height: .greatestFiniteMagnitude)).width
         }
-        let explain = width(Label("Explain my mistake", systemImage: "bubble.left").clFont(.subheadlineEmphasis).padding(.horizontal, 16))
+        // The real button, at its natural width: the panel's own is full width, and shrinks its words to fit what's left.
+        let explain = width(Button {} label: { Label("Explain my mistake", systemImage: "bubble.left") }
+            .buttonStyle(.cl(.soft, size: .medium, fullWidth: false)))
         let looksWrong = width(LooksWrongButton(item: w.item))
         XCTAssertLessThanOrEqual(looksWrong, 130)
         XCTAssertGreaterThanOrEqual(looksWrong, CLMetrics.minHitTarget)
         XCTAssertLessThanOrEqual(explain + 10 + looksWrong, 375 - 2 * CLSpace.gutter)
-        XCTAssertLessThan(width(LooksWrongButton(item: w.item, compact: true)), looksWrong, "only the icon, with a third button in the row")
+        let iconOnly = width(LooksWrongButton(item: w.item, compact: true))
+        XCTAssertLessThan(iconOnly, looksWrong, "only the icon, with a third button in the row")
+
+        // Explain, Grade again and the icon share the row (own words): the two buttons split what the icon leaves.
+        let shortExplain = width(Button {} label: { Label("Explain", systemImage: "bubble.left") }
+            .buttonStyle(.cl(.soft, size: .medium, fullWidth: false)))
+        let shortGrade = width(Button("Grade again") {}.buttonStyle(.cl(.soft, size: .medium, fullWidth: false)))
+        let share = (375 - 2 * CLSpace.gutter - 20 - iconOnly) / 2
+        // Within a point is enough: the button's words shrink a hair before they would ever cut off (`minimumScaleFactor`).
+        XCTAssertLessThanOrEqual(shortExplain, share + 1)
+        XCTAssertLessThanOrEqual(shortGrade, share + 1)
+
+        // Both rows as drawn on that phone, in build/review/s3-lecture/render/ (gitignored), to be looked at.
+        let folder = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+            .appending(path: "build/review/s3-lecture/render", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let rows = VStack(spacing: 16) {
+            HStack(spacing: 10) {
+                Button {} label: { Label("Explain my mistake", systemImage: "bubble.left") }.buttonStyle(.cl(.soft, size: .medium))
+                LooksWrongButton(item: w.item)
+            }
+            HStack(spacing: 10) {
+                Button {} label: { Label("Explain", systemImage: "bubble.left") }.buttonStyle(.cl(.soft, size: .medium))
+                Button("Grade again") {}.buttonStyle(.cl(.soft, size: .medium))
+                LooksWrongButton(item: w.item, compact: true)
+            }
+        }
+        .frame(width: 375 - 2 * CLSpace.gutter)
+        .padding(CLSpace.gutter)
+        .background(CLColor.background)
+        .environment(w.app)
+        .environment(\.dynamicTypeSize, .large)
+        let renderer = ImageRenderer(content: rows)
+        renderer.scale = 2
+        try XCTUnwrap(renderer.uiImage?.pngData()).write(to: folder.appending(path: "answer-panel-rows-375.png"))
     }
 
     func testTheWordsSayWhatHappened() {

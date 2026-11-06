@@ -33,6 +33,7 @@ struct SessionView: View {
                     .transition(.opacity)
             }
         }
+        .captureDebugCanvas()
         .onAppear { if runner == nil { begin(request) } }
         .onDisappear {
             runner?.close()

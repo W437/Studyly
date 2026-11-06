@@ -21,9 +21,12 @@ struct LooksWrongButton: View {
             CLHaptics.tap()
             app.router.present(.looksWrong(itemID: item.id, given: given ?? ""))
         } label: {
-            HStack(spacing: 4) {
-                Image(systemName: "exclamationmark.bubble")
-                if !iconOnly { Text("Looks wrong?") }
+            Group {
+                if iconOnly {
+                    Image(systemName: "exclamationmark.bubble")
+                } else {
+                    Text("Looks wrong?")
+                }
             }
             .clFont(.footnoteEmphasis)
             .foregroundStyle(CLColor.ink2)
@@ -106,6 +109,7 @@ struct LooksWrongSheet: View {
             }
         }
         .scrollBounceBehavior(.basedOnSize)
+        .captureDebugCanvas(widthOnly: true)
         .background(CLColor.background.ignoresSafeArea())
         .presentationDetents([.height(contentHeight), .large], selection: $detent)
         .presentationDragIndicator(.visible)

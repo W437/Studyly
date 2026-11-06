@@ -74,6 +74,7 @@ struct LectureNotesView: View {
         }
         .clScreenBackground()
         .navigationTitle(titleInBar ? (lecture?.title ?? "") : "")
+        .captureDebugCanvas()
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $reviewing, onDismiss: load) {
             DraftReviewView(sourceID: sourceID, isOnboarding: false, onFinish: { _ in reviewing = false })

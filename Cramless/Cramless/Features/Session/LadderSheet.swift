@@ -44,6 +44,7 @@ struct LadderSheet: View {
             }
         }
         .scrollBounceBehavior(.basedOnSize)
+        .captureDebugCanvas(widthOnly: true)
         .background(CLColor.background.ignoresSafeArea())
         .presentationDetents([.height(contentHeight), .large], selection: $detent)
         .presentationDragIndicator(.visible)

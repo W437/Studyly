@@ -37,6 +37,7 @@ struct SourcePageView: View {
         let _ = app.revision
         if let source = app.source(sourceID), source.deletedAt == nil, !source.pages.isEmpty {
             content(source)
+                .captureDebugCanvas()
         } else {
             ContentUnavailableView("This page isn't here anymore", systemImage: "doc.questionmark",
                                    description: Text("Its source was deleted."))
