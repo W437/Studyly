@@ -52,17 +52,29 @@ enum TextPaginator {
     /// One line per line break; with `splitSentences`, also one per sentence. Long runs are cut at
     /// `maxLineWords`. Whitespace is collapsed and empty lines are dropped.
     static func lines(from text: String, splitSentences: Bool) -> [String] {
-        normalized(text).components(separatedBy: "\n").flatMap { raw -> [String] in
+        let clean = normalized(text)
+        let language = language(of: clean)
+        return clean.components(separatedBy: "\n").flatMap { raw -> [String] in
             let line = raw.split(whereSeparator: \.isWhitespace).joined(separator: " ")
             guard !line.isEmpty else { return [] }
-            let pieces = splitSentences || wordCount(line) > maxLineWords ? sentences(in: line) : [line]
+            let pieces = splitSentences || wordCount(line) > maxLineWords ? sentences(in: line, language: language) : [line]
             return pieces.flatMap(chunked)
         }
     }
 
-    static func sentences(in text: String) -> [String] {
+    /// The language a text's sentences are split by. The tokenizer otherwise goes by the iPhone's language, and on one set to Chinese it ends
+    /// a sentence at "Dr." in English notes. The recogniser's best guess will do: among languages of one script only the abbreviations differ.
+    static func language(of text: String) -> NLLanguage? {
+        let recognizer = NLLanguageRecognizer()
+        recognizer.processString(text)
+        return recognizer.dominantLanguage.flatMap { $0 == .undetermined ? nil : $0 }
+    }
+
+    static func sentences(in text: String, language: NLLanguage? = nil) -> [String] {
         let tokenizer = NLTokenizer(unit: .sentence)
         tokenizer.string = text
+        // After the string: a language set before it isn't kept.
+        if let language = language ?? Self.language(of: text) { tokenizer.setLanguage(language) }
         var result: [String] = []
         tokenizer.enumerateTokens(in: text.startIndex..<text.endIndex) { range, _ in
             let sentence = text[range].trimmingCharacters(in: .whitespacesAndNewlines)

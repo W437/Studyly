@@ -39,6 +39,17 @@ enum TextRecognizer {
     /// A page of real text averages 1.00; one hallucinated line among ten real ones still passes (0.95).
     static let pageFloor = 0.8
 
+    /// What every reader of a photo calls: `read`, then once more in English when that kept nothing. A page in English on an iPhone set to
+    /// another language: with Traditional Chinese first, Vision scores printed English at 0.3–0.5, under the gate. A page in a script Vision
+    /// can't read stays empty, since the second read has the same gate.
+    static func readingEnglishToo(preferredLanguages: [String] = Locale.preferredLanguages,
+                                  _ read: ([String]) async throws -> CapturedPage) async throws -> CapturedPage {
+        let page = try await read(preferredLanguages)
+        guard page.lines.isEmpty, preferredLanguages.first?.hasPrefix("en") != true,
+              let english = try? await read(["en-US"]), !english.lines.isEmpty else { return page }
+        return english
+    }
+
     /// Reads a stored page image (relative to `FileStore.root`).
     static func read(imageAt relativePath: String, pageIndex: Int,
                      preferredLanguages: [String] = Locale.preferredLanguages) async throws -> CapturedPage {
