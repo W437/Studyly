@@ -223,7 +223,7 @@ extension AIRouter {
             // A later round the day's limit refused (a cost cap crossed by the first round) is not a lost connection.
             var note = String(localized: "Cap lost the connection part way. This is what arrived.")
             if case .quotaExceeded = failure {
-                note = String(localized: "That's all the cloud AI for today, so Cap stopped here. It starts again at midnight.")
+                note = AIFreeLimits.costCapAssistantNote
             }
             let outcome = AssistantOutcome(text: text, citations: citations, steps: steps, model: model, interrupted: true,
                                            note: note, limit: limit)

@@ -31,6 +31,8 @@ struct RecordView: View {
     @State private var confirmingClose = false
     @State private var reviewing = false
     @State private var transcribingNow = false
+    /// The free AI lecture notes left when the person pressed stop, before this lecture's notes use one (nil on a paid plan).
+    @State private var lecturesLeftAtStop: Int?
 
     var body: some View {
         ZStack {
@@ -360,7 +362,9 @@ struct RecordView: View {
                 .clFont(.title2)
                 .foregroundStyle(CLColor.ink)
                 .multilineTextAlignment(.center)
-            Text("Sections with their times, the moments flagged for the exam, key terms and questions, \(app.ai.hasCloudConsent && app.ai.cloudAvailableInThisBuild ? "with Cloud AI" : "on your iPhone").")
+            Text(AllowanceCopy.makingNotes(cloud: app.ai.hasCloudConsent && app.ai.cloudAvailableInThisBuild
+                                               && app.settings.ageBand != .under13,
+                                           lecturesLeft: lecturesLeftAtStop))
                 .clFont(.callout)
                 .foregroundStyle(CLColor.ink2)
                 .multilineTextAlignment(.center)
@@ -503,6 +507,7 @@ struct RecordView: View {
 
     private func makeNotes(_ id: UUID) async {
         guard let source = app.source(id), !source.segments.isEmpty else { return }
+        lecturesLeftAtStop = app.ai.freeCloudUsesLeft(for: .lecture)
         stage = .makingNotes(id)
         let outcome = await app.ai.lectureNotes(app.lectureInput(for: source))
         guard let fresh = app.source(id), fresh.modelContext != nil else { return close() }

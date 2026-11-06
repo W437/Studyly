@@ -17,6 +17,44 @@ final class RouterTests: XCTestCase {
                        quota: quota, plan: plan, age: age, strongest: strongest, preferCloud: preferCloud)
     }
 
+    // MARK: Navigation: toast actions and Help
+
+    func testAToastsButtonOpensWhatItOffered() {
+        let router = Router()
+        let id = UUID()
+        router.cover = .record(courseID: nil)
+        router.toast("Cap kept your lecture up to 41:20.", actionTitle: "Open", action: .push(.lectureNotes(id), .library))
+        XCTAssertEqual(router.toast?.action, .push(.lectureNotes(id), .library))
+        XCTAssertEqual(router.toast?.duration, 6, "a toast with a button stays a little longer")
+        router.runToastAction()
+        XCTAssertNil(router.toast)
+        XCTAssertNil(router.cover, "the screen opens over whatever cover was up")
+        XCTAssertEqual(router.tab, .library)
+        XCTAssertEqual(router.paths[.library], [.lectureNotes(id)])
+
+        router.toast("Need a hand?", actionTitle: "Help", action: .present(.help))
+        router.runToastAction()
+        XCTAssertEqual(router.sheet, .help)
+
+        router.toast("Saved.")
+        router.runToastAction()
+        XCTAssertNotNil(router.toast, "a toast without an action has nothing to run")
+    }
+
+    func testTheHelpRouteOpensSettingsHelp() throws {
+        let app = WidgetTestSupport.makeApp()
+        TestHarness.apply(route: "settings", arg: "help", app: app)
+        XCTAssertEqual(app.router.paths[.today], [.settings, .settingsPage(.help)])
+        XCTAssertEqual(SettingsPage(rawValue: "help"), .help)
+        XCTAssertEqual(String(localized: SettingsPage.help.title), "Help")
+        XCTAssertEqual(StoreCatalog.supportURL.absoluteString, "https://loopware.app/support")
+        XCTAssertEqual(HelpCopy.supportHost, "loopware.app/support")
+        XCTAssertEqual(String(localized: HelpCopy.intro),
+                       "Questions, a bug, or a charge you didn't expect? Write to us. A real person reads every message.")
+        XCTAssertFalse(String(localized: HelpCopy.intro).lowercased().contains("within"), "no reply time is promised")
+        XCTAssertEqual(DeepLinks.parse(CramlessLink.settings(page: "help")), .settings(.help))
+    }
+
     func testOracleTable() {
         let off = OnDeviceAvailability.unavailable(.deviceNotEligible)
         let cloud = AISuggestion.allowCloud(feature: AIJob.generate.feature)

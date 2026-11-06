@@ -35,7 +35,7 @@ struct ChatEntry: Identifiable, Equatable {
 }
 
 /// The tutor chat: the course chip and Cap's style, the messages (Cap's streaming in), the suggestions and the glass
-/// composer pinned above the keyboard. Used by the Ask tab (a new chat until the first question) and by a chat
+/// composer pinned above the keyboard on a solid dock (`AskDock`), so the chat never shows through behind it. Used by the Ask tab (a new chat until the first question) and by a chat
 /// pushed from history.
 struct ChatPane: View {
     @Binding var threadID: UUID?
@@ -101,11 +101,11 @@ struct ChatPane: View {
             .onChange(of: live?.progress) { _, _ in if following { scrollToEnd(proxy) } }
         }
         .safeAreaInset(edge: .bottom) {
-            ChatComposer(text: $draft, focused: $composerFocused, isAnswering: live != nil,
-                         onSend: { send(draft) },
-                         onStop: { if let id = threadID { streams.stop(id, app: app) } })
-                .padding(.horizontal, 12)
-                .padding(.bottom, 8)
+            AskDock {
+                ChatComposer(text: $draft, focused: $composerFocused, isAnswering: live != nil,
+                             onSend: { send(draft) },
+                             onStop: { if let id = threadID { streams.stop(id, app: app) } })
+            }
         }
         .clScreenBackground()
         .task(id: courseID) {
@@ -344,6 +344,9 @@ struct CapMessageView: View {
     let isLatest: Bool
     let reply: String?
     var stepActions: AssistantStepActions = .live
+    /// False in a sheet opened from a session (Explain my mistake): a free limit shows as a line, with no "See Pro" and no link
+    /// out of the sheet. Nothing is sold in the middle of studying.
+    var allowsUpgrade = true
     let onCitation: (CitationGroup) -> Void
     let onAnswer: (String, QuickCheck) -> Void
     let onSuggestion: (AISuggestion) -> Void
@@ -378,8 +381,13 @@ struct CapMessageView: View {
                 if lead.isEmpty, !groups.isEmpty { chips(groups).padding(.leading, 4) }
             }
             if let origin { OriginNote(text: origin.text, systemImage: origin.icon) }
+            if isLatest, allowsUpgrade, AIFreeLimits.isCostCapNote(note?.note) {
+                HelpLink()
+                    .padding(.leading, 6)
+                    .padding(.top, -8)
+            }
             if isLatest, let suggestion = note?.suggestion {
-                AISuggestionCard(suggestion: suggestion) { onSuggestion(suggestion) }
+                AISuggestionCard(suggestion: suggestion, allowsUpgrade: allowsUpgrade) { onSuggestion(suggestion) }
                     .padding(.trailing, 28)
             }
         }

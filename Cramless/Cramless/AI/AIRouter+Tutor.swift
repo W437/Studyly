@@ -219,7 +219,7 @@ extension AIRouter {
     /// plan's fair use, or the day's cost cap, which every plan has) or, otherwise, that it couldn't be reached.
     private func failureNote(refused: Bool) -> String {
         refused
-            ? String(localized: "That's all the cloud AI for today, so Cap answered from your notes on this iPhone. It starts again at midnight.")
+            ? AIFreeLimits.costCapTutorNote
             : "Cloud AI couldn't be reached, so Cap answered from your notes on this iPhone."
     }
 

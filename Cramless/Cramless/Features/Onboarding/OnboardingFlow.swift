@@ -1,3 +1,4 @@
+import DeclaredAgeRange
 import SwiftUI
 
 /// Drives onboarding: owns the step machine, maps it onto a navigation stack, and performs the side effects
@@ -52,8 +53,8 @@ final class OnboardingCoordinator {
     func skipIntro() { machine.skipIntro() }
     func showIntroPage(_ page: Int) { machine.showIntroPage(page) }
 
-    /// The onboarding paywall closed. A purchase finishes; a decline within three weeks of an exam gets the
-    /// Exam Pass offer first.
+    /// The onboarding paywall closed. A purchase finishes; a decline 8 to 21 days before the next exam gets the Exam Pass
+    /// offer first (`ExamPassOffer`).
     func paywallFinished(_ outcome: PaywallOutcome) {
         guard let app else { return advance() }
         switch outcome {
@@ -61,8 +62,8 @@ final class OnboardingCoordinator {
             advance()
         case .declined:
             declinedPaywall = true
-            let examDate = app.settings.nextExamDate ?? app.upcomingExams().first?.date
-            if ExamPassOffer.isEligible(plan: app.purchases.plan, examDate: examDate, now: app.now, calendar: app.calendar) {
+            let examDates = [app.settings.nextExamDate].compactMap { $0 } + app.upcomingExams().map(\.date)
+            if ExamPassOffer.isEligible(plan: app.purchases.plan, examDates: examDates, now: app.now, calendar: app.calendar) {
                 showsExamPass = true
             } else {
                 advance()
@@ -117,6 +118,7 @@ struct OnboardingFlow: View {
     let startPage: Int?
 
     @Environment(AppModel.self) private var app
+    @Environment(\.requestAgeRange) private var requestAgeRange
     @State private var coordinator: OnboardingCoordinator
 
     init(startPage: Int?) {
@@ -144,6 +146,15 @@ struct OnboardingFlow: View {
                 .presentationDetents([.medium, .large])
         }
         .onAppear { coordinator.app = app }
+        // The four questions are about the person; the age range is asked once, right after them, before anything that depends on
+        // it (Cloud AI's consent, Cap's tutor). The system's own sheet; nothing waits for it (`AgeRange.checkIfNeeded`).
+        .onChange(of: coordinator.step) { _, step in
+            guard step == .firstSet else { return }
+            Task {
+                try? await nap(700)
+                await AgeRange.checkIfNeeded(app: app, using: requestAgeRange)
+            }
+        }
     }
 
     @ViewBuilder

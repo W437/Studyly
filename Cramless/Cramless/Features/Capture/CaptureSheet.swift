@@ -2,7 +2,9 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 /// "Add material": every way in, each with its coloured badge and a line about what it takes, and the course it goes
-/// to (the current course unless the person picks another, or makes a new one here).
+/// to (the current course unless the person picks another, or makes a new one here). On the free plan, the Scan, PDF and
+/// Record rows say what the free AI allowance has left before the work starts, and the footer what is always free
+/// (`AllowanceCopy`; `CRAMLESS_QUOTA` sets the counts in the harness).
 ///
 /// DEBUG hooks: `CRAMLESS_CAPTURE_SHEET=large` opens it at the large detent; `scan`, `record`, `paste`, `import` or
 /// `cards` presses that row after a moment (the sheet hands over to the scanner, the recorder or the next sheet).
@@ -33,14 +35,16 @@ struct CaptureSheet: View {
                 }
                 .padding(.top, 6)
 
+                let scans = AllowanceCopy.scans(left: app.ai.freeCloudUsesLeft(for: .generate))
                 CLList {
-                    option("camera", .tangerine, "Scan pages", "Textbooks, handouts, your notes") {
+                    option("camera", .tangerine, "Scan pages", "Textbooks, handouts, your notes", note: scans) {
                         go(.scanner(courseID: selectedCourseID, isOnboarding: false))
                     }
-                    option("mic", .rose, "Record a lecture", "Transcribed on your iPhone") {
+                    option("mic", .rose, "Record a lecture", "Transcribed on your iPhone",
+                           note: AllowanceCopy.lectures(left: app.ai.freeCloudUsesLeft(for: .lecture))) {
                         go(.record(courseID: selectedCourseID))
                     }
-                    option("doc.richtext", .sky, "PDF or slides", "From Files, Drive or email") {
+                    option("doc.richtext", .sky, "PDF or slides", "From Files, Drive or email", note: scans) {
                         importingPDF = true
                     }
                     option("rectangle.stack", .mint, "Import Quizlet or Anki", "Keep every set you have") {
@@ -54,6 +58,15 @@ struct CaptureSheet: View {
                     }
                 }
                 .padding(.top, 16)
+
+                if scans != nil {
+                    Text(AllowanceCopy.alwaysFree)
+                        .clFont(.footnote)
+                        .foregroundStyle(CLColor.ink2)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.top, 12)
+                        .padding(.horizontal, 4)
+                }
 
                 if let problem {
                     Label(problem, systemImage: "exclamationmark.triangle.fill")
@@ -105,12 +118,12 @@ struct CaptureSheet: View {
     }
 
     private func option(_ symbol: String, _ tint: CaptureTint, _ title: String, _ subtitle: String,
-                        action: @escaping () -> Void) -> some View {
+                        note: LocalizedStringResource? = nil, action: @escaping () -> Void) -> some View {
         Button {
             CLHaptics.tap()
             action()
         } label: {
-            CaptureOptionRow(systemImage: symbol, tint: tint, title: title, subtitle: subtitle)
+            CaptureOptionRow(systemImage: symbol, tint: tint, title: title, subtitle: subtitle, note: note)
         }
         .buttonStyle(.pressable)
         .accessibilityHint(Text(subtitle))

@@ -109,9 +109,77 @@ final class PaywallCopyTests: XCTestCase {
 
     func testSublineByContext() {
         XCTAssertEqual(PaywallCopy.subline(for: .onboarding(planLine: "Your Bio 101 plan is set.")), "Your Bio 101 plan is set.")
-        XCTAssertEqual(PaywallCopy.subline(for: .feature(PaidFeature.practiceTests.paywallLine)),
-                       "Practice tests in your teacher's format are part of Pro.")
+        XCTAssertEqual(PaywallCopy.subline(for: .feature(PaidFeature.unlimitedTutor.paywallLine)),
+                       "Unlimited questions for Cap are part of Pro.")
         XCTAssertFalse(PaywallCopy.subline(for: .settings).isEmpty)
+    }
+
+    // MARK: What Pro adds, and what is always free
+
+    private func words(_ rows: [PaywallCopy.Row]) -> [String] { rows.map { String(localized: $0.text) } }
+
+    func testProIsTheAIWorkAndNothingTheFreePlanHas() {
+        XCTAssertEqual(words(PaywallCopy.benefits(isMinor: false)), [
+            "AI scans, PDFs and lecture notes, no weekly limit",
+            "Every answer graded by Cloud AI",
+            "Cap's answers and drafts, no daily limit",
+            "Web research from trusted sites",
+        ])
+        let everything = (words(PaywallCopy.benefits(isMinor: false)) + [PaywallCopy.subline(for: .settings)])
+            .joined(separator: " ").lowercased()
+        for promise in ["practice test", "readiness", "exam plan", "unlimited"] {
+            XCTAssertFalse(everything.contains(promise), "Pro doesn't sell \(promise)")
+        }
+        XCTAssertEqual(Set(PaywallCopy.benefits(isMinor: false).map(\.id)).count, 4, "each row has its own symbol")
+    }
+
+    func testAnAccountUnder18IsNeverSoldWebResearch() {
+        let rows = words(PaywallCopy.benefits(isMinor: true))
+        XCTAssertEqual(rows.count, 3)
+        XCTAssertFalse(rows.contains { $0.contains("research") })
+    }
+
+    func testTheAlwaysFreeCardSaysWhatNobodyPaysFor() {
+        XCTAssertEqual(words(PaywallCopy.alwaysFree), [
+            "Reviews and flashcards, as many as you like",
+            "A plan and readiness for every exam",
+            "Your streak, quests and the sky",
+            "Quizlet and Anki imports",
+            "Each week 3 AI scans and notes for 1 lecture; each day 20 graded answers and 10 questions for Cap",
+        ])
+        XCTAssertFalse(words(PaywallCopy.alwaysFree).joined().lowercased().contains("mock"), "mock exams join once they ship")
+        // The allowance row says the relay's own numbers.
+        let allowance = words(PaywallCopy.alwaysFree).last ?? ""
+        XCTAssertTrue(allowance.contains("\(AIFreeLimits.limit(.scans)) AI scans"))
+        XCTAssertTrue(allowance.contains("notes for \(AIFreeLimits.limit(.lectures)) lecture"))
+        XCTAssertTrue(allowance.contains("\(AIFreeLimits.limit(.grades)) graded answers"))
+        XCTAssertTrue(allowance.contains("\(AIFreeLimits.limit(.tutor)) questions for Cap"))
+        XCTAssertEqual(AIFreeLimits.period(.scans), .week)
+        XCTAssertEqual(AIFreeLimits.period(.lectures), .week)
+        XCTAssertEqual(AIFreeLimits.period(.grades), .day)
+        XCTAssertEqual(AIFreeLimits.period(.tutor), .day)
+    }
+
+    /// The paywall reads top to bottom: Pro's rows, then "Always free", then the prices. Read from its source, since the order is the
+    /// promise: no price shows before the person has seen what stays free.
+    func testTheFreeCardSitsBetweenProsRowsAndThePlans() throws {
+        let url = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("Cramless/Features/Paywall/PaywallView.swift")
+        let source = try String(contentsOf: url, encoding: .utf8)
+        let benefits = try XCTUnwrap(source.range(of: "PaywallCopy.benefits(")).lowerBound
+        let free = try XCTUnwrap(source.range(of: "AlwaysFreeCard()")).lowerBound
+        let plans = try XCTUnwrap(source.range(of: "PlanOption.paywallOptions")).lowerBound
+        XCTAssertLessThan(benefits, free)
+        XCTAssertLessThan(free, plans)
+        XCTAssertTrue(source.contains(".id(\"free\")"), "CRAMLESS_PAYWALL_SCROLL=free scrolls to it")
+        XCTAssertFalse(source.contains("freePlanLine"), "the old footer line is gone")
+        XCTAssertTrue(source.contains("HelpLink("), "the footer has a way to reach a real person")
+    }
+
+    func testFairUseStaysInTheTerms() {
+        for option in PlanOption.allCases {
+            XCTAssertTrue(PaywallCopy.terms(for: option, price: .fallback(option), trialDays: nil).hasSuffix("Fair use applies."))
+        }
     }
 
     func testFailureMessagesAreClearAndNeverBlame() {

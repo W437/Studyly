@@ -252,10 +252,12 @@ struct SourceButton: View {
 }
 
 /// A gentle note when a better grade needs consent or Pro. Never a wall: the grade above still counts. `selfMarked`: the person is
-/// marking the answer themselves, so there is no grade above, and what is on offer is a grade from Cloud AI.
+/// marking the answer themselves, so there is no grade above, and what is on offer is a grade from Cloud AI. `inSession`: nothing is
+/// sold in the middle of studying, so a free limit is a line with no button there (the consent offers keep theirs).
 struct SuggestionBanner: View {
     let suggestion: AISuggestion
     var selfMarked = false
+    let inSession: Bool
 
     @Environment(AppModel.self) private var app
 
@@ -272,11 +274,13 @@ struct SuggestionBanner: View {
                     .clFont(.subheadline)
                     .foregroundStyle(CLColor.ink)
                     .fixedSize(horizontal: false, vertical: true)
-                Button(actionTitle) {
-                    CLHaptics.tap()
-                    app.router.present(suggestion.sheet)
+                if let actionTitle = Self.actionTitle(for: suggestion, inSession: inSession) {
+                    Button(actionTitle) {
+                        CLHaptics.tap()
+                        app.router.present(suggestion.sheet)
+                    }
+                    .buttonStyle(.cl(.soft, size: .medium, fullWidth: false))
                 }
-                .buttonStyle(.cl(.soft, size: .medium, fullWidth: false))
             }
         }
         .padding(14)
@@ -305,11 +309,12 @@ struct SuggestionBanner: View {
         }
     }
 
-    private var actionTitle: String {
+    /// The button under the note; none for a free limit in a session.
+    static func actionTitle(for suggestion: AISuggestion, inSession: Bool) -> LocalizedStringResource? {
         switch suggestion {
         case .allowCloud: "Allow Cloud AI"
         case .allowPhotos: "Review"
-        case .upgrade: "See Pro"
+        case .upgrade: inSession ? nil : "See Pro"
         }
     }
 }

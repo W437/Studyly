@@ -73,6 +73,8 @@ struct CaptureOptionRow: View {
     let title: String
     var subtitle: String?
     var trailing: String? = "chevron.right"
+    /// A line under the subtitle: what the free AI allowance has left for this kind of material (`AllowanceCopy`).
+    var note: LocalizedStringResource? = nil
 
     var body: some View {
         HStack(spacing: 12) {
@@ -83,6 +85,10 @@ struct CaptureOptionRow: View {
                 if let subtitle {
                     Text(subtitle).clFont(.footnote).foregroundStyle(CLColor.ink2)
                         .fixedSize(horizontal: false, vertical: true)
+                }
+                if let note {
+                    AllowanceLine(text: note)
+                        .padding(.top, 2)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -293,3 +299,33 @@ struct CaptureChips<Content: View>: View {
         }
     }
 }
+
+/// One line of the free AI allowance ("2 free AI scans left this week"): small, quiet, said before the work, never a nudge.
+struct AllowanceLine: View {
+    let text: LocalizedStringResource
+
+    /// The sparkle grows with the words.
+    @ScaledMetric(relativeTo: .caption) private var icon: CGFloat = 11
+
+    var body: some View {
+        Label {
+            Text(text).fixedSize(horizontal: false, vertical: true)
+        } icon: {
+            Image(systemName: "sparkles").font(.system(size: icon, weight: .semibold))
+        }
+        .clFont(.caption)
+        .foregroundStyle(CLColor.ink3)
+        .labelStyle(AllowanceLabelStyle())
+    }
+}
+
+/// An icon on the first line, the words wrapping beside it.
+private struct AllowanceLabelStyle: LabelStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 5) {
+            configuration.icon.accessibilityHidden(true)
+            configuration.title
+        }
+    }
+}
+

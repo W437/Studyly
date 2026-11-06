@@ -118,7 +118,9 @@ struct ExamDetailModel {
                      meta: LibraryFormat.sourceMeta(kind: source.kind, pages: source.pages.count, duration: source.duration,
                                                     questions: counts[source.id] ?? 0))
         }
-        offersExamPass = ExamPresentation.offersExamPass(plan: app.purchases.plan, phase: phase)
+        offersExamPass = ExamPresentation.offersExamPass(plan: app.purchases.plan, examDate: exam.date,
+                                                         examDates: app.upcomingExams().map(\.date), now: app.now,
+                                                         calendar: app.calendar)
     }
 
     var isPast: Bool { if case .past = phase { true } else { false } }

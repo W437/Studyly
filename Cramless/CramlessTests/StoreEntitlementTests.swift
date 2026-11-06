@@ -143,8 +143,12 @@ final class StoreEntitlementTests: XCTestCase {
         XCTAssertTrue(PaidFeature.allCases.filter { $0 != .squadSeats }.allSatisfy(pro.allows))
         XCTAssertFalse(pro.allows(.squadSeats))
         let pass = resolve([tx(.examPass, purchased: days(-1))])
-        XCTAssertTrue(pass.allows(.practiceTests))
+        XCTAssertTrue(pass.allows(.unlimitedCapture))
+        XCTAssertTrue(pass.allows(.lectureNotes))
         XCTAssertFalse(pass.allows(.squadSeats))
+        // Pro is the AI work: plans, readiness, practice and projections are free for everyone, so nothing gates them.
+        XCTAssertEqual(Set(PaidFeature.allCases.map(\.rawValue)),
+                       ["unlimitedCapture", "unlimitedGrading", "unlimitedTutor", "lectureNotes", "squadSeats"])
         XCTAssertTrue(resolve([tx(.squad, expires: days(300))]).allows(.squadSeats))
     }
 

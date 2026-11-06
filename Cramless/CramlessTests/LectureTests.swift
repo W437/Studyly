@@ -378,11 +378,50 @@ final class LectureTests: CaptureTestCase {
         try FileManager.default.copyItem(at: root.appending(path: "live.aac"), to: FileStore.url(for: LectureFiles.recording(source.id)))
         live.close()
 
-        await app.recoverInterruptedLectures()
+        let recovered = await app.recoverInterruptedLectures()
         XCTAssertEqual(source.fileName, LectureFiles.audio(source.id))
         XCTAssertGreaterThan(source.duration, 1.5)
         XCTAssertEqual(source.status, .read, "the transcript checkpointed before the crash is kept")
         XCTAssertTrue(FileManager.default.fileExists(atPath: FileStore.url(for: LectureFiles.audio(source.id)).path))
+        // What was kept is reported, for the toast at launch.
+        XCTAssertEqual(recovered.map(\.id), [source.id])
+        XCTAssertEqual(recovered.first?.duration ?? 0, source.duration, accuracy: 0.001)
+        XCTAssertNil(RecoveredLecture.toast(for: recovered), "three seconds is a stray tap on record: nothing to say")
+        let again = await app.recoverInterruptedLectures()
+        XCTAssertTrue(again.isEmpty, "a lecture is recovered, and told about, once")
+    }
+
+    func testTheRecoveredLectureToastSaysHowMuchWasKept() throws {
+        let id = UUID()
+        let one = try XCTUnwrap(RecoveredLecture.toast(for: [RecoveredLecture(id: id, duration: 2480)]))
+        XCTAssertEqual(String(localized: one.message), "Cap kept your lecture up to 41:20.")
+        XCTAssertEqual(one.action, .push(.lectureNotes(id), .library), "Open shows its notes")
+        let long = try XCTUnwrap(RecoveredLecture.toast(for: [RecoveredLecture(id: id, duration: 3725)]))
+        XCTAssertEqual(String(localized: long.message), "Cap kept your lecture up to 1:02:05.")
+        let two = try XCTUnwrap(RecoveredLecture.toast(for: [RecoveredLecture(id: id, duration: 2480),
+                                                             RecoveredLecture(id: UUID(), duration: 900),
+                                                             RecoveredLecture(id: UUID(), duration: 4)]))
+        XCTAssertEqual(String(localized: two.message), "Cap kept 2 lectures that were cut off.")
+        XCTAssertNil(two.action)
+        XCTAssertNil(RecoveredLecture.toast(for: []))
+    }
+
+    func testTheToastRaisedAtLaunchOpensTheLecture() throws {
+        let app = try makeApp()
+        app.settings.onboardingCompleted = true
+        let id = UUID()
+        app.announceRecoveredLectures([RecoveredLecture(id: id, duration: 2480)])
+        let toast = try XCTUnwrap(app.router.toast)
+        XCTAssertEqual(String(localized: toast.message), "Cap kept your lecture up to 41:20.")
+        XCTAssertEqual(toast.actionTitle.map { String(localized: $0) }, "Open")
+        app.router.runToastAction()
+        XCTAssertNil(app.router.toast)
+        XCTAssertEqual(app.router.tab, .library)
+        XCTAssertEqual(app.router.paths[.library], [.lectureNotes(id)])
+
+        app.settings.onboardingCompleted = false
+        app.announceRecoveredLectures([RecoveredLecture(id: id, duration: 2480)])
+        XCTAssertNil(app.router.toast, "nothing over onboarding")
     }
 }
 

@@ -4,13 +4,15 @@ import SwiftUI
 /// The three-option paywall: Yearly (preselected, 7 days free), Monthly, Squad. `context` says why it opened:
 /// the end of onboarding names the plan just built, a gate names the feature, Settings just opens it.
 ///
-/// "Continue free" is always on screen (in the bottom bar beside the button), the trial timeline is honest about
-/// the reminder and the first charge, and Terms and Privacy appear only once real URLs exist.
+/// Pro's rows name only the AI work it adds; the "Always free" card under them says what nobody pays for (plans, readiness,
+/// reviews, imports, the free AI allowance) before any price shows. "Continue free" is always on screen (in the bottom bar
+/// beside the button), the trial timeline is honest about the reminder and the first charge, the footer has a way to reach a
+/// real person, and Terms and Privacy appear only once real URLs exist.
 ///
 /// DEBUG hooks, read once: `CRAMLESS_PAYWALL_PLAN=yearly|monthly|squad` preselects a plan;
 /// `CRAMLESS_PAYWALL_STATE=purchasing|pending|cancelled|failed|purchased|restored` shows that state;
 /// `CRAMLESS_PAYWALL_TRIAL=0` draws it as if the free week were already used;
-/// `CRAMLESS_PAYWALL_SCROLL=plans|timeline` scrolls there.
+/// `CRAMLESS_PAYWALL_SCROLL=free|plans|timeline` scrolls there (`free`: the "Always free" card).
 struct PaywallView: View {
     let context: PaywallContext
 
@@ -25,7 +27,7 @@ struct PaywallView: View {
     @State private var restoring = false
     @State private var simulatedPurchasing = false
     @State private var trialUsed = false
-    /// DEBUG: scrolls to "plans" or "timeline" for screenshots.
+    /// DEBUG: scrolls to "free", "plans" or "timeline" for screenshots.
     @State private var scrollTarget: String?
 
     struct Note: Equatable {
@@ -89,9 +91,16 @@ struct PaywallView: View {
                         .fixedSize(horizontal: false, vertical: true)
                         .padding(.top, 8)
                     VStack(alignment: .leading, spacing: 11) {
-                        ForEach(PaywallCopy.benefits, id: \.text) { PaywallBenefitRow(symbol: $0.symbol, text: $0.text) }
+                        CLEyebrow(text: "With Pro", color: CLColor.tangerineInk)
+                            .accessibilityAddTraits(.isHeader)
+                        ForEach(PaywallCopy.benefits(isMinor: app.settings.isMinor)) {
+                            PaywallBenefitRow(symbol: $0.symbol, text: $0.text)
+                        }
                     }
                     .padding(.top, 20)
+                    AlwaysFreeCard()
+                        .padding(.top, 24)
+                        .id("free")
                     VStack(spacing: 16) {
                         ForEach(PlanOption.paywallOptions) { option in
                             PlanCard(option: option, price: store.price(for: option), trialDays: trialDays(for: option),
@@ -124,12 +133,8 @@ struct PaywallView: View {
     }
 
     private var footer: some View {
-        VStack(spacing: 10) {
-            Text(StoreCatalog.freePlanLine)
-                .clFont(.footnote)
-                .foregroundStyle(CLColor.ink3)
-                .multilineTextAlignment(.center)
-                .fixedSize(horizontal: false, vertical: true)
+        VStack(spacing: 4) {
+            HelpLink(alignment: .center)
             HStack(spacing: 6) {
                 Button(restoring ? "Restoring…" : "Restore purchases") { restore() }
                     .disabled(isBusy)
@@ -269,12 +274,12 @@ struct PaywallView: View {
     }
 
     /// "Continue free" and the close button. Embedded (onboarding), the host decides; as a sheet, a free
-    /// person within three weeks of an exam gets the Exam Pass offer, everyone else just closes.
+    /// person 8 to 21 days before the next exam gets the Exam Pass offer (`ExamPassOffer`), everyone else just closes.
     private func decline() {
         if let finish { finish(.declined); return }
-        let exam = app.upcomingExams().first
-        if ExamPassOffer.isEligible(plan: store.plan, examDate: exam?.date, now: app.now, calendar: app.calendar) {
-            app.router.present(.examPass(examID: exam?.id))
+        let exams = app.upcomingExams()
+        if ExamPassOffer.isEligible(plan: store.plan, examDates: exams.map(\.date), now: app.now, calendar: app.calendar) {
+            app.router.present(.examPass(examID: exams.first?.id))
         } else {
             dismiss()
         }

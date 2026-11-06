@@ -5,12 +5,34 @@ import Foundation
 enum PaywallCopy {
     static let headline = "Sleep the night before. You'll be ready."
 
-    /// What Pro unlocks (the plan's "Why people pay"), with the symbol each row shows.
-    static let benefits: [(symbol: String, text: String)] = [
-        ("camera", "Unlimited scans, PDFs and lectures"),
-        ("pencil.line", "Answers graded in your own words"),
-        ("bubble.left.and.text.bubble.right", "A tutor that knows your notes"),
-        ("target", "Exam plans, practice tests and readiness"),
+    /// One row of a list on the paywall: a symbol and its words.
+    struct Row: Identifiable {
+        var symbol: String
+        var text: LocalizedStringResource
+        var id: String { symbol }
+    }
+
+    /// What Pro adds: the AI work, and nothing the free plan already has (plans, readiness and reviews are free). Web research is
+    /// left out for an account under 18, which never has it.
+    static func benefits(isMinor: Bool) -> [Row] {
+        var rows = [
+            Row(symbol: "doc.viewfinder", text: "AI scans, PDFs and lecture notes, no weekly limit"),
+            Row(symbol: "checkmark.seal", text: "Every answer graded by Cloud AI"),
+            Row(symbol: "bubble.left.and.text.bubble.right", text: "Cap's answers and drafts, no daily limit"),
+        ]
+        if !isMinor { rows.append(Row(symbol: "globe", text: "Web research from trusted sites")) }
+        return rows
+    }
+
+    /// What every account keeps without paying, shown above the prices ("Always free"). A feature joins here when it ships free
+    /// (mock exams, in Stage 2, go after the plan row). The last row is the free AI allowance, in the relay's numbers
+    /// (`AIFreeLimits`; a test keeps them in step).
+    static let alwaysFree: [Row] = [
+        Row(symbol: "rectangle.stack", text: "Reviews and flashcards, as many as you like"),
+        Row(symbol: "target", text: "A plan and readiness for every exam"),
+        Row(symbol: "flame", text: "Your streak, quests and the sky"),
+        Row(symbol: "square.and.arrow.down", text: "Quizlet and Anki imports"),
+        Row(symbol: "sparkles", text: "Each week 3 AI scans and notes for 1 lecture; each day 20 graded answers and 10 questions for Cap"),
     ]
 
     /// The line under the headline, by context.
@@ -18,7 +40,7 @@ enum PaywallCopy {
         switch context {
         case .onboarding(let planLine): planLine
         case .feature(let line): line
-        case .settings: "Pro unlocks everything below, for every class and every exam."
+        case .settings: "Pro lifts the AI limits, for every class and every exam."
         }
     }
 

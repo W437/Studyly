@@ -300,6 +300,10 @@ struct CaptureProblemView: View {
                         .foregroundStyle(CLColor.roseInk)
                         .padding(.top, 14)
                 }
+                if case .upgrade? = visibleSuggestion {
+                    HelpLink(alignment: .center)
+                        .padding(.top, 10)
+                }
             }
             .padding(.horizontal, CLSpace.gutter + 8)
             .frame(maxWidth: CLMetrics.readableWidth)
