@@ -1477,7 +1477,11 @@ trust rules and the screens are in `docs/assistant.md`, the wire format in `docs
   words are typed, height kept until the starters are ready), `TutorModePill` in `ChatComposer` (a popover; locked under 18) and `onCamera`, the slot for Stage 3's camera (nothing passes it yet).
   `AskEmptyState` is Cap, one line, one chat to pick up. Follow-ups "Explain it simpler" and "Make 3 flashcards" (the assistant when ready, else `AppSheet.makeCards(threadID:, maxItems: 3)`).
   `TutorModeControl` and `CourseMaterialChip` are gone.
+  At the accessibility text sizes the style takes a line of its own in the composer, and the chips stay one scrolling row (the appendix's two-line flow left no room for the chat).
 - **Scripts:** `journeys/moves.py` (the chips and tiles), `journeys/j_ask.py` (Cap's style in the composer, the short chip).
+- **Verified (2026-11-06, on main cd6ad9c plus this lane):** the whole suite, 1,657 tests, 27 skipped, no failures. Real drags and taps on the simulator: a slow drag past the line, a short one
+  springing back, a flick, a vertical drag and a swipe on an unflipped card doing nothing, Undo by a tap on the pill (flashcard and own-words marks), the app going to the background
+  committing the last question. Not checked: haptics, ⌘Z and the arrow keys with a hardware keyboard, a live VoiceOver session.
 
 ## App Store Connect (2026-11-01)
 
