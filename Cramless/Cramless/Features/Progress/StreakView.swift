@@ -1,7 +1,8 @@
 import SwiftUI
 
-/// The streak in full: this month's calendar of studied, frozen and repaired days (earlier months a swipe of the
-/// arrows away), the repair offer when there is one, and how freezes and repairs work, in plain words.
+/// The streak in full: this month's calendar of studied, frozen and repaired days, with each upcoming exam's day and its eve
+/// marked (earlier months and the next one a tap of the arrows away), the repair offer when there is one, and how freezes and
+/// repairs work, in plain words. Today's "Your plan" opens it from "Calendar".
 struct StreakView: View {
     @Environment(AppModel.self) private var app
     @State private var monthOffset = 0
@@ -17,6 +18,8 @@ struct StreakView: View {
         let month = calendar.date(byAdding: .month, value: monthOffset, to: app.now) ?? app.now
         let dailyMinutes = app.settings.dailyMinutes
         let run = streak.repairableDay.map { ProgressPresentation.runBefore($0, cells: cells, calendar: calendar) } ?? 0
+        let marks = ExamMarks(app.upcomingExams().filter { $0.course?.deletedAt == nil && $0.date > app.now }
+            .map { (title: $0.title, date: $0.date) }, calendar: calendar)
 
         ScrollViewReader { proxy in
         ScrollView {
@@ -41,13 +44,13 @@ struct StreakView: View {
                             CLHaptics.select()
                             withAnimation(CLMotion.settle) { monthOffset += 1 }
                         }
-                        .disabled(monthOffset >= 0)
-                        .opacity(monthOffset >= 0 ? 0.35 : 1)
+                        .disabled(monthOffset >= Self.monthsAhead)
+                        .opacity(monthOffset >= Self.monthsAhead ? 0.35 : 1)
                     }
-                    MonthCalendar(month: month, byDay: byDay, today: calendar.dayNumber(for: app.now), calendar: calendar)
+                    MonthCalendar(month: month, byDay: byDay, marks: marks, today: calendar.dayNumber(for: app.now), calendar: calendar)
                         .id(monthOffset)
                         .transition(.opacity)
-                    CalendarLegend()
+                    CalendarLegend(showsExams: !marks.isEmpty)
                 }
                 .clCard()
                 .padding(.top, 20)
@@ -86,6 +89,9 @@ struct StreakView: View {
         .navigationTitle("Streak")
         .navigationBarTitleDisplayMode(.inline)
     }
+
+    /// How far ahead the calendar goes: the next month, where the exams and their eves are marked.
+    static let monthsAhead = 1
 
     private func header(_ streak: StreakState, run: Int) -> some View {
         let onHold = streak.current == 0 && streak.repairableDay != nil && run > 0
@@ -183,10 +189,28 @@ private struct MilestonesCard: View {
     }
 }
 
-/// A month: studied days filled, frozen days in Sky with a snowflake, repaired days marked, today ringed.
+/// The upcoming exams by day: each exam's day and its eve (the night before), by day number.
+struct ExamMarks: Equatable {
+    var exams: [Int: [String]] = [:]
+    var eves: [Int: [String]] = [:]
+
+    init(_ list: [(title: String, date: Date)], calendar: Calendar) {
+        for exam in list {
+            let day = calendar.dayNumber(for: exam.date)
+            exams[day, default: []].append(exam.title)
+            eves[day - 1, default: []].append(exam.title)
+        }
+    }
+
+    var isEmpty: Bool { exams.isEmpty }
+}
+
+/// A month: studied days filled, frozen days in Sky with a snowflake, repaired days marked, today ringed, exam days with a
+/// mortarboard and their eves with a moon.
 private struct MonthCalendar: View {
     let month: Date
     let byDay: [Int: HeatmapCell]
+    let marks: ExamMarks
     let today: Int
     let calendar: Calendar
 
@@ -207,9 +231,10 @@ private struct MonthCalendar: View {
                 HStack(spacing: 6) {
                     ForEach(Array(week.enumerated()), id: \.offset) { _, date in
                         if let date {
-                            DayCell(date: date, cell: byDay[calendar.dayNumber(for: date)],
-                                    isToday: calendar.dayNumber(for: date) == today,
-                                    isFuture: calendar.dayNumber(for: date) > today, calendar: calendar)
+                            let number = calendar.dayNumber(for: date)
+                            DayCell(date: date, cell: byDay[number], isToday: number == today, isFuture: number > today,
+                                    exams: marks.exams[number] ?? [], eves: number >= today ? marks.eves[number] ?? [] : [],
+                                    calendar: calendar)
                         } else {
                             Color.clear.frame(maxWidth: .infinity).aspectRatio(1, contentMode: .fit)
                         }
@@ -225,24 +250,34 @@ private struct DayCell: View {
     let cell: HeatmapCell?
     let isToday: Bool
     let isFuture: Bool
+    /// The exams on this day, and the exams the day is the eve of.
+    var exams: [String] = []
+    var eves: [String] = []
     let calendar: Calendar
 
     var body: some View {
         let studied = (cell?.level ?? 0) > 0
         let frozen = cell?.frozen == true && !studied
         let repaired = cell?.repaired == true
+        let exam = !exams.isEmpty && !studied
+        let eve = !eves.isEmpty && !studied && !exam
         let shape = RoundedRectangle(cornerRadius: 10, style: .continuous)
         ZStack {
-            shape.fill(studied ? CLColor.tangerine : frozen ? CLColor.sky : Color.clear)
+            shape.fill(studied ? CLColor.tangerine : frozen ? CLColor.sky : exam ? CLColor.tangerineSoft : eve ? CLColor.sunSoft : Color.clear)
             if isToday { shape.strokeBorder(CLColor.ink, lineWidth: 2) }
             VStack(spacing: 0) {
                 Text("\(calendar.component(.day, from: date))")
-                    .font(.system(size: 15, weight: studied || isToday ? .bold : .semibold, design: .rounded))
-                    .foregroundStyle(studied || frozen ? CLColor.onFill : isFuture ? CLColor.ink4 : CLColor.ink2)
+                    .font(.system(size: 15, weight: studied || isToday || exam ? .bold : .semibold, design: .rounded))
+                    .foregroundStyle(studied || frozen ? CLColor.onFill : exam ? CLColor.tangerineInk : eve ? CLColor.sunInk
+                                     : isFuture ? CLColor.ink4 : CLColor.ink2)
                 if frozen {
                     Image(systemName: "snowflake").font(.system(size: 8, weight: .bold)).foregroundStyle(CLColor.onFill)
                 } else if repaired {
                     Image(systemName: "bandage.fill").font(.system(size: 8, weight: .bold)).foregroundStyle(CLColor.onFill)
+                } else if exam {
+                    Image(systemName: "graduationcap.fill").font(.system(size: 8, weight: .bold)).foregroundStyle(CLColor.tangerineInk)
+                } else if eve {
+                    Image(systemName: "moon.stars.fill").font(.system(size: 8, weight: .bold)).foregroundStyle(CLColor.sunInk)
                 }
             }
             .minimumScaleFactor(0.6)
@@ -255,18 +290,23 @@ private struct DayCell: View {
     }
 
     private func value(studied: Bool, frozen: Bool, repaired: Bool) -> String {
-        if isFuture { return "" }
+        var marks: [String] = []
+        if !exams.isEmpty { marks.append(String(localized: "Exam: \(exams.formatted(.list(type: .and)))")) }
+        if !eves.isEmpty { marks.append(String(localized: "The night before \(eves.formatted(.list(type: .and)))")) }
+        if isFuture { return marks.joined(separator: ", ") }
         var parts: [String] = []
         if isToday { parts.append("Today") }
         if studied { parts.append("Studied \(CLFormat.count(cell?.minutes ?? 0, "minute"))") }
         if frozen { parts.append("Covered by a freeze") }
         if repaired { parts.append("Repaired") }
         if parts.isEmpty || (parts == ["Today"]) { parts.append("Not studied") }
-        return parts.joined(separator: ", ")
+        return (parts + marks).joined(separator: ", ")
     }
 }
 
 private struct CalendarLegend: View {
+    var showsExams = false
+
     var body: some View {
         ReflowStack(spacing: 14) {
             key(CLColor.tangerine, "Studied")
@@ -278,6 +318,16 @@ private struct CalendarLegend: View {
             HStack(spacing: 5) {
                 RoundedRectangle(cornerRadius: 3, style: .continuous).strokeBorder(CLColor.ink, lineWidth: 1.5).frame(width: 12, height: 12)
                 Text("Today").clFont(.caption).foregroundStyle(CLColor.ink2)
+            }
+            if showsExams {
+                HStack(spacing: 5) {
+                    Image(systemName: "graduationcap.fill").font(.system(size: 10, weight: .bold)).foregroundStyle(CLColor.tangerineInk)
+                    Text("Exam").clFont(.caption).foregroundStyle(CLColor.ink2)
+                }
+                HStack(spacing: 5) {
+                    Image(systemName: "moon.stars.fill").font(.system(size: 10, weight: .bold)).foregroundStyle(CLColor.sunInk)
+                    Text("Eve").clFont(.caption).foregroundStyle(CLColor.ink2)
+                }
             }
         }
         .accessibilityHidden(true)

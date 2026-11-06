@@ -4,7 +4,6 @@
     "" : {
       "shouldTranslate" : false
     },
-    " · soon" : {},
     "%" : {},
     "%@" : {
       "shouldTranslate" : false
@@ -31,11 +30,32 @@
         }
       }
     },
+    "%@ can wait" : {},
+    "%@ can wait until after %@." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ can wait until after %2$@."
+          }
+        }
+      }
+    },
     "%@ exam" : {},
     "%@ for 30 days of Pro. Doesn't renew." : {},
     "%@ from this page" : {},
     "%@ goal" : {},
     "%@ goes back to the free plan at once and their seat opens for someone else. Everything they've studied stays theirs." : {},
+    "%@ has %lld questions so far" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ has %2$lld questions so far"
+          }
+        }
+      }
+    },
     "%@ in about %@" : {
       "localizations" : {
         "en" : {
@@ -57,6 +77,16 @@
         }
       }
     },
+    "%@ is the weakest: %@ ready" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ is the weakest: %2$@ ready"
+          }
+        }
+      }
+    },
     "%@ is tomorrow at %@. Sleep is part of studying." : {
       "localizations" : {
         "en" : {
@@ -67,7 +97,6 @@
         }
       }
     },
-    "%@ is tomorrow. 10 minutes on your weak spots, then sleep. That's the whole plan tonight." : {},
     "%@ is tomorrow. Sleep is part of studying." : {},
     "%@ left your Squad. A seat is open." : {},
     "%@ lights at %lld" : {
@@ -85,16 +114,7 @@
     "%@ on exam day" : {},
     "%@ on exam day if you follow the plan" : {},
     "%@ questions" : {},
-    "%@ ready, %@ this week" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$@ ready, %2$@ this week"
-          }
-        }
-      }
-    },
+    "%@ ready now" : {},
     "%@ ready, %@ this week. Projected %@, %@. %@." : {
       "localizations" : {
         "en" : {
@@ -119,6 +139,7 @@
     "%@ studied" : {},
     "%@ this week" : {},
     "%@ to review" : {},
+    "%@ today" : {},
     "%@ waiting for you" : {},
     "%@ · %@" : {
       "localizations" : {
@@ -126,16 +147,6 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "%1$@ · %2$@"
-          }
-        }
-      }
-    },
-    "%@ · %@ ready" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$@ · %2$@ ready"
           }
         }
       }
@@ -224,6 +235,16 @@
         }
       }
     },
+    "%@: %@ ready" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@: %2$@ ready"
+          }
+        }
+      }
+    },
     "%lld" : {},
     "%lld answered" : {},
     "%lld bright" : {},
@@ -274,6 +295,7 @@
         }
       }
     },
+    "%lld days to go" : {},
     "%lld days, %@" : {
       "localizations" : {
         "en" : {
@@ -310,6 +332,16 @@
     },
     "%lld in a row" : {},
     "%lld min a day" : {},
+    "%lld min · %lld answers" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld min · %2$lld answers"
+          }
+        }
+      }
+    },
     "%lld minutes" : {
       "localizations" : {
         "en" : {
@@ -354,6 +386,7 @@
         }
       }
     },
+    "%lld minutes planned" : {},
     "%lld minutes tonight and you're done." : {
       "localizations" : {
         "en" : {
@@ -377,6 +410,7 @@
       }
     },
     "%lld minutes, %lld answers. Back tomorrow. Your streak is safe." : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -428,6 +462,11 @@
         }
       }
     },
+    "%lld months" : {},
+    "%lld more" : {},
+    "%lld new questions" : {},
+    "%lld new questions, so it's all in before the exam." : {},
+    "%lld new questions." : {},
     "%lld not yet lit" : {},
     "%lld of %@ have material" : {
       "localizations" : {
@@ -480,6 +519,7 @@
       }
     },
     "%lld of %lld minutes done" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -507,6 +547,16 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "%lld of %lld minutes done." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld of %2$lld minutes done."
           }
         }
       }
@@ -549,6 +599,16 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "%1$lld of %2$lld quests this week"
+          }
+        }
+      }
+    },
+    "%lld of %lld quests today" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld of %2$lld quests today"
           }
         }
       }
@@ -657,6 +717,7 @@
         }
       }
     },
+    "%lld of today's questions are on it." : {},
     "%lld pages" : {
       "localizations" : {
         "en" : {
@@ -702,6 +763,29 @@
       }
     },
     "%lld percent" : {},
+    "%lld percent ready now" : {},
+    "%lld percent ready now, about %lld percent after today, projected" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld percent ready now, about %2$lld percent after today, projected"
+          }
+        }
+      }
+    },
+    "%lld questions are due" : {},
+    "%lld questions you're about to forget, and %lld new ones." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld questions you're about to forget, and %2$lld new ones."
+          }
+        }
+      }
+    },
+    "%lld questions you're about to forget." : {},
     "%lld reviews piled up." : {
       "localizations" : {
         "en" : {
@@ -748,6 +832,7 @@
         }
       }
     },
+    "%lld stars dimming" : {},
     "%lld streak freeze%@ saved" : {
       "localizations" : {
         "en" : {
@@ -812,6 +897,8 @@
     "1 freeze saved" : {},
     "1,000 answers." : {},
     "1-day streak" : {},
+    "10 minutes on %@, then sleep. That's the whole plan tonight." : {},
+    "10 minutes on your weak spots, then sleep. That's the whole plan tonight." : {},
     "100 days in a row." : {},
     "2 of 3 · Almost" : {},
     "22 minutes tonight and you're done. Your streak is safe." : {},
@@ -826,6 +913,9 @@
     "A blanket full of stars." : {},
     "A code works once, for one friend. Share it as a link, or read it out." : {},
     "A cozy end to a good day." : {},
+    "A few %@ questions are in too" : {},
+    "A few at a time, so it's all in before the exam." : {},
+    "A few at a time, so they stick." : {},
     "A file" : {},
     "A friend's Squad gives you every Pro feature, on their plan." : {},
     "A gentle nudge: that one." : {},
@@ -851,6 +941,7 @@
     "A plan! I love a plan." : {},
     "A run climbing, an almost, five in a row, a miss, a save, the finish" : {},
     "A session" : {},
+    "A short review of what you know." : {},
     "A short study, then a nap." : {},
     "A soft landing. Try again." : {},
     "A spark" : {},
@@ -877,7 +968,6 @@
     "Accounts aren't set up in this build. Everything you study stays on this iPhone." : {},
     "Add" : {},
     "Add a choice" : {},
-    "Add a course first, then its exams." : {},
     "Add a few sentences first" : {},
     "Add a key idea" : {},
     "Add a topic" : {},
@@ -890,6 +980,7 @@
     "Add one and Capling plans backwards from its date, with readiness and a projected grade." : {},
     "Add one and Capling tracks how ready you are, day by day." : {},
     "Add questions for the rest" : {},
+    "Add the date and every day's plan aims at it." : {},
     "Add the worked chat" : {},
     "Add to" : {},
     "Add your first material" : {},
@@ -1065,8 +1156,10 @@
     "Back again" : {},
     "Back in 5 days" : {},
     "Back to my session" : {},
+    "Back tomorrow. Your streak is safe." : {},
     "Badges" : {},
     "Base" : {},
+    "Based on %lld questions so far." : {},
     "Be kind to your brain today." : {},
     "Be proud. I am." : {},
     "Behold: a card." : {},
@@ -1151,6 +1244,7 @@
     "Cap asks a guiding question before it explains. Just explain is one tap away in any chat." : {},
     "Cap asks a question before it explains." : {},
     "Cap asks first" : {},
+    "Cap brings it up tomorrow" : {},
     "Cap couldn't do that one." : {},
     "Cap couldn't find that exam." : {},
     "Cap couldn't make usable cards from that. Try asking again." : {},
@@ -1166,6 +1260,7 @@
     "Cap fits each day's session to this. Near an exam, the plan may ask for a few minutes more." : {},
     "Cap is adding a note" : {},
     "Cap is making cards from your chat" : {},
+    "Cap is quiet tonight." : {},
     "Cap is reading your notes" : {},
     "Cap is working: %@" : {},
     "Cap is writing a note about what it made" : {},
@@ -1173,6 +1268,7 @@
     "Cap may look things up on trusted study sites when you ask." : {},
     "Cap moves" : {},
     "Cap moves on screen." : {},
+    "Cap noticed" : {},
     "Cap shows these and waits for you." : {},
     "Cap speaks when you tap him." : {},
     "Cap stays quiet when you tap him." : {},
@@ -1243,7 +1339,6 @@
     "Cards make good pillows." : {},
     "Cards make me smarter, slowly." : {},
     "Careful, that's a big one." : {},
-    "Catch up · %lld min" : {},
     "Cells · Mitosis" : {},
     "Change how this answer counts" : {},
     "Change the day or time" : {},
@@ -1326,6 +1421,7 @@
     "Counts as %@" : {},
     "Course" : {},
     "Course name" : {},
+    "Course name, like Bio 101" : {},
     "Course: %@" : {},
     "Courses" : {},
     "Courses, notes, cards, reviews, exams, chats and settings" : {},
@@ -1375,6 +1471,7 @@
     "Discard recording" : {},
     "Don't wake the capybara." : {},
     "Done" : {},
+    "Done for today" : {},
     "Done today" : {},
     "Double-checking…" : {},
     "Double-tap if you had none of the key ideas" : {},
@@ -1403,6 +1500,7 @@
     "Ember" : {},
     "Empty" : {},
     "Essay" : {},
+    "Eve" : {},
     "Even I forget things." : {},
     "Even a tiny session counts." : {},
     "Even brains need breaks." : {},
@@ -1426,6 +1524,7 @@
     "Everything stays on this iPhone" : {},
     "Everything you study stays on this iPhone. With an account, a copy is kept in it, so a new iPhone picks up where you left off." : {},
     "Everything you've studied stays on this iPhone. Sync stops until you sign in again." : {},
+    "Exam" : {},
     "Exam %@" : {},
     "Exam Pass" : {},
     "Exam Pass for %@" : {},
@@ -1433,6 +1532,7 @@
     "Exam date" : {},
     "Exam day %@" : {},
     "Exam eve, %@: weak spots only, then sleep." : {},
+    "Exam: %@" : {},
     "Example reminder: %lld minutes tonight and you're done." : {
       "localizations" : {
         "en" : {
@@ -1481,8 +1581,8 @@
     "Five more minutes…" : {},
     "Five right answers in a row" : {},
     "Fix a mix-up" : {},
-    "Fix it now" : {},
     "Fix it now · 2 min" : {},
+    "Fix it · 2 min" : {},
     "Fixed" : {},
     "Flash! Did I get it?" : {},
     "Flashcard" : {},
@@ -1492,6 +1592,7 @@
     "Follows your iPhone" : {},
     "Fonts" : {},
     "Food for thought." : {},
+    "For %@" : {},
     "For accounts under 18 Cap always asks first. You decide what is added." : {},
     "For handwriting, math and diagrams. Photos of the pages you scan go along with their text. You can change this later." : {},
     "For handwriting, math and diagrams. Photos of the pages you scan go with their text. Needs Cloud AI." : {},
@@ -1549,11 +1650,17 @@
     "Gold" : {},
     "Gold star, well deserved." : {},
     "Golden hour, golden brain." : {},
+    "Good afternoon" : {},
     "Good afternoon!" : {},
+    "Good afternoon, %@" : {},
     "Good audio, good notes." : {},
     "Good effort adds up." : {},
+    "Good evening" : {},
+    "Good evening, %@" : {},
     "Good evening." : {},
     "Good instincts. Keep them." : {},
+    "Good morning" : {},
+    "Good morning, %@" : {},
     "Good morning, scholar." : {},
     "Good night" : {},
     "Good questions make good answers." : {},
@@ -1561,6 +1668,7 @@
     "Good to have you here." : {},
     "Goodnight, goodnight." : {},
     "Goodnight, little cards." : {},
+    "Got it" : {},
     "Got it. Got it. Got it." : {},
     "Got the whole spread." : {},
     "Grade again" : {},
@@ -1676,6 +1784,8 @@
     "Is it bedtime?" : {},
     "Is this a game? I love it." : {},
     "Is this thing on?" : {},
+    "It covers %@." : {},
+    "It covers all of %@." : {},
     "It has no questions." : {},
     "It leaves your sessions and readiness for good." : {},
     "It may have been removed on another device." : {},
@@ -1702,6 +1812,7 @@
     },
     "Its cards became the questions below." : {},
     "Its deck was deleted or changed." : {},
+    "Its exam is %@ away." : {},
     "Its pages are removed from this iPhone. Kept questions lose their link to the page." : {},
     "Its plan goes. The questions and progress in %@ stay." : {},
     "Its plan goes. Your questions and progress stay in %@." : {},
@@ -1878,17 +1989,6 @@
     "New note" : {},
     "New question" : {},
     "New topic" : {},
-    "Next exam" : {},
-    "Next exam: %@, %@, %@ left" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "Next exam: %1$@, %2$@, %3$@ left"
-          }
-        }
-      }
-    },
     "Next review %@" : {},
     "Next: %lld days" : {},
     "Nice pull. Sky refreshed." : {},
@@ -2030,12 +2130,13 @@
     "Open your memory sky" : {},
     "OpenDyslexic for questions, answers, notes and chats. Headlines and numbers keep their faces." : {},
     "Opens Capling on today's study session." : {},
+    "Opens every topic, each with Practice" : {},
+    "Opens it" : {},
     "Opens the App Store's own page. Cancelling takes two taps and keeps %@ until the end of the period you paid for." : {},
     "Opens the Capling lecture recorder." : {},
     "Opens the Capling scanner to turn pages of notes into questions." : {},
     "Opens the lecture at this moment" : {},
     "Opens the lecture notes" : {},
-    "Opens the mix-up" : {},
     "Opens the page" : {},
     "Opens the page in Safari" : {},
     "Opens the page this question came from" : {},
@@ -2046,12 +2147,12 @@
     "Opens your account" : {},
     "Opens your memory sky" : {},
     "Opens your streak" : {},
+    "Opens your streak and the month" : {},
     "Option %lld" : {},
     "Optional. Shown after you answer." : {},
     "Options" : {},
     "Or type another name" : {},
     "Oranges are my study snack." : {},
-    "Other exams" : {},
     "Owner" : {},
     "Pace yourself, scholar." : {},
     "Page" : {},
@@ -2114,11 +2215,10 @@
         }
       }
     },
-    "Practice 5 minutes" : {},
     "Practice it again" : {},
     "Practice session" : {},
     "Practice this topic" : {},
-    "Practice · %lld min" : {},
+    "Practice · 5 min" : {},
     "Practise for %@" : {},
     "Practise for your exam" : {},
     "Practises this topic" : {},
@@ -2209,6 +2309,7 @@
     "Readiness" : {},
     "Readiness covers every topic in the course." : {},
     "Readiness covers only the topics you tick." : {},
+    "Readiness is based on them. Add more material and it gets surer." : {},
     "Readiness target" : {},
     "Readiness, the last two weeks and the plan to exam day" : {},
     "Reading" : {},
@@ -2293,6 +2394,7 @@
     "Say it to yourself, then tap to check" : {},
     "Say something smart." : {},
     "Say what to research." : {},
+    "Says why today's questions were picked" : {},
     "Scan a page" : {},
     "Scan a page from class and Capling turns it into questions. Every one becomes a star." : {},
     "Scan a page, add a PDF or record a lecture, and today's session builds itself." : {},
@@ -2318,7 +2420,6 @@
     "See that card? Yep." : {},
     "See the plans" : {},
     "See the sky" : {},
-    "See who's studying today" : {},
     "Seed the demo world" : {},
     "Selected" : {},
     "Send" : {},
@@ -2455,6 +2556,7 @@
     "Starting" : {},
     "Starting your note" : {},
     "Steady this week" : {},
+    "Steady today" : {},
     "Steam is a great view." : {},
     "Still hearing: %@" : {},
     "Still learning, still good." : {},
@@ -2495,6 +2597,8 @@
     },
     "Study before noon" : {},
     "Study buddy, reporting for duty." : {},
+    "Study for %lld minutes" : {},
+    "Study something else" : {},
     "Study today to make it %lld." : {},
     "Study today to start a new streak." : {},
     "Study · %lld min" : {},
@@ -2585,6 +2689,7 @@
     "The format shapes the projected grade: multiple choice leaves room for a good guess." : {},
     "The labels come from the page, so they stay as they were read." : {},
     "The labels come from the text on your page, so they stay as they are." : {},
+    "The night before %@" : {},
     "The note came out empty. Try asking again." : {},
     "The note was empty." : {},
     "The offline rules can't make good notes from this lecture." : {},
@@ -2597,9 +2702,13 @@
     "The sky says hello." : {},
     "The stars are out. Look!" : {},
     "The transcript isn't ready yet" : {},
+    "The weakest topics for this exam, plus %lld new questions." : {},
+    "The weakest topics for this exam, plus %lld questions you're about to forget." : {},
+    "The weakest topics for this exam." : {},
     "The whole course" : {},
     "The words in [brackets] are the blanks." : {},
     "Their code" : {},
+    "Their exams are %@ away." : {},
     "Theme" : {},
     "There are no silly questions." : {},
     "There is nothing to practise in %@ yet." : {},
@@ -2609,6 +2718,7 @@
     "These questions aren't in your library any more." : {},
     "These questions keep tripping you up." : {},
     "They join your sessions once you approve them." : {},
+    "They're due today, and waiting would make them harder." : {},
     "Thinking is half the work." : {},
     "Thinking… thinking…" : {},
     "This beanbag is my home." : {},
@@ -2644,13 +2754,18 @@
     "Title, like Chapter 3 notes" : {},
     "Today" : {},
     "Today %@" : {},
+    "Today · %@" : {},
     "Today's event" : {},
+    "Today's questions" : {},
     "Today's quests" : {},
     "Today: a tiny bit. Perfect." : {},
     "Tomorrow" : {},
+    "Tomorrow · %@" : {},
     "Tomorrow's brain says thanks." : {},
     "Tomorrow-us will be ready." : {},
     "Tonight · 10 min" : {},
+    "Tonight, 10 minutes" : {},
+    "Tonight: weak spots only" : {},
     "Too cozy to move." : {},
     "Topic" : {},
     "Topic name" : {},
@@ -2716,7 +2831,9 @@
     "Web research is off in Settings." : {},
     "Web research is part of Capling Pro." : {},
     "Webbed feet. Excellent swimmer." : {},
+    "Welcome" : {},
     "Welcome back" : {},
+    "Welcome, %@" : {},
     "What Cap can do" : {},
     "What Capling sends" : {},
     "What happens after mitosis in the cell?" : {},
@@ -2727,6 +2844,7 @@
     "What's sent, and to whom" : {},
     "Whatever happens, I'm here." : {},
     "When" : {},
+    "When is your next exam?" : {},
     "Which class is this for?" : {},
     "Whoa, easy there!" : {},
     "Why do cells divide by mitosis?" : {},
@@ -2734,6 +2852,7 @@
     "Why it's right (optional)" : {},
     "Why it's right, in a sentence or two" : {},
     "Why it's wrong (optional)" : {},
+    "Why these?" : {},
     "Why? Always why." : {},
     "Woohoo!" : {},
     "Working" : {},
@@ -2788,6 +2907,7 @@
     "You were 80% ready on the morning of an exam." : {},
     "You'll go back to the free plan. Everything you've studied stays on your iPhone and in your account." : {},
     "You'll go back to the free plan. Everything you've studied stays." : {},
+    "You're about to forget them, so they come back now." : {},
     "You're all caught up. New questions show up here as you add material." : {},
     "You're doing great, you know." : {},
     "You're my favourite human." : {},
@@ -2860,6 +2980,7 @@
     "Your memory sky is empty. Add class material and every question you study becomes a star." : {},
     "Your name" : {},
     "Your notes and answers are never used to train AI models." : {},
+    "Your other exams can wait until after %@." : {},
     "Your page stays on this iPhone unless you turn on Cloud AI." : {},
     "Your path to %@" : {},
     "Your plan" : {},
@@ -2874,18 +2995,25 @@
     "Your sky is %@" : {},
     "Your sky is waiting" : {},
     "Your turn" : {},
+    "Your weakest topics, plus %lld new questions." : {},
+    "Your weakest topics, plus %lld questions you're about to forget." : {},
+    "Your weakest topics." : {},
     "Zoomable" : {},
     "Zzzoom." : {},
     "Zzz… oh! Hi." : {},
+    "about %@ after today" : {},
     "and %lld more" : {},
     "by %@" : {},
     "by “Let Cap do it”" : {},
     "capl" : {},
     "card from %@" : {},
     "cards from %@" : {},
+    "covered by a freeze" : {},
     "day" : {},
     "day streak" : {},
     "days" : {},
+    "done" : {},
+    "down %lld points this week" : {},
     "for %lld days, one time. Doesn't renew." : {
       "localizations" : {
         "en" : {
@@ -2908,12 +3036,27 @@
         }
       }
     },
+    "in %lld days" : {},
     "min" : {},
     "ng" : {},
+    "not studied" : {},
     "p. %@" : {},
     "ready" : {},
     "rest" : {},
+    "steady this week" : {},
+    "studied" : {},
+    "the night before %@, %lld minutes" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "the night before %1$@, %2$lld minutes"
+          }
+        }
+      }
+    },
     "them" : {},
+    "up %lld points this week" : {},
     "|" : {},
     "·" : {},
     "ı" : {},

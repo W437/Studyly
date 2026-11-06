@@ -12,6 +12,8 @@ struct ReadinessRing: View {
     var caption: String?
     var animatesFromZero = false
     var trackColor: Color = CLColor.surface3
+    /// `.projection` draws the arc dashed: a forecast ("about 52% after today"), not a measurement.
+    var style: Style = .solid
 
     @State private var shown: Double = 0
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -22,7 +24,7 @@ struct ReadinessRing: View {
             Circle().stroke(trackColor, lineWidth: lineWidth)
             Circle()
                 .trim(from: 0, to: animatesFromZero ? shown : clamped)
-                .stroke(CLColor.readiness(clamped), style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
+                .stroke(CLColor.readiness(clamped), style: arcStroke)
                 .rotationEffect(.degrees(-90))
             if showsLabel {
                 VStack(spacing: 2) {
@@ -64,5 +66,17 @@ struct ReadinessRing: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text(caption ?? "Readiness"))
         .accessibilityValue(Text("\(Int((clamped * 100).rounded())) percent"))
+    }
+}
+
+extension ReadinessRing {
+    enum Style: Sendable { case solid, projection }
+
+    /// The arc's stroke: round-capped, and dashed for a projection (so it reads without colour too).
+    var arcStroke: StrokeStyle {
+        switch style {
+        case .solid: StrokeStyle(lineWidth: lineWidth, lineCap: .round)
+        case .projection: StrokeStyle(lineWidth: lineWidth, lineCap: .round, dash: [lineWidth * 0.8, lineWidth * 1.9])
+        }
     }
 }

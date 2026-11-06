@@ -2,12 +2,22 @@ import CoreGraphics
 import Foundation
 
 // The pure parts of Today's hero as a world: where everything sits for a given screen, the field of background stars, the
-// nebulae behind each course, where the card for a focused constellation goes, and how a tilt of the phone moves the layers.
+// nebulae behind each course, and how a tilt of the phone moves the layers.
 // No views here, so every one is tested (`HeroWorldTests`). `HeroWorld.swift` draws them.
 
 /// Where everything in the hero sits. The hero runs from the top of the screen (the sky goes up behind the status bar) to the
 /// foot of the hills; the constellations fill the free part of the sky between the status bar and the hills, edge to edge.
+///
+/// Two styles: Today's short **band** (`band(width:topInset:compact:)`: 188 pt under the status bar, Cap 96 pt on the shore, a
+/// thin lake) and the welcome's tall **world** (`WelcomeView` sets its own height; its ground and Cap sizes are the world's).
 struct HeroWorldGeometry: Equatable, Sendable {
+    enum Style: Equatable, Sendable {
+        /// The welcome's world: about half the screen, a deep lake, a large Cap.
+        case world
+        /// Today's band: short, so the day's card is on the first screen of the smallest phone.
+        case band
+    }
+
     /// The hero's frame, in points: the full width, and the height from the top of the screen down to the ground.
     var width: CGFloat
     var height: CGFloat
@@ -15,26 +25,26 @@ struct HeroWorldGeometry: Equatable, Sendable {
     var topInset: CGFloat
     /// Accessibility text sizes: a low band with no ground to speak of and no Cap, so the words get the width.
     var compact: Bool
+    var style: Style = .world
 
-    /// The share of the screen's height the hero's band takes on a phone, and its limits (the band is what is under the status
-    /// bar): a little under half, so the day's button is still on screen without scrolling.
-    static let bandShare: CGFloat = 0.43
-    static let bandLimits: ClosedRange<CGFloat> = 300...440
+    /// Today's band under the status bar, the same on every phone, and the low band at the accessibility text sizes.
+    static let bandHeight: CGFloat = 188
     static let compactBand: CGFloat = 180
 
-    /// The geometry for a screen: `width` is the hero's width, `screenHeight` the height of the screen it is on.
-    static func make(width: CGFloat, screenHeight: CGFloat, topInset: CGFloat, compact: Bool) -> HeroWorldGeometry {
-        let band = compact ? compactBand : min(bandLimits.upperBound, max(bandLimits.lowerBound, screenHeight * bandShare))
-        return HeroWorldGeometry(width: width, height: topInset + band, topInset: topInset, compact: compact)
+    /// Today's band for a screen `width` wide whose status bar is `topInset` tall.
+    static func band(width: CGFloat, topInset: CGFloat, compact: Bool) -> HeroWorldGeometry {
+        HeroWorldGeometry(width: width, height: topInset + (compact ? compactBand : bandHeight), topInset: topInset,
+                          compact: compact, style: .band)
     }
 
     var band: CGFloat { height - topInset }
+    private var isBand: Bool { style == .band && !compact }
 
     // MARK: The sky
 
     /// The top of the free sky: just under the status bar. The title sits over it, so the stars behind the title are kept dim
     /// (`HeroSkyView` lays a soft scrim there).
-    var skyTop: CGFloat { topInset + (compact ? 6 : 12) }
+    var skyTop: CGFloat { topInset + (compact ? 6 : isBand ? 8 : 12) }
     /// The bottom of the free sky: just above the far hills' average crest. A star never sits below it.
     var skyBottom: CGFloat { farHills - 6 }
     var skyHeight: CGFloat { max(1, skyBottom - skyTop) }
@@ -46,19 +56,25 @@ struct HeroWorldGeometry: Equatable, Sendable {
 
     // MARK: The ground and Cap
 
-    /// Cap's size: large, standing in the world and not squeezed beside it.
-    var capSize: CGFloat { compact ? 0 : min(196, max(120, width * 0.46)) }
-    /// Where the water's top edge is, and how deep it is: the lake mirrors the stars above it.
-    var lakeTop: CGFloat { height - (compact ? 14 : 50) }
-    var lakeDepth: CGFloat { compact ? 10 : 34 }
+    /// Cap's size: in the band he stands on the shore at 96 pt; in the welcome's world he is large, in the scene and not beside it.
+    var capSize: CGFloat { compact ? 0 : isBand ? 96 : min(196, max(120, width * 0.46)) }
+    /// Where the water's top edge is, and how deep it is: the lake mirrors the stars above it (in the world; the band's is a strip).
+    var lakeTop: CGFloat { height - (compact ? 14 : isBand ? 16 : 50) }
+    var lakeDepth: CGFloat { compact ? 10 : isBand ? 12 : 34 }
     /// The far hills' average crest, and the mid hills'.
-    var farHills: CGFloat { height - (compact ? 28 : 84) }
-    var midHills: CGFloat { height - (compact ? 16 : 52) }
+    var farHills: CGFloat { height - (compact ? 28 : isBand ? 46 : 84) }
+    var midHills: CGFloat { height - (compact ? 16 : isBand ? 30 : 52) }
+    /// How far above the far hills the dusk's glow reaches.
+    var glowReach: CGFloat { compact ? 70 : isBand ? 110 : 190 }
+    /// How far down the night laid over the top of the sky reaches, under the status bar (it keeps the words over the stars easy
+    /// to read).
+    var scrimReach: CGFloat { compact ? 20 : isBand ? 66 : 104 }
+    /// The lake is deep enough to mirror the stars.
+    var reflects: Bool { !compact && !isBand }
 
-    /// The shape the sky of a screen is laid out for, before the view has been measured: the geometry of a phone of this width
-    /// and height.
-    static func skyAspect(width: CGFloat, screenHeight: CGFloat, topInset: CGFloat, compact: Bool) -> Double {
-        make(width: width, screenHeight: screenHeight, topInset: topInset, compact: compact).skyAspect
+    /// The shape Today's band sky is laid out for, before the view has been measured.
+    static func bandSkyAspect(width: CGFloat, topInset: CGFloat, compact: Bool) -> Double {
+        band(width: width, topInset: topInset, compact: compact).skyAspect
     }
 }
 
@@ -154,30 +170,6 @@ struct HeroCloud: Equatable, Sendable {
             let reach = group.map { center.distance(to: $0.center) + $0.radius }.max() ?? 1
             return HeroCloud(center: center, radius: reach * 1.32, color: scene.color(of: first), courseID: id)
         }
-    }
-}
-
-// MARK: - The focus card
-
-/// Where the little card for a focused constellation goes: under it when there is room above the ground, else over it, and
-/// kept inside the screen sideways.
-enum HeroFocusPlacement {
-    static func card(center: CGPoint, radius: CGFloat, card: CGSize, in size: CGSize, top: CGFloat, bottom: CGFloat,
-                     margin: CGFloat = 12, gap: CGFloat = 10) -> CGPoint {
-        let halfW = card.width / 2, halfH = card.height / 2
-        let x: CGFloat
-        if card.width + 2 * margin >= size.width {
-            x = size.width / 2
-        } else {
-            x = min(max(center.x, margin + halfW), size.width - margin - halfW)
-        }
-        let below = center.y + radius + gap + halfH
-        let above = center.y - radius - gap - halfH
-        let y: CGFloat
-        if below + halfH <= size.height - bottom { y = below }
-        else if above - halfH >= top { y = above }
-        else { y = min(max(below, top + halfH), size.height - bottom - halfH) }
-        return CGPoint(x: x, y: y)
     }
 }
 

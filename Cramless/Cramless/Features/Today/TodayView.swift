@@ -1,22 +1,22 @@
 import SwiftUI
 
-/// The Today tab: your memory sky edge to edge with the date, "Today" and the streak on it and Cap on the horizon
-/// (`TodaySkyHero`); under it the day's one button and one caption (`TodayHeroActions`); then the next exam, Cap's note
-/// on the top mix-up, the other exams, ways to add material, and the Squad (and, once a first session is done, today's quests
-/// right under the button: `TodayQuestsCard`). With no questions yet the sky is unlit
-/// outlines, and the button is "Try a sample page".
+/// The Today tab, "plan first": a short band of your memory sky with the greeting, the streak and Cap (`TodaySkyHero`); the day's
+/// one card (`TodayDayCard`: its exam and why, readiness now and about where today takes it, "Study · 15 min", "Why these?"); "Your
+/// plan" for the week (`TodayPlanCard`, with today's quests in one line); one of Cap's cards (`TodayNoticeCard`; on an exam's eve his
+/// quiet line instead); and the exams as a row (`TodayExamsRow`, or "When is your next exam?" with material and no exam).
 ///
-/// DEBUG hooks: `CRAMLESS_TODAY=catchup|examEve|eveDone|done|caughtUp|noMaterial|empty` (see `TodaySnapshot`);
-/// `CRAMLESS_TODAY_SCROLL=1` scrolls down the page and back, to film it; `CRAMLESS_SKY_TOUR=<ms>` shows each sky behind the stars in
-/// turn; `CRAMLESS_TODAY_OPEN=<ms>` opens the sky
-/// that long after launch, as a tap on it would; `CRAMLESS_HERO_PULL=2500:96:500` pulls the page down 96 points at 2.5 s, holds
-/// it 0.5 s and lets go (the readings a finger gives it; the page itself doesn't move), to film the refresh; and
+/// DEBUG hooks: `CRAMLESS_TODAY=catchup|partway|split|noExam|examEve|eveDone|done|caughtUp|noMaterial|empty` (see `TodaySnapshot`);
+/// `CRAMLESS_TODAY_NOTICES=0|1|2|3` deals that many of Cap's cards; `CRAMLESS_TODAY_WHY=<ms>`, `CRAMLESS_TODAY_QUESTS=<ms>` open "Why
+/// these?" and the quests that long after launch, and `CRAMLESS_TODAY_LATER=<ms>` presses Cap's "Later"; `CRAMLESS_TODAY_SCROLL=1`
+/// scrolls down to the exams and back, to film it; `CRAMLESS_SKY_TOUR=<ms>` shows each sky behind the stars in turn;
+/// `CRAMLESS_TODAY_OPEN=<ms>` opens the sky that long after launch, as a tap on the band would; `CRAMLESS_HERO_PULL=2500:96:500`
+/// pulls the page down 96 points at 2.5 s, holds it 0.5 s and lets go (the readings a finger gives it; the page itself doesn't
+/// move), to film the refresh; `CRAMLESS_CANVAS=375x667` draws the page at an iPhone SE's size; and
 /// `CRAMLESS_STEP=firstSession|readiness|plan` opens an onboarding step of this lane over Today (with `CRAMLESS_SEED=0` it first
 /// makes the world onboarding would have made).
 ///
-/// The hero is pinned: pulled down past its top, the page moves under it and the hero stays put (a full-bleed picture that came
-/// loose from the top of the screen showed the page behind it). The pull is a pull to refresh, and the hero's world answers it
-/// (`HeroRefresh.swift`).
+/// The band is pinned: pulled down past its top, the page moves under it and the band stays put. The pull is a pull to refresh, and
+/// the band's world answers it (`HeroRefresh.swift`).
 struct TodayView: View {
     @Environment(AppModel.self) private var app
     @Environment(\.scenePhase) private var scenePhase
@@ -25,8 +25,11 @@ struct TodayView: View {
     @State private var snapshot: TodaySnapshot?
     /// How far the page is pulled past its top, and the refresh a long enough pull starts.
     @State private var pull = HeroPullModel()
-    /// The shape the hero's sky was last laid out for.
+    /// The shape the band's sky was last laid out for.
     @State private var skyAspect = TodaySnapshot.skyAspect
+    /// Cap's cards put off with "Later" since the page was drawn (stored for tomorrow by `snoozeNotice`; kept here so the next one
+    /// shows at once).
+    @State private var laterIDs: Set<String> = []
     #if DEBUG
     @State private var debugStep: OnboardingDebugStep?
     #endif
@@ -36,15 +39,13 @@ struct TodayView: View {
         var settings: AppSettings
         var active: Bool
         var plan: Plan
-        /// The hero's sky is laid out for its own shape, so a different screen or text size lays it out again.
+        /// The band's sky is laid out for its own shape, so a different screen or text size lays it out again.
         var aspect: Int
     }
 
-    /// Where everything in the hero sits on this screen, and so what shape its sky is laid out for.
+    /// Where everything in the band sits on this screen, and so what shape its sky is laid out for.
     private func heroGeometry(_ geo: GeometryProxy) -> HeroWorldGeometry {
-        HeroWorldGeometry.make(width: geo.size.width,
-                               screenHeight: geo.size.height + geo.safeAreaInsets.top + geo.safeAreaInsets.bottom,
-                               topInset: geo.safeAreaInsets.top, compact: typeSize.isAccessibilitySize)
+        HeroWorldGeometry.band(width: geo.size.width, topInset: geo.safeAreaInsets.top, compact: typeSize.isAccessibilitySize)
     }
 
     var body: some View {
@@ -56,21 +57,21 @@ struct TodayView: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 0) {
                         TodaySkyHero(snapshot: snap, content: content, geometry: hero, pull: pull,
-                                     onOpenSky: { open(.sky) }, onRelight: { relight($0, in: snap) },
-                                     onStreak: { open(.streak) }, onProfile: { open(.settings) })
+                                     onOpenSky: { open(.sky) }, onStreak: { open(.streak) }, onProfile: { open(.settings) })
                             .id("today-top")
-                            // Pulled down past its top the page moves under the hero, which stays where it was. (Scrolled up it
+                            // Pulled down past its top the page moves under the band, which stays where it was. (Scrolled up it
                             // goes with the page, as ever.)
                             .visualEffect { content, proxy in
                                 content.offset(y: -max(0, proxy.frame(in: .scrollView).minY))
                             }
                         VStack(alignment: .leading, spacing: 16) {
-                            TodayHeroActions(content: content) { perform($0, snap) }
+                            TodayDayCard(content: content, perform: { perform($0, snap) }, onWhy: { present(.todayReasons) })
                             rest(snap)
                         }
                         .padding(.horizontal, CLSpace.gutter)
+                        .padding(.top, 16)
                         .padding(.bottom, 28)
-                        .animation(CLMotion.settle, value: snap.confusion?.id)
+                        .animation(CLMotion.settle, value: notices(snap).first?.id)
                     }
                 }
                 .scrollIndicators(.hidden)
@@ -86,6 +87,7 @@ struct TodayView: View {
                 #if DEBUG
                 .task { await runScrollHook(proxy) }
                 .task { await runPullHook() }
+                .task { await runSheetHooks(snap) }
                 #endif
             }
             .task(id: Key(revision: app.revision, settings: app.settings, active: scenePhase == .active,
@@ -95,6 +97,7 @@ struct TodayView: View {
             }
         }
         .background(CLColor.background.ignoresSafeArea())
+        .captureDebugCanvas()
         .toolbar(.hidden, for: .navigationBar)
         .onAppear { pull.work = { await refreshToday() } }
         #if DEBUG
@@ -125,53 +128,38 @@ struct TodayView: View {
         #endif
     }
 
-    // MARK: Below the hero
+    // MARK: Below the day card
 
-    /// Today's quests, the next exam, Cap's note, the other exams, ways to add material and the Squad, in that order.
+    /// "Your plan", Cap's card (or on the eve his quiet line), and the exams.
     @ViewBuilder
     private func rest(_ snap: TodaySnapshot) -> some View {
-        if !snap.quests.isEmpty {
-            TodayQuestsCard(quests: snap.quests)
+        if snap.hasMaterial, !snap.strip.isEmpty {
+            TodayPlanCard(days: snap.strip, quests: snap.isEve ? QuestsToday() : snap.quests,
+                          onCalendar: { open(.streak) }, onQuests: { present(.quests) })
         }
-        if showsExams(snap), let next = snap.exams.first {
-            TodayExamCard(exam: next) { open(.exam(next.id)) }
-        }
-        if let note = snap.confusion {
-            TodayCapNote(note: note, onFix: { fix(note) }, onLater: { later(note) },
-                         onOpen: { open(.confusion(note.id)) })
+        if snap.isEve, let eve = snap.eveExam {
+            TodayQuietLine(text: TodayCopy.quietLine(examTitle: eve.title, others: snap.eveOthers))
+        } else if snap.hasMaterial, let notice = notices(snap).first {
+            TodayNoticeCard(notice: notice, index: 1, total: notices(snap).count,
+                            onAction: { act(on: $0) }, onLater: { later(notice) }, onOpen: { follow($0) })
+                .id(notice.id)
                 .transition(.opacity.combined(with: .scale(scale: 0.97)))
         }
-        if showsExams(snap), snap.exams.count > 1 {
-            VStack(alignment: .leading, spacing: 0) {
-                CLSectionHeader(title: "Other exams", actionTitle: "See all") {
-                    app.router.tab = .progress
+        if snap.hasMaterial, !snap.isEve {
+            Group {
+                if snap.exams.isEmpty {
+                    TodayAddExamCard { app.router.present(.newExam(courseID: snap.firstCourseID)) }
+                } else {
+                    TodayExamsRow(exams: snap.exams, onOpen: { open(.exam($0)) }, onSeeAll: seeAllExams)
                 }
-                .padding(.top, -10)
-                TodayOtherExams(exams: Array(snap.exams.dropFirst())) { open(.exam($0)) }
-            }
-        }
-        if snap.hero != .empty {
-            VStack(alignment: .leading, spacing: 0) {
-                CLSectionHeader(title: "Add material")
-                    .padding(.top, -10)
-                TodayQuickAdd(onScan: { scan(snap) }, onPDF: { app.router.present(.capture(courseID: snap.firstCourseID)) },
-                              onLecture: { app.router.present(.record(courseID: snap.firstCourseID)) },
-                              onPaste: { app.router.present(.paste(courseID: snap.firstCourseID)) })
             }
             .id("today-bottom")
         }
-        if snap.isSquad {
-            CLList {
-                Button { open(.squad) } label: {
-                    CLRow(icon: "person.3.fill", tint: .sky, title: "Your Squad", subtitle: "See who's studying today")
-                }
-                .buttonStyle(.pressable)
-            }
-        }
     }
 
-    private func showsExams(_ snap: TodaySnapshot) -> Bool {
-        snap.hero != .empty && snap.hero != .noMaterial && !snap.exams.isEmpty
+    /// Cap's cards still to show today: those not put off with "Later" since the page was drawn.
+    private func notices(_ snap: TodaySnapshot) -> [CapNotice] {
+        snap.notices.filter { !laterIDs.contains($0.id) }
     }
 
     /// Pull to refresh (and VoiceOver's "Refresh"): rolls the day over, brings in what other devices changed, and looks at the sky
@@ -217,7 +205,24 @@ struct TodayView: View {
         }
     }
 
-    /// `CRAMLESS_TODAY_SCROLL=1`: after a moment, down the page and back up, for a film.
+    /// `CRAMLESS_TODAY_WHY=<ms>` and `CRAMLESS_TODAY_QUESTS=<ms>` open "Why these?" and the quests that long after launch;
+    /// `CRAMLESS_TODAY_LATER=<ms>` presses "Later" on Cap's card.
+    private func runSheetHooks(_ snap: TodaySnapshot) async {
+        if let ms = TestHarness.once("CRAMLESS_TODAY_WHY").flatMap(Int.init) {
+            try? await nap(ms)
+            present(.todayReasons)
+        }
+        if let ms = TestHarness.once("CRAMLESS_TODAY_QUESTS").flatMap(Int.init) {
+            try? await nap(ms)
+            present(.quests)
+        }
+        if let ms = TestHarness.once("CRAMLESS_TODAY_LATER").flatMap(Int.init) {
+            try? await nap(ms)
+            if let notice = notices(snapshot ?? snap).first { later(notice) }
+        }
+    }
+
+    /// `CRAMLESS_TODAY_SCROLL=1`: after a moment, down the page to the exams and back up, for a film.
     private func runScrollHook(_ proxy: ScrollViewProxy) async {
         guard TestHarness.once("CRAMLESS_TODAY_SCROLL") != nil else { return }
         try? await nap(2200)
@@ -231,7 +236,7 @@ struct TodayView: View {
 
     private func perform(_ action: TodayHeroContent.Action, _ snap: TodaySnapshot) {
         switch action.kind {
-        case .session:
+        case .session, .practice:
             if let request = action.request { start(request) }
         case .sample: sample()
         case .scan: scan(snap)
@@ -248,21 +253,40 @@ struct TodayView: View {
         app.router.push(route, on: .today)
     }
 
-    /// A constellation's card in the hero: a practice session on that topic, as the full sky's card starts one.
-    private func relight(_ constellation: SkyLayout.Constellation, in snap: TodaySnapshot) {
-        CLHaptics.commit()
-        app.router.present(.session(app.relightRequest(constellation, in: snap.sky)))
-    }
-
-    private func fix(_ note: ConfusionNote) {
-        guard let request = app.prepareFix(note.id) else { return }
-        start(request)
-    }
-
-    private func later(_ note: ConfusionNote) {
+    private func present(_ sheet: AppSheet) {
         CLHaptics.tap()
-        app.snoozeConfusion(note.id)
-        withAnimation(CLMotion.exit) { snapshot = TodaySnapshot.make(app: app, skyAspect: skyAspect) }
+        app.router.present(sheet)
+    }
+
+    /// "See all" exams: the Progress tab, the one list of exams, at its top.
+    private func seeAllExams() {
+        CLHaptics.tap()
+        app.router.popToRoot(.progress)
+        app.router.tab = .progress
+    }
+
+    /// Cap's card's button.
+    private func act(on action: CapNotice.Action) {
+        CLHaptics.commit()
+        app.perform(action)
+    }
+
+    /// A tap on Cap's card's title: what it is about.
+    private func follow(_ link: CapNotice.Link) {
+        switch link {
+        case .confusion(let id): open(.confusion(id))
+        case .exam(let id): open(.exam(id))
+        }
+    }
+
+    /// "Later": the card waits until tomorrow, and the next one (if any) takes its place.
+    private func later(_ notice: CapNotice) {
+        CLHaptics.tap()
+        app.snoozeNotice(notice.id)
+        withAnimation(CLMotion.exit) {
+            laterIDs.insert(notice.id)
+            snapshot = TodaySnapshot.make(app: app, skyAspect: skyAspect)
+        }
         app.router.toast("Cap will bring it up tomorrow", systemImage: "clock", tone: .neutral)
     }
 

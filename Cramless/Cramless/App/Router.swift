@@ -24,6 +24,8 @@ enum Route: Hashable, Sendable {
     case chat(UUID)
     /// The memory sky, full screen.
     case sky
+    /// The memory sky as a list, every topic with Practice ("Study something else" on Today).
+    case skyList
     /// Every badge.
     case badges
 }
@@ -117,6 +119,10 @@ enum AppSheet: Identifiable, Hashable, Sendable {
     case squadRedeem(code: String?)
     /// One badge up close.
     case badge(Badge)
+    /// "Why these?": why today's session holds what it holds.
+    case todayReasons
+    /// Today's quests up close.
+    case quests
 
     var id: String { String(describing: self) }
 }

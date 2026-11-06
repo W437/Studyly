@@ -187,6 +187,7 @@ struct RouteDestination: View {
         case .squad: SquadView()
         case .streak: StreakView()
         case .sky: SkyScreen()
+        case .skyList: SkyScreen(startsAsList: true)
         case .badges: BadgesView()
         case .chat(let id): ChatView(threadID: id)
         }
@@ -223,6 +224,8 @@ struct SheetDestination: View {
         case .consent(let reason): ConsentSheet(reason: reason)
         case .squadRedeem(let code): SquadRedeemView(code: code)
         case .badge(let badge): BadgeSheet(badge: badge)
+        case .todayReasons: TodayReasonsSheet()
+        case .quests: TodayQuestsSheet()
         }
     }
 }
