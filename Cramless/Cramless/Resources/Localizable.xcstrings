@@ -1060,6 +1060,38 @@
         }
       }
     },
+    "%lld of %lld ideas" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld of %#@ideas@"
+          },
+          "substitutions" : {
+            "ideas" : {
+              "argNum" : 2,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg idea"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg ideas"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "%lld of %lld included" : {
       "localizations" : {
         "en" : {
@@ -2067,6 +2099,7 @@
     "Add questions for the rest" : {},
     "Add the date and every day's plan aims at it." : {},
     "Add the exam" : {},
+    "Add the missing idea as a question" : {},
     "Add the worked chat" : {},
     "Add to" : {},
     "Add to %@" : {},
@@ -2167,6 +2200,7 @@
     "Answer 2 in your own words" : {},
     "Answer from" : {},
     "Answer it later" : {},
+    "Answer one more" : {},
     "Answer: %@" : {},
     "Answered" : {},
     "Answered when you were back online" : {},
@@ -2457,6 +2491,7 @@
     "Cap asks you a question back" : {},
     "Cap asks, you answer out loud. For the bus, a walk or the gym." : {},
     "Cap brings it up tomorrow" : {},
+    "Cap can't use the microphone right now, so you can type it to him." : {},
     "Cap checked the questions you reported." : {},
     "Cap couldn't back this question with %@, so it's out of your sessions." : {},
     "Cap couldn't do that one." : {},
@@ -2471,6 +2506,7 @@
     "Cap couldn't tell which course you meant." : {},
     "Cap couldn't write a harder one from these lines." : {},
     "Cap did this because you switched on “Let Cap do it”." : {},
+    "Cap didn't hear anything. Try again, or type it." : {},
     "Cap drafts. You decide." : {},
     "Cap explains" : {},
     "Cap explains straight away." : {},
@@ -2484,6 +2520,7 @@
     "Cap is asking" : {},
     "Cap is checking" : {},
     "Cap is grading it again." : {},
+    "Cap is listening" : {},
     "Cap is making cards from your chat" : {},
     "Cap is quiet tonight." : {},
     "Cap is re-reading %@…" : {},
@@ -2526,6 +2563,7 @@
     "Cap moves on screen." : {},
     "Cap moves on to the next question." : {},
     "Cap needs a connection for this. It can wait." : {},
+    "Cap needs a few more questions on this topic first." : {},
     "Cap noticed" : {},
     "Cap predicted" : {},
     "Cap predicted %@." : {},
@@ -2565,9 +2603,12 @@
     "Cap won't bring it up again" : {},
     "Cap won't bring these up. Turn them on again in Settings." : {},
     "Cap won't look anything up online." : {},
+    "Cap writes down each idea as he hears it." : {},
     "Cap's answers and drafts, no daily limit" : {},
+    "Cap's notes" : {},
     "Cap's own words" : {},
     "Cap's own words, not from your notes" : {},
+    "Cap's still lost, and that's useful: now you know where to look." : {},
     "Cap's style" : {},
     "Cap's tools need it. Everything still works on this iPhone without them." : {},
     "Cap, your tutor" : {},
@@ -2842,9 +2883,12 @@
     },
     "Exams" : {},
     "Explain" : {},
+    "Explain %@ to me like I missed the class." : {},
+    "Explain in your own words: %@." : {},
     "Explain it simpler" : {},
     "Explain it to me." : {},
     "Explain my mistake" : {},
+    "Explaining it in your own words shows what's really stuck." : {},
     "Explanation" : {},
     "Export" : {},
     "Eyes on the card!" : {},
@@ -2984,6 +3028,7 @@
     "Good morning, scholar." : {},
     "Good night" : {},
     "Good questions make good answers." : {},
+    "Good start. Here's what Cap still needs." : {},
     "Good thinking. Polish it." : {},
     "Good to have you here." : {},
     "Goodnight, goodnight." : {},
@@ -3072,6 +3117,7 @@
     "I don't know yet" : {},
     "I found a bright one!" : {},
     "I give great hugs. Short arms." : {},
+    "I had it" : {},
     "I knew you'd get it." : {},
     "I love a good why." : {},
     "I love oranges. Just saying." : {},
@@ -3339,6 +3385,7 @@
     "Memory sky" : {},
     "Mic drop? Gently." : {},
     "Microphone access is off" : {},
+    "Microphone access is off, so you can type it to Cap." : {},
     "Microphone lost" : {},
     "Midterm" : {},
     "Midterm in 23 days" : {},
@@ -3483,6 +3530,7 @@
     "Not available for accounts under 18." : {},
     "Not bad, scholar." : {},
     "Not chosen" : {},
+    "Not covered" : {},
     "Not done yet" : {},
     "Not flagged" : {},
     "Not included" : {},
@@ -3558,6 +3606,7 @@
     "One fresh sky, as ordered." : {},
     "One line in your notes looks like an instruction to me, so I ignored it." : {},
     "One more card?" : {},
+    "One more question" : {},
     "One more." : {},
     "One note at a time on Today, three a day at most. Spotting them runs on this iPhone and uses no AI." : {},
     "One tiny tweak." : {},
@@ -3769,6 +3818,7 @@
         }
       }
     },
+    "Question added: %@" : {},
     "Question for Cap" : {},
     "Questions" : {},
     "Questions %lld" : {},
@@ -3927,6 +3977,7 @@
     "Say cheese, textbook." : {},
     "Say got it, or again." : {},
     "Say hi to Cap" : {},
+    "Say it" : {},
     "Say it in your own words." : {},
     "Say it to yourself, then tap to check" : {},
     "Say something smart." : {},
@@ -4514,6 +4565,7 @@
     "This exam is gone." : {},
     "This exam was deleted." : {},
     "This iPhone can't understand speech yet" : {},
+    "This iPhone doesn't have the speech model, so you can type it to Cap." : {},
     "This iPhone's own AI" : {},
     "This is %lld pages, so it takes %lld of your free AI scans." : {
       "localizations" : {
@@ -4555,11 +4607,13 @@
     "Three friends get Pro free. You'll see when they study." : {},
     "Tick what you had" : {},
     "Tick what you had, or choose None of these, first." : {},
+    "Tick what you said." : {},
     "Ticked" : {},
     "Tilt your head, try again." : {},
     "Time in this session" : {},
     "Time left" : {},
     "Time limit" : {},
+    "Time listening" : {},
     "Time's up." : {},
     "Title" : {},
     "Title, like Chapter 3 notes" : {},
@@ -4667,6 +4721,7 @@
     "Two days before a free week ends, so you're never charged by surprise" : {},
     "Two quick questions" : {},
     "Type it" : {},
+    "Type it to Cap" : {},
     "Type it, or slide" : {},
     "Type the problem" : {},
     "Type your answer…" : {},
@@ -4722,6 +4777,7 @@
     "What looks wrong?" : {},
     "What our server keeps" : {},
     "What our server keeps about your AI use" : {},
+    "What you covered" : {},
     "What you wrote" : {},
     "What's off? (optional)" : {},
     "What's on it" : {},
@@ -4791,6 +4847,8 @@
     "You came back. Love that." : {},
     "You can change the options after adding, in the card's editor." : {},
     "You can still study the same questions on screen." : {},
+    "You covered all of it. Cap gets it now." : {},
+    "You covered this" : {},
     "You did that." : {},
     "You earned a break, too." : {},
     "You finished your first session." : {},
@@ -4843,6 +4901,7 @@
         }
       }
     },
+    "You know %@. Can you teach it?" : {},
     "You left every question blank. Your plan hasn't changed." : {},
     "You left the Squad. You're on the free plan." : {},
     "You missed %@." : {},
@@ -4986,6 +5045,7 @@
     "Your streak, quests and the sky" : {},
     "Your topics" : {},
     "Your turn" : {},
+    "Your voice isn't recorded, and nothing you say is kept. If Cloud AI is on, your words go to it to be checked." : {},
     "Your voice isn't recorded. Your iPhone turns it into words, and they're gone after the answer. An answer in your own words goes to Cloud AI to be graded, if you've turned it on." : {},
     "Your weakest topic" : {},
     "Your weakest topic." : {},
@@ -5039,7 +5099,28 @@
     "Zzzoom." : {},
     "Zzz… oh! Hi." : {},
     "about %@ after today" : {},
-    "about %lld minutes" : {},
+    "about %lld minutes" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "about %lld minute"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "about %lld minutes"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "added %lld days ago" : {},
     "added today" : {},
     "added yesterday" : {},

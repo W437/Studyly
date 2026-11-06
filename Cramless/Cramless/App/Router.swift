@@ -160,6 +160,8 @@ enum AppCover: Identifiable, Hashable, Sendable {
     case onboarding(page: Int?)
     /// Study out loud. `startsAtOnce`: the person already said to (Siri), so it opens listening rather than on its intro.
     case outLoud(SessionRequest, startsAtOnce: Bool = false)
+    /// Explaining a topic to Cap.
+    case teach(topicID: UUID)
 
     var id: String { String(describing: self) }
 }

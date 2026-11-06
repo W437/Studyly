@@ -237,7 +237,7 @@ final class NoticeEngineTests: XCTestCase {
         XCTAssertTrue(settings.allows(.mockOffer), "a new kind starts on")
         let empty = try JSONDecoder.cramless.decode(NoticeSettings.self, from: Data("{}".utf8))
         XCTAssertEqual(empty, NoticeSettings())
-        XCTAssertEqual(NoticeKind.live, [.mixUp, .lookAlike, .fading, .welcomeBack, .mockOffer, .gap, .lectureDate, .tooEasy])
+        XCTAssertEqual(NoticeKind.live, [.mixUp, .lookAlike, .fading, .welcomeBack, .mockOffer, .gap, .lectureDate, .tooEasy, .teachBack])
         for kind in ["gap", "lectureDate", "busyDay", "tooEasy", "teachBack", "sameIdea"] {
             XCTAssertNotNil(NoticeKind(rawValue: kind), "\(kind) is reserved")
         }

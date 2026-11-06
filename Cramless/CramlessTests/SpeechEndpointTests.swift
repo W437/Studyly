@@ -15,8 +15,8 @@ final class SpeechEndpointTests: XCTestCase {
 
     func testEndsWhenNothingIsSaid() {
         let endpoint = SpeechEndpoint(.answer)
-        XCTAssertNil(endpoint.ending(at: 9.9))
-        XCTAssertEqual(endpoint.ending(at: 10), .noSpeech)
+        XCTAssertNil(endpoint.ending(at: 14.9))
+        XCTAssertEqual(endpoint.ending(at: 15), .noSpeech)
     }
 
     func testTheCap() {
@@ -46,11 +46,11 @@ final class SpeechEndpointTests: XCTestCase {
     func testASteadyNoiseIsNotAVoice() {
         var endpoint = SpeechEndpoint(.answer)
         // A loud bus: high, but no higher than the place itself.
-        for t in stride(from: 0.0, to: 9.9, by: 0.1) {
+        for t in stride(from: 0.0, to: 14.9, by: 0.1) {
             endpoint.level(0.7, at: t)
             XCTAssertFalse(endpoint.hasHeardSpeech, "\(t)")
         }
-        XCTAssertEqual(endpoint.ending(at: 10), .noSpeech)
+        XCTAssertEqual(endpoint.ending(at: 15), .noSpeech)
     }
 
     func testAVoiceOverANoiseStillCounts() {

@@ -109,6 +109,8 @@ final class SpokenAnswerListener: SpokenListening {
 
     /// How long the words from before the analyzer is ready are held for it.
     private static let backlogSeconds = 10.0
+    /// How long the last words have to come out once a turn is over.
+    private static let flushSeconds = 3.0
 
     private let vocabulary: [String]
     /// The course's language, when it isn't the person's own: tried first.
@@ -236,7 +238,13 @@ final class SpokenAnswerListener: SpokenListening {
         // The turn is over: nothing more is taken from the microphone, and what was held goes with it.
         gate.close()
         relay.close()
+        // The last words are flushed; a recogniser that doesn't finish can't hold the session up.
+        let watchdog = Task { @MainActor in
+            try? await Task.sleep(for: .seconds(Self.flushSeconds))
+            if !Task.isCancelled { transcriber.cancel() }
+        }
         await transcriber.finish()
+        watchdog.cancel()
         onWords(open.words.text)
         turn = nil
         return SpokenHearing(text: open.words.text, ending: ending ?? .stopped, seconds: open.lastWordsAt)

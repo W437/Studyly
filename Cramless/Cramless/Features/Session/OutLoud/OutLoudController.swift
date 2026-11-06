@@ -111,7 +111,7 @@ final class OutLoudController: Identifiable {
     // MARK: Reading
 
     var questionCount: Int { Set(runner.built.entries.map(\.itemID)).count }
-    var minutes: Int { OutLoudPolicy.minutes(for: runner.built.entries.map(\.kind)) }
+    var minutes: Int { runner.built.plannedMinutes }
     var hasQuestions: Bool { !runner.built.isEmpty }
 
     var isListening: Bool {
@@ -256,7 +256,7 @@ final class OutLoudController: Identifiable {
             }
             var unclear = 0
             while !Task.isCancelled {
-                let turn = SpokenTurn(endpoint: item.kind.isOwnWords ? .answer : .reply, terms: question.terms, question: question)
+                let turn = SpokenTurn(endpoint: .answer, terms: question.terms, question: question)
                 let (hearing, gate) = await hear(turn)
                 switch gate {
                 case .go: break
@@ -373,13 +373,18 @@ final class OutLoudController: Identifiable {
         case .skipped: return .skipped
         case .stop: return .stop
         case .rated(let rating):
-            let review = record(rating: rating, score: -1, answer: nil, gradedBy: "person", durationMs: milliseconds(hearing),
-                                outcome: SessionRunner.Outcome(rating: rating))
-            let saved = review?.isSave == true
-            if saved { runner.flareSave(of: item) }
-            return await deliver(Verdict(line: SpokenVerdict.rated(rating, saved: saved), tone: rating == .again ? .neutral : .mint,
-                                         moment: saved ? .saved : (rating == .again ? .answerShown : .nice)))
+            return await recordRating(rating, score: -1, gradedBy: "person", durationMs: milliseconds(hearing), item: item)
         }
+    }
+
+    /// A rating the person said out loud: recorded, and Cap says he heard it.
+    private func recordRating(_ rating: Rating, score: Double, gradedBy: String, durationMs: Int, item: StudyItem) async -> Turn {
+        let review = record(rating: rating, score: score, answer: nil, gradedBy: gradedBy, durationMs: durationMs,
+                            outcome: SessionRunner.Outcome(rating: rating))
+        let saved = review?.isSave == true
+        if saved { runner.flareSave(of: item) }
+        return await deliver(Verdict(line: SpokenVerdict.rated(rating, saved: saved), tone: rating == .again ? .neutral : .mint,
+                                     moment: saved ? .saved : (rating == .again ? .answerShown : .nice)))
     }
 
     /// Own words: through the same grade path as typed ones (the rules at once, then a model where one is allowed). What the rules can't
@@ -405,13 +410,7 @@ final class OutLoudController: Identifiable {
             case .skipped: return .skipped
             case .stop: return .stop
             case .rated(let rating):
-                let score = Grading.score(standingFor: rating, near: outcome.score)
-                let review = record(rating: rating, score: score, answer: nil, gradedBy: "self", durationMs: ms,
-                                    outcome: SessionRunner.Outcome(rating: rating))
-                let saved = review?.isSave == true
-                if saved { runner.flareSave(of: item) }
-                return await deliver(Verdict(line: SpokenVerdict.rated(rating, saved: saved), tone: rating == .again ? .neutral : .mint,
-                                             moment: saved ? .saved : (rating == .again ? .answerShown : .nice)))
+                return await recordRating(rating, score: Grading.score(standingFor: rating, near: outcome.score), gradedBy: "self", durationMs: ms, item: item)
             }
         }
         let review = record(rating: AppModel.rating(forScore: outcome.score, kind: item.kind, durationMs: ms), score: outcome.score, answer: nil,

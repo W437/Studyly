@@ -85,6 +85,12 @@ extension AppModel {
 
     // MARK: Changes
 
+    /// A topic was just explained to Cap: he doesn't bring it up again for a while.
+    func noteTopicTaught(_ topicID: UUID) {
+        updateLedger { $0.taught[topicID.uuidString] = now }
+        save()
+    }
+
     /// "Later": the card waits until tomorrow.
     func snoozeNotice(_ id: String) {
         updateLedger { ledger in
@@ -156,6 +162,10 @@ extension AppModel {
         case .raiseQuestion(let itemID):
             markNoticeActed(NoticeEngine.tooEasyID(itemID))
             router.present(.ladder(parentID: itemID))
+            return nil
+        case .teach(let topicID):
+            markNoticeActed(NoticeEngine.teachID(topicID))
+            router.present(.teach(topicID: topicID))
             return nil
         }
         if let request { router.present(.session(request)) }
@@ -401,6 +411,7 @@ extension AppModel {
         inputs.tooEasy = ladderOffers(items: items, exams: exams).map {
             NoticeTooEasy(itemID: $0.itemID, next: $0.next, topicName: $0.topicName)
         }
+        inputs.teachOffers = teachOffers(items: items, exams: exams)
         return inputs
     }
 

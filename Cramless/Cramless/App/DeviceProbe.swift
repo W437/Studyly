@@ -87,6 +87,7 @@ enum DeviceProbe {
 
         // 4. Speech: the phone speaks a paragraph into a file, the lecture transcriber reads it back.
         report["speech"] = await speechRoundTrip()
+        report["outLoud"] = await outLoudRoundTrip()
         write(report, done: false)
 
         // 5. The rest of the hardware.
@@ -99,6 +100,30 @@ enum DeviceProbe {
         report["finishedAt"] = ISO8601DateFormatter().string(from: Date())
         write(report, done: true)
         app.router.toast("Device probe finished", systemImage: "checkmark.seal.fill")
+    }
+
+    /// Study out loud's audio, with nobody there: the session opens, Cap says a line and it reports its end with the microphone's engine running, and a turn with
+    /// nothing said ends as no speech. It doesn't ask for the microphone: without access, it says so.
+    private static func outLoudRoundTrip() async -> [String: Any] {
+        guard AVAudioApplication.shared.recordPermission == .granted else { return ["skipped": "no microphone permission"] }
+        let listener = SpokenAnswerListener()
+        do {
+            try await listener.prepare { _ in }
+        } catch {
+            return ["prepared": false, "error": String(describing: error)]
+        }
+        let session = AVAudioSession.sharedInstance()
+        var report: [String: Any] = ["prepared": true, "category": session.category.rawValue, "mode": session.mode.rawValue,
+                                     "input": session.currentRoute.inputs.first?.portType.rawValue ?? "none",
+                                     "output": session.currentRoute.outputs.first?.portType.rawValue ?? "none"]
+        let started = Date()
+        await ReadAloudSpeaker().say("One, two, three.", language: nil)
+        report["voiceSeconds"] = Date().timeIntervalSince(started)
+        let hearing = await listener.listen(SpokenTurn(endpoint: .reply)) { _ in }
+        report["turnEnding"] = String(describing: hearing.ending)
+        report["turnHeardWords"] = !hearing.text.isEmpty
+        listener.close()
+        return report
     }
 
     private static func speechRoundTrip() async -> [String: Any] {

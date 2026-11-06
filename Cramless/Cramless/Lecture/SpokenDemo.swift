@@ -44,12 +44,15 @@ final class ScriptedSpokenListener: SpokenListening {
     private let wordInterval: Duration
     /// Fails `prepare` with this (the no-model state).
     private let failure: SpokenListenerFailure?
+    /// After its words the turn stays open, until it's stopped (a screenshot of the microphone on).
+    private let holdsAfterWords: Bool
     private var stopped = false
 
-    init(failure: SpokenListenerFailure? = nil, wordInterval: Duration = .milliseconds(110),
+    init(failure: SpokenListenerFailure? = nil, wordInterval: Duration = .milliseconds(110), holdsAfterWords: Bool = false,
          script: @escaping @MainActor (SpokenTurn) -> String?) {
         self.failure = failure
         self.wordInterval = wordInterval
+        self.holdsAfterWords = holdsAfterWords
         self.script = script
     }
 
@@ -73,6 +76,10 @@ final class ScriptedSpokenListener: SpokenListening {
             onWords(heard.joined(separator: " "))
             onLevel?(Float.random(in: 0.35...0.8))
             try? await Task.sleep(for: wordInterval)
+        }
+        while holdsAfterWords, !stopped, !Task.isCancelled {
+            onLevel?(Float.random(in: 0.05...0.5))
+            try? await Task.sleep(for: .milliseconds(100))
         }
         onLevel?(0)
         return SpokenHearing(text: heard.joined(separator: " "), ending: stopped ? .stopped : .silence, seconds: 3)

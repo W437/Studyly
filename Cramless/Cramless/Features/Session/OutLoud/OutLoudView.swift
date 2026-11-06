@@ -432,34 +432,46 @@ private struct OutLoudControls: View {
         .padding(.bottom, 12)
     }
 
+    /// Repeat and Skip side by side, Pause as a mark beside them, which leaves their words room on the smallest iPhone. At the largest text sizes, a column.
     @ViewBuilder private var buttons: some View {
-        let layout = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(spacing: 8)) : AnyLayout(HStackLayout(spacing: 8))
-        layout {
-            Button {
-                CLHaptics.tap()
-                controller.perform(.repeatQuestion)
-            } label: {
-                Label(OutLoudActivityCopy.repeatTitle, systemImage: "arrow.counterclockwise")
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.75)
+        if typeSize.isAccessibilitySize {
+            VStack(spacing: 8) {
+                repeatButton
+                skipButton
+                Button(action: pause) { Label("Pause", systemImage: "pause") }
+                    .buttonStyle(.cl(.soft, size: .medium))
             }
-            Button {
-                CLHaptics.tap()
-                controller.perform(.skip)
-            } label: {
-                Label(OutLoudActivityCopy.skipTitle, systemImage: "forward.end")
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.75)
-            }
-            Button {
-                CLHaptics.tap()
-                controller.perform(.pause)
-            } label: {
-                Label("Pause", systemImage: "pause")
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.75)
+        } else {
+            HStack(spacing: 8) {
+                repeatButton
+                skipButton
+                CLIconButton(systemImage: "pause.fill", label: String(localized: "Pause"), action: pause)
             }
         }
+    }
+
+    private var repeatButton: some View {
+        Button {
+            CLHaptics.tap()
+            controller.perform(.repeatQuestion)
+        } label: {
+            Label(OutLoudActivityCopy.repeatTitle, systemImage: "arrow.counterclockwise")
+        }
         .buttonStyle(.cl(.soft, size: .medium))
+    }
+
+    private var skipButton: some View {
+        Button {
+            CLHaptics.tap()
+            controller.perform(.skip)
+        } label: {
+            Label(OutLoudActivityCopy.skipTitle, systemImage: "forward.end")
+        }
+        .buttonStyle(.cl(.soft, size: .medium))
+    }
+
+    private func pause() {
+        CLHaptics.tap()
+        controller.perform(.pause)
     }
 }

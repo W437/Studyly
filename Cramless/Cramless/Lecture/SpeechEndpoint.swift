@@ -12,8 +12,8 @@ struct SpeechEndpoint: Sendable, Equatable {
         var silence: Double? = 1.5
         /// The longest a turn lasts.
         var cap: Double = 45
-        /// This long with no speech at all ends the turn as `noSpeech`. Nil: wait for the cap.
-        var noSpeech: Double? = 10
+        /// This long with no speech at all ends the turn as `noSpeech`: time to think, on a walk. Nil: wait for the cap.
+        var noSpeech: Double? = 15
 
         /// An answer to a question.
         static let answer = Config()

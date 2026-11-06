@@ -285,6 +285,7 @@ struct CoverDestination: View {
         case .record(let courseID): RecordView(courseID: courseID)
         case .onboarding(let page): OnboardingFlow(startPage: page)
         case .outLoud(let request, let startsAtOnce): OutLoudView(request: request, startsAtOnce: startsAtOnce)
+        case .teach(let topicID): TeachCapView(topicID: topicID)
         }
     }
 }

@@ -48,8 +48,9 @@ extension AppModel {
         } else {
             items = itemSnapshots()
         }
-        return SessionBuilder(settings: settings, calendar: calendar, now: now).build(
-            spec, items: items, exams: examSnapshots(), confusions: confusionSnapshots(), topicNames: topicNames())
+        var builder = SessionBuilder(settings: settings, calendar: calendar, now: now)
+        builder.costsSpoken = request.spokenOnly
+        return builder.build(spec, items: items, exams: examSnapshots(), confusions: confusionSnapshots(), topicNames: topicNames())
     }
 
     /// "Study Bio 101 · 15 min" on the course page: the daily rules limited to this course, at the whole daily goal (not what today has

@@ -30,6 +30,13 @@ extension AppModel {
         built.entries.contains { OutLoudPolicy.kinds.contains($0.kind) }
     }
 
+    /// The microphone and the speech engine for Teach Cap, primed with the course's words.
+    func teachPorts(courseID: UUID?) -> TeachPorts {
+        let own = Locale.preferredLanguages.first.map { Locale(identifier: $0).language.languageCode?.identifier } ?? nil
+        let written = courseLanguage(of: course(courseID), excluding: nil)
+        return .system(vocabulary: lectureVocabulary(courseID: courseID), language: written == own ? nil : written)
+    }
+
     /// The microphone and the speech engine for this session: primed with the words of its courses, in the language they are written in when that
     /// isn't the person's own.
     func outLoudPorts(for built: BuiltSession) -> OutLoudPorts {

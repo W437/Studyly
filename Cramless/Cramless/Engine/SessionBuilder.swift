@@ -174,6 +174,8 @@ struct ExamIndex: Sendable {
 /// Then the order: the easiest due review opens (never the hardest item), new items are spread through the
 /// first three quarters, and formats and topics are interleaved (no topic twice in a row when avoidable).
 struct SessionBuilder: Sendable {
+    /// Study out loud: both sides of a question are spoken, so the same minutes hold fewer of them (`OutLoudPolicy.spokenSeconds`).
+    var costsSpoken = false
     var fsrs: FSRS
     var calendar: Calendar
     var now: Date
@@ -265,7 +267,8 @@ struct SessionBuilder: Sendable {
     }
 
     func cost(of item: ItemSnapshot) -> Double {
-        item.isStudied ? item.kind.typicalSeconds : item.kind.typicalSeconds * 2
+        let seconds = costsSpoken ? OutLoudPolicy.spokenSeconds(item.kind) : item.kind.typicalSeconds
+        return item.isStudied ? seconds : seconds * 2
     }
 
     private func candidate(_ item: ItemSnapshot, index: ExamIndex) -> Candidate {

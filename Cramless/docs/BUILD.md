@@ -1673,6 +1673,27 @@ The engine that fills Today's "Cap noticed" slot, and its first four kinds. Plan
   256 passed, 12 ignored. Real taps on the iOS 27.0 Simulator: a wrong answer through "Looks wrong?" to "You were right" and the next question, "Explain my mistake" and back with the question, panel and timer kept, Today's card to the proposal.
   Screens read in light, dark and the largest text, and at an iPhone SE's width (`CRAMLESS_CANVAS`). Not checked: real audio, the lock screen, headphones and interruptions (the seeded lecture has no audio); `deno task live`.
 
+## Stage 4: Study out loud and Teach Cap (2026-11-06, lane `s4-voice`)
+
+Studying without the screen, and explaining a topic to Cap. Plan: `~/.claude/plans/capling-build-plan.md` ▸ Stage 4, appendix 7 §6a and §6b, featuring Phase 7(c) and Phase 10's voice part.
+
+- **Study out loud** (`Features/Session/OutLoud/`, entered from Today's card beside "Why these?", from `capling://outloud` and from the App Shortcut "Study out loud with Capling"):
+  - `OutLoudController` drives a `SessionRunner` as the question views do: the same queue, `record`, `advance` and summary. Speak, then listen. `SessionRunner.Options.outLoud` makes the Live Activity say the question.
+  - `SessionRequest.spokenOnly` builds a session of `OutLoudPolicy.kinds` (own words, flashcards, multiple choice up to 4 options, one-blank fill-ins) through the new `SessionSpec.kinds` and `excludedItemIDs`.
+  - **The listener** (`Lecture/SpokenAnswerListener.swift`): one engine kept running with its tap gated by `SpokenTapGate`, on a `.playAndRecord` / `.spokenAudio` session that allows Bluetooth headsets as a microphone (unlike a lecture, whose microphone has to hear the room). A turn opens a new `SpeechLectureTranscriber` behind an `AudioListenerRelay`, so the first words aren't lost while it gets ready; no audio is written. `AudioFocus.microphone` is claimed.
+  - **When an answer is over**: pure `SpeechEndpoint`. 1.5 s without speech after speech, 45 s at most, 15 s with no speech at all (time to think); a voice is new words or a level 15 dB above the place's own floor, so a loud bus isn't taken for talking. Replies are shorter (`.reply`); Teach Cap runs until Done, two minutes at most (`.teaching`).
+  - **What was said**: pure `SpokenAnswer` reads commands (only as the whole of what was said), "I don't know", letters, places, an option's own words and ratings. `scripts/speech_live/run.sh answers` shows what the Mac's models write: "C" came out "See" or "Capital C", "option" came out "Auction", "It's B" came out "It's me" with dictation; all are read. A letter alone is the shakiest, so an option's own words and its place count too.
+  - **What Cap says**: pure `SpokenVerdict`, in the session's words ("Nice!", "Almost.", "Not yet.", "Saved it."), naming ideas hit and missed. Where no model grades an answer and the rules can't be trusted (`GradeMode.selfCheck`), or for a flashcard, Cap gives the answer and asks "got it, or again".
+  - **Nothing said is kept**: the review log gets the rating and the score, with no words. See `docs/privacy-wording.md`.
+  - Repeat and Skip are `LiveActivityIntent`s (`Shared/OutLoudIntents.swift`) that reach the running session through `OutLoudRemote`. `ContentState.prompt` and `.voice`, `StudySessionAttributes.isOutLoud`.
+  - A call pauses it and the same question is asked again; two silences and Cap waits, and after 5 minutes of that the session ends, so a forgotten phone doesn't keep its microphone open.
+  - `ReadAloud.speak(onFinish:)` reports each line's end. It now asks `AudioFocus` rather than the session's category whether the microphone holds the session (the category stays `.playAndRecord` after a recording ends, which silently stopped it taking the session).
+  - English commands only; the words of other languages come with translation (Phase 11).
+- **Teach Cap** (`Features/Teach/`, `Engine/TeachPlanner.swift`, `App/AppModel+Teach.swift`, `AppCover.teach`): up to six ideas, weakest first, never-studied ones last. Say it or type it; the notes fill in from the rules as the words come, and never show what hasn't been said. Done goes through `ai.grade` with a synthetic `GradeSubject` (no relay change); a self-check has the person tick. One follow-up from the first missed idea, in the person's own words whatever its kind, records one review with no words in it. "Add the missing idea as a question" makes a `.recall` question through `ItemFactory`, linked to the parent's source. No audio is kept (the same listener). Falls back to typing with no microphone or speech model.
+  - Entries: the sky's focus card, the course's topic menu, and the `teachBack` notice: `TeachPlanner.offers` reads `topicMastery` (0.85 or more, never shown), wants 3 or more studied and 60% of the topic, an exam 7 or more days away or none, and not taught in 14 days (`NoticeLedger.taught`, on the phone). Rank 140, never a notification.
+- Hooks: `CLAUDE.md` ▸ Screen states.
+- Device checks that are the owner's: the microphone, the speech model and the screen-off behaviour on a walk (echo, AirPods, locked screen, a call), a real voice saying letters, and the Live Activity's buttons. The Simulator has no speech models to trust: everything else here runs on scripted stand-ins.
+
 ## App Store Connect (2026-11-01)
 
 The Capling record on the Loopware team (app 6828649543) is filled in by `scripts/asc/`. Every command is re-runnable and has

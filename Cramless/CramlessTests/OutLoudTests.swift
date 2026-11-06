@@ -102,12 +102,6 @@ final class OutLoudQuestionTests: XCTestCase {
         XCTAssertFalse(OutLoudPolicy.canAsk(kind: .diagram, options: 0, blanks: 0), "something to look at")
     }
 
-    func testTheMinutes() {
-        XCTAssertEqual(OutLoudPolicy.minutes(for: []), 0)
-        XCTAssertEqual(OutLoudPolicy.minutes(for: [.flashcard]), 1)
-        XCTAssertEqual(OutLoudPolicy.minutes(for: [.recall, .recall, .mcq]), 3)
-    }
-
     func testTheCopy() {
         XCTAssertEqual(OutLoudCopy.size(questions: 12, minutes: 9), "12 questions · about 9 minutes")
         XCTAssertEqual(StudySessionAttributes.ContentState.clipped(prompt: "  Short  "), "Short")

@@ -26,10 +26,4 @@ enum OutLoudPolicy {
         case .diagram: 0
         }
     }
-
-    /// "about 12 minutes".
-    static func minutes(for kinds: [ItemKind]) -> Int {
-        guard !kinds.isEmpty else { return 0 }
-        return max(1, Int((kinds.reduce(0) { $0 + spokenSeconds($1) } / 60).rounded(.up)))
-    }
 }
