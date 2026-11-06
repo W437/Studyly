@@ -349,6 +349,10 @@ struct SessionQuestionHost: View {
         var flip = false
         /// A flipped flashcard's rating.
         var rate: Rating?
+        /// A flipped flashcard's swipe.
+        var swipe: Rating?
+        /// A flipped flashcard held this far across.
+        var hold: Double?
         /// Milliseconds between the panel showing and Continue.
         var next: Int?
     }
@@ -357,6 +361,8 @@ struct SessionQuestionHost: View {
     struct Autoplay: Equatable {
         var pattern: [Character]
         var beat: Int
+        /// The pattern is `CRAMLESS_SESSION_SWIPE`'s: `r` swipe right, `l` swipe left, `h` the Hard tile, `e` the Easy tile.
+        var swipes = false
     }
 
     @Environment(\.clReduceMotion) private var reduceMotion
@@ -417,13 +423,25 @@ struct SessionQuestionHost: View {
             }
         case .flashcard:
             FlashcardQuestionView(runner: runner, entry: entry, item: item, autoFlip: mine?.flip ?? false,
-                                  autoRate: mine?.rate, autoContinue: mine?.next)
+                                  autoRate: mine?.rate, autoContinue: mine?.next, autoSwipe: mine?.swipe, autoHold: mine?.hold)
         }
     }
 
     /// The autoplay answer for this question: the pattern's next letter, by how many answers came before.
     private func autoplayed(_ entry: SessionEntry, _ item: StudyItem) -> Auto? {
         guard let autoplay, !autoplay.pattern.isEmpty else { return nil }
+        if autoplay.swipes {
+            guard item.kind == .flashcard else { return nil }
+            let step = autoplay.pattern[runner.answers.count % autoplay.pattern.count]
+            var auto = Auto(entryID: entry.id, flip: true, next: autoplay.beat)
+            switch step {
+            case "l": auto.swipe = .again
+            case "h": auto.rate = .hard
+            case "e": auto.rate = .easy
+            default: auto.swipe = .good
+            }
+            return auto
+        }
         let step = autoplay.pattern[runner.answers.count % autoplay.pattern.count]
         var auto = Auto(entryID: entry.id, next: autoplay.beat)
         switch item.kind {
@@ -532,6 +550,8 @@ struct SessionEmptyView: View {
 ///   `flashcard-rated` flips the flashcard and rates it (Good, or `CRAMLESS_SESSION_RATE=again|hard|good|easy`): the next question with
 ///   the Undo pill; `last-rated` does it on a session of that one question: "That was the last one." (`CRAMLESS_UNDO_HOLD=1` keeps the
 ///   pill as long as it takes to look at it; `CRAMLESS_SESSION_UNDO=<ms>` presses Undo that long after it shows);
+///   `flashcard-drag` flips the flashcard and holds it 60% of the way right; `flashcard-swiped` swipes it right: the next one is up, the
+///   tally says 1 and 0, and the Undo pill stays;
 ///   `flashcard-saved` makes the first flashcard a fading memory, flips it and rates it Good: a save, with the
 ///   sky's flare; `mcq-saved` does the same with a multiple-choice question answered right ("Saved it.", Cap's sparkles
 ///   and the flare together);
@@ -541,6 +561,7 @@ struct SessionEmptyView: View {
 ///   (`milestone-summary` with `CRAMLESS_SCENARIO=streak:29`; `quest-summary` with `CRAMLESS_QUESTS=partial|weekFull`;
 ///   `badge-summary` first forgets the 7-day badge, so the session earns it).
 /// - `CRAMLESS_SESSION_ANSWER=<text>`: the own-words answer to submit (with `graded` or `ownwords`).
+/// - `CRAMLESS_SESSION_SWIPE=rrlhe`: a session of flashcards only, played by that pattern (`CRAMLESS_AUTOPLAY_BEAT` ms on each flipped card).
 @MainActor
 struct SessionDebug {
     var state: String?
@@ -561,6 +582,10 @@ struct SessionDebug {
             debug.autoplay = .init(pattern: Array(pattern.lowercased()),
                                    beat: TestHarness.value("CRAMLESS_AUTOPLAY_BEAT").flatMap(Int.init) ?? 1400)
         }
+        if let pattern = TestHarness.once("CRAMLESS_SESSION_SWIPE") {
+            debug.autoplay = .init(pattern: Array(pattern.lowercased()),
+                                   beat: TestHarness.value("CRAMLESS_AUTOPLAY_BEAT").flatMap(Int.init) ?? 1100, swipes: true)
+        }
         return debug
     }
 
@@ -572,6 +597,7 @@ struct SessionDebug {
 
     /// Puts the right format first and sets up its automatic answer.
     mutating func prepare(_ runner: SessionRunner, app: AppModel) {
+        if autoplay?.swipes == true { runner.debugOnly(kinds: [.flashcard]) }
         guard !used, let state else {
             if let answer, !used {
                 used = true
@@ -600,7 +626,7 @@ struct SessionDebug {
             runner.debugFront(kinds: [.diagram])
         case "badge-summary":
             app.debugForgetBadge(.streak7)
-        case "flashcard", "flipped", "flashcard-saved", "flashcard-rated", "last-rated":
+        case "flashcard", "flipped", "flashcard-saved", "flashcard-rated", "last-rated", "flashcard-drag", "flashcard-swiped":
             runner.debugFront(kinds: [.flashcard], preferring: "Cytokinesis")
             if state == "last-rated" { runner.debugKeepFirstOnly() }
             if state == "flashcard-saved", let first = runner.queue.current, let item = runner.item(for: first) {
@@ -628,6 +654,13 @@ struct SessionDebug {
             auto = .init(entryID: first.id, flip: true)
         case "flashcard-saved":
             auto = .init(entryID: first.id, flip: true, rate: .good)
+        case "flashcard-drag":
+            auto = .init(entryID: first.id, flip: true, hold: 0.6)
+        case "flashcard-swiped":
+            runner.debugFront(kinds: [.flashcard])
+            runner.debugOnly(kinds: [.flashcard])
+            runner.debugHoldsUndo = true
+            if let front = runner.queue.current { auto = .init(entryID: front.id, flip: true, next: 500, swipe: .good) }
         case "flashcard-rated", "last-rated":
             let rate = TestHarness.once("CRAMLESS_SESSION_RATE").flatMap { name in Rating.allCases.first { $0.title.lowercased() == name } }
             auto = .init(entryID: first.id, flip: true, rate: rate ?? .good, next: 500)

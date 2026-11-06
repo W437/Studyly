@@ -158,6 +158,10 @@ final class SessionRunner: Identifiable {
     @ObservationIgnored private var restoring: (entryID: String, restore: AnswerRestore)?
     /// Ends the Undo window.
     @ObservationIgnored private var pendingTimer: Task<Void, Never>?
+    #if DEBUG
+    /// The Undo pill stays until it is pressed (a screenshot of it).
+    @ObservationIgnored var debugHoldsUndo = false
+    #endif
 
     @ObservationIgnored private let app: AppModel
     @ObservationIgnored private var items: [UUID: StudyItem] = [:]
@@ -429,7 +433,7 @@ final class SessionRunner: Identifiable {
         pendingTimer = nil
         guard let window = options.undoWindow else { return }
         #if DEBUG
-        if TestHarness.value("CRAMLESS_UNDO_HOLD") == "1" { return }
+        if debugHoldsUndo || TestHarness.value("CRAMLESS_UNDO_HOLD") == "1" { return }
         #endif
         pendingTimer = Task { @MainActor [weak self] in
             do { try await Task.sleep(for: window) } catch { return }
@@ -556,6 +560,18 @@ final class SessionRunner: Identifiable {
             $0.deletedAt == nil && $0.status == .active && kinds.contains($0.kind)
         }) {
             entries.insert(Self.debugEntry(for: item), at: 0)
+        }
+        queue = SessionQueue(entries: entries)
+    }
+
+    /// A session of only these kinds (a film of a run of flashcards), filled from every active item when the session has too few.
+    func debugOnly(kinds: [ItemKind]) {
+        guard phase == .ready else { return }
+        var entries = queue.entries.filter { kinds.contains($0.kind) }
+        let have = Set(entries.map(\.itemID))
+        for item in app.fetch(FetchDescriptorFactory.allItems) where entries.count < 8 {
+            guard item.deletedAt == nil, item.status == .active, kinds.contains(item.kind), !have.contains(item.id) else { continue }
+            entries.append(Self.debugEntry(for: item))
         }
         queue = SessionQueue(entries: entries)
     }

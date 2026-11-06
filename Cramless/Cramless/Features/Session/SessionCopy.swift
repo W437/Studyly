@@ -50,6 +50,18 @@ enum SessionCopy {
         return "in \(text)"
     }
 
+    // MARK: The flashcard swipe
+
+    /// A chip's word, and what VoiceOver's action says: Good reads "Got it" here.
+    static func swipeWord(_ rating: Rating) -> LocalizedStringResource {
+        rating == .again ? "Again" : "Got it"
+    }
+
+    /// The stamp on a dragged card: "Got it · 4 days", "Again · 10 min".
+    static func swipeStamp(_ rating: Rating, interval: String) -> LocalizedStringResource {
+        rating == .again ? "Again · \(interval)" : "Got it · \(interval)"
+    }
+
     // MARK: Undo
 
     /// The Undo pill: "Easy · back in 4 weeks".
