@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Scene 2, "Flashcards": a card turns over to its answer, the four ratings say when it would come back, "Good" is tapped, and a
+/// Scene 2, "Flashcards": a card turns over to its answer, the four ratings say when it would come back, "Got it" is tapped, and a
 /// week lights the day it returns. The session's own flip, tiles and intervals in miniature (`FlipFace`, the rating tones).
 struct FlashcardScene: View {
     let active: Bool
@@ -77,7 +77,7 @@ struct FlashcardScene: View {
         .overlay(RoundedRectangle(cornerRadius: 24, style: .continuous).strokeBorder(CLColor.hairline, lineWidth: 0.5))
     }
 
-    /// The four ratings, each with when the card comes back. Good is the one that gets tapped.
+    /// The four ratings, each with when the card comes back. "Got it" is the one that gets tapped.
     private var tiles: some View {
         HStack(spacing: 7) {
             ForEach(Self.ratings, id: \.rating) { item in

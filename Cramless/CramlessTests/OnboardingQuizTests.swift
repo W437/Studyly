@@ -64,6 +64,6 @@ final class OnboardingQuizTests: XCTestCase {
         let flashcards = IntroPage.all[1]
         XCTAssertTrue(flashcards.title.contains("Flashcards"))
         XCTAssertTrue(flashcards.body.contains("Anki") && flashcards.body.contains("Quizlet"), "and that existing decks come along")
-        XCTAssertTrue(flashcards.sceneDescription.contains("Good") && flashcards.sceneDescription.contains("5 days"))
+        XCTAssertTrue(flashcards.sceneDescription.contains("Got it") && flashcards.sceneDescription.contains("5 days"))
     }
 }

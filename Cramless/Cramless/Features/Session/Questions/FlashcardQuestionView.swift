@@ -62,7 +62,12 @@ struct FlashcardQuestionView: View {
                 CLPill(text: "Back again", tone: .sky, systemImage: "arrow.uturn.backward")
                     .padding(.horizontal, 4)
             }
-            FlashcardSwipeLayer(state: swipeState, enabled: flipped, intervals: intervals, onSwipe: swipe) { card }
+            // With the four tiles there is no swipe: no gesture on the card, so a long answer scrolls freely.
+            if usesGrid {
+                card
+            } else {
+                FlashcardSwipeLayer(state: swipeState, enabled: flipped, intervals: intervals, onSwipe: swipe) { card }
+            }
             if flipped, runner.offersLooksWrong {
                 LooksWrongButton(item: item)
                     .frame(maxWidth: .infinity)
@@ -248,8 +253,8 @@ struct FlashcardQuestionView: View {
     /// The hardware keyboard: ← and → as the swipe, and 1 to 4 for the ratings the chips cover (the grid's tiles carry their own).
     private var arrowKeys: some View {
         ZStack {
-            Button("") { swipe(.again) }.keyboardShortcut(.leftArrow, modifiers: [])
-            Button("") { swipe(.good) }.keyboardShortcut(.rightArrow, modifiers: [])
+            Button("") { usesGrid ? rate(.again) : swipe(.again) }.keyboardShortcut(.leftArrow, modifiers: [])
+            Button("") { usesGrid ? rate(.good) : swipe(.good) }.keyboardShortcut(.rightArrow, modifiers: [])
             if !usesGrid {
                 Button("") { rate(.again) }.keyboardShortcut("1", modifiers: [])
                 Button("") { rate(.good) }.keyboardShortcut("3", modifiers: [])
