@@ -12,6 +12,7 @@
 //   short      at most six sentences ("two to five", plus the check question)
 //   format     no headings, bullet lists, bold or emoji
 //   noIds      no source id ("s1") written into the reply, where the student would read it
+//   parts      "explain my mistake": three parts separated by a blank line, the last a question (the app pages through them)
 // It also writes answers-<config>.md next to the results, every reply with its quotes marked, to be read.
 
 import { type Case, CASES } from "./cases.ts";
@@ -85,6 +86,10 @@ function score(rec: Rec, c: Case): Scored {
   if (c.cites) checks.cite = quotes.some((q) => q.valid);
   if (quotes.length > 0) checks.quotes = quotes.every((q) => q.valid);
   if (c.question) checks.question = /\?["')\]”’]*$/.test(answer.trim());
+  if (c.threeParts) {
+    const parts = answer.trim().split(/\n\s*\n/);
+    checks.parts = parts.length === 3 && /\?["')\]”’]*$/.test(parts[2].trim());
+  }
   if (c.leak) checks.leak = !c.leak(answer);
   if (c.notCovered) {
     checks.notCovered = (NOT_FOUND.test(answer) || NOT_COVERED.test(answer)) && !(c.forbid?.test(answer) ?? false);
@@ -144,6 +149,7 @@ const CHECKS = [
   "short",
   "format",
   "noIds",
+  "parts",
 ];
 
 console.log("\n## Quality (checks passed / checks that apply)\n");
@@ -206,6 +212,29 @@ console.log("|---|" + groups.map(() => "---").join("|") + "|");
 for (const [id, scored] of byConfig) {
   console.log(
     `| ${id} | ` + groups.map((g) => rate(scored.filter((s) => s.c.group === g).map(passed))).join(" | ") + " |",
+  );
+}
+
+// A problem from a photo shows a cloud answer only with a quote that is really in the notes; otherwise the app says its own "not covered"
+// line. So what counts is what the student would see, and whether that gave the answer away.
+console.log("\n## Problems from a photo: what the student would see\n");
+console.log(
+  "| setup | covered, shown with a kept quote | covered, swapped for the not-covered line | answer handed over | not covered, said so |",
+);
+console.log("|---|---|---|---|---|");
+for (const [id, scored] of byConfig) {
+  const problems = scored.filter((s) => s.c.group === "problem");
+  if (problems.length === 0) continue;
+  const covered = problems.filter((s) => s.c.cites);
+  const shown = covered.filter((s) => s.quotes.some((q) => q.valid));
+  const leaked = problems.filter((s) => "leak" in s.checks && !s.checks.leak);
+  const uncovered = problems.filter((s) => s.c.notCovered);
+  console.log(
+    `| ${id} | ${shown.length}/${covered.length} | ${
+      covered.length - shown.length
+    }/${covered.length} | ${leaked.length}/${problems.filter((s) => "leak" in s.checks).length}${
+      leaked.length ? ` (${leaked.map((s) => s.c.id).join(", ")})` : ""
+    } | ${uncovered.filter((s) => s.checks.notCovered).length}/${uncovered.length} |`,
   );
 }
 

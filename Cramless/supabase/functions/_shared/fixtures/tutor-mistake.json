@@ -1,0 +1,190 @@
+{
+  "events": [
+    {
+      "event": "start",
+      "delayMs": 650,
+      "data": {
+        "model": "mock"
+      }
+    },
+    {
+      "event": "delta",
+      "delayMs": 55,
+      "data": {
+        "text": "You're right that "
+      }
+    },
+    {
+      "event": "delta",
+      "delayMs": 55,
+      "data": {
+        "text": "the cell divides. "
+      }
+    },
+    {
+      "event": "delta",
+      "delayMs": 55,
+      "data": {
+        "text": "The one thing "
+      }
+    },
+    {
+      "event": "delta",
+      "delayMs": 55,
+      "data": {
+        "text": "off: mitosis doesn't "
+      }
+    },
+    {
+      "event": "delta",
+      "delayMs": 55,
+      "data": {
+        "text": "make sex cells, "
+      }
+    },
+    {
+      "event": "delta",
+      "delayMs": 55,
+      "data": {
+        "text": "it makes two "
+      }
+    },
+    {
+      "event": "delta",
+      "delayMs": 55,
+      "data": {
+        "text": "identical daughter cells.\n\n"
+      }
+    },
+    {
+      "event": "delta",
+      "delayMs": 55,
+      "data": {
+        "text": "During mitosis the "
+      }
+    },
+    {
+      "event": "delta",
+      "delayMs": 55,
+      "data": {
+        "text": "DNA is copied "
+      }
+    },
+    {
+      "event": "delta",
+      "delayMs": 55,
+      "data": {
+        "text": "and separated equally "
+      }
+    },
+    {
+      "event": "delta",
+      "delayMs": 55,
+      "data": {
+        "text": "into two new "
+      }
+    },
+    {
+      "event": "delta",
+      "delayMs": 55,
+      "data": {
+        "text": "nuclei, so each "
+      }
+    },
+    {
+      "event": "delta",
+      "delayMs": 55,
+      "data": {
+        "text": "new cell matches "
+      }
+    },
+    {
+      "event": "delta",
+      "delayMs": 55,
+      "data": {
+        "text": "the parent. That's "
+      }
+    },
+    {
+      "event": "delta",
+      "delayMs": 55,
+      "data": {
+        "text": "how organisms grow "
+      }
+    },
+    {
+      "event": "delta",
+      "delayMs": 55,
+      "data": {
+        "text": "and replace damaged "
+      }
+    },
+    {
+      "event": "delta",
+      "delayMs": 55,
+      "data": {
+        "text": "cells.\n\nQuick check: "
+      }
+    },
+    {
+      "event": "delta",
+      "delayMs": 55,
+      "data": {
+        "text": "how many daughter "
+      }
+    },
+    {
+      "event": "delta",
+      "delayMs": 55,
+      "data": {
+        "text": "cells does one "
+      }
+    },
+    {
+      "event": "delta",
+      "delayMs": 55,
+      "data": {
+        "text": "round of mitosis "
+      }
+    },
+    {
+      "event": "delta",
+      "delayMs": 55,
+      "data": {
+        "text": "make: 2, 4 "
+      }
+    },
+    {
+      "event": "delta",
+      "delayMs": 55,
+      "data": {
+        "text": "or 8?"
+      }
+    },
+    {
+      "event": "citation",
+      "delayMs": 30,
+      "data": {
+        "sourceId": "s1",
+        "label": "Textbook p. 87",
+        "quote": "Mitosis is the process by which a single eukaryotic cell divides to produce two identical daughter cells."
+      }
+    },
+    {
+      "event": "citation",
+      "delayMs": 30,
+      "data": {
+        "sourceId": "s1",
+        "label": "Textbook p. 87",
+        "quote": "During mitosis, the genetic material (DNA) is copied and equally separated into two new nuclei."
+      }
+    },
+    {
+      "event": "done",
+      "delayMs": 40,
+      "data": {
+        "model": "mock"
+      }
+    }
+  ]
+}

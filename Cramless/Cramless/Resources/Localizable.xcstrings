@@ -1832,6 +1832,7 @@
     "A perfect time for a few cards." : {},
     "A plan and readiness for every exam" : {},
     "A plan! I love a plan." : {},
+    "A problem from a photo always starts with hints." : {},
     "A projection from your recall so far, not a promise." : {},
     "A run climbing, an almost, five in a row, a miss, a save, the finish" : {},
     "A session" : {},
@@ -1987,6 +1988,7 @@
     "Add the date and every day's plan aims at it." : {},
     "Add the worked chat" : {},
     "Add to" : {},
+    "Add to %@" : {},
     "Add your first material" : {},
     "Add your notes" : {},
     "Added" : {},
@@ -2080,8 +2082,10 @@
     "Answer" : {},
     "Answer 2 in your own words" : {},
     "Answer from" : {},
+    "Answer it later" : {},
     "Answer: %@" : {},
     "Answered" : {},
+    "Answered when you were back online" : {},
     "Answered, flagged" : {},
     "Answering from %@, %@" : {
       "localizations" : {
@@ -2330,10 +2334,34 @@
     "Called it" : {},
     "Camera paws: ready." : {},
     "Can I ask something?" : {},
+    "Can you say it back in your own words?" : {},
     "Cancel" : {},
     "Cap" : {},
     "Cap adds these without asking, and you can undo each one." : {},
     "Cap always starts with hints for accounts under 18, with or without Cloud AI." : {},
+    "Cap answered %lld of your questions" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Cap answered %lld of your questions"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Cap answered %lld of your questions"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "Cap answered “%@”" : {},
     "Cap asks a guiding question before it explains. Just explain is one tap away in any chat." : {},
     "Cap asks a question before it explains." : {},
     "Cap asks first" : {},
@@ -2341,10 +2369,12 @@
     "Cap brings it up tomorrow" : {},
     "Cap couldn't do that one." : {},
     "Cap couldn't find that exam." : {},
+    "Cap couldn't make a card from this one." : {},
     "Cap couldn't make usable cards from that. Try asking again." : {},
     "Cap couldn't make usable questions from that. Try asking again." : {},
     "Cap couldn't open that screen." : {},
     "Cap couldn't reach the web right now. Try again in a moment." : {},
+    "Cap couldn't read that photo. Try again closer, or type the problem." : {},
     "Cap couldn't tell which course to open." : {},
     "Cap couldn't tell which course you meant." : {},
     "Cap did this because you switched on “Let Cap do it”." : {},
@@ -2353,12 +2383,15 @@
     "Cap explains straight away." : {},
     "Cap fits each day's session to this. Near an exam, the plan may ask for a few minutes more." : {},
     "Cap is adding a note" : {},
+    "Cap is already keeping 3 questions for later." : {},
     "Cap is making cards from your chat" : {},
     "Cap is quiet tonight." : {},
     "Cap is reading your notes" : {},
+    "Cap is still writing this step" : {},
     "Cap is working: %@" : {},
     "Cap is writing a note about what it made" : {},
     "Cap is writing it" : {},
+    "Cap is writing the card…" : {},
     "Cap keeps what you typed for next time. Everything before it is saved." : {},
     "Cap kept %lld lectures that were cut off." : {
       "localizations" : {
@@ -2438,6 +2471,7 @@
     "Capybara overload." : {},
     "Capybaras are very chill. I'm very chill." : {},
     "Capybaras hum when they're happy." : {},
+    "Card added from your notes" : {},
     "Cards as CSV" : {},
     "Cards from this chat" : {},
     "Cards make good pillows." : {},
@@ -2460,6 +2494,7 @@
     "Check" : {},
     "Check it yourself" : {},
     "Check my answer" : {},
+    "Check the problem" : {},
     "Check them before they join your sessions." : {},
     "Check, check, one two." : {},
     "Checking each card against your notes" : {},
@@ -2473,6 +2508,7 @@
     "Choice" : {},
     "Choices" : {},
     "Choose a course" : {},
+    "Choose a photo" : {},
     "Choose how Cap answers" : {},
     "Choose which course's material Cap answers from" : {},
     "Choosing what to ask" : {},
@@ -2694,6 +2730,7 @@
     "Five more minutes…" : {},
     "Five right answers in a row" : {},
     "Fix a mix-up" : {},
+    "Fix anything Cap misread before you send it." : {},
     "Fix it now · 2 min" : {},
     "Fix it · 2 min" : {},
     "Fix my week" : {},
@@ -2750,6 +2787,7 @@
     "From %@. Keep it to what the page says." : {},
     "From Anki: File, Export, then Anki Deck Package with scheduling included, so your review history comes along." : {},
     "From Quizlet: open the set, tap the three dots, Export, then Copy text. Quizlet links can't be read directly." : {},
+    "From a photo" : {},
     "From this page" : {},
     "From your notes" : {},
     "From your page, graded as you go. This is just where you start." : {},
@@ -2839,7 +2877,6 @@
     "High paw!" : {},
     "Hints first" : {},
     "Hints first stays on for accounts under 18, so Cap helps you work it out." : {},
-    "Hints first stays on for accounts under 18." : {},
     "Hip hip, hooray!" : {},
     "Hit: %@" : {},
     "Hmm, but how?" : {},
@@ -2864,9 +2901,11 @@
     "I can see it from here." : {},
     "I can sleep in water, you know." : {},
     "I can't make anything new today." : {},
+    "I can't point to that in your notes, so I won't guess. Tell me which step you're on." : {},
     "I can't stop smiling." : {},
     "I could host a podcast." : {},
     "I could watch this all night." : {},
+    "I couldn't find this topic in your notes, so I won't guess. Add the chapter it's from and snap it again." : {},
     "I counted again. Still great." : {},
     "I danced. You saw it." : {},
     "I don't know" : {},
@@ -2972,7 +3011,6 @@
     "Joy, delivered." : {},
     "Just a hair away." : {},
     "Just explain" : {},
-    "Just explain it" : {},
     "Just five more cards…" : {},
     "Just resting my brain." : {},
     "Just vibing. And sipping." : {},
@@ -3091,6 +3129,7 @@
     "Make notes" : {},
     "Make questions" : {},
     "Make the transcript now" : {},
+    "Make this a card" : {},
     "Making notes from your lecture" : {},
     "Making the transcript" : {},
     "Mark %lld answers yourself" : {
@@ -3127,6 +3166,7 @@
     "Matches your exam: %@. Only this exam's topics." : {},
     "Matching your iPhone follows its Light and Dark setting, including on a schedule." : {},
     "Materials" : {},
+    "Math is hard to read from a photo. Check the numbers and symbols." : {},
     "Maya's four courses, exams and history" : {},
     "Meet 5 new questions" : {},
     "Members" : {},
@@ -3585,6 +3625,7 @@
     "Reading is brain gym." : {},
     "Reading the cards…" : {},
     "Reading your notes" : {},
+    "Reading your photo on this iPhone" : {},
     "Reads the question above aloud" : {},
     "Ready" : {},
     "Ready for the %@, %@." : {
@@ -3670,6 +3711,7 @@
     "Save grade" : {},
     "Save this mark" : {},
     "Saved it." : {},
+    "Saved. I'll answer when you're online." : {},
     "Saved. The transcript comes next." : {},
     "Saving" : {},
     "Saving keeps the recording and makes notes from it." : {},
@@ -3909,6 +3951,16 @@
     "Steady this week" : {},
     "Steady today" : {},
     "Steam is a great view." : {},
+    "Step %lld of %lld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Step %1$lld of %2$lld"
+          }
+        }
+      }
+    },
     "Still hearing: %@" : {},
     "Still learning, still good." : {},
     "Still mixing up %@? A 2-minute fix is ready." : {},
@@ -4019,6 +4071,7 @@
     "Sync now" : {},
     "Take a bow. I'll clap." : {},
     "Take a breath. Smile. Continue." : {},
+    "Take a photo" : {},
     "Take it" : {},
     "Take your time." : {},
     "Taken back" : {},
@@ -4107,8 +4160,10 @@
     "The ones you missed come back in tomorrow's session." : {},
     "The original file is kept on this iPhone." : {},
     "The other topics" : {},
+    "The photo stays on this iPhone. Only the words go to Cap." : {},
     "The pillow's calling. Soon." : {},
     "The plan" : {},
+    "The problem" : {},
     "The questions that look alike" : {},
     "The questions you mixed up" : {},
     "The ring is how ready you are for each course's next exam." : {},
@@ -4336,6 +4391,7 @@
       }
     },
     "Try a sample page" : {},
+    "Try again" : {},
     "Try explaining it out loud." : {},
     "Tucking in the stars." : {},
     "Turn it off any time; nothing more is sent from then on, and Capling keeps working on this iPhone." : {},
@@ -4359,7 +4415,9 @@
     },
     "Two days before a free week ends, so you're never charged by surprise" : {},
     "Two quick questions" : {},
+    "Type it" : {},
     "Type it, or slide" : {},
+    "Type the problem" : {},
     "Type your answer…" : {},
     "Under 1¢" : {},
     "Undo" : {},
@@ -4380,6 +4438,7 @@
     "Waiting" : {},
     "Wait… I know this." : {},
     "Wake me at the good part." : {},
+    "Want the full answer when you're back online?" : {},
     "Want to quiz me? I dare you." : {},
     "Warm blanket thoughts." : {},
     "Wave back? I'll wait." : {},
@@ -4407,6 +4466,7 @@
     "What if…?" : {},
     "What our server keeps" : {},
     "What our server keeps about your AI use" : {},
+    "What you wrote" : {},
     "What's on it" : {},
     "What's sent, and to whom" : {},
     "Whatever happens, I'm here." : {},
@@ -4415,6 +4475,7 @@
     "Which class is this for?" : {},
     "Which one is this? %@" : {},
     "Whoa, easy there!" : {},
+    "Why" : {},
     "Why do cells divide by mitosis?" : {},
     "Why does anaphase matter?" : {},
     "Why it's right (optional)" : {},
@@ -4559,6 +4620,7 @@
     "You're all caught up. New questions show up here as you add material." : {},
     "You're doing great, you know." : {},
     "You're my favourite human." : {},
+    "You're offline, so Cap answered from your notes on this iPhone." : {},
     "You're offline, so Cap can't look it up." : {},
     "You're on %@'s Squad" : {},
     "You're on a roll." : {},

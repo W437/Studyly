@@ -10,6 +10,12 @@ struct ChatEntry: Identifiable, Equatable {
     var contextItemID: UUID?
     /// What Cap's assistant did in this reply.
     var steps: [AssistantStep]
+    /// A question whose words were read off a photo.
+    var fromPhoto: Bool
+    /// A question Cap is keeping for later.
+    var isWaiting: Bool
+    /// An answer that came later.
+    var isLateAnswer: Bool
 
     init(_ message: ChatMessage) {
         id = message.id
@@ -19,6 +25,9 @@ struct ChatEntry: Identifiable, Equatable {
         origin = message.origin.flatMap(ItemOrigin.init(rawValue:))
         contextItemID = message.contextItemID
         steps = message.steps
+        fromPhoto = message.fromPhoto
+        isWaiting = message.waitingSince != nil
+        isLateAnswer = message.answersQuestionID != nil
     }
 
     static func entries(of thread: ChatThread?) -> [ChatEntry] {
@@ -53,6 +62,17 @@ struct ChatPane: View {
     /// The chat follows Cap's reply down as it is made, until the student scrolls away from the end (and again once they are back).
     @State private var following = true
     @State private var endGap: CGFloat = 0
+    @State private var choosingSnap = false
+    @State private var snapSession: SnapSession?
+    /// The camera shows when a problem's words could reach Cap (a relay, an account that isn't under 13) and there are notes for it to rest on. Read
+    /// once per change of the library: this body runs for every word of an answer, and the notes are a fetch away.
+    @State private var canSnap = false
+
+    private struct SnapGate: Equatable {
+        var courseID: UUID?
+        var revision: Int
+        var age: AppSettings.AgeBand
+    }
 
     private var streams: AskStreams { AskStreams.shared }
 
@@ -110,6 +130,7 @@ struct ChatPane: View {
                     }
                     ChatComposer(text: $draft, focused: $composerFocused, isAnswering: live != nil,
                                  placeholder: "Ask about your notes…", thread: thread, showsMode: true,
+                                 onCamera: canSnap ? { snap() } : nil,
                                  onSend: { send(draft) },
                                  onStop: { if let id = threadID { streams.stop(id, app: app) } })
                 }
@@ -124,12 +145,54 @@ struct ChatPane: View {
             .sharedBackgroundVisibility(.hidden)
         }
         .clScreenBackground()
+        .modifier(SnapFlow(isChoosing: $choosingSnap, session: $snapSession) { text in
+            ask(text, sendAs: nil, fromPhoto: true)
+        })
+        .onChange(of: SnapGate(courseID: courseID, revision: app.revision, age: app.settings.ageBand), initial: true) { _, _ in
+            let can = app.ai.canSnapProblem && hasMaterial
+            if can != canSnap { canSnap = can }
+        }
         .task(id: courseID) {
             guard showsEmptyState else { return }
             starters = nil
             starters = await app.chatStarters(courseID: courseID)
         }
+        #if DEBUG
+        .task { applySnapHarness() }
+        #endif
     }
+
+    private func snap() {
+        CLHaptics.tap()
+        composerFocused = false
+        choosingSnap = true
+    }
+
+    #if DEBUG
+    /// `CRAMLESS_SNAP=confirm|mathlike|unreadable` opens "Check the problem" in that state; `asked` and `notcovered` send a problem.
+    private func applySnapHarness() {
+        guard let hook = TestHarness.once("CRAMLESS_SNAP") else { return }
+        AskDemo.applyLaunchState(app)
+        let covered = "Problem 3. A cell with 46 chromosomes goes through mitosis. How many chromosomes does each daughter cell have?"
+        let text = TestHarness.value("CRAMLESS_SNAP_TEXT")
+        switch hook {
+        case "confirm":
+            snapSession = SnapSession(phase: .ready(SnapReader.Reading(text: text ?? covered, issue: nil)))
+        case "mathlike":
+            snapSession = SnapSession(phase: .ready(SnapReader.Reading(text: text ?? "Solve for x: 2x² + 3x − 5 = 0\nThen find ∫ x dx from 0 to 3", issue: .mathLike)))
+        case "unreadable":
+            snapSession = SnapSession(phase: .ready(SnapReader.Reading(text: "", issue: .unreadable)))
+        case "asked":
+            if pendingCourseID == nil { pendingCourseID = app.defaultChatCourseID }
+            ask(text ?? covered, sendAs: nil, fromPhoto: true)
+        case "notcovered":
+            if pendingCourseID == nil { pendingCourseID = app.defaultChatCourseID }
+            ask(text ?? "Find the integral of x² from 0 to 3.", sendAs: nil, fromPhoto: true)
+        default:
+            break
+        }
+    }
+    #endif
 
     // MARK: Parts
 
@@ -140,13 +203,19 @@ struct ChatPane: View {
         ForEach(Array(entries.enumerated()), id: \.element.id) { index, entry in
             if entry.role == .user {
                 // A question rises into place; under Reduce Motion it only fades in.
-                UserBubble(text: entry.text)
-                    .transition(.asymmetric(insertion: reduceMotion ? .opacity : .move(edge: .bottom).combined(with: .opacity),
-                                            removal: .identity))
+                Group {
+                    if entry.fromPhoto { PhotoProblemBubble(text: entry.text) } else { UserBubble(text: entry.text) }
+                }
+                .transition(.asymmetric(insertion: reduceMotion ? .opacity : .move(edge: .bottom).combined(with: .opacity),
+                                        removal: .identity))
             } else {
                 let reply = entries.indices.contains(index + 1) && entries[index + 1].role == .user ? entries[index + 1].text : nil
+                let question = entries[..<index].last { $0.role == .user }
+                let isLatest = index == lastAssistant && live == nil
                 CapMessageView(entry: entry, note: streams.notes[entry.id], chatContext: context,
-                               isLatest: index == lastAssistant && live == nil, reply: reply,
+                               isLatest: isLatest, reply: reply,
+                               later: laterState(for: entry, question: question, isLatest: isLatest),
+                               onKeepForLater: { keepForLater(question) },
                                stepActions: stepActions(for: entry),
                                onCitation: open, onAnswer: { answer, check in answerQuickCheck(answer, check: check) },
                                onSuggestion: { app.router.present($0.sheet) })
@@ -194,6 +263,21 @@ struct ChatPane: View {
         }
     }
 
+    /// What's said under a reply about answering its question later: nothing, the offer (the cloud couldn't be reached, and it may be asked again), or
+    /// that it's kept.
+    private func laterState(for entry: ChatEntry, question: ChatEntry?, isLatest: Bool) -> AnswerLaterCard.State? {
+        guard let question else { return nil }
+        if question.isWaiting { return .saved }
+        guard isLatest, streams.notes[entry.id]?.offersLater == true, app.ai.cloudStillAllowed() else { return nil }
+        return app.waitingQuestions().count < AnswerLater.maxWaiting ? .offer : .full
+    }
+
+    private func keepForLater(_ question: ChatEntry?) {
+        guard let question else { return }
+        CLHaptics.commit()
+        withAnimation(CLMotion.settle) { _ = app.keepForLater(questionID: question.id) }
+    }
+
     private var emptyState: some View {
         let recent = app.chatThreads().first { $0.id != threadID && !$0.messages.isEmpty }
         return AskEmptyState(courseName: app.liveCourse(courseID)?.name,
@@ -238,19 +322,20 @@ struct ChatPane: View {
 
     /// Asks Cap. `sendAs` is what the tutor reads when the shown words lean on the chat ("Explain with an
     /// analogy", a quick-check answer), so the question finds the notes it's about.
-    private func ask(_ text: String, sendAs: String?) {
+    private func ask(_ text: String, sendAs: String?, fromPhoto: Bool = false) {
         guard !streams.isAnswering(threadID) else { return }
         let thread = self.thread ?? app.startChat(courseID: pendingCourseID)
         if threadID != thread.id { threadID = thread.id }
         CLHaptics.tap()
         withAnimation(CLMotion.settle) {
-            streams.ask(text, in: thread, app: app, sendAs: sendAs)
+            streams.ask(text, in: thread, app: app, sendAs: sendAs, fromPhoto: fromPhoto)
         }
     }
 
     /// Three cards from the chat: Cap's assistant drafts them in the chat when it can; otherwise the sheet that picks them out of the answer.
     private func makeThreeFlashcards(_ thread: ChatThread, _ entries: [ChatEntry]) {
-        if app.ai.assistantReady {
+        // A chat from a photo stays with the tutor, so the sheet picks them out of its answers there too.
+        if app.ai.assistantReady, !thread.isFromPhoto {
             ask(String(localized: "Make 3 flashcards"), sendAs: "Make 3 flashcards on \(subject(thread, entries)), from my notes.")
         } else {
             CLHaptics.tap()
@@ -372,6 +457,9 @@ struct CapMessageView: View {
     var chatContext: String = ""
     let isLatest: Bool
     let reply: String?
+    /// Answering this reply's question later, when it's a matter.
+    var later: AnswerLaterCard.State? = nil
+    var onKeepForLater: () -> Void = {}
     var stepActions: AssistantStepActions = .live
     /// False in a sheet opened from a session (Explain my mistake): a free limit shows as a line, with no "See Pro" and no link
     /// out of the sheet. Nothing is sold in the middle of studying.
@@ -384,7 +472,8 @@ struct CapMessageView: View {
         let check = QuickCheck.split(entry.text, chatContext: chatContext)
         let lead = check?.lead ?? entry.text
         let groups = CitationGroup.groups(entry.citations)
-        let origin = OriginNote.line(origin: note?.origin ?? entry.origin, note: note?.note, quotesNotes: !entry.citations.isEmpty)
+        let origin = entry.isLateAnswer ? OriginNote.lateAnswer
+            : OriginNote.line(origin: note?.origin ?? entry.origin, note: note?.note, quotesNotes: !entry.citations.isEmpty)
         VStack(alignment: .leading, spacing: 8) {
             if !entry.steps.isEmpty {
                 AssistantStepList(steps: entry.steps, actions: stepActions)
@@ -418,6 +507,11 @@ struct CapMessageView: View {
             if isLatest, let suggestion = note?.suggestion {
                 AISuggestionCard(suggestion: suggestion, allowsUpgrade: allowsUpgrade) { onSuggestion(suggestion) }
                     .padding(.trailing, 28)
+            }
+            if let later {
+                AnswerLaterCard(state: later, onKeep: onKeepForLater)
+                    .padding(.trailing, 28)
+                    .transition(.opacity)
             }
         }
     }

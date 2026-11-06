@@ -14,6 +14,7 @@ import {
   checkSystem,
   confusionsContent,
   materialsBlock,
+  mistakeInstruction,
   researchSystem,
   systemFor,
   tutorMessages,
@@ -107,6 +108,45 @@ Deno.test("tutor prompt: the answer length, the refusals, the hints and the unde
   const explain = tutorSystem(tutorRequest({ mode: "explain" }));
   assertStringIncludes(explain, "end with one quick check question only when it adds something");
   assertStringIncludes(explain, "never about what your own reply already answered");
+});
+
+Deno.test("tutor prompt: a problem from a photo is always hints first, holds the method to the notes and never gives the answer", () => {
+  for (
+    const req of [tutorRequest({ mode: "explain", fromPhoto: true }), tutorRequest({ mode: "hints", fromPhoto: true })]
+  ) {
+    const system = tutorSystem(req);
+    assertStringIncludes(system, "Mode: hints first.");
+    assert(!system.includes("Mode: explain."), "a photo is hints first for an adult on Just explain too");
+    for (
+      const rule of [
+        "the photo itself was never sent",
+        'A header on it ("Homework 3", "Quiz 2") is not a request to do graded work',
+        "a source holds the idea or the method the problem needs",
+        "The problem's own numbers won't be in the notes",
+        "\"I couldn't find this topic in what you've added.\"",
+        "Every other reply cites the passage that holds the method",
+        "Never state the final answer to the problem.",
+        "One step at a time",
+        "A real try is the student's own attempt",
+        "After two real tries, walk through the method from the notes",
+        "Stop there and ask them to finish it.",
+      ]
+    ) {
+      assertStringIncludes(system, rule);
+    }
+    // After the mode, so that it wins over "or when they ask you to", and before the picture rule, which stays last as measured.
+    assert(system.indexOf("Mode: hints first.") < system.indexOf("This chat is about a problem the student snapped"));
+    assert(system.indexOf("This chat is about a problem") < system.indexOf("A source made from a photo of a picture"));
+  }
+  assert(
+    !tutorSystem(tutorRequest({ mode: "hints" })).includes("This chat is about a problem"),
+    "only a chat from a photo",
+  );
+  assert(!tutorSystem(tutorRequest({ mode: "hints", fromPhoto: false })).includes("This chat is about a problem"));
+  assert(
+    !assistantSystem(assistantRequest()).includes("This chat is about a problem"),
+    "the assistant never takes a photo chat",
+  );
 });
 
 Deno.test("tutor prompt: the rule for the labels of a photographed picture comes last (as it was measured), for the tutor and not the assistant", () => {
@@ -314,6 +354,36 @@ Deno.test("tutor input: the material first, the earlier turns, then the question
   assertEquals(first.passages.map((p) => p.id), sources.map((s) => s.id));
   // Nothing in the material belongs to one request: no date, no count of turns, no request id.
   assert(!/\b20\d\d-\d\d-\d\d\b|request|turn/i.test(first.input[0].content.replace(/word\d+x\d+/g, "")));
+});
+
+Deno.test("tutor input: Explain my mistake asks for three parts, in the last turn, so the material stays the same bytes", () => {
+  const sources = passages(3);
+  const context = { itemPrompt: "Describe systole.", expected: "Ventricles contract.", given: "Atria fill." };
+  const plain = fromMessages(
+    tutorMessages(tutorRequest({ sources, mode: "explain", messages: [user("What is systole?")] })),
+  );
+  const asked = fromMessages(
+    tutorMessages(tutorRequest({ sources, mode: "explain", messages: [user("What did I miss?")], context })),
+  );
+  assertEquals(asked.input[0], plain.input[0], "the material is untouched");
+  const last = asked.input[asked.input.length - 1].content;
+  assertStringIncludes(last, "three short parts, separated by one blank line");
+  assertStringIncludes(last, "What their answer got right, then the one thing that's off.");
+  assertStringIncludes(last, "Why, from the sources, with the citation.");
+  assertStringIncludes(last, 'One quick check question on the same idea, starting "Quick check:"');
+  assert(last.indexOf("<their_answer>") < last.indexOf("three short parts"), "after the question they got wrong");
+  assert(last.endsWith("What did I miss?"), "the student's words stay last");
+  assert(!plain.input[plain.input.length - 1].content.includes("three short parts"), "only with a mistake");
+  // Under 18 (and on hints first): the second part points instead of telling.
+  for (const req of [{ minor: true, mode: "explain" as const }, { minor: false, mode: "hints" as const }]) {
+    const hints = fromMessages(
+      tutorMessages(tutorRequest({ sources, messages: [user("What did I miss?")], context, ...req })),
+    );
+    const text = hints.input[hints.input.length - 1].content;
+    assertStringIncludes(text, "A nudge toward why");
+    assert(!text.includes("Why, from the sources, with the citation."));
+  }
+  assertEquals(mistakeInstruction(false).split("\n").length, 5);
 });
 
 Deno.test("tutor input: what belongs to one question stays with it; the passages are sent once", () => {

@@ -107,6 +107,44 @@ Deno.test("MOCK: the tutor replays its script as server-sent events, with the sc
   assertEquals(minor.map((e) => e.data), fixtureJson("tutor-hints").events.map((e: { data: unknown }) => e.data));
 });
 
+Deno.test("MOCK: a problem from a photo and Explain my mistake have scripts of their own, whatever the mode", async () => {
+  const r = mockRig();
+  const request = fixtureJson("requests/tutor");
+  const context = { itemPrompt: "What does mitosis make?", expected: "Two identical cells", given: "Sex cells" };
+  for (
+    const [body, name] of [
+      [{ ...request, mode: "explain", fromPhoto: true }, "tutor-photo"],
+      [{ ...request, mode: "hints", minor: true, fromPhoto: true }, "tutor-photo"],
+      [{ ...request, mode: "explain", fromPhoto: true, context }, "tutor-photo"],
+      [{ ...request, mode: "explain", context }, "tutor-mistake"],
+      [{ ...request, mode: "hints", minor: true, context }, "tutor-mistake"],
+      [{ ...request, mode: "hints", fromPhoto: false }, "tutor-hints"],
+    ] as const
+  ) {
+    const events = await sseEvents(await r.ai("tutor", { body }));
+    assertEquals(events.map((e) => e.data), fixtureJson(name).events.map((e: { data: unknown }) => e.data), name);
+  }
+  await r.settle();
+  // The script's reply is what the app splits: three parts, the last a quick check.
+  const text = fixtureJson("tutor-mistake").events.filter((e: { event: string }) => e.event === "delta")
+    .map((e: { data: { text: string } }) => e.data.text).join("");
+  const parts = text.split("\n\n");
+  assertEquals(parts.length, 3);
+  assert(parts[2].startsWith("Quick check:") && parts[2].endsWith("?"));
+  // A reply from a photo cites the notes; the one that can't says so and cites nothing.
+  const cites = (name: string) =>
+    fixtureJson(name).events.filter((e: { event: string }) => e.event === "citation").length;
+  assert(cites("tutor-photo") >= 1);
+  assertEquals(cites("tutor-photo-uncited"), 0);
+  const covered = await sseEvents(
+    await r.ai("tutor", { body: request, headers: { "x-cramless-fixture": "tutor-photo-uncited" } }),
+  );
+  assertEquals(
+    covered.map((e) => e.data),
+    fixtureJson("tutor-photo-uncited").events.map((e: { data: unknown }) => e.data),
+  );
+});
+
 Deno.test("MOCK: X-Cramless-Fixture picks another reply of the same route", async () => {
   const r = mockRig();
   const res = await r.ai("grade", {

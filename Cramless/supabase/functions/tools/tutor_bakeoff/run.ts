@@ -2,7 +2,7 @@
 //
 //   deno run --no-check --allow-net=api.openai.com --allow-env=HOME,OPENAI_API_KEY \
 //     --allow-read --allow-write tools/tutor_bakeoff/run.ts [--configs sol-medium,luna-low] [--cases x-anaphase,...] \
-//     [--out DIR] [--concurrency 6] [--budget 4]
+//     [--groups problem,mistake] [--out DIR] [--concurrency 6] [--budget 4]
 //
 // What is the same as production: `tutorSystem()` (the rules, the tutor, hints or explain, the under-18 part), the
 // student's passages in the last user turn, the earlier turns as text, "Explain my mistake" context, four passages a
@@ -200,8 +200,11 @@ Deno.mkdirSync(out, { recursive: true });
 
 const wantConfigs = only("configs");
 const wantCases = only("cases");
+const wantGroups = only("groups");
 const configs = CONFIGS.filter((c) => !wantConfigs || wantConfigs.includes(c.id));
-const cases = CASES.filter((c) => !wantCases || wantCases.includes(c.id));
+const cases = CASES.filter((c) =>
+  (!wantCases || wantCases.includes(c.id)) && (!wantGroups || wantGroups.includes(c.group))
+);
 console.log(`${configs.length} config(s) x ${cases.length} case(s) -> ${out}`);
 
 let spent = 0;

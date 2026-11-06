@@ -528,7 +528,7 @@ final class RouterTests: XCTestCase {
         // A lost connection is still one, and the next answer isn't told the day is over.
         transport.failures["tutor"] = .offline
         let offline = await app.ai.tutorReply(input)
-        XCTAssertEqual(offline?.note, "Cloud AI couldn't be reached, so Cap answered from your notes on this iPhone.")
+        XCTAssertEqual(offline?.note, "You're offline, so Cap answered from your notes on this iPhone.")
     }
 
     func testAFreeLimitCarriesTheRelaysOwnWords() async {

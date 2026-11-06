@@ -255,6 +255,14 @@ enum LocalTutor {
     static let notCovered = "I couldn't find that in your notes on this iPhone. Cloud AI reads everything you've added, so it can look again when it's on."
     static let smallTalk = "Ask me anything about your notes and I'll answer from them."
     static let noMaterial = "You haven't added any notes yet. Add a page or a lecture and I'll answer from it."
+    /// A problem from a photo that Cloud AI read the notes for and could not place, or placed with no quote that is really in them.
+    static var snapNotCovered: String {
+        String(localized: "I couldn't find this topic in your notes, so I won't guess. Add the chapter it's from and snap it again.")
+    }
+    /// A later turn of that chat whose reply came with no quote that is really in the notes.
+    static var snapUnverified: String {
+        String(localized: "I can't point to that in your notes, so I won't guess. Tell me which step you're on.")
+    }
 
     /// Cap's words when the notes don't answer: the offline tutor's, or the cloud's in either wording of the relay ("Your
     /// material doesn't cover …" before, "I couldn't find that in what you've added." now). Case and the shape of the
@@ -265,7 +273,7 @@ enum LocalTutor {
     /// find that …" splits after "v. "), and a notice plus "I looked through" is already three. The Ask screen mutes such a reply
     /// and offers to add notes.
     static func isNotCoveredReply(_ text: String) -> Bool {
-        if text == notCovered || text == noMaterial { return true }
+        if text == notCovered || text == noMaterial || text == snapNotCovered { return true }
         let patterns = [
             #"\byour (?:material|notes) (?:doesn't|does not|doesnt|don't|do not|dont) cover\b"#,
             #"\bi (?:couldn't|could not|couldnt|can't|cannot|cant|did not|didn't|didnt) find (?:that|it|this|anything|an answer)\b"#,
@@ -294,15 +302,19 @@ enum LocalTutor {
     ///     it the sentences of the first three `hits` are ranked by the words they share with the question, as this always did.
     static func reply(question: String, mode: TutorMode, hits: [LocalRetriever.Hit], context: TutorContext?,
                       terms: [String: Double]? = nil, hasMaterial: Bool = true, topic: String? = nil,
-                      limitReached: Bool = false, ranking: OfflineRanking? = nil) -> Reply {
-        if let decline = TutorPolicy.decline(for: question) { return Reply(text: decline, quotes: [], grounded: false, kind: .refused) }
-        if context == nil, isSmallTalk(question) { return Reply(text: smallTalk, quotes: [], grounded: false, kind: .smallTalk) }
+                      limitReached: Bool = false, ranking: OfflineRanking? = nil, fromPhoto: Bool = false) -> Reply {
+        // The words of a photo are a problem, whatever they look like: a header like "Homework 3" is no request to do it, and a formula has no
+        // words for the small-talk and off-topic checks to read.
+        if !fromPhoto {
+            if let decline = TutorPolicy.decline(for: question) { return Reply(text: decline, quotes: [], grounded: false, kind: .refused) }
+            if context == nil, isSmallTalk(question) { return Reply(text: smallTalk, quotes: [], grounded: false, kind: .smallTalk) }
+        }
         let asked = context.map { "\($0.itemPrompt) \($0.expected)" } ?? question
         let weights = terms ?? Dictionary(Lexicon.contentStems(asked).map { ($0, 1.0) }, uniquingKeysWith: { a, _ in a })
         let questionStems = Set(weights.keys)
-        if questionStems.isEmpty, context == nil { return Reply(text: smallTalk, quotes: [], grounded: false, kind: .smallTalk) }
+        if questionStems.isEmpty, context == nil, !fromPhoto { return Reply(text: smallTalk, quotes: [], grounded: false, kind: .smallTalk) }
         if !hasMaterial { return Reply(text: noMaterial, quotes: [], grounded: false, kind: .noMaterial) }
-        if context == nil, TutorPolicy.isOffTopic(question) {
+        if context == nil, !fromPhoto, TutorPolicy.isOffTopic(question) {
             let about = hits.first.map { $0.coverage >= strongCoverage || $0.matched.count >= 3 } ?? false
             if !about { return Reply(text: redirect(topic: topic), quotes: [], grounded: false, kind: .offTopic) }
         }

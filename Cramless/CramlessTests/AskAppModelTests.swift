@@ -402,6 +402,62 @@ final class AskAppModelTests: AskTestCase {
         XCTAssertNil(unrelated.topicID)
     }
 
+    func testMakeThisACardGoesToTheQuestionsTopicLinkedToTheCitedPage() throws {
+        let app = makeApp()
+        let bio = makeBio(app)
+        let topic = Topic(course: bio.course, name: "Cell division", now: app.now)
+        app.context.insert(topic)
+        bio.course.topics.append(topic)
+        let question = StudyItem(course: bio.course, topicID: topic.id, kind: .flashcard, status: .active, origin: .cloud,
+                                 prompt: "What does mitosis make?", answer: "Two identical cells", now: app.now)
+        app.context.insert(question)
+        bio.course.items.append(question)
+        app.save()
+        let thread = app.startChat(courseID: bio.course.id)
+        app.addQuestion(AppModel.mistakeQuestion(given: "Sex cells"), to: thread, contextItemID: question.id)
+        let quote = "Mitosis is the process by which a single eukaryotic cell divides to produce two identical daughter cells."
+        app.saveAnswer(TutorOutcome(text: "It makes two identical cells.",
+                                    citations: [Citation(id: "c1", sourceID: bio.textbook.id, pageIndex: 0, start: nil, quote: quote, label: "Textbook p. 87")],
+                                    origin: .cloud, model: "mock", mode: .explain, grounded: true), to: thread, contextItemID: question.id)
+        let before = bio.course.items.count
+
+        let card = GeneratedItem(id: "m1", kind: .flashcard, topic: "Somewhere else", prompt: "How many cells does mitosis make?", answer: "Two identical ones")
+        let made = try XCTUnwrap(app.addMistakeCard(card, origin: .cloud, itemID: question.id, from: thread))
+        XCTAssertEqual(bio.course.items.count, before + 1)
+        XCTAssertEqual(made.prompt, "How many cells does mitosis make?")
+        XCTAssertEqual(made.topicID, topic.id, "the question's own topic")
+        XCTAssertEqual(made.status, .active, "the student pressed Add")
+        XCTAssertEqual(made.origin, .cloud)
+        XCTAssertEqual(made.sourceRef?.sourceID, bio.textbook.id)
+        XCTAssertEqual(made.sourceRef?.pageIndex, 0)
+        XCTAssertFalse(made.sourceRef?.anchorIDs.isEmpty ?? true)
+
+        // The question has gone: nothing to file it under.
+        app.context.delete(question)
+        app.save()
+        XCTAssertNil(app.addMistakeCard(card, origin: .cloud, itemID: question.id, from: thread))
+    }
+
+    func testExplainMyMistakeIsAnExplanationForAnAdultAndHintsUnderEighteen() async throws {
+        for (age, mode) in [(AppSettings.AgeBand.adult, TutorMode.explain), (.teen, .hints)] {
+            let app = makeApp(mode: .relay, consent: true, age: age)
+            let transport = RecordingTransport()
+            app.ai.transportOverride = transport
+            app.settings.tutorMode = .hints
+            let bio = makeBio(app)
+            let streams = AskStreams()
+            let thread = app.startChat(courseID: bio.course.id)
+            let context = TutorContext(itemPrompt: "What does mitosis make?", expected: "Two identical cells", given: "Sex cells")
+            streams.ask("What did I miss?", in: thread, app: app, context: context, contextItemID: UUID())
+            await streams.waitForAnswer(thread.id)
+            let request = try XCTUnwrap(transport.tutorRequests.first)
+            XCTAssertEqual(request.mode, mode)
+            XCTAssertEqual(request.context, context)
+            // The mock's reply comes in the three parts.
+            XCTAssertEqual(MistakeSteps.split(thread.sortedMessages.last?.text ?? "").pages, [.what, .why, .check])
+        }
+    }
+
     func testACardFromALectureCitationPointsAtItsMoment() throws {
         let app = makeApp()
         let bio = makeBio(app)

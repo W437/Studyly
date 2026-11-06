@@ -260,6 +260,119 @@ struct QuickCheck: Equatable, Sendable {
     }
 }
 
+// MARK: - The mistake in three steps
+
+/// Cap's reply to "Explain my mistake", as the sheet pages through it: what the answer got right and the one thing off, why (with the
+/// page it rests on), and one quick check. The relay asks for three parts separated by a blank line (`mistakeInstruction`); this also takes
+/// what else can arrive: two parts, one paragraph, a hint that is only a question, the offline tutor's words, or a reply that says the
+/// notes don't hold it, which stays one page.
+struct MistakeSteps: Equatable, Sendable {
+    enum Page: Int, Equatable, Sendable, CaseIterable {
+        case what = 1, why, check
+    }
+
+    /// What their answer got right and the one thing off. Empty when the reply opens with its question.
+    var what = ""
+    /// Why, from the notes. Empty when the reply has no such part.
+    var why = ""
+    var check: QuickCheck?
+    /// The last part while it is still arriving, before it ends in a question.
+    var checkDraft = ""
+    /// The pages the reply has reached, in order. While it streams, a page unlocks when its part begins.
+    var pages: [Page] = [.what]
+    /// How many pages the sheet says there are. Three until a finished reply shows otherwise.
+    var total = 3
+
+    /// The ask when the reply didn't end in a question of its own.
+    static var sayItBack: QuickCheck {
+        QuickCheck(lead: "", question: String(localized: "Can you say it back in your own words?"), options: [], isLabelled: true)
+    }
+
+    static func split(_ text: String, streaming: Bool = false, chatContext: String = "") -> MistakeSteps {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return MistakeSteps() }
+        let parts = paragraphs(trimmed)
+        if streaming { return arriving(parts, chatContext: chatContext) }
+        if LocalTutor.isNotCoveredReply(trimmed) || TutorPolicy.isDecline(trimmed) {
+            return MistakeSteps(what: trimmed, pages: [.what], total: 1)
+        }
+        return settled(parts, chatContext: chatContext)
+    }
+
+    /// The parts of a reply, split at blank lines.
+    static func paragraphs(_ text: String) -> [String] {
+        text.replacingOccurrences(of: #"\n[ \t]*\n\s*"#, with: "\u{1}", options: .regularExpression)
+            .components(separatedBy: "\u{1}")
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+    }
+
+    /// A reply still streaming: each part is its page, as far as it has come.
+    private static func arriving(_ parts: [String], chatContext: String) -> MistakeSteps {
+        var steps = MistakeSteps(what: parts[0])
+        guard parts.count > 1 else { return steps }
+        steps.pages = [.what, .why]
+        guard parts.count > 2, let last = parts.last else {
+            steps.why = parts[1]
+            return steps
+        }
+        steps.why = parts[1..<(parts.count - 1)].joined(separator: "\n\n")
+        steps.pages = Page.allCases
+        if let check = QuickCheck.split(last, chatContext: chatContext), check.lead.isEmpty {
+            steps.check = check
+        } else {
+            steps.checkDraft = last
+        }
+        return steps
+    }
+
+    /// A finished reply: its ending question is the check, the first part what was right, the rest why.
+    private static func settled(_ parts: [String], chatContext: String) -> MistakeSteps {
+        var rest = parts
+        var check: QuickCheck?
+        var splitsOneParagraph = true
+        if let last = rest.last, var found = QuickCheck.split(last, chatContext: chatContext) {
+            rest.removeLast()
+            if found.lead.contains("____") {
+                // The offline hint (`LocalTutor`): "You wrote “x”. Have another look: p. 87 says: “a line with a ____” What goes in the gap?"
+                // The line goes with its question, and "You wrote" stands alone: its words are the student's, and no place to cut.
+                splitsOneParagraph = false
+                if let look = found.lead.range(of: "Have another look: ") {
+                    rest.append(String(found.lead[..<look.lowerBound]).trimmingCharacters(in: .whitespaces))
+                    found.question = String(found.lead[look.upperBound...]) + " " + found.question
+                } else {
+                    found.question = found.lead + " " + found.question
+                }
+            } else if !found.lead.isEmpty {
+                rest.append(found.lead)
+            }
+            found.lead = ""
+            check = found
+        }
+        var what = rest.first ?? ""
+        var why = rest.dropFirst().joined(separator: "\n\n")
+        // One paragraph: its first sentence, then the rest. Not a list or a table, which only read whole.
+        if splitsOneParagraph, why.isEmpty, !what.contains("\n") {
+            let sentences = Lexicon.sentences(what)
+            if sentences.count >= 2 {
+                what = sentences[0]
+                why = sentences.dropFirst().joined(separator: " ")
+            }
+        }
+        // "Your notes say:" belongs with what the notes say, on the next page.
+        if what.hasSuffix(":") {
+            let sentences = Lexicon.sentences(what)
+            let leadIn = sentences.last ?? what
+            what = sentences.dropLast().joined(separator: " ")
+            why = why.isEmpty ? leadIn : leadIn + "\n\n" + why
+        }
+        var pages: [Page] = [.what]
+        if !why.isEmpty { pages.append(.why) }
+        pages.append(.check)
+        return MistakeSteps(what: what, why: why, check: check ?? sayItBack, pages: pages, total: pages.count)
+    }
+}
+
 // MARK: - Markdown
 
 /// The Markdown Cap writes, as blocks: paragraphs (with **bold** and *italic* inline), bullet and numbered lists, and

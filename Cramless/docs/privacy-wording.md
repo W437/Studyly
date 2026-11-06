@@ -24,6 +24,8 @@ of the course it is answering from (every course when none is chosen), and when 
 all (`AI/AIRouter+Assistant.swift`, `searchNotes`). The policy paragraph, the table row and the three screens' words now say both. The
 owner reviews this wording before release.
 
+**Update, 2026-11-06 (for Launch).** "Snap a problem" in Ask Cap sends the words of a problem to OpenAI, as any other question; the photo itself is read on the iPhone and deleted, and never leaves it. The camera's purpose string now also says "or a problem you're stuck on". The policy paragraph below gets one sentence, and App Privacy needs no new data type (the words are "other user content", like any question). "Answer it later" sends a question the student kept, once there is a connection, in the same request as any other; it can happen in the background and it adds no data. Consent stays at version 3: a typed question and a snapped one are the same kind of data. The owner reviews this wording at Launch.
+
 ## 1. The privacy policy: a section for Ask Cap
 
 > ### Ask Cap, our study assistant
@@ -40,6 +42,8 @@ owner reviews this wording before release.
 > exams, your exam dates, how ready you are, which topics are fading and how many cards are due. If you turn on "Also send page photos", photos of the pages you scan go too. Capling uses OpenAI for all of it: Ask Cap's
 > answers, its tools, web research, questions made from scans, grading and lecture notes. Your phone never talks to an AI company
 > directly: requests go through our own server.
+>
+> When you snap a problem you're stuck on, the photo is read on your iPhone and then deleted: only the words, which you check first, go to Cap.
 >
 > What Cap makes is shown to you first. Nothing is added to your library until you approve it, unless you switch on "Let Cap do it"
 > for that kind of thing (accounts under 18 can't), and you can undo what Cap added.
