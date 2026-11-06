@@ -8,7 +8,7 @@ import Foundation
 /// - `small`: a handful of confetti from behind Cap.
 /// - `medium`: a burst of confetti, and sparkles around Cap.
 /// - `big`: confetti from both bottom corners, across the whole screen.
-/// - `calm`: exam eve and quiet hours. No confetti and no hop; a reason still gets its words, and Cap's sparkles.
+/// - `calm`: exam eve, quiet hours and Quiet mode. No confetti and no hop; a reason still gets its words, and Cap's sparkles.
 enum Celebration: String, CaseIterable, Sendable {
     case none, nudge, small, medium, big, calm
 
@@ -54,6 +54,8 @@ struct CelebrationFacts: Equatable, Sendable {
     var perfect = false
     /// A big celebration has played today already.
     var bigToday = false
+    /// Quiet mode: streaks and badges are nobody's business here, and whatever else earns a celebration stays calm.
+    var quietMode = false
 }
 
 struct CelebrationDecision: Equatable, Sendable {
@@ -63,8 +65,8 @@ struct CelebrationDecision: Equatable, Sendable {
     static let none = CelebrationDecision(size: .none, reason: nil)
 }
 
-/// Whether a moment earns a celebration, and how big. One per screen: the biggest reason wins. Exam eve and quiet
-/// hours are always calm, and a big celebration plays at most once a day (a second one that day is medium).
+/// Whether a moment earns a celebration, and how big. One per screen: the biggest reason wins. Exam eve, quiet hours and
+/// Quiet mode are always calm, and a big celebration plays at most once a day (a second one that day is medium).
 enum CelebrationPolicy {
     /// Streak lengths that celebrate, and how big.
     static let streakMilestones: [Int: Celebration] = [3: .small, 7: .medium, 30: .big, 100: .big, 365: .big]
@@ -74,21 +76,21 @@ enum CelebrationPolicy {
     static func decide(_ facts: CelebrationFacts) -> CelebrationDecision {
         var candidates: [CelebrationDecision] = []
         if facts.firstSession { candidates.append(.init(size: .big, reason: .firstSession)) }
-        if let days = facts.streakMilestone, let size = streakMilestones[days] {
+        if !facts.quietMode, let days = facts.streakMilestone, let size = streakMilestones[days] {
             candidates.append(.init(size: size, reason: .streakMilestone(days: days)))
         }
         if facts.readinessReachedGoal { candidates.append(.init(size: .medium, reason: .readinessGoal)) }
         if facts.mixUpFixed { candidates.append(.init(size: .medium, reason: .mixUpFixed)) }
-        if facts.badgeEarned { candidates.append(.init(size: .medium, reason: .badge)) }
+        if !facts.quietMode, facts.badgeEarned { candidates.append(.init(size: .medium, reason: .badge)) }
         if facts.perfect { candidates.append(.init(size: .small, reason: .perfect)) }
 
         var decision = candidates.reduce(nil as CelebrationDecision?) { best, next in
             guard let best else { return next }
             return next.size.rank > best.size.rank ? next : best
-        } ?? CelebrationDecision(size: facts.streakExtended ? .nudge : .none, reason: nil)
+        } ?? CelebrationDecision(size: facts.streakExtended && !facts.quietMode ? .nudge : .none, reason: nil)
 
         if decision.size == .big, facts.bigToday { decision.size = .medium }
-        if facts.examEve || (facts.quietHours && decision.size.hasConfetti) { decision.size = .calm }
+        if facts.examEve || ((facts.quietHours || facts.quietMode) && decision.size.hasConfetti) { decision.size = .calm }
         return decision
     }
 

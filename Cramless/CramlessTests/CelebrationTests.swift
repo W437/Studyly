@@ -109,6 +109,23 @@ final class CapMotionTests: XCTestCase {
 
 /// When a moment celebrates, and how big.
 final class CelebrationPolicyTests: XCTestCase {
+    func testQuietModeLeavesStreaksAndBadgesOutAndKeepsTheRestCalm() {
+        var facts = CelebrationFacts()
+        facts.streakExtended = true
+        facts.quietMode = true
+        XCTAssertEqual(CelebrationPolicy.decide(facts), .none, "a day added to the streak isn't even a nudge")
+        facts.streakMilestone = 30
+        XCTAssertEqual(CelebrationPolicy.decide(facts), .none, "a milestone isn't mentioned")
+        facts.badgeEarned = true
+        XCTAssertEqual(CelebrationPolicy.decide(facts), .none, "nor a badge")
+        facts.readinessReachedGoal = true
+        XCTAssertEqual(CelebrationPolicy.decide(facts), .init(size: .calm, reason: .readinessGoal), "learning keeps its words, with no confetti")
+        facts = CelebrationFacts()
+        facts.firstSession = true
+        facts.quietMode = true
+        XCTAssertEqual(CelebrationPolicy.decide(facts).size, .calm)
+    }
+
     private func decide(_ change: (inout CelebrationFacts) -> Void) -> CelebrationDecision {
         var facts = CelebrationFacts()
         change(&facts)

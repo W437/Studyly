@@ -16,7 +16,7 @@ extension AppModel {
             }
         let courseValues = courses.map { WidgetSnapshot.Course(id: $0.id, name: $0.name, color: $0.color) }
         return WidgetSnapshotBuilder.make(now: now, summary: todaySummary(), streak: streak(), exams: Array(exams),
-                                          courses: courseValues)
+                                          courses: courseValues, quiet: settings.quietMode)
     }
 
     /// The upcoming exams as the notification planner sees them.
@@ -66,7 +66,7 @@ enum WidgetSnapshotBuilder {
     }
 
     static func make(now: Date, summary: TodaySummary, streak: StreakState, exams: [ExamInput],
-                     courses: [WidgetSnapshot.Course]) -> WidgetSnapshot {
+                     courses: [WidgetSnapshot.Course], quiet: Bool = false) -> WidgetSnapshot {
         let studied = streak.studiedToday || summary.studiedToday
         return WidgetSnapshot(
             generatedAt: now,
@@ -80,6 +80,6 @@ enum WidgetSnapshotBuilder {
                                     readiness: rounded(max(0, min(1, $0.readiness))),
                                     delta: rounded(max(-1, min(1, $0.delta))))
             },
-            courses: courses)
+            courses: courses, quiet: quiet ? true : nil)
     }
 }

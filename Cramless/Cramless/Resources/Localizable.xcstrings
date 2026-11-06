@@ -192,6 +192,16 @@
         }
       }
     },
+    "%@ · back in %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ · back in %2$@"
+          }
+        }
+      }
+    },
     "%@ · skipped" : {},
     "%@%@" : {
       "localizations" : {
@@ -1811,6 +1821,9 @@
     "Added to your library" : {},
     "Adjust" : {},
     "Afternoon slump? Stretch." : {},
+    "Again" : {},
+    "Again %lld" : {},
+    "Again · %@" : {},
     "Again! Again!" : {},
     "Aha… no. Hold on." : {},
     "Ahh. Tea time." : {},
@@ -1869,9 +1882,41 @@
     "Ask" : {},
     "Ask Cap" : {},
     "Ask Cap to make flashcards, questions, a note or an exam, and it shows you first. You see what it's doing and you stay in charge." : {},
-    "Ask Cap to make something" : {},
     "Ask a follow-up" : {},
-    "Ask anything your notes cover. Cap shows you where each answer comes from." : {},
+    "Ask a follow-up…" : {},
+    "Ask about %@. I answer from your %lld sources and show you where." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ask about %1$@. I answer from your %#@sources@ and show you where."
+          },
+          "substitutions" : {
+            "sources" : {
+              "argNum" : 2,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg source"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg sources"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "Ask about your notes…" : {},
     "Ask first, or let Cap do it" : {},
     "Ask me anything, too." : {},
     "Ask “Research the Krebs cycle online” and watch Cap read." : {},
@@ -1951,6 +1996,7 @@
     "Back in 5 days" : {},
     "Back to my session" : {},
     "Back to the questions" : {},
+    "Back tomorrow." : {},
     "Back tomorrow. Your streak is safe." : {},
     "Badges" : {},
     "Base" : {},
@@ -2062,6 +2108,7 @@
     "Cap asks a guiding question before it explains. Just explain is one tap away in any chat." : {},
     "Cap asks a question before it explains." : {},
     "Cap asks first" : {},
+    "Cap asks you a question back" : {},
     "Cap brings it up tomorrow" : {},
     "Cap couldn't do that one." : {},
     "Cap couldn't find that exam." : {},
@@ -2172,6 +2219,7 @@
     "Change these in the iPhone's Settings, under Accessibility." : {},
     "Change your grade" : {},
     "Changes the course" : {},
+    "Chat" : {},
     "Chat actions" : {},
     "Chat added to Ask" : {},
     "Chat deleted" : {},
@@ -2194,6 +2242,7 @@
     "Choice" : {},
     "Choices" : {},
     "Choose a course" : {},
+    "Choose how Cap answers" : {},
     "Choose which course's material Cap answers from" : {},
     "Choosing what to ask" : {},
     "Choosing what to put on the cards" : {},
@@ -2317,6 +2366,7 @@
     "Each week 3 AI scans and notes for 1 lecture; each day 20 graded answers and 10 questions for Cap" : {},
     "Earned" : {},
     "Earned %@" : {},
+    "Easy" : {},
     "Edit" : {},
     "Edit course" : {},
     "Edit exam" : {},
@@ -2383,6 +2433,7 @@
       }
     },
     "Exams" : {},
+    "Explain it simpler" : {},
     "Explain it to me." : {},
     "Explain my mistake" : {},
     "Explanation" : {},
@@ -2503,6 +2554,8 @@
     "Goodnight, goodnight." : {},
     "Goodnight, little cards." : {},
     "Got it" : {},
+    "Got it %lld" : {},
+    "Got it · %@" : {},
     "Got it. Got it. Got it." : {},
     "Got the whole spread." : {},
     "Grade again" : {},
@@ -2511,6 +2564,7 @@
     "Hand up, as usual." : {},
     "Happiness level: capybara." : {},
     "Haptics" : {},
+    "Hard" : {},
     "Harness routes" : {},
     "Have a code?" : {},
     "Hear an example" : {},
@@ -2531,13 +2585,13 @@
     "Hi, I'm Cap. Light a star with me." : {},
     "Hidden" : {},
     "Hide" : {},
+    "Hides the flame, quests and badges, and turns sounds off." : {},
+    "Hides the flame, quests and badges, and turns sounds off. Your plan, stars and readiness stay." : {},
     "Hides the licence" : {},
     "High paw!" : {},
     "Hints first" : {},
     "Hints first stays on for accounts under 18, so Cap helps you work it out." : {},
     "Hints first stays on for accounts under 18." : {},
-    "Hints first: Cap asks a question before it explains." : {},
-    "Hints first: Cap asks before it tells" : {},
     "Hip hip, hooray!" : {},
     "Hit: %@" : {},
     "Hmm, but how?" : {},
@@ -2777,6 +2831,7 @@
     "Looking at the calendar" : {},
     "Lunch for the brain?" : {},
     "Made for students 13 and up. Your notes are never used to train AI models." : {},
+    "Make 3 flashcards" : {},
     "Make a wish. Then a review." : {},
     "Make cards from this chat" : {},
     "Make cards yourself" : {},
@@ -2813,6 +2868,7 @@
     "Mark this moment as on the exam" : {},
     "Mark your answers to see your score." : {},
     "Marked" : {},
+    "Marked %@. Undo is at the bottom." : {},
     "Marked by you" : {},
     "Marking your answers…" : {},
     "Marks its lines on the page" : {},
@@ -3001,6 +3057,7 @@
     "Notifications" : {},
     "Nudge it a little more." : {},
     "OK" : {},
+    "Off while Quiet mode is on" : {},
     "Off. Turn it on in Study." : {},
     "Off: everything happens on this iPhone, in less detail. You'll be asked before anything is sent." : {},
     "Offline rules, always" : {},
@@ -3221,6 +3278,7 @@
     "Quick check" : {},
     "Quick question…" : {},
     "Quiet hours" : {},
+    "Quiet mode" : {},
     "Quiet sky, quiet mind." : {},
     "Quiet, scholar at work." : {},
     "Quietly beaming." : {},
@@ -3356,6 +3414,7 @@
     "Says why today's questions were picked" : {},
     "Scan a page" : {},
     "Scan a page from class and Capling turns it into questions. Every one becomes a star." : {},
+    "Scan a page or add slides, and ask away. Every answer points to where it says so." : {},
     "Scan a page, add a PDF or record a lecture, and today's session builds itself." : {},
     "Scan complete. Probably." : {},
     "Scan pages" : {},
@@ -3389,6 +3448,7 @@
     "See Squad" : {},
     "See all" : {},
     "See all %lld" : {},
+    "See how it went" : {},
     "See it" : {},
     "See my plan" : {},
     "See my score" : {},
@@ -3449,6 +3509,7 @@
     "Shown" : {},
     "Shows that moment in the transcript" : {},
     "Shows that moment of the lecture" : {},
+    "Shows the flame, quests and badges again." : {},
     "Shows the full licence" : {},
     "Shows the page, with the lines marked" : {},
     "Shows the plan with that day back" : {},
@@ -3509,12 +3570,12 @@
     "Smooth." : {},
     "Smoothing the corners." : {},
     "Snap a page, add slides or import a deck. Capling turns it into questions, each one linked to where it came from." : {},
+    "Snap a problem" : {},
     "Snap any page from your notes or a textbook. It takes about 20 seconds." : {},
     "Snap, snap, study." : {},
     "So close!" : {},
     "Soaking in the quiet." : {},
     "Soft cards, soft dreams." : {},
-    "Soft notes when you answer and finish. Quiet when your iPhone is on silent." : {},
     "Sound check: lovely." : {},
     "Sound level" : {},
     "Sounds" : {},
@@ -3560,6 +3621,7 @@
     "Started" : {},
     "Starting" : {},
     "Starting your note" : {},
+    "Starts a request for you to finish" : {},
     "Steady this week" : {},
     "Steady today" : {},
     "Steam is a great view." : {},
@@ -3578,7 +3640,9 @@
     "Stops editing this card" : {},
     "Stops sending anything to Cloud AI. Capling keeps working on this iPhone." : {},
     "Stops sending page photos. Their text still goes while Cloud AI is on." : {},
+    "Straight to the answer" : {},
     "Streak" : {},
+    "Streaks and quests" : {},
     "Stretch break? Paws up!" : {},
     "Strong work, scholar." : {},
     "Studied today" : {},
@@ -3661,6 +3725,7 @@
     "Suspended %lld" : {},
     "Sweet dreams, scholar." : {},
     "Swipe a question to suspend it or delete it. Questions you write are free and unlimited." : {},
+    "Swipe right if you got it, left if not" : {},
     "Switches reading text back to the system font." : {},
     "Switches reading text to OpenDyslexic." : {},
     "Symbol" : {},
@@ -3703,6 +3768,7 @@
     "That one's worth a look." : {},
     "That source isn't in your library anymore." : {},
     "That was a good one." : {},
+    "That was the last one." : {},
     "That's a friendly tap." : {},
     "That's a lot of boops." : {},
     "That's all the cloud AI for today, so Cap answered from your notes on this iPhone. It starts again at midnight." : {},
@@ -3852,6 +3918,16 @@
     "This question isn't in your library anymore." : {},
     "This question was deleted." : {},
     "This run" : {},
+    "This session: got it %lld, again %lld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "This session: got it %1$lld, again %2$lld"
+          }
+        }
+      }
+    },
     "This source is gone" : {},
     "This week" : {},
     "This week lit a new sky" : {},
@@ -3901,7 +3977,6 @@
     "Tough one. You'll get it." : {},
     "Transcript" : {},
     "Try a sample page" : {},
-    "Try asking" : {},
     "Try explaining it out loud." : {},
     "Tucking in the stars." : {},
     "Turn it off any time; nothing more is sent from then on, and Capling keeps working on this iPhone." : {},
@@ -3928,6 +4003,7 @@
     "Type it, or slide" : {},
     "Type your answer…" : {},
     "Undo" : {},
+    "Undo %@" : {},
     "Untangled" : {},
     "Up to 300 pages at once" : {},
     "Up to date. Nice." : {},
@@ -3966,7 +4042,6 @@
     "Welcome, %@" : {},
     "What Cap can do" : {},
     "What Capling sends" : {},
-    "What happens after mitosis in the cell?" : {},
     "What if I skip %@?" : {},
     "What if…?" : {},
     "What our server keeps" : {},
@@ -4338,6 +4413,7 @@
     "tomorrow" : {},
     "up %lld points this week" : {},
     "you got %@" : {},
+    "your courses" : {},
     "|" : {},
     "·" : {},
     "ı" : {},

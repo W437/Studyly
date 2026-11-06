@@ -1455,6 +1455,7 @@ trust rules and the screens are in `docs/assistant.md`, the wire format in `docs
 - **The engine** (`Engine/MockExam.swift`, pure and seeded): `MockExamBuilder.build` takes the exam's scope and the format's kinds (multiple choice `.mcq`, short answer `.recall` and `.cloze`, essay `.apply`, none ticked all four; flashcards and diagrams never), shares its places over the topics by size (largest remainder, each topic at least one while there's room) and multiple choice takes three in four where the pool has both, spread evenly over the topics. Multiple choice comes first, each part interleaved. Size: the exam's own count kept to 8...40, else 20; nil under 8 questions. Time: the real exam's pace when both its length and size are known, else 60/45/120/180 s by kind (within the real length if only that is known), rounded up to 5 minutes.
 - **"Cap predicted"** (`expectedByItem`): the fair score for these questions, recall now (hours counted, 0 if never studied) plus a blind guess's chance on multiple choice, not the exam-day ring. `MockScorer` scores only what has a mark, on both sides of the comparison, and calls it "Right where Cap expected." within 5 points of the numbers as shown.
 - **The sitting** (`Features/Mock/`): `MockRunner` keeps answers in a store no view observes, so typing redraws nothing else; the counts it publishes are written only when they change. The countdown is `Text(timerInterval:)`. Back and Flag are allowed, nothing is graded until hand-in, then own-words answers go four at a time through `ai.grade` (`SelfCheck.modelWait` each). An answer no model graded and the rules can't vouch for waits for "Mark N answers yourself"; it is recorded (`gradedBy` "self") only then. Blanks aren't recorded. Time's up offers "Finish untimed" first; the score then says how many were in time. A close with answers asks, then marks what's there. Answers live in memory until hand-in: a crash loses an unfinished mock.
+- **Practice from the summary** runs inside the mock's cover (`MockExamView.practice`). Changing `router.cover` from one item to another ends a `SessionView` with no questions: its `.onDisappear` closes the runner as the old cover leaves.
 - **Entry:** the exam page's card (`ExamPresentation.mockCard`), hidden on the eve, the day and after, as `mockOffer(for:)` is, however the screen was reached. Too few questions: "Write more questions" when a reading has more to give (`restRequest(for:)`), and "Add material". `MockSuggestion.isDue` (2 to 7 days out, enough questions, none in the last 4 days) is for Today's card.
 - **Also:** "Mock exams" on the Always free card; the exam editor asks for the number of questions and the minutes; `LibraryFormat.formatLine` says them. `ChoiceOptionTile` and `AnswerEditor` moved out of their question views to be shared.
 
@@ -1465,6 +1466,41 @@ trust rules and the screens are in `docs/assistant.md`, the wire format in `docs
 - **Progress:** rewritten in about 1.3 screens (`design.md`). Gone from it: the exam cards with their region stills and letter, the badges row, the streak section with its heatmap, the week section, the due chart, Constellations and Brightest. `ProgressPresentation.fading` orders by the nearest exam covering the topic (`daysToNearestExam`, from the regions' `covers`), then the most fading.
 - **The month and the sky:** `StreakMonthCard` (extracted, with its arrows and legend) is on the streak page and in `StreakMonthSheet` (`AppSheet.streakMonth`), the streak page gains "Last 12 weeks" (`StudyHeatmap`), and the due chart and the brightest topics moved into `SkyMemoryPanel` (`SkyScene.brightest`; `AppSheet.skyMemory` over the sky, at the head of the list). No percentage in any of it.
 - **The dim line:** Progress's fading rows read the sky's own `SkyLight.isDim`, which is `ReviewOutcome.fadingRecall` (0.7); Cap's fading card should read the same.
+- **Quiet mode:** the week card drops its streak line and repair offer, the tiles lose Badges, the month sheet and the streak page are only the calendar (the 12-week map goes with the rest), and the mock's summary tells no badge.
+
+### Stage 2: sessions and a calm chat (2026-11-06, lane `s2-sessions`)
+
+- **Undo: hold, then commit** (`SessionRunner`): a review log is append-only once sync has pushed it (about 2.6 s after a save), so nothing is recorded and reverted.
+  `Options.undoWindow` is nil by default (tests, onboarding, the quick check); `SessionView` sets 5 s, 15 s with VoiceOver. `record(…, undo:)` holds a self-given
+  rating as a `PendingGrade` (reviewID, rating, time, day key, `queueBefore`, how the question comes back) and moves on from `AppModel.previewReview`, which shares its
+  scheduling with `recordReview` (the same due load, deterministic fuzz), so the preview is what recording does. `commitPending()` goes through the idempotent
+  `recordReview(…, at:, dayKey:, reviewID:)`: on the timer, the next answer recorded, a question left without an answer, finish or close, the app going to the
+  background (not merely inactive), and disappear. `undoPending()` restores the queue (a re-queued copy goes with it). `Phase.wrapping` is "That was the last one."
+  (`SessionWrappingView`); the summary starts on commit. Undoable: flashcard ratings and swipes, own-words marks, "Counts as". A question view picks up its state
+  with `takeRestore(for:)`: no regrade, no sounds, no read-aloud. A draft goes on commit, not on submit; `hasRecorded` is true for a held rating, so a view leaving
+  doesn't write its draft back. The checkpoint follows the question on screen through an Undo. A crash inside the window loses that one rating (its question and
+  its draft are still there when the session picks up). `advance(arriving:)` gained a default parameter and `record` a defaulted one; the rest of the API is as it was.
+- **`UndoPill`** (`SessionParts.swift`): glass, ⌘Z, an overlay on the question's content (`sessionUndoSlot`), above the footer. Not on the bar: past the safe-area bar's own
+  bounds it shows and takes no tap. It waits for the next question to land, and hides once that one is checked. Interval labels refresh when the held rating is
+  recorded (it moves the session's due load).
+- **The swipe** (`Questions/FlashcardSwipe.swift`): pure `SwipeRule` (35% of the width or 700 pt/s, a flick back is a change of mind, direction lock after 12 pt at
+  1.5 times sideways); `FlashcardSwipeState` holds the offset, read only by `FlashcardSwipeLayer`, so a finger's move doesn't re-run the question's body. The gesture is
+  simultaneous with the scroll view, and a `GestureState` springs the card back if the system takes the touch away. Fly-out inside the view with an animation
+  completion; the next question rises (`Arrival.rise`). Footer: the chips, the tiles; `usesGrid` for accessibility sizes, VoiceOver and Switch Control. ← → and 1 to 4 keys.
+  `SessionRunner.flashcardTally` counts ratings, a held one included; the view reads it once as the card comes up.
+- **Quiet mode** (`AppSettings.quietMode`, Settings ▸ Study): `applyFeel`, `CelebrationFacts.quietMode`, `NotificationPlanner.Input.quiet`, `WidgetSnapshot.quiet` (optional, so an
+  older snapshot reads; `forTodayWidget`), `TodaySnapshot.quiet`, `SessionRunner.liveCombo`/`shownRun`, the summary (clears `GameOutcome` after `settleGame()`, so the
+  bits are written and nothing shows), Progress, the Streak page (only the calendar), the rollover's toast, the export. Other lanes' Cap cards need no change unless
+  they mention the streak; Welcome back should check it.
+- **Ask's calm chat:** `AskTitleMenu` (the title is the course menu), `AskDock` with `FreeAnswersNote`, `AskDockChipRow` over pure `AskDockChips.make` and `AskStarters.chipLabel` (hidden once
+  words are typed, height kept until the starters are ready), `TutorModePill` in `ChatComposer` (a popover; locked under 18) and `onCamera`, the slot for Stage 3's camera (nothing passes it yet).
+  `AskEmptyState` is Cap, one line, one chat to pick up. Follow-ups "Explain it simpler" and "Make 3 flashcards" (the assistant when ready, else `AppSheet.makeCards(threadID:, maxItems: 3)`).
+  `TutorModeControl` and `CourseMaterialChip` are gone.
+  At the accessibility text sizes the style takes a line of its own in the composer, and the chips stay one scrolling row (the appendix's two-line flow left no room for the chat).
+- **Scripts:** `journeys/moves.py` (the chips and tiles), `journeys/j_ask.py` (Cap's style in the composer, the short chip).
+- **Verified (2026-11-06, on main cd6ad9c plus this lane):** the whole suite, 1,657 tests, 27 skipped, no failures. Real drags and taps on the simulator: a slow drag past the line, a short one
+  springing back, a flick, a vertical drag and a swipe on an unflipped card doing nothing, Undo by a tap on the pill (flashcard and own-words marks), the app going to the background
+  committing the last question. Not checked: haptics, ⌘Z and the arrow keys with a hardware keyboard, a live VoiceOver session.
 
 ## App Store Connect (2026-11-01)
 

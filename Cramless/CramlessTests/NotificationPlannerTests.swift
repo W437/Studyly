@@ -37,6 +37,26 @@ final class NotificationPlannerTests: XCTestCase {
         return String(format: "%02d-%02d %02d:%02d", c.month!, c.day!, c.hour!, c.minute!)
     }
 
+    // MARK: Quiet mode
+
+    func testQuietModeDropsTheStreakNudgeAndKeepsTheRest() {
+        let loud = plan()
+        let quiet = plan { $0.quiet = true }
+        XCTAssertTrue(loud.contains { $0.kind == .streak })
+        XCTAssertFalse(quiet.contains { $0.kind == .streak })
+        XCTAssertFalse(quiet.contains { $0.body.localizedCaseInsensitiveContains("streak") })
+        XCTAssertTrue(quiet.contains { $0.kind == .examEve }, "a date the person set still comes")
+        XCTAssertTrue(quiet.contains { $0.kind == .daily }, "and the reminder")
+    }
+
+    func testQuietModeLeavesTheMilestoneOutOfTheReminder() {
+        let quiet = plan {
+            $0.streak.current = 29
+            $0.quiet = true
+        }
+        XCTAssertFalse(quiet.contains { $0.body.contains("makes it") })
+    }
+
     // MARK: The week
 
     func testTheDemoWeek() {

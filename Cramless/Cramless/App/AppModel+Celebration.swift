@@ -31,6 +31,7 @@ extension AppModel {
         facts.perfect = summary.itemsReviewed >= CelebrationPolicy.perfectFrom
             && summary.correctFirstTry == summary.itemsReviewed
         facts.bigToday = settings.lastBigCelebrationAt.map { calendar.isDate($0, inSameDayAs: now) } ?? false
+        facts.quietMode = settings.quietMode
         return facts
     }
 

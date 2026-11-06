@@ -360,6 +360,22 @@ biggest reason wins and names the summary's title.
   - The confetti is silent: the summary has one sound.
 - **Reduce Motion:** everything shows its final state at once, with no confetti.
 
+## Taking a rating back, and swiping one
+
+A rating the student gives themselves is the one answer with no second look, so it can be taken back: a flashcard's rating or swipe, the
+marks of an own-words answer, a "Counts as" call. The session moves on at once and a glass pill floats just above the next question's
+footer, "Easy · back in 4 weeks" and **Undo** (⌘Z), for 5 seconds (15 with VoiceOver). The pill takes no room, so no button moves under a
+finger, and it steps aside once the next question has been checked. Undo brings the question back from the leading edge as it was: the card
+flipped, the own-words panel with its ticks, no new grade and no sound. After the last question the same moment is a small screen, Cap and
+"That was the last one." with **See how it went**; the summary starts when the rating is recorded. Graded answers keep Continue, which is
+already their moment.
+
+A flipped flashcard can be swiped: right is "got it" (Good), left is Again. The card follows the finger with a little tilt (none under
+Reduce Motion), a stamp says what letting go does ("Got it · 4 days"), past 35% of its width or on a flick it flies off and the next one
+rises in its place; a flick back the other way is a change of mind. The chips "← Again" and "Got it →" do the same, Hard and Easy stay as
+tiles (Hard counts as got it in the tally), and the ← → keys work. The four-tile grid stays at the accessibility text sizes and with
+VoiceOver or Switch Control, and VoiceOver has the four as actions on the answer.
+
 ## The game loop
 
 Nothing here is a currency, a shop or a way to lose something. A quest finished stays finished, a badge earned stays earned,
@@ -372,6 +388,11 @@ warm glow and two embers (30 to 99), gold with glints (100 to 364), and gold wit
 or one on hold (a missed day a repair can still join back up) it is an outline. It is in Today's pill, the streak screen, Progress's
 streak card, the badges and the two full-colour widget pills (the Lock Screen's stay monochrome symbols). It bounces once when
 the streak grows (`bounce:`), and never under Reduce Motion.
+
+**Quiet mode** (Settings ▸ Study) turns the whole layer down for someone who wants the plan and nothing else: no flame, quests, badges
+or run counter, celebrations calm, no streak notifications, no "a new sky is lit", no sounds, and the Streak page and Progress's month sheet are only the calendar; Progress keeps its week, exams, fading topics, mix-ups and the sky tile.
+Their plan, stars and readiness stay. Quests and badges go on settling unseen, so turning it off again loses nothing, and a Streak widget
+someone placed stays as it is (they put it there); the Today widget loses its flame.
 
 **Milestones** are 3, 7, 30, 100 and 365 days (`StreakStage.milestones`; the flame changes at the last four). The summary's hero
 becomes the milestone: Cap proud, the stage's flame popping in beside him and bouncing once, "30 days." as the title and one

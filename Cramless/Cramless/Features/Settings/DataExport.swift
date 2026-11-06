@@ -112,6 +112,8 @@ enum DataExport {
         var capMoves: Bool
         /// Optional so an archive made before it existed still reads.
         var capTalks: Bool?
+        /// Optional for the same reason.
+        var quietMode: Bool?
     }
 
     struct CourseRecord: Codable, Equatable, Sendable {
@@ -267,7 +269,7 @@ enum DataExport {
                                     targetRetention: s.targetRetention, easyDays: s.easyDays, tutorMode: s.tutorMode.rawValue,
                                     cloudAI: app.hasCloudConsent, sendPhotos: s.sendPhotos, theme: s.theme.rawValue,
                                     dyslexicFont: s.dyslexicFont, readAloud: s.readAloud, haptics: s.haptics,
-                                    sounds: s.sounds, capMoves: s.capMoves, capTalks: s.capTalks)
+                                    sounds: s.sounds, capMoves: s.capMoves, capTalks: s.capTalks, quietMode: s.quietMode)
         let courses = app.courses.map { course in
             CourseRecord(
                 id: course.id, name: course.name, color: course.colorRaw, createdAt: course.createdAt,

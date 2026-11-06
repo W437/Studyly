@@ -107,7 +107,7 @@ enum AppSheet: Identifiable, Hashable, Sendable {
     case editItem(UUID)
     case newItem(courseID: UUID?)
     case explain(itemID: UUID, given: String)
-    case makeCards(threadID: UUID)
+    case makeCards(threadID: UUID, maxItems: Int = 6)
     case reviewDraft(sourceID: UUID)
     /// A source page over a cover or chat (sessions and the tutor can't push onto a tab's stack).
     case sourcePage(sourceID: UUID, pageIndex: Int, highlight: [String])

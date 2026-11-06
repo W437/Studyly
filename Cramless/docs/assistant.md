@@ -28,8 +28,8 @@ Each tool call is a **card** in the chat. It works, proposes, and settles.
 
 Under the working card, **Cap and one line** say what he is doing this second ("Choosing what to put on the cards", "Writing the cards",
 "Checking each card against your notes", "Writing your note", "Searching trusted study sites", "Reading 5 pages"). The chat follows the
-work down as it grows, and stops following when you scroll away. A new chat shows **Ask Cap to make something** (flashcards, a quiz, a note, an
-exam, research) as first words for the composer, when the cloud tier is open and, for research, the web is on for this student.
+work down as it grows, and stops following when you scroll away. A new chat's dock has one row of chips: what Cap can make (a quiz, flashcards, a note, an
+exam, research) as first words for the composer, around two questions drawn from the notes (`AskDockChips`), when the cloud tier is open and, for research, the web is on for this student.
 
 **Looking up the notes** is a small card: a page that is scanned once, then chips of where it found things.
 

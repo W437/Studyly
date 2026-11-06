@@ -11,6 +11,7 @@ struct TodayWidgetView: View {
     var calendar: Calendar = .current
 
     var body: some View {
+        let snapshot = snapshot?.forTodayWidget
         switch family {
         case .accessoryRectangular:
             TodayGlanceView(snapshot: snapshot)

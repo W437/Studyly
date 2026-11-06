@@ -151,7 +151,7 @@ private struct WeekCard: View {
                         }
                         .foregroundStyle(CLColor.skyInk)
                     }
-                    streakLine
+                    if !app.settings.quietMode { streakLine }
                     ReflowStack(verticalAlignment: .firstTextBaseline, spacing: 10) {
                         Text(CLFormat.minutes(week.totalMinutes))
                             .clFont(.number(30))
@@ -177,7 +177,7 @@ private struct WeekCard: View {
             }
             .buttonStyle(.plain)
             .accessibilityHint(Text("Opens the month"))
-            if let day = model.streak.repairableDay {
+            if let day = model.streak.repairableDay, !app.settings.quietMode {
                 Rectangle().fill(CLColor.hairline).frame(height: 1)
                 RepairOffer(day: day, run: model.runBeforeRepair, dailyMinutes: model.dailyMinutes, calendar: model.calendar)
             }
@@ -460,17 +460,7 @@ private struct MoreTiles: View {
 
     var body: some View {
         ReflowStack(verticalAlignment: .top, spacing: 12) {
-            NavigationLink(value: Route.badges) {
-                tile(title: "Badges", line: BadgeCopy.count(earned: model.badges.filter(\.isEarned).count, of: model.badges.count)) {
-                    HStack(spacing: -6) {
-                        ForEach(model.badges.featured(limit: 3)) { status in
-                            BadgeMedal(badge: status.badge, earned: status.isEarned, size: 40)
-                        }
-                    }
-                    .accessibilityHidden(true)
-                }
-            }
-            .buttonStyle(.pressable)
+            if !app.settings.quietMode { badges }
             NavigationLink(value: Route.sky) {
                 tile(title: "Memory sky", line: .verbatim(ProgressPresentation.skyLine(stars: model.sky.starCount, dim: model.sky.dimCount))) {
                     Image(systemName: "sparkles")
@@ -484,6 +474,20 @@ private struct MoreTiles: View {
             .buttonStyle(.pressable)
         }
         .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private var badges: some View {
+        NavigationLink(value: Route.badges) {
+            tile(title: "Badges", line: BadgeCopy.count(earned: model.badges.filter(\.isEarned).count, of: model.badges.count)) {
+                HStack(spacing: -6) {
+                    ForEach(model.badges.featured(limit: 3)) { status in
+                        BadgeMedal(badge: status.badge, earned: status.isEarned, size: 40)
+                    }
+                }
+                .accessibilityHidden(true)
+            }
+        }
+        .buttonStyle(.pressable)
     }
 
     private func tile<Art: View>(title: LocalizedStringResource, line: LocalizedStringResource, @ViewBuilder art: () -> Art) -> some View {

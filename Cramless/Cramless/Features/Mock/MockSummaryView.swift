@@ -55,7 +55,7 @@ struct MockSummaryView: View {
             told = true
             CLFeel.play(.done)
             // A badge the sitting earned is told here, and opens from the toast.
-            if let badge = runner.game.badges.first {
+            if let badge = runner.game.badges.first, !app.settings.quietMode {
                 app.router.toast("New badge: \(String(localized: badge.title))", systemImage: "medal.fill", actionTitle: "See it",
                                  action: .present(.badge(badge)))
             }

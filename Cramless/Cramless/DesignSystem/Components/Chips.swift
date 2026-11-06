@@ -92,7 +92,7 @@ struct CLFlow: Layout {
         let width = proposal.width ?? .infinity
         var x: CGFloat = 0, y: CGFloat = 0, lineHeight: CGFloat = 0, maxX: CGFloat = 0
         for view in subviews {
-            let size = view.sizeThatFits(.unspecified)
+            let size = Self.fitted(view, to: width)
             if x > 0, x + size.width > width {
                 x = 0; y += lineHeight + lineSpacing; lineHeight = 0
             }
@@ -106,7 +106,7 @@ struct CLFlow: Layout {
     func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
         var x = bounds.minX, y = bounds.minY, lineHeight: CGFloat = 0
         for view in subviews {
-            let size = view.sizeThatFits(.unspecified)
+            let size = Self.fitted(view, to: bounds.width)
             if x > bounds.minX, x + size.width > bounds.maxX {
                 x = bounds.minX; y += lineHeight + lineSpacing; lineHeight = 0
             }
@@ -114,5 +114,12 @@ struct CLFlow: Layout {
             x += size.width + spacing
             lineHeight = max(lineHeight, size.height)
         }
+    }
+
+    /// A subview at its own size, but never wider than a line (a chip too long for one at the largest text sizes truncates instead of
+    /// running off the edge).
+    private static func fitted(_ view: LayoutSubview, to width: CGFloat) -> CGSize {
+        let size = view.sizeThatFits(.unspecified)
+        return CGSize(width: min(size.width, width), height: size.height)
     }
 }
