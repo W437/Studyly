@@ -335,5 +335,15 @@
   "Tonight, %lld minutes": {
     "one": "Tonight, %lld minute",
     "other": "Tonight, %lld minutes"
+  },
+  "You have %lld free AI scans left, so Cap reads the first %lld of %lld pages.": {
+    "value": "You have %#@scans@ left, so Cap reads the first %2$lld of %3$lld pages.",
+    "substitutions": {
+      "scans": {
+        "argNum": 1,
+        "one": "%arg free AI scan",
+        "other": "%arg free AI scans"
+      }
+    }
   }
 }

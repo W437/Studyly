@@ -13,6 +13,16 @@ enum AllowanceCopy {
             : "Free AI scans are used up until Monday. Cap still writes questions on your iPhone."
     }
 
+    /// What one reading will take, said where it is about to start, once its pages are known: "This is 21 pages, so it takes 3 of your free
+    /// AI scans." With too few scans left, "You have 1 free AI scan left, so Cap reads the first 10 of 12 pages." Nil for a reading that
+    /// fits one scan, or with nothing to say (`left` nil). `needed`: the scans all its pages take; `readable`: the pages `left` scans read.
+    static func reading(pages: Int, needed: Int, readable: Int, left: Int?) -> LocalizedStringResource? {
+        guard let left else { return nil }
+        guard left > 0 else { return scans(left: 0) }
+        if readable < pages { return "You have \(left) free AI scans left, so Cap reads the first \(readable) of \(pages) pages." }
+        return needed > 1 ? "This is \(pages) pages, so it takes \(needed) of your free AI scans." : nil
+    }
+
     /// "AI notes for 1 lecture left this week", or that they're used and the transcript still works.
     static func lectures(left: Int?) -> LocalizedStringResource? {
         guard let left else { return nil }
