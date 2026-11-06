@@ -599,7 +599,7 @@ final class SyncRecordsTests: XCTestCase {
         XCTAssertEqual(Set(SyncRecords.row(plain).keys), Set(SyncRecords.row(rich).keys))
         XCTAssertEqual(Set(SyncRecords.row(plain).keys), [
             "id", "course_id", "topic_id", "kind", "status", "origin", "prompt", "answer", "explanation", "key_ideas",
-            "choices", "cloze", "diagram", "source_ref", "checked_at", "difficulty_hint", "reported", "state",
+            "choices", "cloze", "diagram", "source_ref", "checked_at", "difficulty_hint", "reported", "rung_of", "state",
             "stability", "difficulty", "due", "last_review", "reps", "lapses", "step", "created_at", "updated_at",
             "deleted_at",
         ])

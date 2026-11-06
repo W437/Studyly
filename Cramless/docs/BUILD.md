@@ -1649,6 +1649,10 @@ The engine that fills Today's "Cap noticed" slot, and its first four kinds. Plan
   Seen with real taps on the iOS 27.0 Simulator (Xcode 27.2), on a build from before this work too, with "Explain my mistake"; when it began wasn't traced. `Router.rootSheet` is nil while a cover is up. Every sheet over a session, mock, scanner or recorder now goes through this; only the session was checked by hand.
 - Relay group (c), not deployed: `check` `reports`, `generate` `rung`, the two prompts, two fixtures, and the migration. `deno task live` with `LIVE_ONLY=reports,rung` checks that a note can't order a verdict, that a reported wrong answer isn't kept, that "my answer" with another fact leaves the item, and that a rung is one question, in its format, on real lines.
 - Privacy, for Launch: re-check reports leave the phone: the question, its answer, its anchored lines, the source's title and headings, the reason, the answer given and the note. A harder question sends the question and the lines around it.
+- Verified: the unit suite on this work merged with main (343634c): 1994 tests, 1965 passed, 27 skipped, 2 failed: the pinned list of a question's columns, which didn't have `rung_of` yet, and the ring, whose
+  corners fell outside on a block of three lines. Both fixed; `LibraryPageFocusTests`, `SyncRecordsTests`, `LooksWrongTests` and `LocalizationTests` rerun (37 passed); the whole suite not rerun after those two. Relay: `deno task test`
+  256 passed, 12 ignored. Real taps on the iOS 27.0 Simulator: a wrong answer through "Looks wrong?" to "You were right" and the next question, "Explain my mistake" and back with the question, panel and timer kept, Today's card to the proposal.
+  Screens read in light, dark and the largest text, and at an iPhone SE's width (`CRAMLESS_CANVAS`). Not checked: real audio, the lock screen, headphones and interruptions (the seeded lecture has no audio); `deno task live`.
 
 ## App Store Connect (2026-11-01)
 
