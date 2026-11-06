@@ -1,13 +1,17 @@
 import SwiftUI
 
 /// A lecture's notes: the summary, the moments flagged for the exam, the sections with their times, the key terms,
-/// its questions, and the transcript. A time chip jumps to that moment in the transcript; `focusTime` (a tutor
-/// citation, a question's timestamp) scrolls there and marks it on open.
+/// its questions, and the transcript. A time chip jumps to that moment in the transcript and, when the audio is on this iPhone, plays
+/// from a few seconds before it (`LecturePlayerBar`, pinned under the notes); the marked part follows the playback. `focusTime` (a tutor
+/// citation, a question's timestamp, opened over Ask or a session) scrolls there and marks it on open, and only cues the audio: the person
+/// may be somewhere quiet.
 ///
 /// With no notes yet it says why (the transcript is still pending, or the notes haven't been made) and offers to
 /// make them.
 ///
-/// DEBUG hook: `CRAMLESS_NOTES_FOCUS=<seconds>` opens focused on that moment (with `CRAMLESS_ROUTE=lectureNotes`).
+/// DEBUG hooks, with `CRAMLESS_ROUTE=lectureNotes`: `CRAMLESS_NOTES_FOCUS=<seconds>` opens focused on that moment (cued, "Play from …");
+/// `CRAMLESS_LECTURE_PLAY=<seconds>` opens playing from that moment, as a tap on its time chip would (the harness's seeded lecture plays
+/// through a silent demo: `DemoLecturePlayback`).
 struct LectureNotesView: View {
     let sourceID: UUID
     /// Seconds into the lecture to scroll to and mark (nil: the top).
@@ -29,8 +33,12 @@ struct LectureNotesView: View {
 
     private static let contentSpace = "lecture-notes-content"
     @State private var didFocus = false
+    /// The transcript scrolls with the playback, from a time chip's tap until a finger scrolls the page.
+    @State private var followsPlayback = false
     /// The bar shows the title once the big one has scrolled away.
     @State private var titleInBar = false
+
+    private var player: LecturePlayer { .shared }
 
     var body: some View {
         ScrollView {
@@ -46,6 +54,13 @@ struct LectureNotesView: View {
         }
         .scrollPosition($position)
         .scrollIndicators(.hidden)
+        .onScrollPhaseChange { _, phase in
+            if phase == .interacting { followsPlayback = false }
+        }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            if lecture?.track != nil { LecturePlayerBar(player: player) }
+        }
+        .onChange(of: player.currentSegmentID) { _, id in follow(id) }
         .onScrollGeometryChange(for: Bool.self) { geometry in
             geometry.contentOffset.y + geometry.contentInsets.top > 90
         } action: { _, past in
@@ -68,6 +83,7 @@ struct LectureNotesView: View {
             focusOnce()
             app.noteOpened(sourceID: sourceID)
         }
+        .onDisappear { player.leave() }
         .onChange(of: app.revision) { _, _ in load() }
         .onChange(of: app.ai.hasCloudConsent) { old, new in
             // Cloud AI was allowed from this card: the notes are made at once.
@@ -89,7 +105,7 @@ struct LectureNotesView: View {
                 .accessibilityAddTraits(.isHeader)
                 .padding(.top, 4)
             if let notes = lecture.notes {
-                CaptureOriginNote(systemImage: originIcon(notes.origin), text: originText(notes.origin),
+                CaptureOriginNote(systemImage: originIcon(notes.origin), text: originText(notes.origin, hasAudio: lecture.track != nil),
                            tone: notes.origin == ItemOrigin.rules.rawValue ? .sun : .sky)
                     .padding(.top, 14)
                 if !notes.summary.isEmpty {
@@ -296,11 +312,11 @@ struct LectureNotesView: View {
                             .foregroundStyle(CLColor.ink)
                             .fixedSize(horizontal: false, vertical: true)
                         if let time = item.time {
-                            Button { jump(to: time) } label: {
+                            Button { play(moment: time) } label: {
                                 CLSourceChip(label: item.label, systemImage: "waveform")
                             }
                             .buttonStyle(.plain)
-                            .accessibilityHint(Text("Shows that moment in the transcript"))
+                            .accessibilityHint(momentHint)
                         }
                     }
                     .padding(.horizontal, 16)
@@ -324,9 +340,7 @@ struct LectureNotesView: View {
                 ForEach(Array(shown.enumerated()), id: \.element.id) { index, segment in
                     let flagged = lecture.flags.contains { lecture.segment(at: $0.time)?.id == segment.id }
                     VStack(alignment: .leading, spacing: 5) {
-                        Text(CLFormat.timestamp(segment.start))
-                            .clFont(.number(12, .semibold))
-                            .foregroundStyle(CLColor.ink3)
+                        transcriptTime(segment.start)
                         Text(segment.text)
                             .clFont(.body)
                             .foregroundStyle(CLColor.ink)
@@ -357,8 +371,27 @@ struct LectureNotesView: View {
         }
     }
 
+    /// A transcript part's time: as small as a caption, as easy to hit as any button.
+    private func transcriptTime(_ seconds: Double) -> some View {
+        Button { play(moment: seconds) } label: {
+            Text(CLFormat.timestamp(seconds))
+                .clFont(.number(12, .semibold))
+                .foregroundStyle(CLColor.skyInk)
+                .frame(minWidth: CLMetrics.minHitTarget, minHeight: CLMetrics.minHitTarget, alignment: .leading)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .padding(.vertical, -14)
+        .accessibilityLabel(Text("At \(CLFormat.timestamp(seconds))"))
+        .accessibilityHint(momentHint)
+    }
+
+    private var momentHint: Text {
+        lecture?.track != nil ? Text("Plays from that moment") : Text("Shows that moment in the transcript")
+    }
+
     private func timeChip(_ seconds: Double) -> some View {
-        Button { jump(to: seconds) } label: {
+        Button { play(moment: seconds) } label: {
             Text(CLFormat.timestamp(seconds))
                 .clFont(.number(13, .bold))
                 .foregroundStyle(CLColor.skyInk)
@@ -370,7 +403,7 @@ struct LectureNotesView: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel(Text("At \(CLFormat.timestamp(seconds))"))
-        .accessibilityHint(Text("Shows that moment in the transcript"))
+        .accessibilityHint(momentHint)
     }
 
     // MARK: Words
@@ -383,13 +416,13 @@ struct LectureNotesView: View {
         }
     }
 
-    private func originText(_ origin: String) -> String {
+    private func originText(_ origin: String, hasAudio: Bool) -> String {
         let lead = switch ItemOrigin(rawValue: origin) {
         case .cloud: "Notes written by Cloud AI from your transcript."
         case .onDevice: "Notes written on your iPhone from your transcript."
         default: "Notes from the offline rules: sections, flagged moments and key terms from your transcript."
         }
-        return "\(lead) Tap a time to see that moment in the transcript."
+        return hasAudio ? "\(lead) Tap a time to hear that moment." : "\(lead) Tap a time to see that moment in the transcript."
     }
 
     // MARK: Actions
@@ -400,6 +433,7 @@ struct LectureNotesView: View {
             return
         }
         lecture = LectureNotesSnapshot(source: source, app: app)
+        if let track = lecture?.track { player.open(track) }
     }
 
     private func focusOnce() {
@@ -408,18 +442,46 @@ struct LectureNotesView: View {
         var time = focusTime
         #if DEBUG
         if time == nil, let hook = TestHarness.once("CRAMLESS_NOTES_FOCUS").flatMap(Double.init) { time = hook }
+        if let moment = TestHarness.once("CRAMLESS_LECTURE_PLAY").flatMap(Double.init) {
+            Task {
+                try? await nap(450)
+                play(moment: moment)
+            }
+            return
+        }
         #endif
         guard let time else { return }
         Task {
             try? await nap(450)
+            player.cue(at: time)
             jump(to: time)
         }
     }
 
+    /// A time was tapped: hear it, and see it in the transcript.
+    private func play(moment seconds: Double) {
+        if lecture?.track != nil {
+            player.play(fromMoment: seconds)
+            followsPlayback = true
+        }
+        jump(to: seconds)
+    }
+
+    /// The part being said changed: it's the one marked, and the page goes with it unless a finger has taken over.
+    private func follow(_ id: String?) {
+        guard player.isPlaying, let id, let segment = lecture?.segments.first(where: { $0.id == id }) else { return }
+        withAnimation(CLMotion.fade) {
+            focusedSegment = id
+            focusedTime = segment.start
+        }
+        guard followsPlayback, showsTranscript, let top = rowTops[id] else { return }
+        withAnimation(CLMotion.settle) { position.scrollTo(y: max(0, top - 160)) }
+    }
+
     /// Opens the transcript at that moment and marks it.
     private func jump(to seconds: Double) {
-        guard let lecture, let segment = lecture.segment(at: seconds) else { return }
         CLHaptics.select()
+        guard let lecture, let segment = lecture.segment(at: seconds) else { return }
         withAnimation(CLMotion.settle) {
             showsTranscript = true
             focusedSegment = segment.id
@@ -484,10 +546,13 @@ struct LectureNotesSnapshot: Equatable {
     /// There are no notes yet and the offline rules couldn't make good ones from this transcript (their section titles
     /// would be junk): only Cloud AI can (`LocalLectureNotes.make(qualityBar:)`).
     var offlineNotesThin = false
+    /// What the player plays: nil when the audio isn't on this iPhone.
+    var track: LecturePlayer.Track?
 
     @MainActor
     init(source: Source, app: AppModel) {
         title = source.title
+        track = app.lectureTrack(for: source)
         var parts: [String] = []
         if let course = source.course?.name { parts.append(course) }
         if let colon = source.title.firstIndex(of: ":") { parts.append(String(source.title[..<colon])) }

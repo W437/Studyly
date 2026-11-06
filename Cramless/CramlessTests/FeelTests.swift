@@ -101,6 +101,15 @@ final class FeelPolicyTests: XCTestCase {
     override func tearDown() async throws {
         AudioFocus.release(.speech)
         AudioFocus.release(.microphone)
+        AudioFocus.release(.playback)
+    }
+
+    func testALecturePlayingSilencesEffectsUntilItLetsGo() {
+        XCTAssertTrue(AudioFocus.allowsEffects)
+        AudioFocus.claim(.playback)
+        XCTAssertFalse(AudioFocus.allowsEffects)
+        AudioFocus.release(.playback)
+        XCTAssertTrue(AudioFocus.allowsEffects)
     }
 
     func testSpeechAndTheMicrophoneSilenceEffectsUntilTheyLetGo() {
