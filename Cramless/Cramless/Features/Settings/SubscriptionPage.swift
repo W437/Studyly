@@ -1,10 +1,10 @@
 import SwiftUI
 
 /// Settings ▸ Subscription: the plan and when it renews or ends, the App Store's own manage sheet (cancel in two
-/// taps), restore, the plans, and Exam Pass.
+/// taps), restore, the plans, Exam Pass (listed here at any time: a catalogue the person opened, unlike the offer elsewhere,
+/// which waits for 8 to 21 days before an exam), and what is always free.
 struct SubscriptionPage: View {
     @Environment(AppModel.self) private var app
-    @State private var restoring = false
 
     private var store: PurchaseStore { app.purchases }
 
@@ -36,19 +36,13 @@ struct SubscriptionPage: View {
                         app.router.present(.examPass(examID: app.upcomingExams().first?.id))
                     }
                 }
-                SettingsActionRow(icon: "arrow.clockwise", tint: .sky, title: "Restore purchases",
-                                  subtitle: "Bought Capling before, on this Apple Account?", busy: restoring) {
-                    restore()
-                }
+                RestorePurchasesRow()
             }
-            if e.plan == .free {
-                Text(StoreCatalog.freePlanLine)
-                    .clFont(.footnote)
-                    .foregroundStyle(CLColor.ink2)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.horizontal, 6)
-                    .padding(.top, 10)
-            }
+            AlwaysFreeCard()
+                .padding(.top, 24)
+            HelpLink()
+                .padding(.top, 6)
+                .padding(.horizontal, 6)
         }
         .task { await store.loadProducts() }
     }
@@ -112,25 +106,6 @@ struct SubscriptionPage: View {
     private func trialReminder(_ e: Entitlement) -> String? {
         guard e.isFreeTrial, let end = e.expiresAt, let when = store.reminderDate(forTrialEnding: end) else { return nil }
         return "We'll remind you on \(when.formatted(.dateTime.weekday(.wide).month(.abbreviated).day())), before you're charged."
-    }
-
-    private func restore() {
-        restoring = true
-        Task {
-            let outcome = await store.restore()
-            restoring = false
-            switch outcome {
-            case .restored(let plan):
-                CLHaptics.success()
-                app.router.toast("Restored. \(plan == .pass ? "Exam Pass" : "Capling \(plan.displayName)") is on.", systemImage: "sparkles")
-            case .nothingToRestore:
-                app.router.toast("Nothing to restore on this Apple Account.", systemImage: "info.circle", tone: .neutral)
-            case .cancelled:
-                break
-            case .failed:
-                app.router.toast("The App Store didn't answer. Try again in a moment.", systemImage: "exclamationmark.triangle.fill", tone: .warning)
-            }
-        }
     }
 }
 

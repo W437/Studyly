@@ -29,7 +29,7 @@ enum Route: Hashable, Sendable {
 }
 
 enum SettingsPage: String, Hashable, CaseIterable, Sendable, Identifiable {
-    case account, subscription, study, notifications, aiPrivacy, assistant, accessibility, appearance, data, about, debug
+    case account, subscription, study, notifications, aiPrivacy, assistant, accessibility, appearance, help, data, about, debug
     /// DEBUG builds: every sound and haptic, for auditioning and filming.
     case feelLab
     var id: String { rawValue }
@@ -117,6 +117,8 @@ enum AppSheet: Identifiable, Hashable, Sendable {
     case squadRedeem(code: String?)
     /// One badge up close.
     case badge(Badge)
+    /// Help: write to a real person, what is always free, restore.
+    case help
 
     var id: String { String(describing: self) }
 }

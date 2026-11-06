@@ -8,7 +8,7 @@ enum PaywallOutcome: Equatable, Sendable {
 }
 
 /// Set by a host that embeds the paywall (onboarding) instead of presenting it as a sheet. Without one, the
-/// paywall dismisses itself, and a decline within three weeks of an exam opens the Exam Pass offer.
+/// paywall dismisses itself, and a decline 8 to 21 days before the next exam opens the Exam Pass offer (`ExamPassOffer`).
 struct PaywallFinishAction {
     let handler: @MainActor (PaywallOutcome) -> Void
     @MainActor func callAsFunction(_ outcome: PaywallOutcome) { handler(outcome) }
@@ -79,7 +79,7 @@ extension View {
 
 struct PaywallBenefitRow: View {
     let symbol: String
-    let text: String
+    let text: LocalizedStringResource
 
     var body: some View {
         HStack(spacing: 12) {

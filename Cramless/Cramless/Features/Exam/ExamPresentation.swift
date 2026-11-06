@@ -140,14 +140,14 @@ enum ExamPresentation {
         }
     }
 
-    /// Free users within three weeks of an upcoming exam see the Exam Pass offer.
-    static func offersExamPass(plan: Plan, phase: Phase) -> Bool {
-        guard plan == .free else { return false }
-        switch phase {
-        case .ahead(let days): return days <= 21
-        case .eve, .today: return true
-        case .past: return false
+    /// The exam page offers Exam Pass when the offer's rule holds (`ExamPassOffer`: a free plan, the soonest upcoming exam 8 to 21
+    /// days away, so never in exam week, on the eve or the day) and this exam is itself in that window: a pass bought now covers
+    /// it. `examDates` are every upcoming exam's, this one's included.
+    static func offersExamPass(plan: Plan, examDate: Date, examDates: [Date], now: Date, calendar: Calendar) -> Bool {
+        guard ExamPassOffer.isEligible(plan: plan, examDates: examDates + [examDate], now: now, calendar: calendar) else {
+            return false
         }
+        return ExamPassOffer.isEligible(plan: plan, examDates: [examDate], now: now, calendar: calendar)
     }
 
     // MARK: What the questions cover

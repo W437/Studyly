@@ -52,8 +52,8 @@ final class OnboardingCoordinator {
     func skipIntro() { machine.skipIntro() }
     func showIntroPage(_ page: Int) { machine.showIntroPage(page) }
 
-    /// The onboarding paywall closed. A purchase finishes; a decline within three weeks of an exam gets the
-    /// Exam Pass offer first.
+    /// The onboarding paywall closed. A purchase finishes; a decline 8 to 21 days before the next exam gets the Exam Pass
+    /// offer first (`ExamPassOffer`).
     func paywallFinished(_ outcome: PaywallOutcome) {
         guard let app else { return advance() }
         switch outcome {
@@ -61,8 +61,8 @@ final class OnboardingCoordinator {
             advance()
         case .declined:
             declinedPaywall = true
-            let examDate = app.settings.nextExamDate ?? app.upcomingExams().first?.date
-            if ExamPassOffer.isEligible(plan: app.purchases.plan, examDate: examDate, now: app.now, calendar: app.calendar) {
+            let examDates = [app.settings.nextExamDate].compactMap { $0 } + app.upcomingExams().map(\.date)
+            if ExamPassOffer.isEligible(plan: app.purchases.plan, examDates: examDates, now: app.now, calendar: app.calendar) {
                 showsExamPass = true
             } else {
                 advance()

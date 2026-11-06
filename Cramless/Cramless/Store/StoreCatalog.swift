@@ -82,8 +82,10 @@ enum StoreCatalog {
     static let examPassDays = 30
     /// Squad: the owner plus three friends.
     static let squadSeats = 4
-    /// Exam Pass is offered to free users who decline the paywall this close to an exam.
+    /// Exam Pass is offered to free users only while the next exam is at most this many days away...
     static let examPassWindowDays = 21
+    /// ...and never this close to it: not in exam week, on the eve or on the day (a pass bought then is mostly unused).
+    static let examPassQuietDays = 7
     /// The trial reminder fires this many days before the trial ends ("Day 5" of a 7-day trial).
     static let trialReminderLeadDays = 2
 
@@ -93,8 +95,8 @@ enum StoreCatalog {
     static let termsURL: URL? = URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")
     static let privacyURL: URL? = URL(string: "https://loopware.app/privacy")
 
-    /// What the free plan keeps, as the paywall says it. The meters themselves live in the relay's quota.
-    static let freePlanLine = "Free includes unlimited flashcard reviews, 3 scans a week and 20 graded answers a day."
+    /// Where a person reaches a real person: Loopware's support page (live). Help opens it; no reply time is promised.
+    static let supportURL = URL(string: "https://loopware.app/support")!
 }
 
 /// A price as the paywall shows it: from the StoreKit product when it has loaded, else the labelled fallback.

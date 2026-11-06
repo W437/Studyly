@@ -223,6 +223,7 @@ struct SheetDestination: View {
         case .consent(let reason): ConsentSheet(reason: reason)
         case .squadRedeem(let code): SquadRedeemView(code: code)
         case .badge(let badge): BadgeSheet(badge: badge)
+        case .help: HelpSheet()
         }
     }
 }
