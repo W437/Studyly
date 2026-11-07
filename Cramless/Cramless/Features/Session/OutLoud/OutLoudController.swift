@@ -356,7 +356,10 @@ final class OutLoudController: Identifiable {
     }
 
     private func answerBlank(_ words: String, hearing: SpokenHearing, question: OutLoudQuestion, item: StudyItem) async -> Turn {
-        let grade = app.ai.instantGrade(app.gradeSubject(for: item), answer: .blanks([SpokenAnswer.bareAnswer(words)]))
+        let subject = app.gradeSubject(for: item)
+        var accepted = Array((subject.cloze?.answers ?? [subject.modelAnswer]).prefix(1))
+        accepted += subject.cloze?.alternates.first ?? []
+        let grade = app.ai.instantGrade(subject, answer: .blanks([SpokenAnswer.blankAnswer(words, accepted: accepted, question: subject.prompt)]))
         let ms = milliseconds(hearing)
         let review = record(rating: AppModel.rating(forScore: grade.score, kind: .cloze, durationMs: ms), score: grade.score, answer: nil,
                             gradedBy: grade.gradedBy.rawValue, durationMs: ms, outcome: SessionRunner.Outcome(grade.verdict))

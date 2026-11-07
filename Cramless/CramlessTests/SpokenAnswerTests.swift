@@ -165,7 +165,7 @@ final class SpokenVerdictTests: XCTestCase {
 
     func testPartlyNamesWhatWasHitAndMissedJoinedWithAnd() {
         let line = SpokenVerdict.ownWords(grade(.partial, hit: ["k1"], missing: ["k2", "k3"]), ideas: ideas, modelAnswer: "x")
-        XCTAssertEqual(line, "Almost. You got chromatids separate. You missed spindle fibres pull and moves to the poles.")
+        XCTAssertEqual(line, "Almost. You got: chromatids separate. Still missing: spindle fibres pull and moves to the poles.")
     }
 
     func testMoreThanTwoAreCounted() {
@@ -189,4 +189,112 @@ final class SpokenVerdictTests: XCTestCase {
         XCTAssertEqual(SpokenVerdict.summary(answered: 12, right: 9), "That's it. 9 of 12 right the first time.")
         XCTAssertEqual(SpokenVerdict.summary(answered: 0, right: 0), "Okay. We'll stop here.")
     }
+
+    // MARK: Other languages
+
+    private func choice(_ heard: String) -> SpokenAnswer.Reading { SpokenAnswer.read(heard, expecting: .choice(options: ["Prophase", "Metaphase", "Anaphase", "Telophase"])) }
+
+    func testLettersAndPlacesInTheStudyLanguages() {
+        let rows: [(String, Int)] = [
+            // Spanish
+            ("La b", 1), ("la B.", 1), ("Opción b", 1), ("La opción c", 2), ("La segunda", 1), ("La segunda opción", 1), ("El primero", 0), ("Creo que es la b", 1), ("Creo que la d", 3),
+            ("La respuesta es la c", 2), ("Número dos", 1), ("la última", 3), ("La tercera", 2), ("La cuarta", 3), ("Letra a", 0), ("Be", 1), ("Ce", 2),
+            // German
+            ("Antwort b", 1), ("Die zweite", 1), ("Die erste Antwort", 0), ("Ich glaube b", 1), ("Ich denke c", 2), ("Ich glaube es ist die dritte", 2), ("Buchstabe d", 3), ("Nummer zwei", 1), ("Die letzte", 3),
+            ("Die vierte", 3), ("Die Antwort ist a", 0),
+            // Japanese, Chinese, Korean
+            ("2番", 1), ("２番", 1), ("二番目", 1), ("一番目", 0), ("3番目", 2), ("2つ目", 1), ("Bです", 1), ("Ｂです", 1), ("Cだと思います", 2), ("答えはD", 3), ("たぶんA", 0), ("最後", 3),
+            ("第二个", 1), ("选B", 1), ("答案是C", 2), ("2번", 1), ("두 번째", 1), ("B요", 1),
+            // French, Italian, Portuguese
+            ("La deuxième", 1), ("Je pense que c'est la b", 1), ("La terza", 2), ("Acho que a segunda", 1),
+        ]
+        for (heard, place) in rows { XCTAssertEqual(choice(heard), .choice(place), heard) }
+    }
+
+    func testAnOptionsWordsInsideASentenceInTheStudyLanguages() {
+        let spanish = ["Expectativas de inflación", "Déficit fiscal", "Política monetaria", "La Niña"]
+        for (heard, place) in [("Creo que es déficit fiscal", 1), ("política monetaria", 2), ("La Niña", 3), ("creo que es la niña", 3)] {
+            XCTAssertEqual(SpokenAnswer.read(heard, expecting: .choice(options: spanish)), .choice(place), heard)
+        }
+        let german = ["Die Inflation", "Der Zinssatz", "Das Angebot", "Die Nachfrage"]
+        for (heard, place) in [("Ich glaube die Nachfrage", 3), ("der zinssatz", 1), ("Das Angebot", 2)] {
+            XCTAssertEqual(SpokenAnswer.read(heard, expecting: .choice(options: german)), .choice(place), heard)
+        }
+        let japanese = ["光合成", "呼吸", "蒸散", "発酵"]
+        for (heard, place) in [("光合成です", 0), ("呼吸", 1), ("たぶん蒸散", 2), ("発酵だと思います", 3)] {
+            XCTAssertEqual(SpokenAnswer.read(heard, expecting: .choice(options: japanese)), .choice(place), heard)
+        }
+    }
+
+    func testWhatLooksLikeAnOpenerStaysPartOfAnAnswerThatNeedsIt() {
+        XCTAssertEqual(SpokenAnswer.read("la", expecting: .choice(options: ["La", "Si", "Do", "Re"])), .choice(0))
+        XCTAssertEqual(SpokenAnswer.read("die", expecting: .words), .words("die"))
+    }
+
+    func testAnOptionNamedALetterIsAskedAgainWhenItCouldBeEither() {
+        let records = SpokenAnswer.Expecting.choice(options: ["PTR", "A", "NS", "MX"])
+        XCTAssertEqual(SpokenAnswer.read("A", expecting: records), .words("A"), "the first, or the one called A")
+        XCTAssertEqual(SpokenAnswer.read("I think it's A", expecting: records), .words("I think it's A"))
+        XCTAssertEqual(SpokenAnswer.read("B", expecting: records), .choice(1), "the letter of the second")
+        XCTAssertEqual(SpokenAnswer.read("MX", expecting: records), .choice(3))
+        XCTAssertEqual(SpokenAnswer.read("A", expecting: .choice(options: ["A", "PTR", "NS", "MX"])), .choice(0), "both mean the first")
+    }
+
+    func testTheStartOfTwoOptionsIsNeither() {
+        let options = ["Government of the people", "Government of the states", "The courts", "The king"]
+        XCTAssertEqual(SpokenAnswer.read("Government of the", expecting: .choice(options: options)), .words("Government of the"))
+        XCTAssertEqual(SpokenAnswer.read("Government of the states", expecting: .choice(options: options)), .choice(1))
+        let long = ["Its soil gaps contain both air and water", "Its soil gaps are completely filled with water", "Soil moisture is frozen water stored below", "Glaciers are liquid freshwater"]
+        XCTAssertEqual(SpokenAnswer.read("I think it's its soil gaps are completely filled with water", expecting: .choice(options: long)), .choice(1), "an opener that's the option's own first word")
+        XCTAssertEqual(SpokenAnswer.read("Soil moisture is", expecting: .choice(options: long)), .choice(2), "the start of one option")
+        XCTAssertEqual(SpokenAnswer.read("Its soil gaps", expecting: .choice(options: long)), .words("Its soil gaps"))
+    }
+
+    // MARK: A fill-in inside a sentence
+
+    func testARightFillInInsideASentenceCounts() {
+        let rows: [(heard: String, accepted: [String], question: String)] = [
+            ("creo que es expectativas de inflación", ["expectativas de inflación"], ""),
+            ("Creo que es 50 % mensual", ["50 % mensual"], ""),
+            ("creo que es P × Q", ["P × Q"], ""),
+            ("La respuesta es inflación autoconstruida", ["inflación autoconstruida"], ""),
+            ("Pues creo que son las reservas mínimas", ["reservas mínimas"], "Los bancos deben guardar ___."),
+            ("ich glaube Verdunstung", ["Verdunstung"], ""),
+            ("Ich denke, die Antwort ist Verdunstung", ["Verdunstung"], ""),
+            ("光合成です", ["光合成"], ""),
+            ("たぶん光合成だと思います", ["光合成"], ""),
+            ("I think it's anaphase", ["anaphase"], ""),
+            ("The answer to this one is anaphase", ["anaphase"], "The chromatids separate in ___."),
+            ("It's mitosis because the cell divides in two", ["mitosis"], ""),
+            ("It's not meiosis, it's mitosis", ["mitosis"], ""),
+            ("Meiosis, no wait, mitosis", ["mitosis"], ""),
+            ("The chromatids separate in anaphase", ["anaphase"], "The chromatids separate in ___."),
+            ("La Niña", ["La Niña"], ""),
+            ("Es la Niña", ["La Niña"], ""),
+        ]
+        for row in rows {
+            let said = SpokenAnswer.blankAnswer(row.heard, accepted: row.accepted, question: row.question)
+            XCTAssertNotEqual(LocalGrader.exactMatch(said, accepted: row.accepted), .wrong, "\(row.heard) read as \(said)")
+        }
+    }
+
+    func testAWrongAnswerInTheSameSentenceDoesntCount() {
+        let rows: [(heard: String, accepted: [String])] = [
+            ("mitosis or meiosis", ["mitosis"]),
+            ("meiosis or mitosis", ["mitosis"]),
+            ("mitosis oder meiose", ["mitosis"]),
+            ("mitosis o meiosis", ["meiosis"]),
+            ("It's not mitosis", ["mitosis"]),
+            ("nicht Mitose", ["Mitose"]),
+            ("I think it's the nucleus of the cell", ["cell"]),
+            ("Mitosis, no wait, meiosis", ["mitosis"]),
+            ("creo que es déficit de inflación", ["inflación"]),
+            ("meiosis", ["mitosis"]),
+        ]
+        for row in rows {
+            let said = SpokenAnswer.blankAnswer(row.heard, accepted: row.accepted)
+            XCTAssertEqual(LocalGrader.exactMatch(said, accepted: row.accepted), .wrong, "\(row.heard) read as \(said)")
+        }
+    }
+
 }

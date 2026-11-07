@@ -18,8 +18,8 @@ enum SpokenVerdict {
             let hit = ideas.filter { grade.hitIdeaIDs.contains($0.id) }.map(\.label)
             let missed = grade.missing.map(\.label)
             var parts = [String(localized: "Almost.")]
-            if !hit.isEmpty { parts.append(String(localized: "You got \(named(hit)).")) }
-            if !missed.isEmpty { parts.append(String(localized: "You missed \(named(missed)).")) }
+            if !hit.isEmpty { parts.append(String(localized: "You got: \(named(hit)).")) }
+            if !missed.isEmpty { parts.append(String(localized: "Still missing: \(named(missed)).")) }
             return parts.joined(separator: " ")
         case .incorrect:
             return String(localized: "Not yet. Here's the answer: \(sentence(modelAnswer))")
