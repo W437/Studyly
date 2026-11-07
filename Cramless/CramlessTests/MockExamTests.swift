@@ -4,22 +4,6 @@ import XCTest
 
 /// The mock exam's engine: what it asks, in what order, how long it runs, and the fair score it is compared with.
 final class MockExamTests: XCTestCase {
-    /// The review notes rely on these numbers: the sample page alone is two questions short of a mock, and the card says what to do next. A mock of six,
-    /// with a score to compare to Cap's prediction, wouldn't be honest about what it rests on, so the minimum stays.
-    @MainActor
-    func testASampleOnlyStudentIsToldWhatToDoNext() throws {
-        let cal = EngineTest.calendar()
-        let app = try StudyTestApp.make(clock: TestClock(EngineTest.date(2026, 11, 6, 14, in: cal)), calendar: cal)
-        app.debugPrepareOnboardingWorld(answered: false)
-        let course = try XCTUnwrap(app.courses.first)
-        let exam = try XCTUnwrap(app.ensureOnboardingExam(courseID: course.id))
-        guard case .tooFew(let have) = app.mockOffer(for: exam) else { return XCTFail("the sample alone is too few") }
-        XCTAssertEqual(have, 6)
-        XCTAssertEqual(MockExamBuilder.minimum(for: exam.format), 8)
-        XCTAssertEqual(MockCopy.tooFew(have: have, format: exam.format),
-                       "This exam is multiple choice and short answer. A mock needs 8 of those, and you have 6. Add a page or paste your notes, and Cap writes more.")
-    }
-
     let cal = EngineTest.calendar()
     lazy var now = EngineTest.date(2026, 10, 22, 18, in: cal)
     let course = UUID()
@@ -59,6 +43,16 @@ final class MockExamTests: XCTestCase {
         XCTAssertEqual(MockExamBuilder.kinds(for: ExamFormat(multipleChoice: false, shortAnswer: false, essay: true)), [.apply])
         XCTAssertEqual(MockExamBuilder.kinds(for: ExamFormat(multipleChoice: false, shortAnswer: false)), [.mcq, .recall, .cloze, .apply],
                        "nothing ticked asks all four")
+    }
+
+    /// What the sample page gives with Cloud AI off, and the review notes rely on: 8 questions, 6 of them of a mock's kinds. That's two short, and the words say what to do
+    /// next. A mock of six, with a score to hold against Cap's prediction, wouldn't say much, so the minimum stays.
+    func testASampleOnlyStudentIsTwoShortAndToldWhatToDoNext() {
+        let pool = items(3, .mcq) + items(2, .recall) + items(1, .cloze) + items(2, .flashcard)
+        XCTAssertEqual(MockExamBuilder.eligible(pool, exam: exam()).count, 6)
+        XCTAssertNil(builder.build(exam: exam(), items: pool, seed: 1))
+        XCTAssertEqual(MockCopy.tooFew(have: 6, format: ExamFormat()),
+                       "This exam is multiple choice and short answer. A mock needs 8 of those, and you have 6. Add a page or paste your notes, and Cap writes more.")
     }
 
     func testFlashcardsDiagramsAndSuspendedQuestionsStayOut() throws {
