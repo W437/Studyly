@@ -69,3 +69,5 @@ bin/
 
 # Supabase config (contains secrets)
 lib/app/config/supabase_config.dart
+# Playwright MCP scratch output (screenshots and page dumps)
+.playwright-mcp/
