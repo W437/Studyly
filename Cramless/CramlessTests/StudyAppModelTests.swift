@@ -485,7 +485,24 @@ final class StudyAppModelTests: XCTestCase {
         app.context.insert(exam)
         course.exams.append(exam)
         app.save()
+        // A quarter or more studied, or Today doesn't offer it.
+        for item in course.items.prefix(max(1, count / 3)) { app.recordReview(itemID: item.id, rating: .good, score: 1, answer: "Right", gradedBy: "rules") }
         return exam
+    }
+
+    func testNoMockCardWithNothingStudied() {
+        let course = makeCourse()
+        for index in 0..<12 {
+            let item = StudyItem(course: course, kind: .mcq, status: .active, origin: .person, prompt: "A question that has number \(index) in it", answer: "A long answer",
+                                 choices: [Choice(text: "Right \(index)", correct: true), Choice(text: "Wrong \(index)", correct: false)], now: clock.now)
+            app.context.insert(item)
+            course.items.append(item)
+        }
+        let exam = Exam(course: course, title: "Bio 101 Midterm", date: cal.adding(days: 5, to: clock.now), now: clock.now)
+        app.context.insert(exam)
+        course.exams.append(exam)
+        app.save()
+        XCTAssertFalse(app.noticeDeck().contains { $0.kind == .mockOffer })
     }
 
     func testTakeItOpensTheMockAndTheCardStaysAway() throws {

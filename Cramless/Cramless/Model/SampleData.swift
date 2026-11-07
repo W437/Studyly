@@ -142,7 +142,9 @@ enum SampleData {
         if let a = byFixtureID["i4"], let b = byFixtureID["i11"], let fixes = try? RelayFixtures.load(ConfusionsResponse.self, "confusions"),
            let first = fixes.confusions.first {
             var fixIDs: [UUID] = []
-            for g in first.questions {
+            // The relay sends them with no anchors, and the app finds their lines (`AIRouter.confusions`).
+            let lines = Dictionary((pageModel?.lines ?? []).map { ($0.id, $0.text) }, uniquingKeysWith: { a, _ in a })
+            for g in GroundingCheck.groundedByWords(first.questions, texts: lines, facts: []) {
                 let item = ItemFactory.makeItem(from: g, course: bio, topicID: topics[g.topic]?.id, source: page, page: pageModel,
                                                 origin: .cloud, status: .active, now: day(-2))
                 context.insert(item)

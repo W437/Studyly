@@ -22,8 +22,12 @@ final class AITransportTests: XCTestCase {
         XCTAssertEqual(generated.title, "Mitosis")
         let checked = try await mock.check(CheckRequest(pages: generateRequest.pages, items: generated.items))
         XCTAssertEqual(checked.verdicts.count, 16)
-        let confusions = try await mock.confusions(ConfusionsRequest(course: "Bio 101", mistakes: []))
+        let twoMistakes = [MistakeInput(itemId: "a", topic: "T", prompt: "P", expected: "A", given: "B", misses: 2),
+                           MistakeInput(itemId: "b", topic: "T", prompt: "Q", expected: "B", given: "A", misses: 2)]
+        let confusions = try await mock.confusions(ConfusionsRequest(course: "Bio 101", mistakes: twoMistakes))
         XCTAssertEqual(confusions.confusions.first?.name, "Anaphase vs telophase")
+        let slip = try await mock.confusions(ConfusionsRequest(course: "Bio 101", mistakes: [twoMistakes[0]]))
+        XCTAssertTrue(slip.confusions.isEmpty, "one slip is no pattern, as the real prompt says")
         let lecture = try await mock.lecture(LectureRequest(course: "Bio 101", title: "Lecture 6", segments: [], flags: [], maxItems: 8))
         XCTAssertEqual(lecture.items.count, 3)
         let cards = try await mock.cardsFromChat(CardsFromChatRequest(course: nil, messages: [], maxItems: 6))
