@@ -66,7 +66,20 @@ final class StoreReminderAndOfferTests: XCTestCase {
     // MARK: Exam Pass offer
 
     private func offered(_ exams: [Date], plan: Plan = .free, now: Date) -> Bool {
-        ExamPassOffer.isEligible(plan: plan, examDates: exams, now: now, calendar: calendar)
+        ExamPassOffer.isEligible(plan: plan, canBuyPro: true, examDates: exams, now: now, calendar: calendar)
+    }
+
+    func testAnAccountUnder13IsNeverOfferedExamPass() {
+        let now = date(2026, 10, 22, 9)
+        XCTAssertFalse(ExamPassOffer.isEligible(plan: .free, canBuyPro: false, examDates: [date(2026, 10, 30, 9)], now: now, calendar: calendar))
+        var settings = AppSettings()
+        XCTAssertTrue(settings.canBuyPro)
+        settings.ageBand = .teen
+        XCTAssertTrue(settings.canBuyPro, "13 to 17 can buy: Cloud AI runs for them, with consent")
+        settings.ageBand = .notShared
+        XCTAssertTrue(settings.canBuyPro)
+        settings.ageBand = .under13
+        XCTAssertFalse(settings.canBuyPro)
     }
 
     func testExamPassIsOfferedOnlyEightToTwentyOneDaysBeforeTheNextExam() {

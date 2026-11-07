@@ -121,7 +121,7 @@ final class PaywallCopyTests: XCTestCase {
     func testProIsTheAIWorkAndNothingTheFreePlanHas() {
         XCTAssertEqual(words(PaywallCopy.benefits(isMinor: false)), [
             "AI scans, PDFs and lecture notes, no weekly limit",
-            "Every answer graded by Cloud AI",
+            "Answers in your own words graded by Cloud AI",
             "Cap's answers and drafts, no daily limit",
             "Web research from trusted sites",
         ])
@@ -131,6 +131,32 @@ final class PaywallCopyTests: XCTestCase {
             XCTAssertFalse(everything.contains(promise), "Pro doesn't sell \(promise)")
         }
         XCTAssertEqual(Set(PaywallCopy.benefits(isMinor: false).map(\.id)).count, 4, "each row has its own symbol")
+    }
+
+    /// Multiple choice and fill-ins never go to Cloud AI, so "every answer" wouldn't be true.
+    func testTheGradingRowSaysWhichAnswersCloudAIGrades() {
+        let rows = words(PaywallCopy.benefits(isMinor: false))
+        XCTAssertTrue(rows.contains("Answers in your own words graded by Cloud AI"), "\(rows)")
+        XCTAssertFalse(rows.contains { $0.localizedCaseInsensitiveContains("every answer") })
+    }
+
+    /// Pro is Cloud AI's work: until it's on, Pro does nothing, and the paywall and the purchased screen say so.
+    func testProSaysWhatItNeeds() throws {
+        func caveat(canBuyPro: Bool = true, available: Bool = true, allowed: Bool) -> String? {
+            PaywallCopy.proCaveat(canBuyPro: canBuyPro, cloudAvailable: available, cloudAllowed: allowed).map { String(localized: $0) }
+        }
+        XCTAssertEqual(caveat(allowed: false), "Pro works once you turn on Cloud AI in Settings.")
+        XCTAssertNil(caveat(allowed: true), "nothing in its way")
+        XCTAssertNil(caveat(available: false, allowed: false), "a build with no relay has no switch to turn on")
+        XCTAssertEqual(caveat(canBuyPro: false, allowed: true), "Cloud AI isn't available for accounts under 13, so Pro has nothing to do here.")
+    }
+
+    /// An account under 13 keeps everything that's free and has no AI allowance to keep.
+    func testAnAccountUnder13KeepsTheFreeRowsWithoutTheAllowance() {
+        let free = words(PaywallCopy.alwaysFree(canBuyPro: false))
+        XCTAssertEqual(free.count, PaywallCopy.alwaysFree.count - 1)
+        XCTAssertFalse(free.contains { $0.contains("AI") })
+        XCTAssertEqual(words(PaywallCopy.alwaysFree(canBuyPro: true)), words(PaywallCopy.alwaysFree))
     }
 
     func testAnAccountUnder18IsNeverSoldWebResearch() {

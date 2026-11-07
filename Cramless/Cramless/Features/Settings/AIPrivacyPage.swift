@@ -1,15 +1,18 @@
+import DeclaredAgeRange
 import SwiftUI
 
 /// Settings ▸ AI and privacy: the switches (Cloud AI, through the consent sheet; page photos, its own switch; hints
 /// first), what this iPhone can do by itself, the free limits, what is sent and to whom (notes never train models),
 /// and deleting the AI data the server keeps.
 ///
-/// Harness: `CRAMLESS_CONSENT=0` shows Cloud AI off; `CRAMLESS_AGE=teen|under13` an account under 18 or under 13.
+/// Harness: `CRAMLESS_CONSENT=0` shows Cloud AI off; `CRAMLESS_AGE=teen|under13|notShared` an account under 18, under 13, or one iOS gave no range for.
 struct AIPrivacyPage: View {
     @Environment(AppModel.self) private var app
     @State private var quota: QuotaStatus?
     @State private var confirmingDelete = false
     @State private var deleting = false
+    @State private var sharingAge = false
+    @Environment(\.requestAgeRange) private var requestAgeRange
 
     private var ai: AIRouter { app.ai }
     private var isChild: Bool { app.settings.ageBand == .under13 }
@@ -43,6 +46,17 @@ struct AIPrivacyPage: View {
                     hintOn: "Cap asks a question before it explains.",
                     hintOff: "Cap explains straight away.",
                     disabledReason: s.isMinor ? "Always on for accounts under 18, so Cap helps you work it out." : nil)
+                // iOS gave no range and the person gave no level that vouches for an adult. They may be one: this is their way to say so.
+                if s.ageBand == .notShared {
+                    SettingsActionRow(icon: "person.crop.circle.badge.checkmark", tint: .sky, title: "Share your age range",
+                                      subtitle: "Capling doesn't know your age, so it keeps to the rules for under 18.", busy: sharingAge) {
+                        sharingAge = true
+                        Task {
+                            await AgeRange.refresh(app: app, using: requestAgeRange)
+                            sharingAge = false
+                        }
+                    }
+                }
             }
 
             CLSectionHeader(title: "On this iPhone")

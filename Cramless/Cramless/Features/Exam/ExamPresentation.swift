@@ -130,11 +130,11 @@ enum ExamPresentation {
     /// The exam page offers Exam Pass when the offer's rule holds (`ExamPassOffer`: a free plan, the soonest upcoming exam 8 to 21
     /// days away, so never in exam week, on the eve or the day) and this exam is itself in that window: a pass bought now covers
     /// it. `examDates` are every upcoming exam's, this one's included.
-    static func offersExamPass(plan: Plan, examDate: Date, examDates: [Date], now: Date, calendar: Calendar) -> Bool {
-        guard ExamPassOffer.isEligible(plan: plan, examDates: examDates + [examDate], now: now, calendar: calendar) else {
+    static func offersExamPass(plan: Plan, canBuyPro: Bool, examDate: Date, examDates: [Date], now: Date, calendar: Calendar) -> Bool {
+        guard ExamPassOffer.isEligible(plan: plan, canBuyPro: canBuyPro, examDates: examDates + [examDate], now: now, calendar: calendar) else {
             return false
         }
-        return ExamPassOffer.isEligible(plan: plan, examDates: [examDate], now: now, calendar: calendar)
+        return ExamPassOffer.isEligible(plan: plan, canBuyPro: canBuyPro, examDates: [examDate], now: now, calendar: calendar)
     }
 
     // MARK: The mock exam

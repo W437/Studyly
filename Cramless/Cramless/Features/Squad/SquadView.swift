@@ -53,7 +53,15 @@ struct SquadView: View {
                 switch role {
                 case .owner: owner
                 case .member: member
-                case .none: pitch
+                case .none:
+                    if app.settings.canBuyPro {
+                        pitch
+                    } else {
+                        SettingsInfoCard(icon: "person.3.fill", tint: .mint, title: "Squad isn't available for accounts under 13",
+                                         text: "A Squad shares Pro, and Pro is Cloud AI's work, which isn't available for accounts under 13.")
+                            .clCard(padding: 0)
+                            .padding(.top, 10)
+                    }
                 }
             }
             .padding(.horizontal, CLSpace.gutter)

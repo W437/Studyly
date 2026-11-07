@@ -1,5 +1,21 @@
 import SwiftUI
 
+/// The sheet a code or a friend's link opens. A Squad seat is Pro, which an account under 13 can't use.
+struct SquadRedeemSheet: View {
+    let code: String?
+
+    @Environment(AppModel.self) private var app
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        if app.settings.canBuyPro {
+            SquadRedeemView(code: code)
+        } else {
+            NoPurchaseView(onPrimary: { dismiss() })
+        }
+    }
+}
+
 /// Joining a friend's Squad with their code (typed, or from a `capling.app/squad/<code>` link). It needs an account,
 /// and says why: the seat belongs to the account, so it follows the person to a new iPhone. On success a toast says
 /// whose Squad it is and the plan refreshes.

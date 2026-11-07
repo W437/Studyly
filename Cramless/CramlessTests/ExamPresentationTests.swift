@@ -102,7 +102,7 @@ final class ExamPresentationTests: XCTestCase {
 
     func testExamPassOnlyForFreeUsersEightToTwentyOneDaysOut() {
         func offers(_ days: Int, plan: Plan = .free, others: [Int] = []) -> Bool {
-            ExamPresentation.offersExamPass(plan: plan, examDate: day(days, hour: 9),
+            ExamPresentation.offersExamPass(plan: plan, canBuyPro: true, examDate: day(days, hour: 9),
                                             examDates: others.map { day($0, hour: 9) }, now: now, calendar: cal)
         }
         XCTAssertTrue(offers(21))
@@ -110,6 +110,8 @@ final class ExamPresentationTests: XCTestCase {
         XCTAssertFalse(offers(22), "too early")
         XCTAssertFalse(offers(7), "exam week")
         XCTAssertFalse(offers(1), "the eve")
+        XCTAssertFalse(ExamPresentation.offersExamPass(plan: .free, canBuyPro: false, examDate: day(10, hour: 9), examDates: [], now: now, calendar: cal),
+                       "an account under 13 is sold nothing")
         XCTAssertFalse(offers(0), "the day")
         XCTAssertFalse(offers(-2), "past")
         XCTAssertFalse(offers(15, plan: .pro))
@@ -505,9 +507,9 @@ final class ExamPresentationTests: XCTestCase {
         XCTAssertNil(ExamPresentation.mockCard(offer: .hidden, format: ExamFormat(), lastScore: nil, lastDate: nil, canWrite: true, calendar: cal), "the eve, the day, after")
 
         let few = ExamPresentation.mockCard(offer: .tooFew(have: 3), format: ExamFormat(multipleChoice: true, shortAnswer: false), lastScore: nil, lastDate: nil, canWrite: true, calendar: cal)
-        XCTAssertEqual(few?.kind, .tooFew(line: "This exam is multiple choice. A mock needs 8 of those, and you have 3.", canWrite: true))
+        XCTAssertEqual(few?.kind, .tooFew(line: "This exam is multiple choice. A mock needs 8 of those, and you have 3. Add a page or paste your notes, and Cap writes more.", canWrite: true))
         let cantWrite = ExamPresentation.mockCard(offer: .tooFew(have: 0), format: ExamFormat(multipleChoice: true, shortAnswer: false), lastScore: nil, lastDate: nil, canWrite: false, calendar: cal)
-        XCTAssertEqual(cantWrite?.kind, .tooFew(line: "This exam is multiple choice. A mock needs 8 of those, and you have 0.", canWrite: false))
+        XCTAssertEqual(cantWrite?.kind, .tooFew(line: "This exam is multiple choice. A mock needs 8 of those, and you have 0. Add a page or paste your notes, and Cap writes more.", canWrite: false))
 
         let entries = (0..<8).map { i in SessionEntry(itemID: UUID(), reason: .new, kind: i < 6 ? .mcq : .recall, estimatedSeconds: 60) }
         let plan = MockPlan(examID: UUID(), courseID: nil, entries: entries, minutes: 15, expectedByItem: [:])

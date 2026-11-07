@@ -4,6 +4,22 @@ import XCTest
 
 /// The mock exam's engine: what it asks, in what order, how long it runs, and the fair score it is compared with.
 final class MockExamTests: XCTestCase {
+    /// The review notes rely on these numbers: the sample page alone is two questions short of a mock, and the card says what to do next. A mock of six,
+    /// with a score to compare to Cap's prediction, wouldn't be honest about what it rests on, so the minimum stays.
+    @MainActor
+    func testASampleOnlyStudentIsToldWhatToDoNext() throws {
+        let cal = EngineTest.calendar()
+        let app = try StudyTestApp.make(clock: TestClock(EngineTest.date(2026, 11, 6, 14, in: cal)), calendar: cal)
+        app.debugPrepareOnboardingWorld(answered: false)
+        let course = try XCTUnwrap(app.courses.first)
+        let exam = try XCTUnwrap(app.ensureOnboardingExam(courseID: course.id))
+        guard case .tooFew(let have) = app.mockOffer(for: exam) else { return XCTFail("the sample alone is too few") }
+        XCTAssertEqual(have, 6)
+        XCTAssertEqual(MockExamBuilder.minimum(for: exam.format), 8)
+        XCTAssertEqual(MockCopy.tooFew(have: have, format: exam.format),
+                       "This exam is multiple choice and short answer. A mock needs 8 of those, and you have 6. Add a page or paste your notes, and Cap writes more.")
+    }
+
     let cal = EngineTest.calendar()
     lazy var now = EngineTest.date(2026, 10, 22, 18, in: cal)
     let course = UUID()
@@ -355,7 +371,7 @@ final class MockExamTests: XCTestCase {
         var both = essays
         both.multipleChoice = true
         XCTAssertEqual(MockExamBuilder.minimum(for: both), MockExamBuilder.minimumQuestions, "a mixed exam isn't essay-only")
-        XCTAssertEqual(MockCopy.tooFew(have: 1, format: essays), "This exam is essay questions. A mock needs 2 of those, and you have 1.")
+        XCTAssertEqual(MockCopy.tooFew(have: 1, format: essays), "This exam is essay questions. A mock needs 2 of those, and you have 1. Add a page or paste your notes, and Cap writes more.")
         XCTAssertTrue(MockSuggestion.isDue(daysLeft: 5, eligible: 2, studied: 1, minimum: MockExamBuilder.minimum(for: essays), lastMockAt: nil, now: now, calendar: cal))
     }
 
@@ -383,15 +399,15 @@ final class MockExamTests: XCTestCase {
     func testTheWordsReadRight() {
         XCTAssertEqual(MockCopy.cardLine(questions: 20, minutes: 25), "20 questions like the real one · 25 min")
         XCTAssertEqual(MockCopy.tooFew(have: 2, format: ExamFormat(multipleChoice: true, shortAnswer: false)),
-                       "This exam is multiple choice. A mock needs 8 of those, and you have 2.")
+                       "This exam is multiple choice. A mock needs 8 of those, and you have 2. Add a page or paste your notes, and Cap writes more.")
         XCTAssertEqual(MockCopy.tooFew(have: 3, format: ExamFormat(multipleChoice: false, shortAnswer: true)),
-                       "This exam is short answer. A mock needs 8 of those, and you have 3.")
+                       "This exam is short answer. A mock needs 8 of those, and you have 3. Add a page or paste your notes, and Cap writes more.")
         XCTAssertEqual(MockCopy.tooFew(have: 0, format: ExamFormat(multipleChoice: false, shortAnswer: false, essay: true)),
-                       "This exam is essay questions. A mock needs 2 of those, and you have 0.")
+                       "This exam is essay questions. A mock needs 2 of those, and you have 0. Add a page or paste your notes, and Cap writes more.")
         XCTAssertEqual(MockCopy.tooFew(have: 5, format: ExamFormat(multipleChoice: true, shortAnswer: true)),
-                       "This exam is multiple choice and short answer. A mock needs 8 of those, and you have 5.")
+                       "This exam is multiple choice and short answer. A mock needs 8 of those, and you have 5. Add a page or paste your notes, and Cap writes more.")
         XCTAssertEqual(MockCopy.tooFew(have: 1, format: ExamFormat(multipleChoice: false, shortAnswer: false)),
-                       "A mock needs 8 multiple-choice or written questions, and you have 1.")
+                       "A mock needs 8 multiple-choice or written questions, and you have 1. Add a page or paste your notes, and Cap writes more.")
         XCTAssertEqual(MockCopy.verdictLine(.asExpected), "Right where Cap expected.")
         XCTAssertEqual(MockCopy.verdictLine(.better), "Better than Cap expected.")
         XCTAssertEqual(MockCopy.scored(0.72), "You scored 72%.")

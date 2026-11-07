@@ -2378,6 +2378,7 @@
     "95%" : {},
     "A 2-minute fix is ready." : {},
     "A Squad seat belongs to an account, so codes can't be used here." : {},
+    "A Squad shares Pro, and Pro is Cloud AI's work, which isn't available for accounts under 13." : {},
     "A blanket full of stars." : {},
     "A code works once, for one friend. Share it as a link, or read it out." : {},
     "A cozy end to a good day." : {},
@@ -2399,12 +2400,12 @@
     "A little every day. Ready on exam day." : {},
     "A little polish, and it shines." : {},
     "A mock exam for your %@" : {},
-    "A mock needs %lld multiple-choice or written questions, and you have %lld." : {
+    "A mock needs %lld multiple-choice or written questions, and you have %lld. Add a page or paste your notes, and Cap writes more." : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "A mock needs %1$lld multiple-choice or written questions, and you have %2$lld."
+            "value" : "A mock needs %1$lld multiple-choice or written questions, and you have %2$lld. Add a page or paste your notes, and Cap writes more."
           }
         }
       }
@@ -2789,6 +2790,7 @@
         }
       }
     },
+    "Answers in your own words graded by Cloud AI" : {},
     "Answers you type or say when they're graded, and what you tell Cap in Teach Cap (the words, never your voice). The questions you mix up or that look alike, with your answers, when you ask Cap about them. A question you say looks wrong, with the lines it came from and anything you wrote. In the two days before an exam, your shakiest questions and their lines go by themselves when you open Capling, so Cap can put them in plain words for your last look." : {},
     "App icon" : {},
     "Appearance" : {},
@@ -3191,6 +3193,8 @@
     "Cap's tools need it. Everything still works on this iPhone without them." : {},
     "Cap, your tutor" : {},
     "Capling" : {},
+    "Capling doesn't know your age, so it keeps to the rules for under 18." : {},
+    "Capling is free for you" : {},
     "Capling now projects your grades from your readiness." : {},
     "Capling puts it beside how ready you were on the day, to learn how your readiness turns into grades." : {},
     "Capling sends two notifications a day at most, counting exam countdowns, and none during quiet hours." : {},
@@ -3261,6 +3265,7 @@
     "Cloud AI is off, so you mark this one." : {},
     "Cloud AI is off. Nothing more goes to it." : {},
     "Cloud AI is on" : {},
+    "Cloud AI isn't available for accounts under 13, so Pro has nothing to do here." : {},
     "Cloud AI isn't available for accounts under 13. Questions, grades and Cap's answers come from your iPhone." : {},
     "Code from the email" : {},
     "Code: %@" : {},
@@ -3390,7 +3395,6 @@
     "Even brains need breaks." : {},
     "Even the dim ones are yours." : {},
     "Every Pro feature, on %@'s plan. Your studying, notes and progress are your own." : {},
-    "Every answer graded by Cloud AI" : {},
     "Every box has a label. Tap a box to change it." : {},
     "Every control is labelled; Cap's answers are read with their sources." : {},
     "Every course, card, review, lecture, exam and chat on this iPhone, and your settings. You'll be signed out here, and onboarding starts again. This can't be undone; export first if you want a copy." : {},
@@ -4451,6 +4455,8 @@
     "Privacy Policy" : {},
     "Privacy and access" : {},
     "Pro" : {},
+    "Pro is Cloud AI's work, and Cloud AI isn't available for accounts under 13. So there's nothing here to buy." : {},
+    "Pro works once you turn on Cloud AI in Settings." : {},
     "Profile and settings" : {},
     "Progress" : {},
     "Projected, if you follow the plan" : {},
@@ -4654,7 +4660,7 @@
     "Says why today's questions were picked" : {},
     "Scan a page" : {},
     "Scan a page from class and Capling turns it into questions. Every one becomes a star." : {},
-    "Scan a page or add slides, and ask away. Every answer points to where it says so." : {},
+    "Scan a page or add a PDF, and ask away. Every answer points to where it says so." : {},
     "Scan a page, add a PDF or record a lecture, and today's session builds itself." : {},
     "Scan complete. Probably." : {},
     "Scan pages" : {},
@@ -4712,6 +4718,7 @@
     "Settings" : {},
     "Setup progress" : {},
     "Share invite" : {},
+    "Share your age range" : {},
     "Shh. Good part coming up." : {},
     "Shh. The cards are asleep too." : {},
     "Shh. They're drifting off." : {},
@@ -4811,6 +4818,7 @@
     "Sleep soon. Memories need it." : {},
     "Sleep tight, memories." : {},
     "Sleepy, but here." : {},
+    "Slides too, saved as a PDF" : {},
     "Slow and steady, like me." : {},
     "Slow day, good day." : {},
     "Small steps. Big sky." : {},
@@ -4818,7 +4826,7 @@
     "Smile for the camera!" : {},
     "Smooth." : {},
     "Smoothing the corners." : {},
-    "Snap a page, add slides or import a deck. Capling turns it into questions, each one linked to where it came from." : {},
+    "Snap a page, add a PDF or import a deck. Capling turns it into questions, each one linked to where it came from." : {},
     "Snap a problem" : {},
     "Snap any page from your notes or a textbook. It takes about 20 seconds." : {},
     "Snap the chapter" : {},
@@ -4858,6 +4866,7 @@
     "Spotted before any mix-up." : {},
     "Squad" : {},
     "Squad code" : {},
+    "Squad isn't available for accounts under 13" : {},
     "Star saver" : {},
     "Stars checked, every one." : {},
     "Start" : {},
@@ -5239,12 +5248,12 @@
     "This chat was deleted." : {},
     "This course has no topics yet." : {},
     "This course is gone" : {},
-    "This exam is %@. A mock needs %lld of those, and you have %lld." : {
+    "This exam is %@. A mock needs %lld of those, and you have %lld. Add a page or paste your notes, and Cap writes more." : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "This exam is %1$@. A mock needs %2$lld of those, and you have %3$lld."
+            "value" : "This exam is %1$@. A mock needs %2$lld of those, and you have %3$lld. Add a page or paste your notes, and Cap writes more."
           }
         }
       }
@@ -5420,11 +5429,10 @@
     "Undo" : {},
     "Undo %@" : {},
     "Untangled" : {},
-    "Up to 300 pages at once" : {},
     "Up to 6 pages" : {},
     "Up to date. Nice." : {},
     "Up to three searches, and you see every page" : {},
-    "Upload PDFs or slides" : {},
+    "Upload a PDF" : {},
     "Use %@" : {},
     "Use Cloud AI" : {},
     "Use a PDF" : {},
@@ -5460,6 +5468,7 @@
     "Web research from trusted sites" : {},
     "Web research is off in Settings." : {},
     "Web research is part of Capling Pro." : {},
+    "Web research needs Cloud AI, which is off." : {},
     "Webbed feet. Excellent swimmer." : {},
     "Welcome" : {},
     "Welcome back" : {},

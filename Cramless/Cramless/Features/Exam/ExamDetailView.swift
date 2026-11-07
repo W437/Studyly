@@ -142,7 +142,7 @@ struct ExamDetailModel {
                      meta: LibraryFormat.sourceMeta(kind: source.kind, pages: source.pages.count, duration: source.duration,
                                                     questions: counts[source.id] ?? 0))
         }
-        offersExamPass = ExamPresentation.offersExamPass(plan: app.purchases.plan, examDate: exam.date,
+        offersExamPass = ExamPresentation.offersExamPass(plan: app.purchases.plan, canBuyPro: app.settings.canBuyPro, examDate: exam.date,
                                                          examDates: app.upcomingExams().map(\.date), now: app.now,
                                                          calendar: app.calendar)
         let offer = app.mockOffer(for: exam)

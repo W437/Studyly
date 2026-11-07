@@ -49,9 +49,11 @@ struct AppSettings: Codable, Equatable, Sendable {
     }
 
     enum AgeBand: String, Codable, Sendable {
-        /// Not asked or not shared.
+        /// Not asked yet.
         case unknown
         case under13, teen, adult
+        /// iOS was asked and gave no range, and the level the person gave doesn't vouch for an adult (`AgeRange.fallback`): the under-18 rules hold.
+        case notShared
     }
 
     // Profile
@@ -178,7 +180,10 @@ struct AppSettings: Codable, Equatable, Sendable {
     }
 
     /// Under-18 accounts keep the tutor on hints first and inside the teen-safe scope.
-    var isMinor: Bool { ageBand == .teen || ageBand == .under13 || level == .highSchool }
+    var isMinor: Bool { ageBand == .teen || ageBand == .under13 || ageBand == .notShared || level == .highSchool }
+
+    /// Pro is Cloud AI's work, and Cloud AI never runs for an account under 13 (`AIAgeGate.child`), so nothing is sold to one. Restoring a purchase stays.
+    var canBuyPro: Bool { ageBand != .under13 }
 
     /// The tutor mode actually used: a minor is always on hints first.
     var effectiveTutorMode: TutorMode { isMinor ? .hints : tutorMode }

@@ -135,8 +135,8 @@ enum AIRouting {
 
         // 1. A free limit takes the cloud away from a metered job and asks for the paywall. It does not touch this iPhone's own
         // model: a limit pays for Cloud AI, and the iPhone's model is free to run, so it keeps the jobs it can do (and the rules
-        // always answer).
-        let limited: QuotaMeter.Key? = c.plan.isPaid || c.quota != .exhausted ? nil : c.job.meter
+        // always answer). An account under 13 has no Cloud AI to lift a limit on, so it's never pointed at the paywall.
+        let limited: QuotaMeter.Key? = c.plan.isPaid || c.quota != .exhausted || c.age == .child ? nil : c.job.meter
 
         // 2. Who could answer.
         let hasRelay = c.mode == .relay || c.mode == .mock

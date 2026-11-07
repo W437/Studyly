@@ -11,10 +11,12 @@ import UIKit
 /// once in onboarding, after the four questions about the person (`OnboardingFlow`), and once for someone who finished onboarding
 /// before this existed (`RootView`, a moment after launch). `checkIfNeeded` asks only while the band is unknown and never twice
 /// (`AgeCheck`): an answer, a "Don't share", or a system with no answer for this account is final; only a passing failure (no
-/// network) is tried again at a later launch, three times at most. When the range isn't shared or the service has no answer (the
-/// simulator, a build without the `com.apple.developer.declared-age-range` entitlement, an account it doesn't apply to), it falls
-/// back to the level the person gave (high school → teen), never overwriting a band the person already shared. It never throws
-/// and never blocks anything. Not asked in the harness or in tests, and not on the simulator, which has no answer to give.
+/// network) is tried again at a later launch, three times at most. When the range isn't shared or the service has no answer (a build
+/// without the `com.apple.developer.declared-age-range` entitlement, an account it doesn't apply to), it falls back to the level the
+/// person gave (high school: teen; college or grad school: adult), and with no level that says so, to the under-18 rules (`notShared`):
+/// never an adult by default, and never overwriting a band the person already shared. Under 13 is only ever what iOS says. It never throws
+/// and never blocks anything. Not asked in the harness or in tests, and not on the simulator, which has no answer to give (the band stays
+/// `unknown` there). Settings ▸ AI and privacy can ask again for someone on `notShared`, who may be an adult.
 @MainActor
 enum AgeRange {
     static let gates = (first: 13, second: 18)
@@ -91,12 +93,12 @@ enum AgeRange {
         return .unknown
     }
 
-    /// The level the person gave, when no range was shared.
+    /// The level the person gave, when no range was shared. "Something else", or no level at all, says nothing about an adult, so the under-18 rules hold.
     nonisolated static func fallback(level: AppSettings.Level?) -> AppSettings.AgeBand {
         switch level {
         case .highSchool: .teen
         case .college, .grad: .adult
-        case .other, nil: .unknown
+        case .other, nil: .notShared
         }
     }
 
@@ -143,11 +145,10 @@ enum AgeCheck {
     /// A passing failure is tried this many times in all, one launch apart, then left.
     static let maxAttempts = 3
 
-    /// Ask only while the band is unknown (a known band came from a shared range, or from the level the person gave), never
-    /// twice after an answer or a decline, and again after a passing failure until `maxAttempts`.
+    /// Ask while the band is unknown, never twice after an answer or a decline, and again after a passing failure until `maxAttempts`, whatever
+    /// the level gave the band meanwhile: a range shared later wins over that fallback (`AgeRange.resolved`).
     static func shouldAsk(band: AppSettings.AgeBand, record: Record?) -> Bool {
-        guard band == .unknown else { return false }
-        guard let record else { return true }
+        guard let record else { return band == .unknown }
         return record.outcome == .failed && record.attempts < maxAttempts
     }
 

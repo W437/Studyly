@@ -17,7 +17,7 @@ enum PaywallCopy {
     static func benefits(isMinor: Bool) -> [Row] {
         var rows = [
             Row(symbol: "doc.viewfinder", text: "AI scans, PDFs and lecture notes, no weekly limit"),
-            Row(symbol: "checkmark.seal", text: "Every answer graded by Cloud AI"),
+            Row(symbol: "checkmark.seal", text: "Answers in your own words graded by Cloud AI"),
             Row(symbol: "bubble.left.and.text.bubble.right", text: "Cap's answers and drafts, no daily limit"),
         ]
         if !isMinor { rows.append(Row(symbol: "globe", text: "Web research from trusted sites")) }
@@ -34,6 +34,21 @@ enum PaywallCopy {
         Row(symbol: "square.and.arrow.down", text: "Quizlet and Anki imports"),
         Row(symbol: "sparkles", text: "Each week 3 AI scans and notes for 1 lecture; each day 20 graded answers and 10 questions for Cap"),
     ]
+
+    /// `alwaysFree` for this account: an account under 13 has no AI allowance to keep, since Cloud AI never runs for it.
+    static func alwaysFree(canBuyPro: Bool) -> [Row] {
+        canBuyPro ? alwaysFree : alwaysFree.filter { $0.symbol != "sparkles" }
+    }
+
+    /// Pro's rows are all Cloud AI's work: what's true when that won't happen as things stand. Nil when Pro has nothing in its way.
+    static func proCaveat(canBuyPro: Bool, cloudAvailable: Bool, cloudAllowed: Bool) -> LocalizedStringResource? {
+        if !canBuyPro { return "Cloud AI isn't available for accounts under 13, so Pro has nothing to do here." }
+        return cloudAvailable && !cloudAllowed ? "Pro works once you turn on Cloud AI in Settings." : nil
+    }
+
+    /// An account under 13, wherever Pro would be offered (`NoPurchaseView`).
+    static let noPurchaseTitle: LocalizedStringResource = "Capling is free for you"
+    static let noPurchaseDetail: LocalizedStringResource = "Pro is Cloud AI's work, and Cloud AI isn't available for accounts under 13. So there's nothing here to buy."
 
     /// The line under the headline, by context.
     static func subline(for context: PaywallContext) -> String {

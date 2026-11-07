@@ -108,6 +108,7 @@ enum TestHarness {
         // What Cap "added" earlier (CRAMLESS_ASSISTANT_SEED) is in the library before the Settings page lays out, so a page that starts at
         // its foot has it.
         AskDemo.seedAdditions(app)
+        AskDemo.applyLaunchState(app)
         apply(route: parts[0], arg: parts.count > 1 ? parts[1] : nil, app: app)
     }
 

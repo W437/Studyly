@@ -180,7 +180,7 @@ final class RouterTests: XCTestCase {
                 XCTAssertTrue(job.runsOnDevice, label)
             }
             XCTAssertFalse(r.tiers.contains(.privateCloud), "dormant: \(label)")
-            if job.meter != nil, plan == .free, quota == .exhausted {
+            if job.meter != nil, plan == .free, quota == .exhausted, age != .child {
                 // A free limit pays for Cloud AI: it takes the cloud away, and this iPhone's own model is left alone.
                 XCTAssertFalse(r.tiers.contains(.cloud), label)
                 XCTAssertFalse(r.tiers.contains(.privateCloud), label)
@@ -203,6 +203,7 @@ final class RouterTests: XCTestCase {
                 XCTAssertNotEqual(age, .child, label)
             }
             if age == .child, case .allowCloud = r.suggestion { XCTFail("never ask a child: \(label)") }
+            if age == .child, case .upgrade = r.suggestion { XCTFail("never sell to a child: \(label)") }
             if job == .tutor, age != .adult { XCTAssertEqual(r.forcedTutorMode, .hints, label) }
             checked += 1
         }}}}}}}}}}}

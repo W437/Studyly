@@ -25,15 +25,17 @@ struct SubscriptionPage: View {
                 }
                 .padding(.top, 16)
             }
-            SettingsGroup(title: "Plans") {
-                NavigationLinkRow(icon: "sparkles", tint: .tangerine, title: e.plan == .free ? "See Pro and Squad" : "See the plans",
-                                  subtitle: e.plan == .free ? .verbatim(yearlyLine) : nil) {
-                    app.router.present(.paywall(.settings))
-                }
-                if e.plan == .free || e.plan == .pass {
-                    NavigationLinkRow(icon: "graduationcap", tint: .sun, title: "Exam Pass",
-                                      subtitle: "\(store.price(for: .examPass).display) for 30 days of Pro. Doesn't renew.") {
-                        app.router.present(.examPass(examID: app.upcomingExams().first?.id))
+            SettingsGroup(title: app.settings.canBuyPro ? "Plans" : nil) {
+                if app.settings.canBuyPro {
+                    NavigationLinkRow(icon: "sparkles", tint: .tangerine, title: e.plan == .free ? "See Pro and Squad" : "See the plans",
+                                      subtitle: e.plan == .free ? .verbatim(yearlyLine) : nil) {
+                        app.router.present(.paywall(.settings))
+                    }
+                    if e.plan == .free || e.plan == .pass {
+                        NavigationLinkRow(icon: "graduationcap", tint: .sun, title: "Exam Pass",
+                                          subtitle: "\(store.price(for: .examPass).display) for 30 days of Pro. Doesn't renew.") {
+                            app.router.present(.examPass(examID: app.upcomingExams().first?.id))
+                        }
                     }
                 }
                 RestorePurchasesRow()
@@ -90,6 +92,7 @@ struct SubscriptionPage: View {
         let long = Date.FormatStyle.dateTime.month(.abbreviated).day().year()
         switch e.plan {
         case .free:
+            guard app.settings.canBuyPro else { return String(localized: PaywallCopy.noPurchaseDetail) }
             return "Unlimited reviews and cards you make yourself, with free AI limits each day and week."
         case .pass:
             guard let end = e.expiresAt else { return "Every Pro feature for 30 days. It doesn't renew." }

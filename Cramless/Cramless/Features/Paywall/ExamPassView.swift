@@ -24,6 +24,8 @@ struct ExamPassView: View {
                 PurchasedView(mode: .purchased(.examPass), primaryTitle: finish == nil ? "Done" : "Start studying",
                               onPrimary: { close(.purchased(.examPass)) })
                     .transition(.opacity)
+            } else if !app.settings.canBuyPro {
+                NoPurchaseView(primaryTitle: finish == nil ? "Done" : "Continue", onPrimary: { close(.declined) })
             } else {
                 offer
             }
@@ -70,6 +72,10 @@ struct ExamPassView: View {
                 VStack(alignment: .leading, spacing: 11) {
                     ForEach(PaywallCopy.benefits(isMinor: app.settings.isMinor).prefix(3)) {
                         PaywallBenefitRow(symbol: $0.symbol, text: $0.text)
+                    }
+                    if let caveat = PaywallCopy.proCaveat(canBuyPro: app.settings.canBuyPro, cloudAvailable: app.ai.cloudAvailableInThisBuild,
+                                                          cloudAllowed: app.hasCloudConsent) {
+                        ProCaveatLine(text: caveat)
                     }
                 }
                 .padding(.top, 22)

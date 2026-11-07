@@ -22,6 +22,15 @@ final class AgeCheckTests: XCTestCase {
         XCTAssertFalse(AgeCheck.shouldAsk(band: .unknown, record: record(.unavailable)), "the system has no answer here")
     }
 
+    /// The level gives the band a value at once; a passing failure is still tried again, and a range shared then wins.
+    func testAPassingFailureIsTriedAgainWhateverTheFallbackGaveTheBand() {
+        for band in [AppSettings.AgeBand.adult, .teen, .notShared] {
+            XCTAssertTrue(AgeCheck.shouldAsk(band: band, record: record(.failed, attempts: 1)), "\(band)")
+            XCTAssertFalse(AgeCheck.shouldAsk(band: band, record: record(.failed, attempts: AgeCheck.maxAttempts)), "\(band)")
+            XCTAssertFalse(AgeCheck.shouldAsk(band: band, record: record(.declined)), "\(band)")
+        }
+    }
+
     func testAPassingFailureIsTriedAgainThreeTimesInAll() {
         XCTAssertTrue(AgeCheck.shouldAsk(band: .unknown, record: record(.failed, attempts: 1)))
         XCTAssertTrue(AgeCheck.shouldAsk(band: .unknown, record: record(.failed, attempts: 2)))
@@ -43,11 +52,31 @@ final class AgeCheckTests: XCTestCase {
         XCTAssertNotNil(defaults.data(forKey: "capling.ageRange.v1"))
     }
 
-    /// A declined or unanswered check leaves the band unknown, so the level the person gave still decides (no level: adult rules).
-    func testWithoutAnAnswerTheBandFallsBackAsBefore() {
-        XCTAssertEqual(AgeRange.resolved(declared: nil, current: .unknown, level: nil), .unknown)
+    /// A declined or unanswered check: the level the person gave decides, and with no level that vouches for an adult, the under-18 rules hold.
+    func testWithoutAnAnswerNobodyIsAnAdultByDefault() {
+        XCTAssertEqual(AgeRange.resolved(declared: nil, current: .unknown, level: nil), .notShared)
+        XCTAssertEqual(AgeRange.resolved(declared: nil, current: .unknown, level: .other), .notShared)
         XCTAssertEqual(AgeRange.resolved(declared: nil, current: .unknown, level: .highSchool), .teen)
+        XCTAssertEqual(AgeRange.resolved(declared: nil, current: .unknown, level: .college), .adult)
+        XCTAssertEqual(AgeRange.resolved(declared: nil, current: .unknown, level: .grad), .adult)
         XCTAssertEqual(AgeRange.resolved(declared: .teen, current: .unknown, level: nil), .teen)
+        XCTAssertEqual(AgeRange.resolved(declared: .adult, current: .notShared, level: nil), .adult, "a range shared later wins")
+
+        var quiet = AppSettings()
+        quiet.ageBand = AgeRange.fallback(level: nil)
+        XCTAssertTrue(quiet.isMinor, "hints first, no web research, every switch on ask-first")
+        XCTAssertEqual(AIAgeGate(quiet), .minor, "Cloud AI still needs consent, and under 13 is only ever what iOS says")
+        XCTAssertEqual(quiet.effectiveTutorMode, .hints)
+        XCTAssertFalse(quiet.assistantWeb)
+        XCTAssertTrue(quiet.assistantAuto.isEmpty)
+
+        var college = AppSettings()
+        college.level = .college
+        college.ageBand = AgeRange.fallback(level: .college)
+        XCTAssertFalse(college.isMinor, "they said college")
+
+        XCTAssertFalse(AppSettings().isMinor, "not asked yet: the simulator and tests, which iOS has no answer for")
+
         var settings = AppSettings()
         settings.ageBand = AgeRange.band(lowerBound: 13, upperBound: 17)
         XCTAssertTrue(settings.isMinor, "a shared 13 to 17 turns on the under-18 rules")
