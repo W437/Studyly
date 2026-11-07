@@ -146,7 +146,8 @@ enum PlanMath {
 /// - the projection counts only the share of the plan the person tends to do (`adherence`, `StudyHabits`: from the last two
 ///   weeks' study days, blended with a high prior): projected = now + adherence × (plan − now).
 /// The plan is recomputed from the current memory every time, which is what makes it bend. All of this keeps the
-/// projection a projection: optimistic numbers would make the readiness score worthless.
+/// projection a projection: optimistic numbers would make the readiness score worthless. The same inputs give the same plan, in any order
+/// (`PlanOrderTests`).
 struct PlanBuilder: Sendable {
     var fsrs: FSRS
     var calendar: Calendar
@@ -244,7 +245,9 @@ struct PlanBuilder: Sendable {
         let today = calendar.dayNumber(for: now)
         let examDay = calendar.dayNumber(for: exam.date)
         let daysLeft = max(0, examDay - today)
-        let scope = items.filter { $0.isActive && exam.covers($0) }
+        // By id, whatever order they came in: when a day can't hold all its work, what gets planned follows this order, so the same questions
+        // must always stand in the same one (a course's to-many relationship hands them over differently from launch to launch).
+        let scope = items.filter { $0.isActive && exam.covers($0) }.sorted { $0.id < $1.id }
         let n = Double(scope.count)
         let grid = DayGrid(calendar: calendar, firstDay: today, count: daysLeft + 2)
 
@@ -282,8 +285,9 @@ struct PlanBuilder: Sendable {
         var buckets: [Int: [Int]] = [:]
         var load: [Int: Int] = [:]
         let overdue = sims.indices.filter { dueDays[$0] < today }
-            .sorted { recall(stability: sims[$0].s, last: sims[$0].last, on: now)
-                < recall(stability: sims[$1].s, last: sims[$1].last, on: now) }
+            .map { (index: $0, recall: recall(stability: sims[$0].s, last: sims[$0].last, on: now)) }
+            .sorted { $0.recall != $1.recall ? $0.recall < $1.recall : $0.index < $1.index }
+            .map(\.index)
         let overdueSeconds = overdue.reduce(0.0) { $0 + sims[$1].item.kind.typicalSeconds }
         let spread = overdueSeconds > Double(dailyMinutes * 60)
             ? min(Self.overdueSpreadDays, max(1, examDay - today - 1)) : 1
@@ -337,7 +341,8 @@ struct PlanBuilder: Sendable {
         let intro = PlanMath.newItemsPerDay(unseen: unseen.count, today: today, examDay: examDay, isEasyDay: isEasyDay,
                                             isSkipped: isSkipped)
         var queue = unseen.sorted {
-            $0.createdAt != $1.createdAt ? $0.createdAt < $1.createdAt : $0.difficultyHint < $1.difficultyHint
+            if $0.createdAt != $1.createdAt { return $0.createdAt < $1.createdAt }
+            return $0.difficultyHint != $1.difficultyHint ? $0.difficultyHint < $1.difficultyHint : $0.id < $1.id
         }[...]
         var days: [PlanDay] = []
         var reviewsPlanned = 0
@@ -434,7 +439,7 @@ struct PlanBuilder: Sendable {
 
             if isEve {
                 let weak = sims.indices.filter { !doneToday.contains($0) && sims[$0].examRecall < exam.target }
-                    .sorted { sims[$0].examRecall < sims[$1].examRecall }
+                    .sorted { sims[$0].examRecall != sims[$1].examRecall ? sims[$0].examRecall < sims[$1].examRecall : $0 < $1 }
                 var eve = 0.0
                 for i in weak {
                     let cost = sims[i].item.kind.typicalSeconds

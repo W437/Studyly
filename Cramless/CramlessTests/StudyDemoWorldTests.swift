@@ -24,6 +24,63 @@ final class StudyDemoWorldTests: XCTestCase {
 
     func pct(_ v: Double) -> String { "\(Int((v * 100).rounded()))%" }
 
+    /// The store's clock. The midterm's exam-day number is what the plan and the exam page show, so it has to be one number however the store
+    /// happens to hand over the course's questions.
+    func testTheMidtermsProjectionIsOneNumberInAnyOrder() throws {
+        let cal = EngineTest.calendar("America/New_York")
+        let clock = TestClock(try XCTUnwrap(ISO8601DateFormatter().date(from: "2026-11-06T14:00:00-05:00")))
+        let app = try StudyTestApp.make(clock: clock, calendar: cal)
+        SampleData.seed(into: app)
+        let bio = try XCTUnwrap(app.upcomingExams().first { $0.title == "Bio 101 Midterm" })
+        let shared = app.sharedPlans()
+        let plan = try XCTUnwrap(shared.plans.first { $0.examID == bio.id })
+
+        var builder = app.planBuilder()
+        builder.capacity = shared.capacity[bio.id]
+        for other in shared.plans.prefix(while: { $0.examID != bio.id }) {
+            for day in other.days where day.kind != .exam { builder.newElsewhere[day.offset, default: 0] += day.newItems }
+        }
+        let items = app.itemSnapshots(in: bio.course)
+        XCTAssertEqual(builder.plan(for: ExamSnapshot(bio), items: items), plan, "the shared plan, rebuilt")
+
+        var rng = SeededGenerator(seed: 2026)
+        var seen = Set<Int>()
+        for _ in 0..<60 {
+            let again = builder.plan(for: ExamSnapshot(bio), items: items.shuffled(using: &rng))
+            seen.insert(Int((again.projectedReadiness * 100).rounded()))
+            XCTAssertEqual(again, plan)
+        }
+        print("Bio midterm projection, 60 orders: \(seen.sorted()), unrounded \(plan.projectedReadiness)")
+        XCTAssertEqual(seen.count, 1)
+    }
+
+    /// Each launch's world reads the same, whatever order this one's store hands things over in.
+    func testEveryLaunchPlansTheSameWorldTheSameWay() throws {
+        let cal = EngineTest.calendar("America/New_York")
+        let clock = TestClock(try XCTUnwrap(ISO8601DateFormatter().date(from: "2026-11-06T14:00:00-05:00")))
+        var first: [StudyPlan]?
+        for launch in 0..<8 {
+            let app = try StudyTestApp.make(clock: clock, calendar: cal)
+            SampleData.seed(into: app)
+            let plans = app.examPlans()
+            XCTAssertEqual(plans.count, 3)
+            if let first { XCTAssertEqual(plans, first, "launch \(launch)") } else { first = plans }
+        }
+    }
+
+    /// A course's questions come out in one order, the one `itemSnapshots()` uses, not the store's.
+    func testACoursesQuestionsComeOutInOneOrder() throws {
+        let cal = EngineTest.calendar("America/New_York")
+        let clock = TestClock(EngineTest.date(2026, 11, 6, 14, in: cal))
+        let app = try StudyTestApp.make(clock: clock, calendar: cal)
+        SampleData.seed(into: app)
+        for course in app.courses {
+            let ids = app.itemSnapshots(in: course).map(\.id)
+            XCTAssertEqual(ids, ids.sorted(), course.name)
+            XCTAssertEqual(ids, app.itemSnapshots().filter { $0.courseID == course.id }.map(\.id), course.name)
+        }
+    }
+
     func testDemoWorldNumbers() throws {
         let cal = EngineTest.calendar("America/New_York")
         let clock = TestClock(EngineTest.date(2026, 10, 22, 9, in: cal)) // Thursday morning

@@ -2,7 +2,6 @@
 # The source screens for the launch set of Capling's App Store screenshots: the demo world with its clock pinned, light mode, US formats, no taps.
 #   scripts/store_art/capture_launch.sh <udid> [out-dir] [name ...]      ->  <out>/<name>.png   (default build/listing/launch/src, every shot)
 # The app must be installed on <udid>. CRAMLESS_NOW pins every number: the Chem quiz is on Sunday at 10:00. Look at every frame before it is used.
-# One number still moves between launches: the Bio midterm's exam-day projection reads 90% or 91% (plan and exam-bio). Retake until those two agree.
 set -u
 cd "$(dirname "$0")/../.." || exit 2
 udid=${1:?udid}; out=${2:-build/listing/launch/src}; shift; [ $# -gt 0 ] && shift
