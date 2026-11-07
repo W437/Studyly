@@ -212,6 +212,11 @@ const SHOT = 'APP_SCREENSHOT', SHOT_CATEGORY = 'APP_SCREENSHOTS_AND_PREVIEWS';
 // Reserves, uploads and waits for one file (an image already in the library with the same name and size is reused, not sent again).
 async function ensureImage(ctx, file, bytes, name, category, referenceName) {
   let image = ctx.images().find((i) => i.attributes.fileName === name && i.attributes.fileSize === bytes.length && i.attributes.category === category);
+  // A run that stopped after reserving a file leaves it waiting for parts that never come: start that one again.
+  if (image?.attributes.state === 'AWAITING_UPLOAD') {
+    await api('DELETE', `/v1/appAssetLibraryImages/${image.id}`);
+    image = undefined;
+  }
   if (!image) {
     image = (await api('POST', '/v1/appAssetLibraryImages', { data: { type: 'appAssetLibraryImages', attributes: { fileName: name, fileSize: bytes.length, category, referenceName }, relationships: { assetLibrary: { data: { type: 'appAssetLibraries', id: ctx.library } } } } })).data;
     ctx.addImage(image);
@@ -258,8 +263,9 @@ async function screenshots(locale, folder) {
   if (dry) { for (const f of files) log(`  would upload and place ${f.name} (${f.bytes.length} bytes)`); if (have.length) log(`  would first remove ${have.length} placement(s)`); return; }
   for (const h of have) await api('DELETE', `/v1/appAssetLibraryPlacements/${h.id}`);
 
-  // all uploads at once (Apple processes them side by side), then the placements one after the other, in order
-  const images = await Promise.all(files.map((f) => ensureImage(ctx, f, f.bytes, f.name, SHOT_CATEGORY, `Capling ${locale} screenshot ${f.n.replace('.png', '')}`)));
+  // all uploads at once (Apple processes them side by side), then the placements one after the other, in order. A reference name
+  // must be unique in the library, and an earlier set keeps its names, so the file's size is part of it.
+  const images = await Promise.all(files.map((f) => ensureImage(ctx, f, f.bytes, f.name, SHOT_CATEGORY, `Capling ${locale} screenshot ${f.n.replace('.png', '')} (${f.bytes.length})`)));
   for (let i = 0; i < images.length; i++) {
     if (images[i].attributes.specId !== spec.specId) throw new Error(`${files[i].name} was read as spec ${images[i].attributes.specId}, expected ${spec.specId} (${spec.shortName})`);
   }

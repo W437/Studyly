@@ -1,12 +1,13 @@
 # Release 1.0: from here to Submit
 
-> **Status (2026-11-07, afternoon):** done with the owner's approval: steps 6 to 9 (live checks 47 passed after two fixes, the
-> two migrations, `account` v2 and `ai` v14), 10 to 17 (time zone in the manifest, build 1.0 (6) through the full suite,
-> uploaded and attached), 18's part for Claude (TestFlight group "Internal", the owner its tester), App Privacy in 25 (Other
-> Data published), and 28 (loopware.app/privacy updated, site commit fa7fc1a). The test users on production are deleted.
-> Left: 18 and 19 (the owner installs build 6 from TestFlight and does the device checks), the rest of 25 (purchases on the
-> version, the products' review notes), 20 to 24 (the store page: the owner said not yet), 26 and 27 (release option,
-> nomination), 29 (Submit). `docs/BUILD.md` ▸ "Release 1.0: the deploy and build 6" has the details.
+> **Status (2026-11-07, evening):** done with the owner's approval: steps 6 to 17 (live checks, the two migrations, `account` v2
+> and `ai` v14, build 1.0 (6) through the full suite, uploaded and attached), 18's part for Claude (TestFlight group "Internal"),
+> 20 to 23 (10 English screenshots, the description in 39 languages, the review notes and one combined attachment, the drawn
+> video taken out of the preview slot), 25 (App Privacy's Other Data published; the Pro Yearly review note updated; the four
+> purchases are Ready to Submit and go in with "Add for Review"), and 28 (loopware.app/privacy, site commit fa7fc1a). The test
+> users on production are deleted. `capling_asc.mjs ready` reads all ok. Left, the owner's: 18 and 19 (install build 6 from
+> TestFlight, the device checks, then trim the review notes to what the phone confirmed), 24 (age rating with `ageAssurance`),
+> 26 and 27 (release option, nomination), 29 (Add for Review with the four purchases, then Submit).
 
 Every step from main at 3105a20 (2026-11-07) to the owner pressing Submit for Review, in order. Each says who does it and the
 exact command or website step. Nothing here has been run: it was read from the code, the scripts and `docs/BUILD.md`. The
