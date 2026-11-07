@@ -3,7 +3,10 @@
 
     python3 -P scripts/store_art/build_launch_page.py --old <folder of the old 01..08.png> --new build/listing/launch/final/en-US \
         --video scripts/store_video/renders/capling-app-preview.mp4 --art <folder with header-en-US.png, search-en-US.png> \
-        --old-words <old description.txt> --out ~/Sites/capling-launch-store
+        --old-words <old description.txt> --out ~/Sites/capling-launch-store --commit <commit the screens came from> \
+        --duo-note "<the iPhone Duo paragraph>" [--update-note "<what changed since the owner last looked>"]
+
+It empties --out first. The set to show is the main checkout's build/review/launch-finish/final/en-US (2026-11-07, after the last polish).
 
 Self-contained: every picture sits beside the page. `content` below holds the words; the numbers in them are read off the screens by hand.
 """
@@ -22,15 +25,15 @@ COPY = os.path.join(HERE, "..", "asc", "capling_copy.json")
 FRAMES = [
     ("01", "Get ready for Exams", "Same design. The path now says what the fixed engine says: 53% today, 91% on exam day, labelled “Projected, if you follow the plan”. Dates are now in US format."),
     ("02", "Answer in your own Words", "Same answer, retaken on today's screen."),
-    ("03", "Know your Readiness", "The big change. The grade card is gone: readiness is the only percentage, and the sentence ends “A projection from your recall so far, not a promise.” It's now the Bio 101 Midterm, the same exam as image 1, and the free mock starts at the bottom."),
+    ("03", "Know your Readiness", "The big change. The grade card is gone: readiness is the only percentage, and the sentence ends “A projection from your recall so far, not a promise.” It's now the Bio 101 Midterm, the same exam as image 1, and the free mock starts at the bottom. Retaken after the last polish: the line under it now says 6 new questions, where it said 3 (it counts every question not studied yet)."),
     ("04", "Snap pages into Questions", "Same step, retaken on today's screen."),
-    ("05", "Ask Cap for Quizzes", "Ask's calmer chat. I changed the word from “Cards” to “Quizzes”: the app now says “questions”, and this reply is a clean one. See the choice below."),
+    ("05", "Ask Cap for Quizzes", "Ask's calmer chat. I changed the word from “Cards” to “Quizzes”: the app now says “questions”, and this reply is a clean one. See the choice below. Retaken after the last polish: the chat's title sits on glass, so the messages no longer show through it."),
     ("06", "Record Lectures", "Now with playback. The player is the page's real bar, lifted up from the bottom of the screen so it fits in the picture."),
-    ("07", "Light up your Memory", "Real numbers now: 63 stars, 20 dim, 11 not yet lit, the same 20 that Today shows. The old one had 103 from a test setting, so this sky has fewer stars and looks a little quieter."),
+    ("07", "Light up your Memory", "Real numbers now: 63 stars, 20 dim, 11 not yet lit, the same 20 that Today shows. The old one had 103 from a test setting, so this sky has fewer stars and looks a little quieter. Retaken after the last polish: the sky is framed below the pills and each exam's name sits on its circle's edge, so the Bio circle sits lower and the Chem quiz's name falls below the picture."),
     ("08", "Keep your Streak", "The month now marks exams and exam eves."),
 ]
 OPTIONS_WORD = [("05", "Quizzes", "My pick. Says “Add 3 questions”, the app's own word."), ("05-cards", "Cards", "The old word. The chat behind the header shows through more, and it shows flashcards."), ("05-help", "Help", "A snapped problem with hints first. Strong, and new, but it says less about making things.")]
-OPTIONS_EXTRA = [("x-notice", "Mix-ups", "Cap speaking first, the biggest new thing. My first pick."), ("x-mock", "Mock", "Says mock exams are free. My second pick."), ("x-loud", "Loud", "Study out loud. Lovely, but a quieter screen.")]
+OPTIONS_EXTRA = [("x-notice", "Mix-ups", "Cap speaking first, the biggest new thing. My first pick. Retaken: the card now says “Uses Cloud AI” under its button."), ("x-mock", "Mock", "Says mock exams are free. My second pick."), ("x-loud", "Loud", "Study out loud. Lovely, but a quieter screen.")]
 NEEDS = [
     "<b>The 8 screenshots.</b> Good to upload?",
     "<b>Image 5's word:</b> Quizzes (my pick), Cards or Help.",
@@ -118,7 +121,8 @@ def build(a):
     upload = "".join(f"<li>{html.escape(x)}</li>" for x in UPLOAD)
     page = TEMPLATE.format(needs=needs, pairs=pairs, word=word, extra=extra, changes=changes, upload=upload, commit=html.escape(a.commit),
                            description=description_html(old, en["description"]), subtitle=html.escape(en["subtitle"]), promo=html.escape(en["promotionalText"]),
-                           length=len(en["description"]), duo=a.duo_note)
+                           length=len(en["description"]), duo=a.duo_note,
+                           update=f'<div class="card"><p><b>Updated.</b> {html.escape(a.update_note)}</p></div>' if a.update_note else "")
     open(os.path.join(out, "index.html"), "w").write(page)
     print(os.path.join(out, "index.html"))
 
@@ -157,6 +161,7 @@ video {{ width:100%; max-width:320px; background:#000; }}
 </style></head><body><main>
 <h1>Capling's store page, redone</h1>
 <p class="sub">7 November 2026. Screens from commit {commit}. Nothing is uploaded: this is for you to approve.</p>
+{update}
 
 <h2>What I need from you</h2>
 <div class="card"><ol>{needs}</ol></div>
@@ -216,6 +221,7 @@ def main():
     ap.add_argument("--out", required=True)
     ap.add_argument("--commit", required=True)
     ap.add_argument("--duo-note", required=True)
+    ap.add_argument("--update-note", default="", help="one line at the top: what changed since the owner last looked")
     build(ap.parse_args())
 
 
