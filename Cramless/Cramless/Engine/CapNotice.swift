@@ -42,6 +42,11 @@ struct CapNotice: Identifiable, Equatable, Sendable {
         var run: Run
     }
 
+    /// A card whose second button refuses what it says, rather than putting it off.
+    enum Decline: Equatable, Sendable {
+        case heardDate(sourceID: UUID, mentionID: String)
+    }
+
     /// What a tap on the card's title opens, when there is more to read.
     enum Link: Equatable, Sendable {
         case confusion(UUID)
@@ -61,4 +66,6 @@ struct CapNotice: Identifiable, Equatable, Sendable {
     var cost: String? = nil
     /// "Plan updated": a card already acted on, saying what changed, with Undo and no "Later".
     var isConfirmation = false
+    /// The second button refuses it for good, in place of "Later".
+    var decline: Decline? = nil
 }

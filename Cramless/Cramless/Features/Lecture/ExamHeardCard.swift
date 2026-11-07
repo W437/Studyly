@@ -128,9 +128,11 @@ struct ExamHeardCard: View {
     }
 
     private var notNow: some View {
-        Button(ExamHeardCopy.notNow) {
+        Button {
             CLHaptics.tap()
             app.dismissExamHeard(heard)
+        } label: {
+            Text(verbatim: ExamHeardCopy.wrong)
         }
         .buttonStyle(.cl(.ghost, size: .medium, fullWidth: false))
     }

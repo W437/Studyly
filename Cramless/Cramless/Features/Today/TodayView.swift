@@ -337,6 +337,9 @@ struct TodayView: View {
         CLHaptics.tap()
         if notice.isConfirmation {
             app.dismissNoticeConfirmation()
+        } else if let decline = notice.decline {
+            app.decline(decline)
+            app.router.toast(.verbatim(ExamHeardCopy.refused), systemImage: "checkmark", tone: .neutral)
         } else {
             app.snoozeNotice(notice.id)
             app.router.toast("Cap will bring it up tomorrow", systemImage: "clock", tone: .neutral)

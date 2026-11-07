@@ -1050,12 +1050,12 @@ final class NoticeEngineTests: XCTestCase {
         XCTAssertEqual(NoticeContent.pingBody(mix), "Anaphase vs telophase: still mixing them up? A 2-minute fix is ready.")
         // A name keeps its capitals, a topic isn't a pair, and one question is a look, not a fix.
         let topic = Notice(id: "t", kind: .mixUp, rank: 0, evidence: .mixUp(mixUp("TCP segment structure").note))
-        XCTAssertEqual(NoticeContent.pingBody(topic), "TCP segment structure keeps tripping you up. A 2-minute fix is ready.")
+        XCTAssertEqual(NoticeContent.pingBody(topic), "TCP segment structure: still tripping you up. A 2-minute fix is ready.")
         let named = Notice(id: "n", kind: .mixUp, rank: 0, evidence: .mixUp(mixUp("Longbourn vs Netherfield").note))
         XCTAssertEqual(NoticeContent.pingBody(named), "Longbourn vs Netherfield: still mixing them up? A 2-minute fix is ready.")
         var slip = mixUp("Water availability").note
         slip.questions = 1
-        XCTAssertEqual(NoticeContent.pingBody(Notice(id: "s", kind: .mixUp, rank: 0, evidence: .mixUp(slip))), "Water availability keeps tripping you up. A quick look is ready.")
+        XCTAssertEqual(NoticeContent.pingBody(Notice(id: "s", kind: .mixUp, rank: 0, evidence: .mixUp(slip))), "Water availability: still tripping you up. A quick look is ready.")
         slip.name = ConfusionCandidate.unnamed
         XCTAssertEqual(NoticeContent.pingBody(Notice(id: "s", kind: .mixUp, rank: 0, evidence: .mixUp(slip))), "Still tripping on the same question? A quick look is ready.")
         XCTAssertEqual(SessionCopy.mixUpLine(ConfusionCandidate.unnamed, questions: 1), "This question keeps tripping you up.")
