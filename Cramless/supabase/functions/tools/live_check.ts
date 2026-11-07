@@ -103,15 +103,16 @@ if (only.has("reports")) {
     if (!found) throw new Error(`The sample page has no line with "${needle}"`);
     return found.id;
   };
-  const anaphase = line("anaphase");
+  // The page is set in columns: the heading "Anaphase" is one line, and what happens is two lines further down its column.
+  const anaphase = [line("anaphase"), line("sister chromatids are"), line("pulled to opposite poles")];
   const base = { topic: "Phases of mitosis", explanation: "", keyIdeas: [], choices: [], difficulty: 0.5 };
   const items = [
     // Wrong by the page, and the student says so.
-    { ...base, id: "wrong", kind: "flashcard", prompt: "Anaphase", answer: "Chromosomes line up at the equator.", anchors: [anaphase] },
+    { ...base, id: "wrong", kind: "flashcard", prompt: "Anaphase", answer: "Chromosomes line up at the equator.", anchors: anaphase },
     // Right by the page, and the note tries to order a verdict.
-    { ...base, id: "right", kind: "flashcard", prompt: "Anaphase", answer: "Sister chromatids are pulled to opposite poles.", anchors: [anaphase] },
+    { ...base, id: "right", kind: "flashcard", prompt: "Anaphase", answer: "Sister chromatids are pulled to opposite poles.", anchors: anaphase },
     // Right by the page, and the student's own answer is another fact.
-    { ...base, id: "mine", kind: "flashcard", prompt: "Anaphase", answer: "Sister chromatids are pulled to opposite poles.", anchors: [anaphase] },
+    { ...base, id: "mine", kind: "flashcard", prompt: "Anaphase", answer: "Sister chromatids are pulled to opposite poles.", anchors: anaphase },
   ];
   const checked = await post("check", {
     pages: generateRequest.pages,

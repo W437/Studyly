@@ -31,6 +31,9 @@ export interface ItemRules {
   formats?: ReadonlySet<ItemKind>;
   /** At most this many items. */
   maxItems?: number;
+  /** A recall question with no key ideas keeps a short answer (up to 6 words) as its one key idea, instead of being dropped
+   * (confusions: the model writes "Which phase…? Metaphase" with the key ideas left empty). */
+  shortAnswerIsKeyIdea?: boolean;
 }
 
 export const lineIdsOf = (pages: PageInput[]): Set<string> => new Set(pages.flatMap((p) => p.lines.map((l) => l.id)));
@@ -88,6 +91,9 @@ export function sanitizeItem(raw: GeneratedItem, rules: ItemRules): GeneratedIte
   switch (kind) {
     case "recall":
     case "apply":
+      if (answer && item.keyIdeas.length === 0 && rules.shortAnswerIsKeyIdea && answer.split(/\s+/).length <= 6) {
+        item.keyIdeas = [{ id: "k1", label: answer, terms: [answer.toLowerCase()] }];
+      }
       if (!answer || item.keyIdeas.length === 0) return null;
       break;
     case "mcq": {
@@ -245,6 +251,7 @@ export function sanitizeConfusions(raw: ConfusionOut[], mistakeIds: ReadonlySet<
         unknownAnchor: "strip",
         formats: new Set<ItemKind>(["mcq", "recall", "cloze", "flashcard"]),
         maxItems: 4,
+        shortAnswerIsKeyIdea: true,
       }),
     });
   }

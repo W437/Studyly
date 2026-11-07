@@ -3,7 +3,7 @@
 
 import { assert, assertEquals } from "@std/assert";
 import type { GeneratedItem } from "../_shared/contract.ts";
-import { sanitizeGrade, sanitizeItem, sanitizeItems, sanitizeVerdicts } from "../_shared/items.ts";
+import { sanitizeConfusions, sanitizeGrade, sanitizeItem, sanitizeItems, sanitizeVerdicts } from "../_shared/items.ts";
 import { contractSchema, MAX_SOURCE_CHARS, requestSchema } from "../_shared/schemas.ts";
 import { validate } from "../_shared/schema.ts";
 import { GENERATE_TIMEOUT_MS } from "../ai/handler.ts";
@@ -520,3 +520,19 @@ Deno.test("a check's reports are checked like the rest of the request", () => {
   assert(validate(schema, { pages, items, reports: [{ id: "i1", reason: "becauseISaidSo" }] }).length > 0);
   assert(validate(schema, { pages, items, reports: [{ id: "i1", reason: "other", note: "x".repeat(281) }] }).length > 0);
 });
+
+Deno.test("a lesson's short-answer question keeps its answer as the key idea; a long one without key ideas is dropped", () => {
+  const recall = (id: string, answer: string) => ({
+    id, kind: "recall", topic: "Phases of mitosis", prompt: "Which phase?", answer, explanation: "", keyIdeas: [],
+    choices: [], anchors: [], difficulty: 0.2,
+  }) as unknown as GeneratedItem;
+  const [lesson] = sanitizeConfusions([{
+    name: "Metaphase vs telophase", explanation: "", itemIds: ["i7", "i10"], lesson: "Line-up, then before cytokinesis.",
+    questions: [recall("q1", "Metaphase"), recall("q2", "Telophase"), recall("q3", "a long answer of many more than six words in it")],
+  }], new Set(["i7", "i10"]));
+  assertEquals(lesson.questions.map((q) => q.answer), ["Metaphase", "Telophase"]);
+  assertEquals(lesson.questions[0].keyIdeas, [{ id: "k1", label: "Metaphase", terms: ["metaphase"] }]);
+  // Generate still asks for key ideas: the same item there is dropped.
+  assertEquals(sanitizeItem(recall("q1", "Metaphase"), { validAnchors: new Set(), requireAnchors: false, unknownAnchor: "strip" }), null);
+});
+
