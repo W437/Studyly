@@ -94,7 +94,7 @@ To add photos, Capling uses Apple's photo picker, so it sees only the photos you
 
 ### Younger students
 
-Capling is made for students 13 and up. If iOS tells Capling an account is under 13, Cloud AI stays off and nothing goes to it. If iOS says an account is under 18, or you told Capling you're in high school, Cap starts with hints, Cap asks before adding anything, and web research is off. iOS shares your age range only if you allow it, and Capling keeps the answer on your iPhone.
+Capling is made for students 13 and up. If iOS tells Capling an account is under 13, Cloud AI stays off and nothing goes to it. If iOS says an account is under 18, or you told Capling you're in high school, Cap starts with hints, Cap asks before adding anything, and web research is off. The same goes if iOS gives no age range and you didn't tell Capling you're in college or grad school. iOS shares your age range only if you allow it, and Capling keeps the answer on your iPhone.
 
 ### Deleting your data
 

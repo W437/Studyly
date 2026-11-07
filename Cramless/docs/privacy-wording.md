@@ -206,7 +206,7 @@ The rest, as they stand: Study out loud's and Teach Cap's intro (`OutLoudCopy.pr
    if you want the stronger sentence ("not kept"), ask for zero data retention.
 2. **OpenAI web search.** Read what its terms say about the queries it makes on a student's behalf.
 3. **13 to 17.** OpenAI's rules for these ages are unchecked (web research is off for them; the rest is on, asking first).
-4. **The age limits.** Every "under 13" and "under 18" line depends on Declared Age Range, or on "high school" for under 18. They engage only when iOS answers, and they are unproven on a phone. If iOS doesn't answer and the person isn't in high school, they're treated as an adult.
+4. **The age limits.** Every "under 13" and "under 18" line depends on Declared Age Range, or on "high school" for under 18. Under 13 engages only when iOS says so. If iOS gives no range, a student who said college or grad school keeps the adult rules, and everyone else gets the under-18 rules (`AgeRange.fallback`; Settings ▸ AI and privacy can ask again). Cloud AI still asks for consent there: no answer from iOS doesn't block it. All of this is unproven on a phone.
 5. **Supabase's own logs.** Our functions log no IP or user ID (`_shared/log.ts`), but the platform's gateway logs requests by its own rules. Read Supabase's retention before saying anything stronger than the page does.
 6. **If the wiring changes** (another provider, or Private Cloud Compute), change the processors sentence, `AIConsent.processor`,
    and bump the consent version.

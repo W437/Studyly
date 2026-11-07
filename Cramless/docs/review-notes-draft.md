@@ -4,7 +4,7 @@ For the owner to approve at Launch. Nothing is uploaded. The notes on the versio
 
 The first run, the sample page, the paste and the mock card below were walked with real taps on the simulator on 2026-11-07, on the offline rules, with Cloud AI off. The sample page gives 8 questions, and an exam of multiple choice and short answers then says "A mock needs 8 of those, and you have 6". With the passage below added, the card offers 9 questions and "Take it". Not walked, because a simulator can't: the camera, a real microphone, the real calendar, a sandbox purchase, Sign in with Apple.
 
-## The notes (3,844 characters; the limit is 4,000)
+## The notes (3,867 characters; the limit is 4,000)
 
 ```text
 Capling needs no account or demo login. All of this works on a fresh install with Cloud AI off, unless it says otherwise.
@@ -37,7 +37,7 @@ PURCHASES
 Pro, Squad and the Exam Pass. "Continue free" and Restore are on the paywall. Plans, readiness and mock exams are free.
 
 ACCOUNT AND AGE
-Settings > Account > Delete account. Declared Age Range: under 13, Cloud AI stays off; under 18, hints first and no web research.
+Settings > Account > Delete account. Declared Age Range: under 13, Cloud AI stays off and nothing is sold; under 18, hints first and no web research.
 
 PASSAGE
 Meiosis is the cell division that makes eggs and sperm. It produces four daughter cells, each with half the chromosomes of the parent cell. Crossing over happens in prophase I, when homologous chromosomes swap segments of DNA. This creates genetic variation. Mitosis, by contrast, produces two identical daughter cells. Enzymes are proteins that speed up chemical reactions by lowering the activation energy. The active site is the part of an enzyme where the substrate binds. Temperature and pH both change how fast an enzyme works, and too much heat denatures it. Photosynthesis is the process by which plants turn light energy into glucose. It takes place in the chloroplast, and chlorophyll is the pigment that absorbs the light. Cellular respiration releases energy from glucose and takes place mainly in the mitochondria.
@@ -54,7 +54,7 @@ In App Review Information ▸ Attachment (screenshots from `build/review/launch-
 ## Before these go in
 
 1. **Check on the phone:** the age range sheet, the microphone and speech prompts, the camera, the calendar prompt and a sandbox Squad. Cut whatever doesn't happen as written.
-2. **The speech prompt.** The code never asks for Speech Recognition itself (`SpeechAnalyzer` needs only the microphone), so the notes don't promise that prompt. See what the phone does.
+2. **The speech prompt.** `SpeechAnalyzer`, `SpeechTranscriber` and `DictationTranscriber` have no authorization call in the 26.0 to 27.2 SDKs; Apple documents the prompt and its purpose string only for `SFSpeechRecognizer`. So the code asks only for the microphone, when the student starts, and the notes don't promise a speech prompt. The purpose string stays until a phone proves it's unused: `scripts/device_probe.sh` now reports the authorization status before and after a transcription.
 3. **Teach Cap on a fresh install** needs a topic with at least two usable ideas (`TeachPlanner.minIdeas`), and the menu hides it otherwise. The sample page should have one ("Phases of mitosis" has three questions); check it.
 4. **The camera in Ask** shows only with notes and a build with the relay, so a fresh install after the sample page should have it. The simulator has no document camera, so this is unchecked.
 5. **Age rating.** See `docs/privacy-wording.md` section 4: `ageAssurance` is false and the rating 4+, and the last section of the notes describes an age check. Settle both together.
