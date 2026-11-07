@@ -185,6 +185,8 @@ struct LibraryTopicRow: View {
                         .foregroundStyle(questionCount > 0 && value < 0.005 ? CLColor.ink3 : CLColor.ink)
                 case .gap:
                     ReflowPill(text: "No notes yet", tone: .rose)
+                case .covered:
+                    ReflowPill(text: "In your other topics", tone: .neutral)
                 case .waiting:
                     ReflowPill(text: "Waiting for review", tone: .sky)
                 case .notOnExam, .noExam:
@@ -227,6 +229,7 @@ struct LibraryTopicRow: View {
             if questionCount > 0 && value < 0.005 { return String(localized: "Not studied yet") }
             return String(localized: "\(Int((value * 100).rounded())) percent ready")
         case .gap: return String(localized: "No notes yet")
+        case .covered: return String(localized: "In your other topics")
         case .waiting: return String(localized: "Waiting for review")
         case .notOnExam(let exam): return String(localized: "Not on the \(exam)")
         case .noExam: return String(localized: "\(questionCount) questions")

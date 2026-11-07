@@ -28,6 +28,7 @@ enum LocalSyllabus {
         var linesSinceHeading = 0
         var general = FormatLine()
         var seenNames = Set<String>()
+        var position = 0
 
         func add(_ topic: SyllabusTopic) {
             let key = topic.name.lowercased()
@@ -35,18 +36,30 @@ enum LocalSyllabus {
             if let current { drafts[current].exam.topics.append(topic) } else { waiting.append(topic) }
         }
 
-        for line in lines {
+        // A long paragraph is read a sentence at a time: its first sentence shouldn't speak for the rest.
+        let readable: [(line: LineInput, text: String)] = lines.flatMap { line -> [(line: LineInput, text: String)] in
             let text = line.text.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard Lexicon.wordCount(text) > 20 else { return [(line, text)] }
+            return Lexicon.sentences(text).map { (line, $0) }
+        }
+
+        while position < readable.count {
+            let (line, text) = readable[position]
+            position += 1
             guard !text.isEmpty else { continue }
             let hits = TextDates.find(in: text, from: today, calendar: calendar)
-            let word = ExamWords.first(in: text)
+            let word = ExamWords.first(in: text) ?? examDateLine(text)
             let format = FormatLine(text)
 
-            if let word, isAboutAnExam(text) {
-                let isRow = scheduleSubject(of: text, hits: hits) != nil || hits.first?.range.lowerBound == text.startIndex
+            if let word, isAboutAnExam(text, hits: hits) {
+                // An exam among the rows of a schedule covers what came before it, unless what follows says otherwise ("Covers:").
+                let next = readable[position...].first { !$0.text.isEmpty }?.text.lowercased() ?? ""
+                let amongRows = !waiting.isEmpty && !text.hasSuffix(":") && !next.hasPrefix("cover") && !next.hasPrefix("topics") && !next.hasPrefix("includes")
+                let isRow = amongRows || scheduleSubject(of: text, hits: hits) != nil || hits.first?.range.lowerBound == text.startIndex
                 let index: Int
-                if let known = drafts.firstIndex(where: { $0.exam.title == word.title }) {
-                    index = known
+                let known = drafts.contains { $0.exam.title == word.title }
+                if let existing = drafts.firstIndex(where: { $0.exam.title == word.title }) {
+                    index = existing
                 } else {
                     drafts.append(Draft(exam: SyllabusExam(title: word.title, topics: [], format: SyllabusFormat()), before: waiting))
                     waiting = []
@@ -59,8 +72,14 @@ enum LocalSyllabus {
                     waitingDate = index
                     linesSinceHeading = 0
                 }
-                current = isRow ? nil : index
+                // A sentence about an exam already named ("The midterm is 20 multiple choice") isn't a heading: it says nothing about what comes next.
+                let isSentence = known && text.hasSuffix(".") && Lexicon.wordCount(text) > 4
+                current = isRow ? nil : isSentence ? current : index
                 format.apply(to: &drafts[index], quote: text)
+                for name in inlineList(in: text, hits: hits) {
+                    let topic = SyllabusTopic(name: name, topicId: match(name, in: topics), lineIds: [line.id])
+                    if seenNames.insert(name.lowercased()).inserted { drafts[index].exam.topics.append(topic) }
+                }
                 continue
             }
             if let index = waitingDate {
@@ -77,7 +96,8 @@ enum LocalSyllabus {
                 if let target = current ?? drafts.indices.last { format.apply(to: &drafts[target], quote: text) } else { general.merge(format, quote: text) }
                 continue
             }
-            for name in topicNames(in: text, hits: hits, underHeading: current != nil) {
+            let listed = inlineList(in: text, hits: hits)
+            for name in listed.isEmpty ? topicNames(in: text, hits: hits, underHeading: current != nil) : listed {
                 add(SyllabusTopic(name: name, topicId: match(name, in: topics), lineIds: [line.id]))
             }
         }
@@ -126,26 +146,49 @@ enum LocalSyllabus {
 
     // MARK: What isn't an exam
 
-    private static let notAnnouncing = ["%", "policy", "policies", "make-up", "makeup", "missed", "absence", "accommodation", "grade", "grading", "review for", "review session", "academic", "cheating", "study guide"]
+    private static let notAnnouncing = ["mock exam", "practice exam", "sample exam", "mock test", "practice test", "%", "policy", "policies", "make-up", "makeup", "missed", "absence", "accommodation", "grade", "grading", "review for", "review session", "academic", "cheating", "study guide"]
 
     /// A line that is about an exam, not one that uses the word: "Grading: midterm 30%" and "Make-up exams are only given…" aren't.
-    private static func isAboutAnExam(_ text: String) -> Bool {
+    private static func isAboutAnExam(_ text: String, hits: [TextDates.Hit]) -> Bool {
         let lower = text.lowercased()
         guard !notAnnouncing.contains(where: { lower.contains($0) }) else { return false }
         // A long sentence that mentions one in passing, with no date in it, isn't its heading.
-        return Lexicon.wordCount(text) <= 14
+        return Lexicon.wordCount(text) <= 14 || !hits.isEmpty
+    }
+
+    /// "Exam date: 16 November": the exam word in a form that elsewhere isn't one.
+    private static func examDateLine(_ text: String) -> ExamWords.Found? {
+        guard text.lowercased().hasPrefix("exam date"), text.contains(":") else { return nil }
+        return ExamWords.Found(title: String(localized: "Exam"), range: text.startIndex..<text.endIndex)
+    }
+
+    /// "Covers: Meiosis, Genetics and DNA", "which include cell structure, membranes and energy": a list on one line.
+    nonisolated(unsafe) private static let aList = try? NSRegularExpression(pattern: #"\b(?:covers?|covering|includes?|including|topics?)\s*:?\s+(.+)$"#, options: [.caseInsensitive])
+
+    private static func inlineList(in text: String, hits: [TextDates.Hit]) -> [String] {
+        // The last such word: "will cover chapters one to six, which include cell structure, membranes and energy".
+        var body: Substring?
+        var rest = Substring(text)
+        while let match = aList?.firstMatch(in: String(rest), range: NSRange(String(rest).startIndex..., in: String(rest))), let range = Range(match.range(at: 1), in: String(rest)) {
+            body = String(rest)[range][...]
+            rest = Substring(String(String(rest)[range]))
+        }
+        guard let body else { return [] }
+        let split = String(body).replacingOccurrences(of: #",?\s+(?:and|y|und|et)\s+"#, with: ",", options: [.regularExpression])
+        let names = split.components(separatedBy: ",").map { clean($0, hits: hits) }.filter { isGoodName($0) && Lexicon.wordCount($0) <= 5 && !$0.lowercased().contains("chapter") }
+        return names.count >= 2 ? names : []
     }
 
     // MARK: Topics
 
     nonisolated(unsafe) private static let rowPrefix = try? NSRegularExpression(
-        pattern: #"^\s*(?:week|wk|lecture|lec|class|session|day|unit|module|topic)\.?\s*\d{1,2}\s*[:\-–—.)]*\s*"#, options: [.caseInsensitive])
+        pattern: #"^\s*(?:(?:week|wk|lecture|lec|class|session|day|unit|module|topic|semana|sesi[oó]n|unidad|tema|sitzung|woche|einheit|thema|kapitel|semaine|s[eé]ance)\.?\s*\d{1,2}|(?:section|part)\s+[a-z]\b|第\s*\d{1,2}\s*[回章週講])\s*[:\-–—.)]*\s*"#, options: [.caseInsensitive])
     nonisolated(unsafe) private static let chapterRange = try? NSRegularExpression(
         pattern: #"^\s*(?:chapters?|chaps?\.?|chs?\.?)\s*(\d{1,2})\s*(?:-|–|—|to|through|thru)\s*(\d{1,2})\b"#, options: [.caseInsensitive])
     nonisolated(unsafe) private static let oneChapter = try? NSRegularExpression(
         pattern: #"^\s*(?:chapter|chap\.?|ch\.?)\s*(\d{1,2})\s*[:\-–—.)]*\s*"#, options: [.caseInsensitive])
 
-    private static let notATopic = ["review", "break", "holiday", "no class", "homework", "assignment", "due", "reading", "lab report", "project", "paper", "presentation", "tba", "tbd", "office hours", "syllabus", "introduction to the course", "course overview", "recess", "thanksgiving", "spring break"]
+    private static let notATopic = ["set text", "review", "break", "holiday", "no class", "homework", "assignment", "due", "reading", "lab report", "project", "paper", "presentation", "tba", "tbd", "office hours", "syllabus", "introduction to the course", "course overview", "recess", "thanksgiving", "spring break"]
 
     /// The subject of a schedule row ("Week 4: Meiosis (Oct 3)" is "Meiosis"); nil for a line that isn't one or has no subject ("Week 8").
     private static func scheduleSubject(of text: String, hits: [TextDates.Hit]) -> String? {
@@ -189,13 +232,24 @@ enum LocalSyllabus {
     private static func clean(_ raw: String, hits: [TextDates.Hit]) -> String {
         var text = raw
         for hit in hits { text = text.replacingOccurrences(of: hit.quote, with: "") }
+        // A table's row: its first cell with words in it.
+        if text.contains("\t") { text = text.components(separatedBy: "\t").first { $0.contains(where: \.isLetter) } ?? text }
         text = text.replacingOccurrences(of: "()", with: "").replacingOccurrences(of: "( )", with: "")
-        return text.trimmingCharacters(in: CharacterSet(charactersIn: " \t:-–—.,;()[]"))
+        text = text.trimmingCharacters(in: CharacterSet(charactersIn: " \t:-–—.,;[]"))
+        // Brackets go only when they don't match ("Routing (OSPF, BGP)" keeps its pair; "Oct 3)" doesn't).
+        while text.hasSuffix(")"), text.filter({ $0 == "(" }).count < text.filter({ $0 == ")" }).count { text.removeLast() }
+        while text.hasPrefix("("), text.filter({ $0 == "(" }).count > text.filter({ $0 == ")" }).count { text.removeFirst() }
+        return text.trimmingCharacters(in: CharacterSet(charactersIn: " \t:-–—.,;"))
     }
+
+    /// Words a form uses for its fields: "Date: Nov 20" with the date taken out leaves "Date", which isn't a topic.
+    private static let fieldLabels: Set<String> = ["date", "dates", "time", "times", "day", "room", "location", "place", "where", "when", "duration", "length", "weight", "format", "instructor", "professor",
+                                                   "datum", "zeit", "uhrzeit", "raum", "ort", "dauer", "fecha", "hora", "horario", "lugar", "aula", "duracion", "日時", "日付", "場所", "時間", "形式"]
 
     private static func isGoodName(_ name: String) -> Bool {
         guard name.count >= 2, Lexicon.wordCount(name) <= 8, name.contains(where: \.isLetter) else { return false }
         let lower = name.lowercased()
+        guard !fieldLabels.contains(Lexicon.fold(name)) else { return false }
         return !notATopic.contains { lower.contains($0) } && ExamWords.first(in: name) == nil
     }
 
@@ -251,13 +305,15 @@ enum LocalSyllabus {
             multipleChoiceCount = counts.multipleChoice
             shortAnswerCount = counts.shortAnswer
             essayCount = counts.essay
-            if multipleChoiceCount != nil || has(#"\bmultiple[- ]choice\b"#) { multipleChoice = true }
+            if multipleChoiceCount != nil || has(#"\bmultiple[- ]choice\b|opci[oó]n m[uú]ltiple"#) { multipleChoice = true }
             if shortAnswerCount != nil || has(#"\bshort[- ]answers?\b"#) { shortAnswer = true }
-            if essayCount != nil || has(#"\bessay (?:questions?|exam|section)\b"#) { essay = true }
-            questionCount = number(#"(\d{1,3})\s*(?:total\s+)?questions?\b"#)
-            if let m = number(#"(\d{1,3})\s*(?:-\s*)?(?:minutes?|mins?)\b"#) {
+            if essayCount != nil || has(#"\bessay (?:questions?|exam|section)\b|\b\d+\s+essays\b|論述"#) { essay = true }
+            questionCount = number(#"(\d{1,3})\s*(?:total\s+)?(?:questions?|preguntas?|fragen)\b"#)
+            if let h = number(#"(\d)\s*(?:hours?|hrs?)\s*(?:and\s*)?\d{1,2}\s*(?:minutes?|mins?)\b"#), let m = number(#"\d\s*(?:hours?|hrs?)\s*(?:and\s*)?(\d{1,2})\s*(?:minutes?|mins?)\b"#) {
+                minutes = h * 60 + m
+            } else if let m = number(#"(\d{1,3})\s*(?:-\s*)?(?:minutes?|mins?|minutos?|minuten)\b"#) ?? number(#"(\d{1,3})\s*分"#) {
                 minutes = m
-            } else if let h = number(#"(\d)\s*(?:-\s*)?(?:hours?|hrs?)\b"#) {
+            } else if let h = number(#"(\d)\s*(?:-\s*)?(?:hours?|hrs?|horas?|stunden?)\b"#) {
                 minutes = h * 60
             } else if has(#"\bone[- ]hour\b"#) {
                 minutes = 60

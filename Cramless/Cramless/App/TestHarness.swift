@@ -109,6 +109,15 @@ enum TestHarness {
         // its foot has it.
         AskDemo.seedAdditions(app)
         AskDemo.applyLaunchState(app)
+        // `CRAMLESS_EXAM_THIN=<n>`: the nth upcoming exam covers only its course's smallest topic with questions, so its page says how thin that is.
+        if let n = once("CRAMLESS_EXAM_THIN").flatMap(Int.init), app.upcomingExams().indices.contains(n), let course = app.upcomingExams()[n].course {
+            let exam = app.upcomingExams()[n]
+            let counts = Dictionary(grouping: course.liveItems.compactMap(\.topicID), by: { $0 }).mapValues(\.count)
+            if let smallest = counts.min(by: { $0.value < $1.value })?.key {
+                exam.scope = [smallest]
+                app.save()
+            }
+        }
         apply(route: parts[0], arg: parts.count > 1 ? parts[1] : nil, app: app)
     }
 

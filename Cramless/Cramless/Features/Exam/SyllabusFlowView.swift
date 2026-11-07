@@ -226,7 +226,7 @@ struct SyllabusFlowView: View {
             show(problem: SyllabusCopy.unreadable)
             return
         }
-        let input = SyllabusInput(course: courseName, examTitle: base.title, topics: topics, pages: read, base: base)
+        let input = SyllabusInput(course: courseName, examTitle: base.title, topics: topics, pages: read, base: base, library: app.syllabusLibrary(courseID: base.courseID))
         let outcome = await app.ai.readSyllabus(input, offlineOnly: offlineOnly)
         suggestion = outcome.suggestion
         guard let found = outcome.proposal else {
@@ -342,6 +342,17 @@ struct SyllabusFlowView: View {
         .safeAreaInset(edge: .bottom) {
             VStack(spacing: 0) {
                 Rectangle().fill(CLColor.hairline).frame(height: 0.5)
+                if let proposal {
+                    // What the tap will do, before it's pressed.
+                    Text(verbatim: proposal.effect(on: base))
+                        .clFont(.subheadlineEmphasis)
+                        .foregroundStyle(CLColor.ink)
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity)
+                        .padding(.horizontal, CLSpace.gutter)
+                        .padding(.top, 10)
+                }
                 Button(SyllabusCopy.looksRight) {
                     guard let proposal else { return }
                     CLHaptics.commit()
@@ -388,31 +399,64 @@ struct SyllabusFlowView: View {
                     .padding(.top, 2)
             }
             ForEach(proposal.topics) { topic in
-                Button {
-                    CLHaptics.select()
-                    if let i = self.proposal?.topics.firstIndex(where: { $0.id == topic.id }) { self.proposal?.topics[i].included.toggle() }
-                } label: {
-                    HStack(spacing: 10) {
-                        Image(systemName: topic.included ? "checkmark.circle.fill" : "circle")
-                            .font(.system(size: 20, weight: .semibold))
-                            .foregroundStyle(topic.included ? CLColor.tangerineInk : CLColor.ink4)
-                        ReflowStack(verticalAlignment: .center, spacing: 8) {
-                            Text(verbatim: topic.name)
-                                .clFont(.body)
-                                .foregroundStyle(topic.included ? CLColor.ink : CLColor.ink3)
-                                .fixedSize(horizontal: false, vertical: true)
-                            if topic.isNew { CLPill(text: SyllabusCopy.noNotes, tone: .tangerine) }
-                        }
-                        Spacer(minLength: 0)
-                    }
-                    .frame(minHeight: CLMetrics.minHitTarget)
-                    .contentShape(Rectangle())
+                topicRow(topic) { self.proposal?.topics[$0].included.toggle() } index: { self.proposal?.topics.firstIndex(where: { $0.id == topic.id }) }
+            }
+            if !proposal.alsoInCourse.isEmpty {
+                CLEyebrow(text: SyllabusCopy.alsoInCourse).padding(.top, 10)
+                Text(SyllabusCopy.alsoInCourseNote)
+                    .clFont(.footnote)
+                    .foregroundStyle(CLColor.ink2)
+                    .fixedSize(horizontal: false, vertical: true)
+                ForEach(proposal.alsoInCourse) { topic in
+                    topicRow(topic) { self.proposal?.alsoInCourse[$0].included.toggle() } index: { self.proposal?.alsoInCourse.firstIndex(where: { $0.id == topic.id }) }
                 }
-                .buttonStyle(.plain)
-                .accessibilityAddTraits(topic.included ? [.isSelected] : [])
             }
         }
         .clCard(padding: 16)
+    }
+
+    @ViewBuilder
+    private func topicRow(_ topic: SyllabusProposal.Topic, toggle: @escaping (Int) -> Void, index: @escaping () -> Int?) -> some View {
+        if topic.canUntick {
+            Button {
+                CLHaptics.select()
+                if let i = index() { toggle(i) }
+            } label: {
+                topicLabel(topic, mark: topic.included ? "checkmark.circle.fill" : "circle", tint: topic.included ? CLColor.tangerineInk : CLColor.ink4)
+            }
+            .buttonStyle(.plain)
+            .accessibilityAddTraits(topic.included ? [.isSelected] : [])
+        } else {
+            // Matched by its questions alone: they're on the exam already, filed under other topics, so there's nothing here to take off.
+            topicLabel(topic, mark: "checkmark.circle", tint: CLColor.ink3)
+                .accessibilityElement(children: .combine)
+                .accessibilityHint(Text(SyllabusCopy.alreadyOnIt))
+        }
+    }
+
+    private func topicLabel(_ topic: SyllabusProposal.Topic, mark: String, tint: Color) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: mark)
+                .font(.system(size: 20, weight: .semibold))
+                .foregroundStyle(tint)
+                .accessibilityHidden(true)
+            ReflowStack(verticalAlignment: .center, spacing: 8) {
+                Text(verbatim: topic.name)
+                    .clFont(.body)
+                    .foregroundStyle(topic.included ? CLColor.ink : CLColor.ink3)
+                    .fixedSize(horizontal: false, vertical: true)
+                if topic.isGap {
+                    CLPill(text: SyllabusCopy.noNotes, tone: .tangerine)
+                } else if topic.questions > 0 {
+                    CLPill(text: SyllabusCopy.questions(topic.questions), tone: .neutral)
+                } else if topic.inNotes {
+                    CLPill(text: SyllabusCopy.inNotes, tone: .neutral)
+                }
+            }
+            Spacer(minLength: 0)
+        }
+        .frame(minHeight: CLMetrics.minHitTarget)
+        .contentShape(Rectangle())
     }
 
     private func formatCard(_ proposal: SyllabusProposal) -> some View {

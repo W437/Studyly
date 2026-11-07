@@ -24,10 +24,11 @@ enum ExamGaps {
 
     /// The gaps of one exam. Nil with none, on the day and on the eve.
     /// - `within`: how far off the exam may be (`nil`: any distance, as the exam page shows them).
-    static func find(exam: ExamSnapshot, topicReadiness: [TopicReadiness], draftTopicIDs: Set<UUID>, daysLeft: Int,
+    /// - `covered`: empty topics whose words the student's questions or notes already speak of (`SyllabusMatcher`): not gaps, whatever they're filed under.
+    static func find(exam: ExamSnapshot, topicReadiness: [TopicReadiness], draftTopicIDs: Set<UUID>, covered: Set<UUID> = [], daysLeft: Int,
                      within: ClosedRange<Int>? = noticeDays) -> ExamGap? {
         guard daysLeft >= noticeDays.lowerBound, within?.contains(daysLeft) ?? true else { return nil }
-        let empty = topicReadiness.filter { $0.value == nil && $0.itemCount == 0 }
+        let empty = topicReadiness.filter { $0.value == nil && $0.itemCount == 0 && !covered.contains($0.id) }
         let topics = empty.filter { !draftTopicIDs.contains($0.id) }.map { ExamGap.Topic(id: $0.id, name: $0.name) }
         let waiting = empty.filter { draftTopicIDs.contains($0.id) }.map { ExamGap.Topic(id: $0.id, name: $0.name) }
         guard !topics.isEmpty || !waiting.isEmpty else { return nil }

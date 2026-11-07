@@ -67,6 +67,8 @@ struct ExamDetailModel {
     var offersExamPass: Bool
     /// The mock exam's card; nil on the eve, the day and after.
     var mock: ExamPresentation.MockCard?
+    /// A scope that holds too little for the ring to mean anything: the ring says how little, and the page offers the whole course.
+    var thinScope: ExamPresentation.ThinScope?
     /// Topics with no notes, while there is time to fill them (nil once put off for the day).
     var gap: ExamGap?
     /// The drafts waiting for the gap's `waiting` topics.
@@ -101,7 +103,7 @@ struct ExamDetailModel {
         otherExams = app.otherExamsSeconds(besides: read.plan)
         let history = app.readinessHistory(for: exam, days: 14)
         path = ExamPresentation.path(history: history, plan: plan, examDate: exam.date, now: app.now, calendar: app.calendar)
-        topics = ExamPresentation.topicsWeakestFirst(readiness.topics, target: readiness.target, drafts: app.draftSources(in: course))
+        topics = ExamPresentation.topicsWeakestFirst(readiness.topics, target: readiness.target, drafts: app.draftSources(in: course), covered: app.coveredTopics(in: course))
         // Today's session as Today starts it, built once: the "Study" button and the plan's first stop read it.
         let (summary, session) = app.todayPlan()
         let strip = ExamPresentation.weekStrip(plan: plan, yesterday: app.dayRecordSnapshot(for: app.calendar.adding(days: -1, to: app.now)),
@@ -136,6 +138,11 @@ struct ExamDetailModel {
             offersRest = canAdd && target != nil
         }
         let items = course.liveItems
+        if case .past = phase {
+            thinScope = nil
+        } else {
+            thinScope = ExamPresentation.thinScope(inScope: readiness.itemsInScope, inCourse: items.count { $0.status == .active })
+        }
         let counts = Dictionary(grouping: items.compactMap { $0.sourceRef?.sourceID }, by: { $0 }).mapValues(\.count)
         materials = course.liveSources.sorted { $0.createdAt > $1.createdAt }.map { source in
             Material(id: source.id, kind: source.kind, title: source.title,
@@ -178,7 +185,9 @@ private struct ExamDetailContent: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
                 hero
-                if let projection {
+                if let thin = model.thinScope {
+                    thinScopeCard(thin).padding(.top, 20)
+                } else if let projection {
                     projectionCard(projection).padding(.top, 20)
                 }
                 actions.padding(.top, 16)
@@ -286,10 +295,31 @@ private struct ExamDetailContent: View {
         let target = model.readiness.target
         let ahead = !model.isPast
         return ReflowStack(horizontalAlignment: .center, verticalAlignment: .center, spacing: 18) {
-            ReadinessRing(value: shownReadiness, size: 150, lineWidth: 15, caption: model.isPast ? "on the day" : "ready",
-                          animatesFromZero: true, goal: ahead ? target : nil,
-                          projected: ahead && model.readiness.itemsInScope > 0 ? (shownSkipPlan ?? model.plan).projectedReadiness : nil)
-                .accessibilityLabel(Text(model.isPast ? "Readiness on the day" : "Readiness"))
+            if let thin = model.thinScope {
+                // Too little to read a percentage from: the ring says what there is instead.
+                ZStack {
+                    ReadinessRing(value: 0, size: 150, lineWidth: 15, showsLabel: false)
+                    VStack(spacing: 2) {
+                        Text(verbatim: thin.inScope.formatted())
+                            .font(.system(size: 39, weight: .heavy, design: .rounded))
+                            .monospacedDigit()
+                            .foregroundStyle(CLColor.ink)
+                        Text(thin.ringCaption)
+                            .clFont(.caption)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(CLColor.ink2)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.7)
+                    }
+                }
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(Text(verbatim: thin.spoken))
+            } else {
+                ReadinessRing(value: shownReadiness, size: 150, lineWidth: 15, caption: model.isPast ? "on the day" : "ready",
+                              animatesFromZero: true, goal: ahead ? target : nil,
+                              projected: ahead && model.readiness.itemsInScope > 0 ? (shownSkipPlan ?? model.plan).projectedReadiness : nil)
+                    .accessibilityLabel(Text(model.isPast ? "Readiness on the day" : "Readiness"))
+            }
             VStack(alignment: .leading, spacing: 6) {
                 DotLine(parts: whenParts)
                     .clFont(.title3)
@@ -297,7 +327,8 @@ private struct ExamDetailContent: View {
                 DotLine(parts: sublineParts)
                     .clFont(.subheadline)
                     .foregroundStyle(CLColor.ink2)
-                if ahead {
+                // A thin scope's week says little: the count and the note say it instead.
+                if ahead, model.thinScope == nil {
                     ReflowPill(text: "\(CLFormat.delta(model.readiness.deltaThisWeek)) this week",
                                tone: model.readiness.deltaThisWeek > 0.004 ? .mint : .neutral,
                                systemImage: model.readiness.deltaThisWeek > 0.004 ? "arrow.up.right" : nil)
@@ -362,6 +393,25 @@ private struct ExamDetailContent: View {
                                     grade: model.readiness.projectedGrade, examDate: model.date, now: model.now,
                                     calendar: model.calendar, skipping: shownSkipPlan == nil ? nil : model.skip, eveDone: model.eveDone,
                                     newQuestions: model.readiness.newQuestions, newQuestionsInPlan: model.readiness.newQuestionsInPlan)
+    }
+
+    /// In place of the projection when the scope is thin: what's wrong, and the one tap that fixes it.
+    private func thinScopeCard(_ thin: ExamPresentation.ThinScope) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(verbatim: thin.line)
+                .clFont(.headline)
+                .foregroundStyle(CLColor.ink)
+                .fixedSize(horizontal: false, vertical: true)
+            Button {
+                CLHaptics.tap()
+                app.useWholeCourse(examID: model.id)
+            } label: {
+                Text(SyllabusCopy.useWholeCourse)
+            }
+            .buttonStyle(.cl(.primary, size: .small, fullWidth: false))
+            .frame(minHeight: CLMetrics.minHitTarget)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func projectionCard(_ p: ExamPresentation.Projection) -> some View {
@@ -810,6 +860,8 @@ private struct ExamTopicRow: View {
                         .foregroundStyle(topic.questionCount > 0 && value < 0.005 ? CLColor.ink3 : CLColor.ink)
                 } else if topic.reviewSource != nil {
                     ReflowPill(text: "Waiting for review", tone: .sky)
+                } else if topic.isCovered {
+                    ReflowPill(text: "In your other topics", tone: .neutral)
                 } else {
                     ReflowPill(text: "No notes yet", tone: .rose)
                 }
@@ -849,7 +901,7 @@ private struct ExamTopicRow: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(Text("Review the questions for \(topic.name)"))
-            } else if topic.value == nil {
+            } else if topic.isEmpty {
                 Button(action: onAdd) {
                     Label("Add material", systemImage: "plus")
                         .clFont(.footnoteEmphasis)
@@ -864,6 +916,7 @@ private struct ExamTopicRow: View {
 
     private var accessibilityValue: String {
         guard let value = topic.value else {
+            if topic.isCovered { return String(localized: "In your other topics") }
             return topic.reviewSource != nil ? String(localized: "Waiting for review") : String(localized: "No notes yet")
         }
         if topic.questionCount > 0 && value < 0.005 { return String(localized: "Not studied yet") }
