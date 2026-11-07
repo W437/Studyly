@@ -70,7 +70,7 @@ enum NoticeContent {
     static func card(for note: ConfusionNote) -> CapNotice {
         let parts = note.name.components(separatedBy: " vs ")
         let title = note.missCount == 0 && parts.count == 2 ? lookAlikeTitle(parts[0], parts[1])
-            : note.rightRun >= 1 ? SessionCopy.mixUpComingAlong(note.name) : SessionCopy.mixUpLine(note.name)
+            : note.rightRun >= 1 ? SessionCopy.mixUpComingAlong(note.name, questions: note.questions) : SessionCopy.mixUpLine(note.name, questions: note.questions)
         // The fix's length holds together on one line ("2-minute" never breaks at its hyphen).
         return CapNotice(id: NoticeEngine.mixUpID(note.id), kind: .mixUp, title: title,
                          detail: SessionCopy.missLine(note).replacingOccurrences(of: "2-minute", with: "2\u{2011}minute"),
@@ -215,7 +215,10 @@ enum NoticeContent {
             return String(localized: "\(first) and \(SessionCopy.lowerFirst(pair.termB)) look alike, and both are on your \(pair.examTitle). Cap can show you the difference.")
         case .mixUp(let note):
             let ready = note.questions == 1 ? String(localized: "A quick look is ready.") : String(localized: "A 2-minute fix is ready.")
-            if note.name == ConfusionCandidate.unnamed { return "\(String(localized: "Still tripping on the same questions?")) \(ready)" }
+            if note.name == ConfusionCandidate.unnamed {
+                let same = note.questions == 1 ? String(localized: "Still tripping on the same question?") : String(localized: "Still tripping on the same questions?")
+                return "\(same) \(ready)"
+            }
             // The name as it stands: lower-casing it loses a name's capital, and a topic isn't something you mix up.
             guard note.name.contains(" vs ") else { return "\(String(localized: "\(note.name) keeps tripping you up.")) \(ready)" }
             return "\(String(localized: "\(note.name): still mixing them up?")) \(ready)"

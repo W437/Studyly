@@ -261,6 +261,14 @@ enum SampleData {
         // Each item's earlier reviews are of a learned card (its first one of a new card), so retention statistics
         // have something to read.
         var seenBefore: Set<UUID> = []
+        // The open mix-up's questions were last answered wrong, or there'd be nothing for Cap to bring up.
+        for confusion in bio.confusions {
+            confusion.lastSeenAt = day(-1, hour: 21)
+            for itemID in confusion.itemIDs {
+                guard let item = bio.items.first(where: { $0.id == itemID }) else { continue }
+                logs.append((confusion.lastSeenAt, item, .again))
+            }
+        }
         for (when, item, rating) in logs.sorted(by: { $0.0 < $1.0 }) {
             var before = MemoryState.new
             if seenBefore.contains(item.id) {

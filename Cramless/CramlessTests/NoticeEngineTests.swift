@@ -1056,6 +1056,10 @@ final class NoticeEngineTests: XCTestCase {
         var slip = mixUp("Water availability").note
         slip.questions = 1
         XCTAssertEqual(NoticeContent.pingBody(Notice(id: "s", kind: .mixUp, rank: 0, evidence: .mixUp(slip))), "Water availability keeps tripping you up. A quick look is ready.")
+        slip.name = ConfusionCandidate.unnamed
+        XCTAssertEqual(NoticeContent.pingBody(Notice(id: "s", kind: .mixUp, rank: 0, evidence: .mixUp(slip))), "Still tripping on the same question? A quick look is ready.")
+        XCTAssertEqual(SessionCopy.mixUpLine(ConfusionCandidate.unnamed, questions: 1), "This question keeps tripping you up.")
+        XCTAssertEqual(SessionCopy.mixUpComingAlong(ConfusionCandidate.unnamed, questions: 1), "This question is coming along.")
         XCTAssertNil(NoticeContent.pingBody(Notice(id: "b", kind: .welcomeBack, rank: 0, evidence: .welcomeBack(best: 3))))
     }
 

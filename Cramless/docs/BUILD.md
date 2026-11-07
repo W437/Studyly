@@ -1744,6 +1744,19 @@ Places where the app contradicted itself or looked like it punished the student,
 - **Any hour**: "That's enough for today", on Today, the exam page and the last look, so it reads right under "Good afternoon".
 - **Summary numbers**: a badge past its count says the real one (`Badge.earned(saves:)`), and the button is "Another session: 18 questions", which is what it starts.
 
+From the Stage 2 replays, tested on real timetables:
+
+- **A mix-up left open costs no exam its time** (`SessionBuilder.buildDaily`): weak spots used to hold back a share of every session, and took what was left before due reviews. Now they hold back only what due, priority and new questions leave, and due and priority fill first. A spot still gets a quiet day's spare time. The replays' comparison is in the lane's report.
+- **One missed question is a look, not a fix** (`LocalConfusions.recap`): half the offers were about one question, where the relay's prompt writes nothing and still costs a call. It now spends no call: the rules say what the answer is, and a two-choice question sets the wrong answer beside the right one when that's short enough. Every word follows: "Go over it · 1 min", "A quick look", "The question you missed", "A quick look is ready".
+- **Cloud fix questions survive** (`GroundingCheck.groundedByWords`): the relay sends them with no anchors, and the anchor check dropped them all whenever the mistake had a source page. They're now held to the page and the expected answers by their words, then pointed at the lines that hold them. The mock's fixture has no anchors and it writes nothing for one slip, so a test sees what the real relay sends. A relay deploy carries only that fixture.
+- **A mix-up notices recovery** (`ConfusionNote.rightRun`, `laterRight`): the last answer right says "coming along" and sends no notification; two right, one of them on a later day than the last miss, quiet the card; three close it at the session's end (`closeRecoveredConfusions`). A drill is no longer the only way out.
+- **Names in any writing** (`ConfusionFinder.longestTerm`): ten characters in Japanese or Chinese, 48 in spaced writing, cut at a word.
+- **Cap's notifications**: none after the day's study (the reminder it replaces stays quiet too), one a week about mix-ups, a name keeps its capitals, and a topic isn't a pair ("TCP segment structure keeps tripping you up").
+- **An essay exam can sit a mock** (`MockExamBuilder.minimum(for:)`): two essays make one, three by default, 15 minutes each unless the exam's pace is known. "Write more questions" asks only for the kinds the exam has (`Coverage.Rest.formats`, `mockRestRequest`), and needs a reading with something left to write from.
+- **No fix on an exam's day** (`NoticeEngine.isExamDay`), before or after the exam, for its own material: the card and the summary's offer.
+- **"Could go dim"**: the card and "Fix my week" stay, and the words stop promising. The count isn't tightened: the prediction misses far more than sessions running over would explain, and no simple change to the reach comes close to what really fades.
+- **The mock card**: built with the sitting's seed, so its minutes are the sitting's; shown once, then a 4-day rest; and Today offers it only when a quarter of its questions have been studied.
+
 ## App Store Connect (2026-11-01)
 
 The Capling record on the Loopware team (app 6828649543) is filled in by `scripts/asc/`. Every command is re-runnable and has

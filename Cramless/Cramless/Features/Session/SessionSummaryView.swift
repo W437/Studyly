@@ -556,7 +556,7 @@ struct SessionSummaryView: View {
             HStack(alignment: .top, spacing: 12) {
                 CapFace(size: 44)
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(SessionCopy.mixUpLine(offer.name))
+                    Text(SessionCopy.mixUpLine(offer.name, questions: offer.candidate.itemIDs.count))
                         .clFont(.headline)
                         .foregroundStyle(CLColor.ink)
                         .fixedSize(horizontal: false, vertical: true)

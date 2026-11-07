@@ -161,17 +161,21 @@ enum SessionCopy {
 
     /// Cap's line about a confusion: "You keep mixing up anaphase and telophase." A topic-shaped one ("Mendelian
     /// genetics") reads "Mendelian genetics keeps tripping you up."
-    static func mixUpLine(_ name: String) -> String {
+    static func mixUpLine(_ name: String, questions: Int = 2) -> String {
         // A mix-up the rules couldn't name says what it is, with no made-up name in front of the verb.
-        if name == ConfusionCandidate.unnamed { return String(localized: "These questions keep tripping you up.") }
+        if name == ConfusionCandidate.unnamed {
+            return questions == 1 ? String(localized: "This question keeps tripping you up.") : String(localized: "These questions keep tripping you up.")
+        }
         let parts = name.components(separatedBy: " vs ")
         guard parts.count == 2 else { return "\(name) keeps tripping you up." }
         return "You keep mixing up \(lowerFirst(parts[0])) and \(lowerFirst(parts[1]))."
     }
 
     /// The same mix-up when its last answer came right: it isn't tripping them up just now.
-    static func mixUpComingAlong(_ name: String) -> String {
-        if name == ConfusionCandidate.unnamed { return String(localized: "These questions are coming along.") }
+    static func mixUpComingAlong(_ name: String, questions: Int = 2) -> String {
+        if name == ConfusionCandidate.unnamed {
+            return questions == 1 ? String(localized: "This question is coming along.") : String(localized: "These questions are coming along.")
+        }
         let parts = name.components(separatedBy: " vs ")
         guard parts.count == 2 else { return String(localized: "\(name) is coming along.") }
         return String(localized: "\(Lexicon.capitalizedFirst(lowerFirst(parts[0]))) and \(lowerFirst(parts[1])) are coming along.")

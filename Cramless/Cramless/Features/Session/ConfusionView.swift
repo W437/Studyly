@@ -45,7 +45,7 @@ private struct ConfusionDetail: View {
                         .clCard()
                 }
                 if !items.isEmpty {
-                    CLSectionHeader(title: confusion.missCount == 0 ? "The questions that look alike" : "The questions you mixed up")
+                    CLSectionHeader(title: confusion.missCount == 0 ? "The questions that look alike" : confusion.itemIDs.count == 1 ? "The question you missed" : "The questions you mixed up")
                     CLList {
                         ForEach(items, id: \.id) { item in
                             questionRow(item)
@@ -97,7 +97,7 @@ private struct ConfusionDetail: View {
                 CapFace(size: 52)
                 VStack(alignment: .leading, spacing: 4) {
                     CLEyebrow(text: confusion.course.map { "Mix-up · \($0.name)" } ?? "Mix-up")
-                    Text(confusion.name)
+                    Text(confusion.itemIDs.count == 1 && confusion.name == ConfusionCandidate.unnamed ? String(localized: "A question you keep missing") : confusion.name)
                         .clFont(.title2)
                         .foregroundStyle(CLColor.ink)
                         .fixedSize(horizontal: false, vertical: true)
@@ -159,6 +159,10 @@ private struct ConfusionDetail: View {
     }
 
     private func drillLine(questions: Int, fixQuestions: Int) -> String {
+        if questions == 1 {
+            return fixQuestions > 0 ? String(localized: "The fix: a quick choice between two answers, then this question again.")
+                : String(localized: "The fix: this question again, so it sticks.")
+        }
         if fixQuestions > 0 {
             return "The fix: \(SessionCopy.questions(fixQuestions)) that teach the difference, then these again."
         }
