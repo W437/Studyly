@@ -1927,7 +1927,10 @@ for Stages 3 and 4 (none shared).
   full suite 2,344 run, 27 skipped, 0 failures, no test reaching the real host. IPA checked: 1.0 (6), widget 6, iPhone only,
   Apple Distribution: Loopware LLC, get-task-allow false, no device list, the relay address set. SHA-256
   `1d997871932787e1e597a2ae0a079e88245bdd3c7d1010653cc98bf5b2855508`. Uploaded with the owner's approval (delivery
-  a08e0307-602c-47c7-acc2-b82948a1a214).
+  a08e0307-602c-47c7-acc2-b82948a1a214), `VALID` in about three minutes and attached to version 1.0 in place of build 5.
+  TestFlight: an internal group "Internal" with access to all builds, the account holder its tester; build 6 is in beta testing.
+- **App Privacy**, with the owner's approval: Other Data ▸ Other Data Types added (App Functionality, linked to the user, not
+  tracking), matching the manifest; published on the website, 10 data types.
 
 ## Left for the owner
 
