@@ -15,6 +15,8 @@ import SwiftData
 //   first put off with "Later"; `done` "Fix my week" pressed on a fading card, or "Move them" on a long day ("Plan updated"); `allLater` all put off.
 // - `CRAMLESS_NOTICES=busy`: the midterm 9 days out, and a demo calendar with a long day. `CRAMLESS_BUSY=<offset>[:<hours>]` says which (3 days ahead, 6 hours, by default);
 //   `CRAMLESS_BUSY=ask` hasn't been asked yet ("Check my calendar" says yes, and the card follows), `=askno` answers no, `=denied` was refused long ago.
+// - `CRAMLESS_MIXUP=coming|slip`, with `mixup`: `coming` the last answer came right since the misses ("coming along"); `slip` the mix-up is about one question ("Go over it").
+// - `CRAMLESS_ESSAYS=<n>`, with `mock`: the midterm is essays only, and has `n` of them (2 make a mock).
 // - `CRAMLESS_NOTICE_TAP=<ms>` presses the button on the card that long after launch (`TodayView`).
 // - `CRAMLESS_ROUTE=lookAlike` opens the sheet on the best pair; `CRAMLESS_LOOKALIKE=rules|cloud|writing` (`LookAlikeView`).
 //
@@ -65,8 +67,43 @@ extension AppModel {
         }
         if asked.contains("lecturedate") || all { debugHearExamDate("new") }
         if asked.contains("back") || all { debugWentAway() }
+        debugShapeMixUp()
+        debugMakeEssayExam(midterm)
         save()
         applyNoticeState()
+    }
+
+    /// `CRAMLESS_MIXUP`.
+    private func debugShapeMixUp() {
+        guard let state = TestHarness.value("CRAMLESS_MIXUP"), let confusion = openConfusions().first, let first = confusion.itemIDs.first else { return }
+        switch state {
+        case "coming":
+            recordReview(itemID: first, rating: .good, score: 1, answer: item(first)?.answer, gradedBy: "rules", sessionID: nil)
+        case "slip":
+            guard let question = item(first) else { return }
+            confusion.itemIDs = [first]
+            confusion.name = ConfusionCandidate.unnamed
+            confusion.explanation = ConfusionFinder.description(misses: confusion.missCount, questions: 1)
+            let mistake = MistakeInput(itemId: first.uuidString, topic: "", prompt: question.prompt, expected: question.answer, given: "", misses: confusion.missCount)
+            confusion.fix = ConfusionFix(lesson: LocalConfusions.recap(mistake, name: confusion.name, explanation: confusion.explanation).lesson, itemIDs: [])
+        default:
+            break
+        }
+    }
+
+    /// `CRAMLESS_ESSAYS`.
+    private func debugMakeEssayExam(_ exam: Exam?) {
+        guard let count = TestHarness.value("CRAMLESS_ESSAYS").flatMap({ Int($0) }), let exam, let course = exam.course else { return }
+        exam.format = ExamFormat(multipleChoice: false, shortAnswer: false, essay: true)
+        for item in course.items where item.kind == .apply { item.status = .draft }
+        let studied = course.items.first { $0.memory.lastReview != nil }?.memory ?? .new
+        for index in 0..<count {
+            let essay = StudyItem(course: course, kind: .apply, status: .active, origin: .person, prompt: String(localized: "Essay \(index + 1): how does mitosis keep a cell's chromosomes the same?"),
+                                  answer: "The copies are pulled apart so each new cell gets one set.", now: now)
+            essay.memory = studied
+            context.insert(essay)
+            course.items.append(essay)
+        }
     }
 
     private func applyNoticeState() {

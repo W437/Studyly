@@ -208,10 +208,11 @@ struct MakeCardsView: View {
         CLHaptics.success()
         added = true
         let message = "Added \(CLFormat.count(made.count, "card")) to \(course.name)"
+        let note = app.newQuestionsNote(added: made.count, in: course)
         Task { @MainActor in
             try? await nap(550)
             dismiss()
-            app.router.toast(.verbatim(message), systemImage: "rectangle.stack.badge.plus")
+            app.router.toast(.verbatim(message), detail: note, systemImage: "rectangle.stack.badge.plus")
         }
     }
 }

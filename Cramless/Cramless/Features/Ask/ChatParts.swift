@@ -568,7 +568,8 @@ struct ChatComposer: View {
     @Binding var text: String
     var focused: FocusState<Bool>.Binding
     let isAnswering: Bool
-    var placeholder: LocalizedStringKey = "Ask about your notes…"
+    /// Short, so it isn't cut beside the camera and Cap's style on a small phone or at large text.
+    var placeholder: LocalizedStringKey = "Ask Cap…"
     /// The chat, for Cap's style.
     var thread: ChatThread? = nil
     var showsMode = false

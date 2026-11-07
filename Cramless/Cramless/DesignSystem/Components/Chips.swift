@@ -33,15 +33,20 @@ struct CLSourceChip: View {
     let label: String
     var systemImage: String = "book.pages"
 
+    @Environment(\.dynamicTypeSize) private var typeSize
+
     var body: some View {
-        HStack(spacing: 5) {
+        // One line; at the accessibility sizes it wraps instead of cutting the page's name.
+        HStack(alignment: typeSize.isAccessibilitySize ? .firstTextBaseline : .center, spacing: 5) {
             Image(systemName: systemImage).font(.system(size: 11, weight: .semibold))
-            Text(label).clFont(.caption).fontWeight(.semibold).lineLimit(1)
+            Text(label).clFont(.caption).fontWeight(.semibold).lineLimit(typeSize.isAccessibilitySize ? nil : 1)
+                .fixedSize(horizontal: false, vertical: typeSize.isAccessibilitySize)
         }
         .padding(.horizontal, 10)
+        .padding(.vertical, typeSize.isAccessibilitySize ? 6 : 0)
         .frame(minHeight: 26)
         .foregroundStyle(CLColor.skyInk)
-        .background(CLColor.skySoft, in: Capsule())
+        .background(CLColor.skySoft, in: RoundedRectangle(cornerRadius: typeSize.isAccessibilitySize ? 16 : 13, style: .continuous))
         .accessibilityElement(children: .combine)
         .accessibilityLabel(Text("Source: \(label)"))
     }

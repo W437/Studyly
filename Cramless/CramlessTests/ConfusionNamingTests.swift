@@ -63,6 +63,34 @@ final class ConfusionNamingTests: XCTestCase {
         XCTAssertEqual(named.defaultExplanation, "You've missed these 7 times in the last two weeks.")
     }
 
+    func testNamesAreBoundedInLanguagesWrittenWithoutSpaces() {
+        let japanese = "光合成は葉緑体で太陽の光を使って二酸化炭素と水から糖と酸素を作る反応である"
+        let chinese = "光合作用是植物利用阳光把二氧化碳和水转化为糖和氧气的过程"
+        for passage in [japanese, chinese] {
+            XCTAssertFalse(ConfusionFinder.isTerm(passage), "a whole passage is no name")
+            let short = ConfusionFinder.shortName(passage)
+            XCTAssertTrue(short.hasSuffix("…"))
+            XCTAssertLessThanOrEqual(short.count, 11)
+        }
+        for term in ["光合成", "葉緑体", "光合作用", "二氧化碳"] {
+            XCTAssertTrue(ConfusionFinder.isTerm(term), term)
+            XCTAssertEqual(ConfusionFinder.shortName(term), term)
+        }
+        // Spaced writing still breaks at a word, and three long words can be a term.
+        XCTAssertTrue(ConfusionFinder.isTerm("Mitochondrial oxidative phosphorylation"))
+        XCTAssertEqual(ConfusionFinder.shortName("Mitochondrial oxidative phosphorylation pathways regulate"), "Mitochondrial oxidative phosphorylation pathways…")
+        XCTAssertFalse(ConfusionFinder.isTerm(String(repeating: "x", count: 60)), "no spaces in a language that has them is no term either")
+    }
+
+    func testAPassageInJapaneseGivesNoNameToASwap() {
+        let a = "光合成は葉緑体で太陽の光を使って糖を作る反応である", b = "呼吸はミトコンドリアで糖を分解して力を作る反応である"
+        let found = LocalConfusions.find([
+            MistakeInput(itemId: "a", topic: "", prompt: "光合成とは？", expected: a, given: b, misses: 2),
+            MistakeInput(itemId: "b", topic: "", prompt: "呼吸とは？", expected: b, given: a, misses: 2),
+        ])
+        XCTAssertEqual(found.first?.name, ConfusionCandidate.unnamed)
+    }
+
     func testWhatAShortAnswerIsAndHowMissesAreCounted() {
         for term in ["Anaphase", "sister chromatids", "DNA polymerase.", "  The Krebs cycle "] { XCTAssertTrue(ConfusionFinder.isTerm(term), term) }
         for sentence in ["The sister chromatids are…", "The sister chromatids are pulled apart", "", "   ", "A very long answer indeed"] {

@@ -162,7 +162,7 @@ final class StudyDemoWorldTests: XCTestCase {
         XCTAssertEqual(snapshot.summary.plannedQuestions, session.entries.count)
         XCTAssertEqual(input.sessionTotal, session.entries.count)
         XCTAssertLessThan(input.examQuestions, input.sessionTotal, "the demo's session holds other exams too")
-        XCTAssertTrue(TodayHeroContent.make(snapshot).reason.hasSuffix("About \(session.entries.count) questions in all today."),
+        XCTAssertTrue(TodayHeroContent.make(snapshot).reason.hasSuffix("About \(session.entries.count) questions fit in today's session."),
                       TodayHeroContent.make(snapshot).reason)
         print("\n===== DEMO CARD =====\n\(TodayHeroContent.make(snapshot).chip?.text ?? "") · \(TodayHeroContent.make(snapshot).when ?? "") · \(TodayHeroContent.make(snapshot).title) · \(pct(snapshot.focus?.exam.readiness ?? 0)) → \(pct(snapshot.focus?.forecast ?? 0)) · strip Sat \(saturdayStrip.mark)\nWhy: " + TodayReasons.make(input).map { "\($0.title) [\($0.detail ?? "")]" }.joined(separator: " | ") + "\n=====================\n")
     }

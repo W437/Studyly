@@ -444,7 +444,7 @@ private struct MockAnswersSheet: View {
                     .foregroundStyle(CLColor.ink3)
                     .fixedSize(horizontal: false, vertical: true)
             }
-            if let ref = item.sourceRef {
+            if let ref = item.sourceRef, app.opens(ref) {
                 sourceLink(ref)
             }
         }

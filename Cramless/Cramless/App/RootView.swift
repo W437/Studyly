@@ -35,6 +35,7 @@ struct RootView: View {
                 .environment(\.clDyslexicFont, app.settings.dyslexicFont)
                 .environment(\.skyTheme, app.skyTheme)
                 .tint(CLColor.tangerine)
+                .followsTheme(cover.followsTheme)
                 // A sheet raised while a cover is up is presented by the cover.
                 .sheet(item: $router.sheet) { sheet in
                     SheetDestination(sheet: sheet)
@@ -100,6 +101,34 @@ struct RootView: View {
     }
 }
 
+extension AppModel {
+    /// The person's theme as a colour scheme. For a page that must follow it whatever opened it: the sky's dark reaches everything presented over it, so
+    /// "no preference" would inherit night. System reads the screen, which nothing here overrides.
+    var themeColorScheme: ColorScheme {
+        switch settings.theme {
+        case .light: .light
+        case .dark: .dark
+        case .system:
+            UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first?.screen.traitCollection.userInterfaceStyle == .dark ? .dark : .light
+        }
+    }
+}
+
+extension View {
+    /// A page presented over any screen, the sky included, in the person's theme.
+    @ViewBuilder func followsTheme(_ follows: Bool = true) -> some View {
+        if follows { modifier(FollowsTheme()) } else { self }
+    }
+}
+
+private struct FollowsTheme: ViewModifier {
+    @Environment(AppModel.self) private var app
+
+    func body(content: Content) -> some View {
+        content.preferredColorScheme(app.themeColorScheme)
+    }
+}
+
 /// The person's theme, set on the window. `.preferredColorScheme` at the root would do it too, but it also fixes the status bar's colour, and
 /// wins over the screens below: with Light chosen the clock stayed black over Today's night band and in the sky. On the window, the
 /// system goes on choosing the status bar by what is under it, as it does with System, and the sky's own `.preferredColorScheme(.dark)` counts.
@@ -146,9 +175,11 @@ private struct ToastHost: View {
                     .padding(.top, 6)
                     .task(id: toast.id) {
                         if voiceOver {
-                            AccessibilityNotification.Announcement(String(localized: toast.message)).post()
+                            let spoken = [String(localized: toast.message), toast.detail].compactMap { $0 }.joined(separator: " ")
+                            AccessibilityNotification.Announcement(spoken).post()
                         }
-                        try? await Task.sleep(for: .seconds(voiceOver ? max(toast.duration, 6) : toast.duration))
+                        // A host that goes with its cover leaves the toast alone: the one beneath has the same clock and carries on.
+                        guard (try? await Task.sleep(for: .seconds(voiceOver ? max(toast.duration, 6) : toast.duration))) != nil else { return }
                         if app.router.toast?.id == toast.id {
                             withAnimation(CLMotion.exit) { app.router.toast = nil }
                         }
@@ -245,6 +276,7 @@ private struct RootSheetHost: ViewModifier {
                 .environment(\.clDyslexicFont, app.settings.dyslexicFont)
                 .environment(\.skyTheme, app.skyTheme)
                 .tint(CLColor.tangerine)
+                .followsTheme(sheet.followsTheme)
         }
     }
 }

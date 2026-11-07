@@ -430,6 +430,10 @@ struct SyllabusFormat: Codable, Hashable, Sendable {
     var questionCount: Int?
     var minutes: Int?
     var notes: String?
+    /// How many of each kind, when the rules on the phone read them. The relay doesn't send these: `SyllabusProposal` reads them from its quote.
+    var multipleChoiceCount: Int? = nil
+    var shortAnswerCount: Int? = nil
+    var essayCount: Int? = nil
 }
 
 struct SyllabusExam: Codable, Hashable, Sendable {

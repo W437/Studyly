@@ -96,6 +96,9 @@ enum LocalSyllabus {
                 let parts = [draft.multipleChoiceCount, draft.shortAnswerCount, draft.essayCount].compactMap { $0 }
                 if !parts.isEmpty { draft.exam.format.questionCount = parts.reduce(0, +) }
             }
+            draft.exam.format.multipleChoiceCount = draft.multipleChoiceCount
+            draft.exam.format.shortAnswerCount = draft.shortAnswerCount
+            draft.exam.format.essayCount = draft.essayCount
             if !draft.exam.topics.isEmpty || draft.exam.date != nil { out.append(draft.exam) }
         }
         return Array(out.prefix(maxExams))
@@ -244,9 +247,10 @@ enum LocalSyllabus {
                 return Int(lower[range])
             }
             func has(_ pattern: String) -> Bool { lower.range(of: pattern, options: [.regularExpression, .caseInsensitive]) != nil }
-            multipleChoiceCount = number(#"(\d{1,3})\s*(?:multiple[- ]choice|mcqs?|mc\b)"#)
-            shortAnswerCount = number(#"(\d{1,3})\s*short[- ]answers?"#)
-            essayCount = number(#"(\d{1,2})\s*essays?\b"#)
+            let counts = StatedCounts(lower)
+            multipleChoiceCount = counts.multipleChoice
+            shortAnswerCount = counts.shortAnswer
+            essayCount = counts.essay
             if multipleChoiceCount != nil || has(#"\bmultiple[- ]choice\b"#) { multipleChoice = true }
             if shortAnswerCount != nil || has(#"\bshort[- ]answers?\b"#) { shortAnswer = true }
             if essayCount != nil || has(#"\bessay (?:questions?|exam|section)\b"#) { essay = true }

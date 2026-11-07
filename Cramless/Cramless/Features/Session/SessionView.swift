@@ -228,7 +228,7 @@ struct SessionTopBar: View {
         case .quickCheck, .mock: return nil
         case .fix:
             let name = runner.built.weakSpots.first?.name
-            return [SessionCopy.title(for: .fix), name].compactMap { $0 }.joined(separator: " · ")
+            return [SessionCopy.fixSessionTitle(entries: runner.built.entries.count), name].compactMap { $0 }.joined(separator: " · ")
         case .examEve:
             return "Exam eve · weak spots only, then sleep"
         case .catchUp:

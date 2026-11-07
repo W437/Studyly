@@ -28,7 +28,7 @@ extension AppModel {
     }
 
     /// A chip has to lead somewhere: an imported deck's card has no page to open, and a deleted source has nothing.
-    private func opens(_ ref: SourceRef) -> Bool {
+    func opens(_ ref: SourceRef) -> Bool {
         guard let source = source(ref.sourceID), source.deletedAt == nil else { return false }
         return ref.start != nil || source.kind == .lecture || !source.pages.isEmpty
     }
@@ -149,7 +149,7 @@ struct LastLookWords: Equatable, Sendable {
     init(_ item: StudyItem) {
         if item.kind == .cloze, let cloze = item.cloze {
             question = ""
-            answer = cloze.text.replacingOccurrences(of: "{{", with: "").replacingOccurrences(of: "}}", with: "")
+            answer = cloze.filled
         } else {
             question = item.prompt
             answer = item.answer

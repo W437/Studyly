@@ -112,20 +112,13 @@ private struct TeachPage<Content: View, Footer: View>: View {
     @ViewBuilder var content: Content
     @ViewBuilder var footer: Footer
 
-    @Environment(\.dynamicTypeSize) private var typeSize
-
     var body: some View {
-        if typeSize.isAccessibilitySize {
-            ScrollView {
-                content
-                footer
-            }
-        } else {
-            VStack(spacing: 0) {
-                ScrollView { content }
-                    .scrollBounceBehavior(.basedOnSize)
-                footer
-            }
+        VStack(spacing: 0) {
+            ScrollView { content }
+                .scrollBounceBehavior(.basedOnSize)
+            // At every text size: "Say it" and "Done" never wait at the end of a scroll. Held at a size that leaves the page the screen.
+            footer
+                .dynamicTypeSize(...DynamicTypeSize.accessibility2)
         }
     }
 }
@@ -536,10 +529,21 @@ private struct TeachFollowUpPage: View {
             .padding(14)
             .background(tone(grade).fill, in: RoundedRectangle(cornerRadius: CLRadius.card, style: .continuous))
             if let added = session.addedIdea {
-                Label { Text(TeachCopy.added(added)) } icon: { Image(systemName: "checkmark.circle.fill") }
-                    .clFont(.subheadlineEmphasis)
-                    .foregroundStyle(CLColor.mintInk)
-                    .fixedSize(horizontal: false, vertical: true)
+                Label {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(TeachCopy.added)
+                            .clFont(.subheadlineEmphasis)
+                            .foregroundStyle(CLColor.mintInk)
+                        Text(verbatim: added)
+                            .clFont(.subheadline)
+                            .foregroundStyle(CLColor.ink2)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                } icon: {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(CLColor.mintInk)
+                }
+                .accessibilityElement(children: .combine)
             }
         }
     }
@@ -602,7 +606,7 @@ private struct TeachFollowUpPage: View {
                     } label: { Text(TeachCopy.notYet) }
                     .buttonStyle(.cl(.soft))
                 } else if !session.followUpRefining {
-                    if session.addedIdea == nil, session.followUpRating != .good, session.followUpRating != .easy {
+                    if session.addedIdea == nil, session.followUp?.canAdd == true, session.followUpRating != .good, session.followUpRating != .easy {
                         Button {
                             CLHaptics.commit()
                             session.addMissingIdea()

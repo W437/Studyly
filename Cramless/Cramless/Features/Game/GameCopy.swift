@@ -154,6 +154,12 @@ extension Badge {
         }
     }
 
+    /// What it says on the summary that earned it. A count it has passed reads as what's true: 12 saves never say "You saved 10".
+    func earned(saves: Int) -> LocalizedStringResource {
+        if self == .saves10, saves > target { return "You've saved \(saves) stars that were fading." }
+        return blurb
+    }
+
     /// What is on the medal. A streak badge shows the flame its stage has.
     enum Glyph: Equatable {
         case symbol(String)

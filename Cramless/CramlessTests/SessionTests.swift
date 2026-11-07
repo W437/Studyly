@@ -441,6 +441,75 @@ final class SessionTests: XCTestCase {
         XCTAssertEqual(confusion.status, .fixed)
     }
 
+    /// One question missed in a session, as the finder's candidate.
+    private func slip() throws -> (item: StudyItem, candidate: ConfusionCandidate) {
+        let course = makeCourse()
+        let item = makeItem(in: course, kind: .mcq, prompt: "What pulls chromatids apart?", answer: "Spindle fibres",
+                            choices: [Choice(text: "Spindle fibres", correct: true), Choice(text: "Centrioles", correct: false)])
+        app.save()
+        let (session, _) = app.startSession(SessionRequest(kind: .daily))
+        for _ in 0..<3 {
+            app.recordReview(itemID: item.id, rating: .again, score: 0, answer: "Centrioles", gradedBy: "rules", sessionID: session.id)
+        }
+        return (item, ConfusionCandidate(id: "slip", courseID: course.id, topicID: nil, name: "Spindle fibres", reason: .repeatedMisses, itemIDs: [item.id], missCount: 3,
+                                         lastMissAt: clock.now, mistakes: [.init(itemID: item.id, prompt: item.prompt, expected: item.answer, given: "Centrioles", misses: 3)]))
+    }
+
+    func testOneQuestionSpendsNoRelayCallAndGivesARecapAndAQuestion() async throws {
+        let relay = RecordingTransport()
+        app.ai.transportOverride = relay
+        let (item, candidate) = try slip()
+        let (explained, origin) = await app.explainConfusion(candidate)
+        XCTAssertFalse(relay.calls.contains("confusions"), "the relay writes nothing for one slip")
+        XCTAssertEqual(origin, .rules)
+        XCTAssertEqual(explained?.lesson, "For “What pulls chromatids apart?”, the answer is spindle fibres, not centrioles.")
+        XCTAssertEqual(app.explainByRules(candidate).explained?.lesson, explained?.lesson, "what the summary shows is what it gives")
+        let confusion = app.adoptConfusion(candidate, explained: explained, origin: origin, withFixQuestions: true)
+        XCTAssertEqual(confusion.fix?.lesson, explained?.lesson)
+        XCTAssertEqual(confusion.fix?.itemIDs.count, 1)
+        XCTAssertEqual(app.item(confusion.fix!.itemIDs[0])?.choices.count, 2)
+        XCTAssertEqual(app.confusionNote(confusion).questions, 1)
+        XCTAssertEqual(SessionCopy.fixNowTitle(questions: 1), "Go over it · 1 min")
+        XCTAssertEqual(SessionCopy.missLine(app.confusionNote(confusion)), "Missed 3 of the last 3 times. Want to go over it?")
+        XCTAssertNotEqual(item.id, confusion.fix!.itemIDs[0])
+    }
+
+    func testAMixUpClosesWhenAnswersComeRightOnLaterDays() throws {
+        let (a, b, sessionID) = swappedPair()
+        let candidate = try XCTUnwrap(app.confusionCandidate(forSession: sessionID))
+        let confusion = app.adoptConfusion(candidate, explained: nil, withFixQuestions: false)
+        func answerRight() {
+            clock.advance(24 * 3600)
+            let (session, _) = app.startSession(SessionRequest(kind: .daily))
+            for id in [a.id, b.id] { app.recordReview(itemID: id, rating: .good, score: 1, answer: "right", gradedBy: "rules", sessionID: session.id) }
+        }
+        answerRight()
+        XCTAssertTrue(app.confusionNote(confusion).isRecovering)
+        XCTAssertFalse(app.confusionNote(confusion).hasRecovered)
+        app.closeRecoveredConfusions()
+        XCTAssertEqual(confusion.status, .open, "two right answers quiet it, and it stays open")
+        answerRight()
+        _ = app.settleGame()
+        XCTAssertEqual(confusion.status, .fixed, "four right answers across two days: it's over")
+    }
+
+    func testNoOfferOnTheDayOfTheExamItsMaterialIsOn() throws {
+        let (a, _, sessionID) = swappedPair()
+        let course = try XCTUnwrap(a.course)
+        XCTAssertNotNil(app.confusionCandidate(forSession: sessionID))
+        let exam = Exam(course: course, title: "Bio 101 Midterm", date: clock.now.addingTimeInterval(3600), now: clock.now)
+        app.context.insert(exam)
+        course.exams.append(exam)
+        app.save()
+        XCTAssertNil(app.confusionCandidate(forSession: sessionID), "before it, later today")
+        exam.date = clock.now.addingTimeInterval(-60)
+        app.save()
+        XCTAssertNil(app.confusionCandidate(forSession: sessionID), "and after it")
+        exam.date = clock.now.addingTimeInterval(3 * 24 * 3600)
+        app.save()
+        XCTAssertNotNil(app.confusionCandidate(forSession: sessionID), "another day is fine")
+    }
+
     func testLaterHidesTheNoteUntilTomorrowAndDismissEndsIt() throws {
         let (_, _, sessionID) = swappedPair()
         let candidate = try XCTUnwrap(app.confusionCandidate(forSession: sessionID))

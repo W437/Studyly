@@ -142,7 +142,7 @@ enum ExamPresentation {
     /// The exam page's mock card: an offer with the mock's size and mix, or how far short the questions are. Nil on the eve, the day and after.
     struct MockCard: Equatable, Sendable {
         enum Kind: Equatable, Sendable {
-            /// "20 questions like the real one · 25 min", "Matches your exam: …".
+            /// "20 questions like the real one · 25 min", "Matches your exam: …"; a shorter one says so (`MockCopy.offer`).
             case offer(line: String, mix: String)
             /// "This exam is multiple choice. A mock needs 8 of those, …"; `canWrite`: a reading has something left to write questions from.
             case tooFew(line: String, canWrite: Bool)
@@ -161,10 +161,8 @@ enum ExamPresentation {
         case .tooFew(let have):
             return MockCard(kind: .tooFew(line: MockCopy.tooFew(have: have, format: format), canWrite: canWrite), last: last)
         case .ready(let plan):
-            return MockCard(kind: .offer(line: MockCopy.cardLine(questions: plan.entries.count, minutes: plan.minutes),
-                                         mix: MockCopy.mixLine(multiple: plan.multipleChoiceCount, fillIns: plan.fillInCount,
-                                                               short: plan.shortCount, essay: plan.essayCount)),
-                            last: last)
+            let words = MockCopy.offer(plan, format: format)
+            return MockCard(kind: .offer(line: words.line, mix: words.mix), last: last)
         }
     }
 
@@ -177,8 +175,11 @@ enum ExamPresentation {
 
     /// The exam screen's line about how much of the material the questions reach, under the ring.
     struct CoverageNote: Equatable, Sendable {
-        /// "Your questions cover 17% of your material."
+        /// "Your questions cover 17% of your material." With topics that have no notes, it says so in the same breath: "Your questions cover 100%
+        /// of the notes you've added, and 2 topics have none yet."
         var sentence: String
+        /// Just the first part, for the gap's own card, which names the topics: "Your questions cover 100% of the notes you've added."
+        var covered: String
         /// The source that holds most of what is left, with its own share: "Palsgraf: 18%".
         var mainGap: String?
         /// Below half: an amber tone, never an alarm.
@@ -187,11 +188,16 @@ enum ExamPresentation {
         var offersMore: Bool
     }
 
-    /// `canAddMore`: a source with something left to cover can be written questions for.
-    static func coverageNote(_ summary: Coverage.Summary, canAddMore: Bool) -> CoverageNote {
+    /// `canAddMore`: a source with something left to cover can be written questions for. `emptyTopics`: the exam's topics with no notes at all, which no
+    /// share of what's been added can speak for.
+    static func coverageNote(_ summary: Coverage.Summary, canAddMore: Bool, emptyTopics: Int = 0) -> CoverageNote {
         // Judged on the number the person reads, so "50%" is never amber.
         let shown = Double(Int((summary.share * 100).rounded())) / 100
-        return CoverageNote(sentence: "Your questions cover \(CLFormat.percent(summary.share)) of your material.",
+        let percent = CLFormat.percent(summary.share)
+        let empty = String(localized: "\(emptyTopics) topics have none yet")
+        return CoverageNote(sentence: emptyTopics > 0 ? String(localized: "Your questions cover \(percent) of the notes you've added, and \(empty).")
+                                : String(localized: "Your questions cover \(percent) of your material."),
+                            covered: String(localized: "Your questions cover \(percent) of the notes you've added."),
                             mainGap: summary.mainGap.map { "\($0.title): \(CLFormat.percent($0.share))" },
                             isThin: shown < thinCoverage,
                             offersMore: canAddMore && shown < wellCovered)
@@ -265,6 +271,15 @@ enum ExamPresentation {
         ListFormatter.localizedString(byJoining: Array(names.prefix(limit)))
     }
 
+    // MARK: New questions
+
+    /// Why the ring reads lower after adding questions: "15 new questions count once you've studied them. They're in your plan now." Said at the
+    /// moment it moves (the toast) and on the exam page and the day card until they're studied. `inPlan`: the plan has places for them (not on the eve).
+    static func newQuestionsLine(_ count: Int, inPlan: Bool) -> String {
+        inPlan ? String(localized: "\(count) new questions count once you've studied them. They're in your plan now.")
+            : String(localized: "\(count) new questions count once you've studied them.")
+    }
+
     // MARK: The projection
 
     /// Under this many questions in scope, the card says how few the projection rests on.
@@ -276,6 +291,8 @@ enum ExamPresentation {
         var sentence: String
         /// "Practice Limiting reagents as well to get closer to 80%." / "About 25 minutes a day gets you closer to 80%."
         var nudge: String?
+        /// "15 new questions count once you've studied them. They're in your plan now.", while they hold the ring down (`newQuestionsLine`).
+        var newQuestions: String?
         /// "From your past grades, that's about a B+." (calibrated only).
         var letter: String?
         /// "Based on 7 questions so far."
@@ -292,7 +309,8 @@ enum ExamPresentation {
     /// skipped). `weakestTopic`: the weakest topic under the goal with questions. `eveDone`: tonight's session is finished, so the
     /// sentence is the rest, not what tonight will add. Nil on exam day and after.
     static func projection(phase: Phase, plan: StudyPlan, questionCount: Int, weakestTopic: String?, grade: ProjectedGrade?,
-                           examDate: Date, now: Date, calendar: Calendar, skipping: SkipOption? = nil, eveDone: Bool = false) -> Projection? {
+                           examDate: Date, now: Date, calendar: Calendar, skipping: SkipOption? = nil, eveDone: Bool = false,
+                           newQuestions: Int = 0, newQuestionsInPlan: Bool = false) -> Projection? {
         switch phase {
         case .today, .past: return nil
         case .ahead, .eve: break
@@ -308,6 +326,7 @@ enum ExamPresentation {
         var result = Projection(sentence: "", footnote: String(localized: "A projection from your recall so far, not a promise."),
                                 reachesGoal: reaches)
         if questionCount < fewQuestions { result.basedOn = String(localized: "Based on \(questionCount) questions so far.") }
+        if newQuestions > 0, skipping == nil { result.newQuestions = newQuestionsLine(newQuestions, inPlan: newQuestionsInPlan) }
         if let grade, showsLetter(grade), skipping == nil { result.letter = calibratedProjectionLine(grade) }
         let past = reaches ? " " + (Int((plan.projectedReadiness * 100).rounded()) == Int((plan.target * 100).rounded())
             ? String(localized: "That's your \(goal) goal.") : String(localized: "That's past your \(goal) goal.")) : ""
@@ -322,8 +341,8 @@ enum ExamPresentation {
             if eveDone {
                 let ready = CLFormat.percent(plan.currentReadiness)
                 result.sentence = morning
-                    ? String(localized: "That's enough for tonight. You're about \(ready) ready for tomorrow morning.")
-                    : String(localized: "That's enough for tonight. You're about \(ready) ready for tomorrow.")
+                    ? String(localized: "That's enough for today. You're about \(ready) ready for tomorrow morning.")
+                    : String(localized: "That's enough for today. You're about \(ready) ready for tomorrow.")
                 return result
             }
             result.sentence = morning
@@ -471,10 +490,16 @@ enum ExamPresentation {
         var isWeakest = false
         /// At or above the goal.
         var isOnTrack = false
+        /// No active questions, but drafts for it waiting: it reads "Waiting for review", as the gap's card says, and opens those drafts.
+        var reviewSource: UUID?
+
+        /// Nothing added for it yet: a real gap.
+        var isEmpty: Bool { value == nil && reviewSource == nil }
     }
 
     /// The exam's topics: gaps first (nothing there can count yet), then the lowest readiness first; ties keep the course's order.
-    static func topicsWeakestFirst(_ topics: [TopicReadiness], target: Double) -> [TopicRow] {
+    /// `drafts`: the set of drafts waiting, by topic.
+    static func topicsWeakestFirst(_ topics: [TopicReadiness], target: Double, drafts: [UUID: UUID] = [:]) -> [TopicRow] {
         let ordered = topics.enumerated().sorted { a, b in
             switch (a.element.value, b.element.value) {
             case (nil, nil): return a.offset < b.offset
@@ -486,6 +511,7 @@ enum ExamPresentation {
         var flagged = false
         return ordered.map { t in
             var row = TopicRow(id: t.id, name: t.name, value: t.value, questionCount: t.itemCount)
+            if t.value == nil { row.reviewSource = drafts[t.id] }
             if let v = t.value, t.itemCount > 0 {
                 if v >= target - 1e-9 {
                     row.isOnTrack = true
@@ -517,9 +543,10 @@ enum ExamPresentation {
     /// The plan as stops. Within `nearDays`: today, each later study day, the eve, the exam. Further: today, "Then about N min a day
     /// until <date>", the eve, the exam. A skipped day (the what-if) shows as its own stop. `tonightMinutes`: on the eve, the session
     /// built for tonight, so the "Tonight" stop and the button say one number (0: nothing to review); with the eve tomorrow, the same session
-    /// as built now, so this stop and Today's strip say one number too. `eveDone`: tonight's session is finished.
+    /// as built now, so this stop and Today's strip say one number too. `eveDone`: tonight's session is finished. `otherExams`: the seconds the other exams'
+    /// plans give each day, by offset: a stop names what that day's session holds, as today's does, and with others in it, this exam's share under that.
     static func stops(plan: StudyPlan, phase: Phase, examTitle: String, examDate: Date, today: TodayWork, skipped: Int?,
-                      tonightMinutes: Int? = nil, eveDone: Bool = false, now: Date, calendar: Calendar) -> [Stop] {
+                      tonightMinutes: Int? = nil, eveDone: Bool = false, otherExams: [Int: Double] = [:], now: Date, calendar: Calendar) -> [Stop] {
         switch phase {
         case .today, .past: return []
         case .ahead, .eve: break
@@ -529,6 +556,7 @@ enum ExamPresentation {
             calendar.dayDistance(from: now, to: d) <= 6 ? Self.weekday(d, calendar: calendar)
                 : LibraryFormat.shortDate(d, calendar: calendar)
         }
+        func session(_ day: PlanDay) -> Double { day.seconds + (otherExams[day.offset] ?? 0) }
         func minutes(_ seconds: Double) -> Int { max(1, Int((seconds / 60).rounded())) }
         let eveLine = String(localized: "Weak spots only, then sleep")
         var stops: [Stop] = []
@@ -583,25 +611,30 @@ enum ExamPresentation {
                     return Stop(id: "d\(day.offset)", kind: .eve, title: String(localized: "\(name) · about \(built ?? day.shownMinutes) min"),
                                 detail: eveLine)
                 }
-                return Stop(id: "d\(day.offset)", kind: .day, title: String(localized: "\(name) · about \(day.shownMinutes) min"))
+                let whole = minutes(session(day))
+                return Stop(id: "d\(day.offset)", kind: .day, title: String(localized: "\(name) · about \(whole) min"),
+                            detail: whole > day.shownMinutes ? String(localized: "About \(day.shownMinutes) min for this exam") : nil)
             }
             if calendar.dayDistance(from: now, to: examDate) <= nearDays {
-                for day in later where day.seconds > 0 || day.isSkipped || day.offset == skipped {
+                for day in later where session(day) > 0 || day.isSkipped || day.offset == skipped {
                     stops.append(dayStop(day))
                 }
             } else {
                 let middle = later.filter { $0.kind != .examEve }
                 if let off = middle.first(where: { $0.isSkipped || $0.offset == skipped }) { stops.append(dayStop(off)) }
                 let span = middle.filter { !($0.isSkipped || $0.offset == skipped) }
-                let working = span.filter { $0.seconds > 0 }
-                let total = working.reduce(0) { $0 + $1.seconds }
+                let working = span.filter { session($0) > 0 }
+                let total = working.reduce(0) { $0 + session($1) }
                 if let last = span.last, total > 0 {
                     // The average of the days that have work; with days off between them, it says so.
                     let perDay = minutes(total / Double(working.count))
+                    let own = working.reduce(0) { $0 + $1.seconds }
+                    let ownPerDay = own > 0 ? minutes(own / Double(working.count)) : 0
                     let until = LibraryFormat.shortDate(last.date, calendar: calendar)
                     let title = working.count == span.count ? String(localized: "Then about \(perDay) min a day until \(until)")
                         : String(localized: "Then about \(perDay) min on study days until \(until)")
-                    stops.append(Stop(id: "span", kind: .span, title: title))
+                    stops.append(Stop(id: "span", kind: .span, title: title,
+                                      detail: perDay > ownPerDay && ownPerDay > 0 ? String(localized: "About \(ownPerDay) min a day for this exam") : nil))
                 }
                 if let eve = later.first(where: { $0.kind == .examEve }) { stops.append(dayStop(eve)) }
             }

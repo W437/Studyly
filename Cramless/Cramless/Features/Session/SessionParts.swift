@@ -57,10 +57,27 @@ struct AnswerEditor: View {
 struct QuestionScroll<Content: View>: View {
     /// Where the page is scrolled to, for a view that moves it itself (the summary's film hook).
     var position: Binding<ScrollPosition>?
+    /// The answer has landed. At the accessibility text sizes the why sits in the page, under every option: the page goes to it (the view marks it with `detailsID`).
+    var revealsDetails = false
     @ViewBuilder var content: Content
 
+    @Environment(\.dynamicTypeSize) private var typeSize
+
+    static var detailsID: String { "question.details" }
+
     var body: some View {
-        if let position { scroll.scrollPosition(position) } else { scroll }
+        if let position { scroll.scrollPosition(position) } else {
+            ScrollViewReader { proxy in
+                scroll.onChange(of: revealsDetails) { _, reveals in
+                    guard reveals, typeSize.isAccessibilitySize else { return }
+                    // After the panel has risen, so the page knows its new height.
+                    Task { @MainActor in
+                        try? await nap(350)
+                        withAnimation(CLMotion.settle) { proxy.scrollTo(Self.detailsID, anchor: .top) }
+                    }
+                }
+            }
+        }
     }
 
     private var scroll: some View {
@@ -366,8 +383,13 @@ struct SourceButton: View {
     @Environment(AppModel.self) private var app
 
     var body: some View {
+        // A card from an imported deck has no page, and a deleted source none either: no chip, rather than one that opens "isn't here".
+        if app.opens(ref) { button }
+    }
+
+    private var button: some View {
         let isLecture = ref.start != nil || app.source(ref.sourceID)?.kind == .lecture
-        Button {
+        return Button {
             CLHaptics.tap()
             if isLecture {
                 app.router.present(.lectureMoment(sourceID: ref.sourceID, time: ref.start))

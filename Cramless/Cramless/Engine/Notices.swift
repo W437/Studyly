@@ -191,6 +191,27 @@ struct ConfusionNote: Equatable, Sendable, Identifiable {
     /// Wrong answers among the latest answers to its items, and how many answers that was.
     var recentMisses: Int
     var recentAnswers: Int
+    /// The right answers in a row, the newest first, up to `recentAnswers`.
+    var rightRun = 0
+    /// Of that run, this many came on a later day than the last miss: the question asked again in the same sitting doesn't show it has stuck.
+    var laterRight = 0
+    /// How many questions it's about: one is a slip to go over, not two ideas to tell apart.
+    var questions = 2
+
+    /// The recent answers have come right: no card, no notification.
+    var isRecovering: Bool { missCount > 0 && rightRun >= Self.recoveringRun && laterRight >= 1 }
+    /// Right often enough that it closes by itself.
+    var hasRecovered: Bool { missCount > 0 && rightRun >= Self.recoveredRun && laterRight >= 1 }
+
+    static let recoveringRun = 2
+    static let recoveredRun = 3
+
+    /// How the newest answers stand, from the newest back: right in a row, and how many of those on a later day than the last miss.
+    static func run(of newestFirst: [(right: Bool, at: Date)], calendar: Calendar) -> (right: Int, later: Int) {
+        let run = newestFirst.prefix { $0.right }
+        guard let miss = newestFirst.first(where: { !$0.right }) else { return (run.count, run.count) }
+        return (run.count, run.filter { !calendar.isDate($0.at, inSameDayAs: miss.at) }.count)
+    }
 }
 
 /// Everything Cap's cards are worked out from.
@@ -266,6 +287,8 @@ struct NoticeMockOffer: Equatable, Sendable {
     var examDate: Date
     var questions: Int
     var minutes: Int
+    /// The real exam's size, when it's known.
+    var realQuestions: Int? = nil
 }
 
 // MARK: - A card
@@ -352,6 +375,8 @@ struct NoticeEngine: Sendable {
     static let pingWindow = 2...6
     /// A mix-up may notify when an exam that covers it is this close.
     static let mixUpPingDays = 7
+    /// Days between notifications about any mix-up.
+    static let mixUpPingRestDays = 7
     /// The card that asks to read the calendar: an exam this close, this many days of study behind the person, and on at most this many days.
     static let busyAskExamDays = BusyDayFinder.examWithinDays
     static let busyAskAfterStudyDays = 2
@@ -456,6 +481,9 @@ struct NoticeEngine: Sendable {
             let left = calendar.dayDistance(from: now, to: examDate) - dayOffset
             guard Self.pingWindow.contains(left) else { return false }
             if let sent = ledger.pinged[card.linkID], sent <= now { return false }
+            // Mix-ups share their words, so a second within the week reads as the same line again.
+            if card.kind == .mixUp, ledger.pinged.contains(where: { $0.key.hasPrefix("mix-") && $0.key != card.linkID && $0.value <= now
+                && calendar.dayDistance(from: $0.value, to: now) + dayOffset < Self.mixUpPingRestDays }) { return false }
             return !isActedOn(card.id)
         }
         var out: [(notice: Notice, dayOffset: Int)] = []
@@ -465,7 +493,10 @@ struct NoticeEngine: Sendable {
         if let first { out.append((first, 0)) }
         // Tomorrow: another card if there is one, else this one again, for when today's time has already gone by. The planner sends a card
         // once, on the first of these days it can.
-        let later = candidates.filter { eligible($0, dayOffset: 1) }
+        let later = candidates.filter { card in
+            guard eligible(card, dayOffset: 1) else { return false }
+            return !(first?.kind == .mixUp && card.kind == .mixUp && card.linkID != first?.linkID)
+        }
         if let second = later.first(where: { $0.linkID != first?.linkID }) ?? later.first {
             out.append((second, 1))
         }
@@ -493,19 +524,31 @@ struct NoticeEngine: Sendable {
         var byID: [UUID: ItemSnapshot] = [:]
         let wanted = Set(inputs.mixUps.flatMap(\.itemIDs))
         for item in inputs.items where wanted.contains(item.id) { byID[item.id] = item }
-        return inputs.mixUps.map { mixUp in
+        let everyExam = inputs.exams + inputs.finishedExams
+        return inputs.mixUps.compactMap { mixUp in
+            // Answers have come right since the misses: nothing to say. And on an exam's day a fix of its material is too late, or over.
+            guard !mixUp.note.isRecovering else { return nil }
             let items = mixUp.itemIDs.compactMap { byID[$0] }
+            guard !Self.isExamDay(of: items, exams: everyExam, now: inputs.now, calendar: inputs.calendar) else { return nil }
             let exam = items.compactMap { index.soonest(covering: $0) }.min { $0.date < $1.date }
             let daysLeft = exam.flatMap { index.daysLeft[$0.id] }
             let misses = mixUp.note.missCount
             let rank = Self.isBehindTheStudent(items, index: index) ? Rank.finishedMixUp(misses: misses) : Rank.mixUp(misses: misses)
             return Notice(id: Self.mixUpID(mixUp.note.id), kind: .mixUp, rank: rank,
                           examID: exam?.id, examDate: exam?.date, examTitle: exam?.title, evidence: .mixUp(mixUp.note),
-                          notifiable: daysLeft.map { $0 <= Self.mixUpPingDays } ?? false)
+                          notifiable: mixUp.note.rightRun == 0 && (daysLeft.map { $0 <= Self.mixUpPingDays } ?? false))
         }
     }
 
     static func mixUpID(_ confusion: UUID) -> String { "mix-\(confusion.uuidString)" }
+
+    /// One of today's exams, over or still to come, covers these questions.
+    static func isExamDay(of items: [ItemSnapshot], exams: [ExamSnapshot], now: Date, calendar: Calendar) -> Bool {
+        guard !items.isEmpty else { return false }
+        return exams.contains { exam in
+            calendar.isDate(exam.date, inSameDayAs: now) && items.allSatisfy { exam.covers($0) }
+        }
+    }
 
     /// These questions' exams are all over, and another exam is still to come.
     static func isBehindTheStudent(_ items: [ItemSnapshot], index: ExamIndex) -> Bool {
@@ -558,7 +601,11 @@ struct NoticeEngine: Sendable {
         inputs.mockOffers.compactMap { offer in
             let days = inputs.calendar.dayDistance(from: inputs.now, to: offer.examDate)
             guard MockSuggestion.days.contains(days) else { return nil }
-            return Notice(id: Self.mockOfferID(offer.examID), kind: .mockOffer, rank: Rank.mockOffer(daysLeft: days), examID: offer.examID,
+            // Shown once, then a rest. Today it stays.
+            let id = Self.mockOfferID(offer.examID), today = inputs.calendar.dayNumber(for: inputs.now)
+            let lastShown = (inputs.ledger.seen[id] ?? []).compactMap { inputs.calendar.dayNumber(forKey: $0) }.filter { $0 < today }.max()
+            if let lastShown, today - lastShown < MockSuggestion.restDays { return nil }
+            return Notice(id: id, kind: .mockOffer, rank: Rank.mockOffer(daysLeft: days), examID: offer.examID,
                           examDate: offer.examDate, examTitle: offer.examTitle, evidence: .mockOffer(offer), cost: .free)
         }
     }

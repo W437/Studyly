@@ -46,13 +46,13 @@ final class EngineSessionBuilderTests: XCTestCase {
 
     func testSpokenQuestionsTakeLonger() {
         let items = world()
-        let plain = builder().build(SessionSpec(kind: .daily), items: items, topicNames: names)
-        var spoken = builder()
+        let plain = builder(minutes: 8).build(SessionSpec(kind: .daily), items: items, topicNames: names)
+        var spoken = builder(minutes: 8)
         spoken.costsSpoken = true
         let out = spoken.build(SessionSpec(kind: .daily), items: items, topicNames: names)
         XCTAssertLessThan(out.entries.count, plain.entries.count, "the same minutes hold fewer")
         XCTAssertEqual(out.entries.first.map { $0.estimatedSeconds >= OutLoudPolicy.spokenSeconds($0.kind) }, true)
-        XCTAssertLessThanOrEqual(out.plannedSeconds, 15 * 60 + OutLoudPolicy.spokenSeconds(.apply) * 2)
+        XCTAssertLessThanOrEqual(out.plannedSeconds, 8 * 60 + OutLoudPolicy.spokenSeconds(.apply) * 2)
     }
 
     func testASessionLeavesOutWhatItIsToldTo() {
@@ -99,6 +99,38 @@ final class EngineSessionBuilderTests: XCTestCase {
         XCTAssertNil(built.catchUp)
         XCTAssertEqual(built.dueTotal, 15)
         for e in built.entries { XCTAssertEqual(e.estimatedSeconds, e.reason == .new ? e.kind.typicalSeconds * 2 : e.kind.typicalSeconds) }
+    }
+
+    // MARK: A mix-up's share of the day
+
+    /// Two exams and more new questions than the day holds, with a mix-up left open.
+    private func fullDay(mixUp: Bool) -> BuiltSession {
+        let other = UUID()
+        let near = ExamSnapshot(courseID: course, title: "Org Chem", date: cal.adding(days: 5, to: now))
+        let far = ExamSnapshot(courseID: other, title: "APUSH", date: cal.adding(days: 9, to: now))
+        let a = EngineTest.studied(topic: topics[0], course: course, recall: 0.97, daysAgo: 1, now: now, cal: cal)
+        let b = EngineTest.studied(topic: topics[0], course: course, recall: 0.97, daysAgo: 1, now: now, cal: cal)
+        let new = (0..<60).map { _ in EngineTest.fresh(kind: .mcq, topic: topics[1], course: course, createdAt: cal.adding(days: -2, to: now)) }
+            + (0..<60).map { _ in EngineTest.fresh(kind: .mcq, topic: topics[2], course: other, createdAt: cal.adding(days: -2, to: now)) }
+        let confusion = ConfusionSnapshot(id: UUID(), courseID: course, name: "Anaphase vs telophase", itemIDs: [a.id, b.id], fixItemIDs: [])
+        return builder(minutes: 15).build(SessionSpec(kind: .daily), items: [a, b] + new, exams: [near, far],
+                                          confusions: mixUp ? [confusion] : [], topicNames: names)
+    }
+
+    func testAMixUpLeftOpenTakesNoNewQuestionsFromAFullDay() {
+        let new = { (session: BuiltSession) in session.entries.filter { $0.reason == .new }.count }
+        XCTAssertEqual(new(fullDay(mixUp: true)), new(fullDay(mixUp: false)), "the next exam keeps its new questions")
+        XCTAssertGreaterThan(new(fullDay(mixUp: true)), 0)
+    }
+
+    func testAMixUpStillGetsTheTimeThatIsSpare() {
+        let a = EngineTest.studied(topic: topics[0], course: course, recall: 0.97, daysAgo: 1, now: now, cal: cal)
+        let b = EngineTest.studied(topic: topics[0], course: course, recall: 0.97, daysAgo: 1, now: now, cal: cal)
+        let few = (0..<3).map { _ in EngineTest.fresh(kind: .mcq, topic: topics[1], course: course, createdAt: cal.adding(days: -2, to: now)) }
+        let confusion = ConfusionSnapshot(id: UUID(), courseID: course, name: "Anaphase vs telophase", itemIDs: [a.id, b.id], fixItemIDs: [])
+        let built = builder(minutes: 15).build(SessionSpec(kind: .daily), items: [a, b] + few, confusions: [confusion], topicNames: names)
+        XCTAssertEqual(built.weakSpots.first?.name, "Anaphase vs telophase")
+        XCTAssertTrue(built.entries.contains { $0.itemID == a.id }, "a quiet day has room for it")
     }
 
     // MARK: After an exam

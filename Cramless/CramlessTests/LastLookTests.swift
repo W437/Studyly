@@ -113,9 +113,11 @@ final class LastLookEngineTests: XCTestCase {
     func testTheWords() {
         XCTAssertEqual(LastLookCopy.title, "Your last look")
         XCTAssertEqual(LastLookCopy.line(ideas: 5, minutes: 2), "5 ideas · about 2 minutes · no quiz")
-        XCTAssertEqual(LastLookCopy.subtitle(ideas: 5), "Your five shakiest ideas, in plain words")
-        XCTAssertEqual(LastLookCopy.subtitle(ideas: 3), "Your shakiest ideas, in plain words")
-        XCTAssertEqual(LastLookCopy.closing, "That's enough for tonight. Sleep is part of studying. Good luck tomorrow.")
+        XCTAssertEqual(LastLookCopy.subtitle(ideas: 5, inSentences: true), "Your five shakiest ideas, in plain words")
+        XCTAssertEqual(LastLookCopy.subtitle(ideas: 3, inSentences: true), "Your shakiest ideas, in plain words")
+        XCTAssertEqual(LastLookCopy.subtitle(ideas: 5, inSentences: false), "Your five shakiest ideas", "a question and its answer aren't plain words of Cap's")
+        XCTAssertEqual(LastLookCopy.subtitle(ideas: 3, inSentences: false), "Your shakiest ideas")
+        XCTAssertEqual(LastLookCopy.closing, "That's enough for today. Sleep is part of studying. Good luck tomorrow.")
     }
 }
 
@@ -320,6 +322,23 @@ final class LastLookAppModelTests: AskTestCase {
         XCTAssertEqual(ideas.first { $0.id == items[1].id }?.ref?.label, "p. 1")
     }
 
+    /// One rule for every chip: the session's, the mock's and the last look's.
+    func testAChipOpensOnlyWhatIsThere() throws {
+        let app = app()
+        let (_, items) = world(app)
+        let course = try XCTUnwrap(items[0].course)
+        let deck = Source(course: course, kind: .quizlet, title: "Unit 3 terms", status: .ready, now: app.now)
+        app.context.insert(deck)
+        course.sources.append(deck)
+        XCTAssertFalse(app.opens(SourceRef(sourceID: deck.id, pageIndex: nil, label: deck.title)), "a deck's card has no page")
+        XCTAssertFalse(app.opens(SourceRef(sourceID: UUID(), pageIndex: 0, label: "p. 1")), "a source that's gone")
+        let lecture = Source(course: course, kind: .lecture, title: "Lecture 3", status: .ready, now: app.now)
+        app.context.insert(lecture)
+        course.sources.append(lecture)
+        XCTAssertTrue(app.opens(SourceRef(sourceID: lecture.id, pageIndex: nil, label: "Lecture 3")))
+        deck.deletedAt = app.now
+    }
+
     func testNothingStudiedNothingToLookAt() {
         let app = app()
         let bio = makeBio(app)
@@ -328,5 +347,31 @@ final class LastLookAppModelTests: AskTestCase {
         app.save()
         XCTAssertNil(app.lastLook(for: exam.id))
         XCTAssertEqual(app.lastLookCount(for: exam.id), 0)
+    }
+
+    func testTheWordsSayWhoWroteWhat() {
+        func idea(_ question: String, _ answer: String, sentence: String? = nil) -> LastLookIdea {
+            LastLookIdea(id: UUID(), topic: nil, question: question, answer: answer, sentence: sentence, ref: nil)
+        }
+        let his = idea("Q?", "A long answer here", sentence: "Cap's own sentence.")
+        let theirs = idea("What is a mole?", "A count of particles")
+        let fill = idea("", "A fill-in is a sentence by itself.")
+        let id = UUID()
+        XCTAssertNil(LastLookCopy.written(LastLook(examID: id, ideas: [theirs, fill])))
+        XCTAssertEqual(LastLookCopy.written(LastLook(examID: id, ideas: [his])), "Cap wrote these from your questions and notes.")
+        XCTAssertEqual(LastLookCopy.written(LastLook(examID: id, ideas: [his, theirs])), "Cap wrote the sentences from your questions and notes. The rest are your own questions.")
+        XCTAssertTrue(LastLook(examID: id, ideas: [his, fill]).isAllSentences)
+        XCTAssertFalse(LastLook(examID: id, ideas: [his, theirs]).isAllSentences)
+    }
+
+    func testABareAnswerReadsWithItsQuestion() {
+        func idea(_ question: String, _ answer: String, sentence: String? = nil) -> LastLookIdea {
+            LastLookIdea(id: UUID(), topic: nil, question: question, answer: answer, sentence: sentence, ref: nil)
+        }
+        XCTAssertTrue(idea("How many moles?", "4").answerIsBare)
+        XCTAssertTrue(idea("Which phase?", "Metaphase").answerIsBare)
+        XCTAssertFalse(idea("What does it tell you?", "The ratio of moles of each reactant").answerIsBare)
+        XCTAssertFalse(idea("", "4 moles of water").answerIsBare, "no question to read it with")
+        XCTAssertFalse(idea("How many?", "4", sentence: "There are four.").answerIsBare)
     }
 }

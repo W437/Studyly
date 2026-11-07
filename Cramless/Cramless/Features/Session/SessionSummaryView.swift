@@ -209,7 +209,7 @@ struct SessionSummaryView: View {
                 : "\(summary.correctFirstTry) of \(n) right. Cap will bring these back in a few days."
         }
         if let days = milestoneDays { return MilestoneCopy.line(days) }
-        if decision.reason == .badge, let badge = game.badges.first { return badge.blurb }
+        if decision.reason == .badge, let badge = game.badges.first { return badge.earned(saves: app.achievementFacts().saves) }
         if decision.reason == .readinessGoal, let exam = info?.examTitle, let after = summary.readinessAfter {
             return "\(exam) is now \(CLFormat.percent(after)) ready."
         }
@@ -436,7 +436,7 @@ struct SessionSummaryView: View {
                         BadgeMedal(badge: badge, size: 56)
                         VStack(alignment: .leading, spacing: 2) {
                             Text(badge.title).clFont(.headline).foregroundStyle(CLColor.ink)
-                            Text(badge.blurb).clFont(.footnote).foregroundStyle(CLColor.ink2)
+                            Text(badge.earned(saves: app.achievementFacts().saves)).clFont(.footnote).foregroundStyle(CLColor.ink2)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -447,7 +447,7 @@ struct SessionSummaryView: View {
                 .buttonStyle(.pressable)
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel(Text(badge.title))
-                .accessibilityValue(Text(badge.blurb))
+                .accessibilityValue(Text(badge.earned(saves: app.achievementFacts().saves)))
                 .accessibilityAddTraits(.isButton)
             }
         }
@@ -556,7 +556,7 @@ struct SessionSummaryView: View {
             HStack(alignment: .top, spacing: 12) {
                 CapFace(size: 44)
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(SessionCopy.mixUpLine(offer.name))
+                    Text(SessionCopy.mixUpLine(offer.name, questions: offer.candidate.itemIDs.count))
                         .clFont(.headline)
                         .foregroundStyle(CLColor.ink)
                         .fixedSize(horizontal: false, vertical: true)
@@ -569,7 +569,7 @@ struct SessionSummaryView: View {
             HStack(spacing: 8) {
                 Button { fix(offer) } label: {
                     ZStack {
-                        Text("Fix it now · 2 min").opacity(writingFix ? 0 : 1)
+                        Text(verbatim: SessionCopy.fixNowTitle(questions: offer.candidate.itemIDs.count)).opacity(writingFix ? 0 : 1)
                         if writingFix { ProgressView() }
                     }
                 }
@@ -674,7 +674,7 @@ struct SessionSummaryView: View {
 
     @ViewBuilder private var secondary: some View {
         if !isEve, !isFix, let bonus = info?.bonus, (info?.bonusCount ?? 0) > 0 {
-            Button(SessionCopy.moreQuestions(info?.bonusCount ?? 0)) {
+            Button(SessionCopy.anotherSession(info?.bonusCount ?? 0)) {
                 CLHaptics.commit()
                 onStart(bonus)
             }

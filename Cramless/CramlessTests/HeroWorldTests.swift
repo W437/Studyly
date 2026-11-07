@@ -15,6 +15,9 @@ final class HeroWorldGeometryTests: XCTestCase {
         }
         XCTAssertEqual(phone.height, 250, "250 on an iPhone 17 Pro")
         XCTAssertEqual(HeroWorldGeometry.band(width: 375, topInset: 20, compact: false).height, 208, "208 on an SE")
+        let short = HeroWorldGeometry.band(width: 375, topInset: 20, compact: false, short: true)
+        XCTAssertEqual(short.height, 188, "20 less on a screen that short, so the card's links clear the tab bar")
+        XCTAssertEqual(short.capSize, 76, "Cap comes down with it, and stays clear of the greeting")
     }
 
     func testTheSELeavesRoomForTheDaysCard() {

@@ -179,12 +179,12 @@ private struct MockIntroView: View {
                     }
                     .multilineTextAlignment(.center)
                     VStack(alignment: .leading, spacing: 10) {
-                        Text(verbatim: MockCopy.cardLine(questions: runner.total, minutes: runner.plan.minutes))
+                        let words = MockCopy.offer(runner.plan, format: runner.format)
+                        Text(verbatim: words.line)
                             .clFont(.headline)
                             .foregroundStyle(CLColor.ink)
                             .fixedSize(horizontal: false, vertical: true)
-                        Text(verbatim: MockCopy.mixLine(multiple: runner.plan.multipleChoiceCount, fillIns: runner.plan.fillInCount,
-                                                        short: runner.plan.shortCount, essay: runner.plan.essayCount))
+                        Text(verbatim: words.mix)
                             .clFont(.subheadline)
                             .foregroundStyle(CLColor.ink2)
                             .fixedSize(horizontal: false, vertical: true)

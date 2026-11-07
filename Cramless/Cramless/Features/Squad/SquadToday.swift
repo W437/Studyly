@@ -38,6 +38,8 @@ enum SquadCopy {
 
     static let switchTitle: LocalizedStringResource = "Show when I've studied"
     static let switchNote: LocalizedStringResource = "Your Squad sees a mark on days you finish a session. Never your courses, notes, answers or exams."
+    static let switchOnFailed: LocalizedStringResource = "Couldn't turn this on. Try again in a while."
+    static let switchOffFailed: LocalizedStringResource = "Couldn't turn this off. Try again in a while."
 }
 
 /// A friend's face, with a mark when they've studied today. A check, so it never rests on colour alone.

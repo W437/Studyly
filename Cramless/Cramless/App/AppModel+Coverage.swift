@@ -121,9 +121,15 @@ extension AppModel {
     }
 
     /// The request for the rest of an exam's material: the reading with the most left, and of it only what the exam draws on.
-    func restRequest(for exam: Exam) -> CaptureRequest? {
-        guard let summary = coverage(for: exam), let target = restTarget(in: summary), let plan = restPlan(for: target) else { return nil }
+    func restRequest(for exam: Exam, formats: [ItemKind]? = nil) -> CaptureRequest? {
+        guard let summary = coverage(for: exam), let target = restTarget(in: summary), var plan = restPlan(for: target) else { return nil }
+        plan.formats = formats
         return .rest(plan, in: exam.course?.id)
+    }
+
+    /// The same, for a mock that's short of questions: only the kinds the exam asks.
+    func mockRestRequest(for exam: Exam) -> CaptureRequest? {
+        restRequest(for: exam, formats: ItemKind.allCases.filter(MockExamBuilder.kinds(for: exam.format).contains))
     }
 
     /// What `ai.generateSet` takes for a rest: the lines of the plan as pages of just those lines (their ids are the source's own,
@@ -141,7 +147,7 @@ extension AppModel {
         }
         guard !pages.isEmpty else { return nil }
         return GenerationInput(course: source.course?.name ?? "", sourceTitle: source.title, level: settings.level?.rawValue,
-                               pages: pages, formats: ItemKind.allCases,
+                               pages: pages, formats: plan.formats ?? ItemKind.allCases,
                                maxItems: min(AIFreeLimits.maximumQuestions(ai.plan), max(6, plan.sections)),
                                courseLanguage: courseLanguage(of: source.course, excluding: source.id))
     }

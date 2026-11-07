@@ -8,7 +8,7 @@ import SwiftUI
 ///
 /// Opened from a card on the eve's summary, and from Today once tonight's session is done.
 ///
-/// DEBUG: `CRAMLESS_ROUTE=lastLook`; `CRAMLESS_LASTLOOK=offline` shows it with nothing prepared (questions and answers), `=cloud` with the mock relay's sentences.
+/// DEBUG: `CRAMLESS_ROUTE=lastLook`; `CRAMLESS_LASTLOOK=offline` shows it with nothing prepared (questions and answers), `=cloud` with the mock relay's sentences. `CRAMLESS_CANVAS=375x667`: at an iPhone SE's size.
 struct LastLookView: View {
     let examID: UUID
 
@@ -32,6 +32,7 @@ struct LastLookView: View {
             .clScreenBackground()
             .toolbar(.hidden, for: .navigationBar)
         }
+        .captureDebugCanvas()
         .task {
             guard !loaded else { return }
             #if DEBUG
@@ -49,8 +50,8 @@ struct LastLookView: View {
                 ForEach(look.ideas) { idea in
                     card(idea)
                 }
-                if look.isWritten {
-                    Text(verbatim: LastLookCopy.written)
+                if let written = LastLookCopy.written(look) {
+                    Text(verbatim: written)
                         .clFont(.footnote)
                         .foregroundStyle(CLColor.ink3)
                         .fixedSize(horizontal: false, vertical: true)
@@ -93,7 +94,7 @@ struct LastLookView: View {
                 CapView(.asleep, size: 72, interactive: false)
                     .accessibilityHidden(true)
             }
-            Text(verbatim: LastLookCopy.subtitle(ideas: look.ideas.count))
+            Text(verbatim: LastLookCopy.subtitle(ideas: look.ideas.count, inSentences: look.isAllSentences))
                 .clFont(.subheadline)
                 .foregroundStyle(CLColor.ink2)
                 .fixedSize(horizontal: false, vertical: true)
@@ -116,6 +117,11 @@ struct LastLookView: View {
                     .foregroundStyle(CLColor.ink)
                     .lineSpacing(2)
                     .fixedSize(horizontal: false, vertical: true)
+            } else if idea.answerIsBare {
+                Text(bareAnswer(idea))
+                    .clFont(.body)
+                    .lineSpacing(2)
+                    .fixedSize(horizontal: false, vertical: true)
             } else {
                 if !idea.question.isEmpty {
                     Text(verbatim: idea.question)
@@ -133,6 +139,16 @@ struct LastLookView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .clCard(padding: 14)
+    }
+
+    /// A question and its bare answer in one line, so a "4" never stands alone.
+    private func bareAnswer(_ idea: LastLookIdea) -> AttributedString {
+        var question = AttributedString(idea.question + " ")
+        question.foregroundColor = CLColor.ink2
+        var answer = AttributedString(idea.answer)
+        answer.foregroundColor = CLColor.ink
+        answer.inlinePresentationIntent = .stronglyEmphasized
+        return question + answer
     }
 
     /// Opens the page, zoomed to the lines and circled, or the lecture at that moment, inside this sheet.

@@ -94,13 +94,23 @@ struct ConfusionFinder: Sendable {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines.union(.punctuationCharacters))
         let parts = trimmed.split(separator: " ")
         let short = parts.prefix(words).joined(separator: " ")
-        return parts.count > words ? short + "…" : short
+        // A language written without spaces has a whole passage in one "word", so the words alone don't bound it.
+        let limit = longestTerm(short)
+        guard short.count > limit else { return parts.count > words ? short + "…" : short }
+        let whole = parts.prefix(words).reduce(into: "") { kept, part in
+            let next = kept.isEmpty ? String(part) : kept + " " + part
+            if next.count <= limit { kept = next }
+        }
+        return (whole.isEmpty ? String(short.prefix(limit)) : whole) + "…"
     }
+
+    /// The most characters a name can run to in this text's writing: Japanese and Chinese say in a few what spaced languages need many for.
+    static func longestTerm(_ text: String) -> Int { Lexicon.cjkWords(in: text) > 0 ? 10 : 48 }
 
     /// A short answer that can stand as a name ("Anaphase", "Sister chromatids"): not a sentence cut short.
     static func isTerm(_ text: String) -> Bool {
         let t = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !t.isEmpty, !t.hasSuffix("…") else { return false }
+        guard !t.isEmpty, !t.hasSuffix("…"), t.count <= longestTerm(t) else { return false }
         return t.trimmingCharacters(in: .punctuationCharacters).split(separator: " ").count <= 3
     }
 

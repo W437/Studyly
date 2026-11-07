@@ -62,6 +62,14 @@ final class NotificationPlannerTests: XCTestCase {
         XCTAssertEqual(tomorrow.map(\.kind), [.daily], "the other days keep their reminder")
     }
 
+    func testCapNoticedStaysQuietOnceTheDaysStudyIsIn() {
+        let today = noticed { $0.today.studiedToday = true; $0.streak.studiedToday = true }.filter { cal.isDate($0.date, inSameDayAs: now) }
+        XCTAssertFalse(today.contains { $0.kind == .notice }, "the reminder it replaces would have stayed quiet too")
+        let tomorrow = noticed(dayOffset: 1) { $0.today.studiedToday = true; $0.streak.studiedToday = true }
+            .filter { cal.isDate($0.date, inSameDayAs: cal.date(byAdding: .day, value: 1, to: now)!) }
+        XCTAssertEqual(tomorrow.map(\.kind), [.notice], "tomorrow's is still tomorrow's")
+    }
+
     func testCapNoticedOnlyTwoToSixDaysBeforeTheExam() {
         for (days, sent) in [(1, false), (2, true), (6, true), (7, false), (8, false)] {
             XCTAssertEqual(noticed(examIn: days).contains { $0.kind == .notice }, sent, "\(days) days out")

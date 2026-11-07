@@ -59,7 +59,7 @@ final class TodayHeroContentTests: XCTestCase {
         var mine = focus(weak: 0, due: 6, new: 1)
         mine.questions = 7
         XCTAssertEqual(content(.session, whole, focus: mine).reason,
-                       "6 questions you're about to forget and 1 new one for this exam. About 39 questions in all today.")
+                       "6 questions you're about to forget and 1 new one for this exam. About 39 questions fit in today's session.")
         whole.plannedQuestions = 7
         XCTAssertEqual(content(.session, whole, focus: mine).reason, "6 questions you're about to forget, and 1 new one.")
     }
@@ -178,7 +178,7 @@ final class TodayHeroContentTests: XCTestCase {
     func testAfterTheEveSessionTheSkySettlesAndCapSleeps() throws {
         let c = content(.examEveDone(examID))
         XCTAssertTrue(c.actions.isEmpty)
-        XCTAssertEqual(c.title, "That's enough for tonight")
+        XCTAssertEqual(c.title, "That's enough for today")
         XCTAssertEqual(c.cap, .asleep)
         XCTAssertFalse(c.twinkles)
         XCTAssertTrue(c.reason.hasPrefix("Chem 110 Quiz is tomorrow at "), c.reason)

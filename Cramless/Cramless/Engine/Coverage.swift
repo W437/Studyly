@@ -115,6 +115,8 @@ enum Coverage {
         var sections: Int
         /// Every page with something left had been used by an earlier run, so this one begins the round again.
         var startsOver: Bool
+        /// The kinds of question to write; nil: any.
+        var formats: [ItemKind]? = nil
 
         /// Short, so a request carrying it stays cheap to identify.
         var description: String { "rest of \(sourceID): \(pages.count) pages, \(sections) passages" }

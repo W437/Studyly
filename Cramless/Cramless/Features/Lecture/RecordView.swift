@@ -40,8 +40,6 @@ struct RecordView: View {
             case .recording:
                 recorder
                     .environment(\.colorScheme, .dark)
-                    // The status bar and the system's dialogs go night too, whatever the app's theme.
-                    .preferredColorScheme(.dark)
                     .transition(.opacity)
             case .makingNotes:
                 makingNotes
@@ -56,6 +54,9 @@ struct RecordView: View {
             }
         }
         .animation(CLMotion.settle, value: stage)
+        // While recording, the status bar and the system's dialogs go night too, whatever the app's theme. After, the notes follow the theme: said outright,
+        // because a cover that has been dark stays dark when the preference just goes away.
+        .preferredColorScheme(stage == .recording ? .dark : app.themeColorScheme)
         .captureDebugCanvas()
         .task { await begin() }
         .onDisappear {

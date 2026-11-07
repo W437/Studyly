@@ -354,7 +354,7 @@ final class ExamPresentationTests: XCTestCase {
         let plan = examPlan([pday(0, .examEve, seconds: 300), pday(1, .exam)], projected: 0.83)
         let done = try XCTUnwrap(ExamPresentation.projection(phase: .eve, plan: plan, questionCount: 20, weakestTopic: nil, grade: nil,
                                                              examDate: day(1, hour: 10), now: now, calendar: cal, eveDone: true))
-        XCTAssertEqual(done.sentence, "That's enough for tonight. You're about 42% ready for tomorrow morning.")
+        XCTAssertEqual(done.sentence, "That's enough for today. You're about 42% ready for tomorrow morning.")
         XCTAssertNil(ExamPresentation.studyAction(phase: .eve, today: chemToday, weakest: nil, courseName: "Chem", eveDone: true))
         let stops = ExamPresentation.stops(plan: plan, phase: .eve, examTitle: "Quiz", examDate: day(1, hour: 10), today: chemToday, skipped: nil,
                                            tonightMinutes: 4, eveDone: true, now: now, calendar: cal)
@@ -416,6 +416,45 @@ final class ExamPresentationTests: XCTestCase {
         XCTAssertNil(rows[0].practiceMinutes, "a gap has nothing to practise")
         XCTAssertTrue(rows[4].isOnTrack)
         XCTAssertNil(rows[4].practiceMinutes)
+    }
+
+    /// A topic with questions written and waiting reads as the gap's card says, not as a gap.
+    func testATopicWaitingForReviewIsNotAGap() {
+        let waiting = UUID(), source = UUID(), empty = UUID()
+        let rows = ExamPresentation.topicsWeakestFirst([TopicReadiness(id: waiting, name: "DNA replication", value: nil, itemCount: 0),
+                                                        TopicReadiness(id: empty, name: "Genetics basics", value: nil, itemCount: 0)],
+                                                       target: 0.8, drafts: [waiting: source])
+        XCTAssertEqual(rows[0].reviewSource, source)
+        XCTAssertFalse(rows[0].isEmpty)
+        XCTAssertTrue(rows[1].isEmpty)
+        XCTAssertEqual(rows.filter(\.isEmpty).count, 1, "the card's count")
+    }
+
+    /// Coverage and gaps are one statement: what's been added is covered, and what hasn't been added isn't anything's share.
+    func testCoverageSaysSoWhenTopicsHaveNoNotes() throws {
+        let summary = try XCTUnwrap(Coverage.summary([covering("Reading", words: 1000, covered: 1000)]))
+        XCTAssertEqual(ExamPresentation.coverageNote(summary, canAddMore: false).sentence, "Your questions cover 100% of your material.")
+        let gap = ExamPresentation.coverageNote(summary, canAddMore: false, emptyTopics: 2)
+        XCTAssertEqual(gap.sentence, "Your questions cover 100% of the notes you've added, and 2 topics have none yet.")
+        XCTAssertEqual(gap.covered, "Your questions cover 100% of the notes you've added.")
+        XCTAssertEqual(ExamPresentation.coverageNote(summary, canAddMore: false, emptyTopics: 1).sentence,
+                       "Your questions cover 100% of the notes you've added, and 1 topic has none yet.")
+    }
+
+    func testNewQuestionsSayWhyWhileTheyHoldTheNumberDown() {
+        XCTAssertEqual(ExamPresentation.newQuestionsLine(15, inPlan: true), "15 new questions count once you've studied them. They're in your plan now.")
+        XCTAssertEqual(ExamPresentation.newQuestionsLine(1, inPlan: true), "1 new question counts once you've studied it. It's in your plan now.")
+        XCTAssertEqual(ExamPresentation.newQuestionsLine(2, inPlan: false), "2 new questions count once you've studied them.")
+    }
+
+    /// The plan names what the day's session holds, as today's stop does; with other exams in it, this exam's share goes under.
+    func testThenAboutNamesTheWholeSession() throws {
+        let every = (0..<10).map { pday($0, $0 == 9 ? .examEve : .study, seconds: $0 == 9 ? 120 : 360) } + [pday(10, .exam)]
+        let others = Dictionary(uniqueKeysWithValues: (0..<9).map { ($0, 480.0) })
+        let stops = ExamPresentation.stops(plan: examPlan(every, projected: 0.86), phase: .ahead(days: 10), examTitle: "Bio", examDate: day(10, hour: 9),
+                                           today: chemToday, skipped: nil, otherExams: others, now: now, calendar: cal)
+        XCTAssertEqual(stops[1].title, "Then about 14 min a day until \(LibraryFormat.shortDate(day(8), calendar: cal))")
+        XCTAssertEqual(stops[1].detail, "About 6 min a day for this exam")
     }
 
     func testTheButtonIsTheDaysSession() {

@@ -27,6 +27,7 @@ struct SnapConfirmView: View {
     @State private var text = ""
     @State private var typing = false
     @FocusState private var focused: Bool
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     private var reading: SnapReader.Reading? {
         if case .ready(let reading) = session.phase { return reading }
@@ -50,6 +51,7 @@ struct SnapConfirmView: View {
             .frame(maxWidth: CLMetrics.readableWidth)
             .frame(maxWidth: .infinity)
         }
+        .pinnedActionAtLargeText(when: reading.map { $0.hasWords || typing } == true) { askButton }
         // Sheets don't inherit the root's font choice (RootView sets it inside the modifier that presents them).
         .environment(\.clDyslexicFont, app.settings.dyslexicFont)
         .onChange(of: session.phase, initial: true) { _, phase in
@@ -106,6 +108,10 @@ struct SnapConfirmView: View {
             .clFont(.caption)
             .foregroundStyle(CLColor.ink3)
             .fixedSize(horizontal: false, vertical: true)
+        if !typeSize.isAccessibilitySize { askButton }
+    }
+
+    private var askButton: some View {
         Button("Ask Cap") {
             CLHaptics.tap()
             let clean = text.trimmingCharacters(in: .whitespacesAndNewlines)

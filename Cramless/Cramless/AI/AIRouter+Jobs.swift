@@ -24,7 +24,8 @@ extension AIRouter {
                     c.itemIds = c.itemIds.filter { known.contains($0) }
                     guard !c.itemIds.isEmpty else { return nil }
                     if let anchorTexts {
-                        c.questions = GroundingCheck.apply(c.questions, texts: anchorTexts, anchorsOnly: true).kept
+                        let asked = mistakes.filter { c.itemIds.contains($0.itemId) }.flatMap { [$0.prompt, $0.expected] }
+                        c.questions = GroundingCheck.groundedByWords(c.questions, texts: anchorTexts, facts: asked)
                     }
                     return c
                 }

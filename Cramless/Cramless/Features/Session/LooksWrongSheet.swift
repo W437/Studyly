@@ -72,6 +72,7 @@ struct LooksWrongSheet: View {
     /// The sheet went on to consent or the editor: the question's report waits.
     @State private var handedOff = false
     @State private var didStart = false
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     private var item: StudyItem? {
         guard let item = app.item(itemID), item.modelContext != nil, item.deletedAt == nil else { return nil }
@@ -109,6 +110,9 @@ struct LooksWrongSheet: View {
             }
         }
         .scrollBounceBehavior(.basedOnSize)
+        .pinnedActionAtLargeText(when: checkable != nil) {
+            if let checkable { askButton(checkable.item, source: checkable.source) }
+        }
         .captureDebugCanvas(widthOnly: true)
         .background(CLColor.background.ignoresSafeArea())
         .presentationDetents([.height(contentHeight), .large], selection: $detent)
@@ -132,6 +136,18 @@ struct LooksWrongSheet: View {
     }
 
     // MARK: Content
+
+    /// The question and its lines, while "Ask Cap to check" is on offer.
+    private var checkable: (item: StudyItem, source: ReportSource)? {
+        guard phase == .choose, let item, !item.reported, app.canAskCapToCheck, let source = app.reportSource(of: item) else { return nil }
+        return (item, source)
+    }
+
+    private func askButton(_ item: StudyItem, source: ReportSource) -> some View {
+        Button("Ask Cap to check") { ask(item, source: source) }
+            .buttonStyle(.cl(.primary))
+            .disabled(reason == nil)
+    }
 
     @ViewBuilder
     private func content(_ item: StudyItem, source: ReportSource?) -> some View {
@@ -158,9 +174,7 @@ struct LooksWrongSheet: View {
             sourceCard(source)
             reasons(item)
             VStack(spacing: 8) {
-                Button("Ask Cap to check") { ask(item, source: source) }
-                    .buttonStyle(.cl(.primary))
-                    .disabled(reason == nil)
+                if !typeSize.isAccessibilitySize { askButton(item, source: source) }
                 Text("Free. Cap re-reads \(source.place) with Cloud AI.")
                     .clFont(.footnote)
                     .foregroundStyle(CLColor.ink3)

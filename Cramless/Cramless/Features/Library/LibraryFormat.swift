@@ -63,8 +63,10 @@ enum LibraryFormat {
         enum State: Equatable, Sendable {
             /// Readiness for the next exam, 0…1.
             case value(Double)
-            /// No material yet: nothing can count toward readiness.
+            /// No notes yet: nothing can count toward readiness.
             case gap
+            /// Questions written for it, waiting for review, from this set of drafts.
+            case waiting(UUID)
             /// Outside the next exam's scope: "Not on the Midterm", no number.
             case notOnExam(String)
             /// The course has no exam to come: its questions, no number.
@@ -79,12 +81,13 @@ enum LibraryFormat {
 
     /// The course's topics in course order: each topic on the next exam with its readiness for it (a gap when it has no material),
     /// the others "Not on the <exam>", and with no exam to come, only their questions. `examTopics` is
-    /// `AppModel.topicReadiness(for:)` of the next exam (nil without one).
+    /// `AppModel.topicReadiness(for:)` of the next exam (nil without one). `drafts`: the set of drafts waiting, by topic (`AppModel.draftSources`).
     static func topicLines(courseTopics: [CourseTopic], examTopics: [TopicReadiness]?, examTitle: String?,
-                           courseName: String) -> [TopicLine] {
+                           courseName: String, drafts: [UUID: UUID] = [:]) -> [TopicLine] {
+        func empty(_ topic: UUID) -> TopicLine.State { drafts[topic].map { .waiting($0) } ?? .gap }
         guard let examTopics, let examTitle else {
             return courseTopics.map {
-                TopicLine(id: $0.id, name: $0.name, questionCount: $0.questionCount, state: $0.questionCount == 0 ? .gap : .noExam)
+                TopicLine(id: $0.id, name: $0.name, questionCount: $0.questionCount, state: $0.questionCount == 0 ? empty($0.id) : .noExam)
             }
         }
         let onExam = Dictionary(examTopics.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
@@ -92,7 +95,7 @@ enum LibraryFormat {
         return courseTopics.map { topic in
             let state: TopicLine.State
             if let r = onExam[topic.id] {
-                state = r.value.map { .value($0) } ?? .gap
+                state = r.value.map { .value($0) } ?? empty(topic.id)
             } else {
                 state = .notOnExam(short)
             }

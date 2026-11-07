@@ -11,7 +11,7 @@ import SwiftUI
 /// Seats live on the server, so managing them needs an account; a build without accounts says so.
 ///
 /// Harness: `CRAMLESS_PLAN=squad` (an owner) with `CRAMLESS_ACCOUNT=apple`; `CRAMLESS_SQUAD=member` shows a seat on
-/// Maya's Squad; `CRAMLESS_SQUAD=invite` makes an invite at once; `CRAMLESS_SQUAD_TODAY=two|none|private|sharing` shapes who has shared what (`AppModel.debugShapeSquad`), here and on
+/// Maya's Squad; `CRAMLESS_SQUAD=invite` makes an invite at once; `CRAMLESS_SQUAD_SHARE=fail` presses the switch and the server turns it down; `CRAMLESS_SQUAD_TODAY=two|none|private|sharing` shapes who has shared what (`AppModel.debugShapeSquad`), here and on
 /// Today's line.
 struct SquadView: View {
     enum Role: Equatable { case owner, member, none }
@@ -19,6 +19,8 @@ struct SquadView: View {
     @Environment(AppModel.self) private var app
     @State private var members: SquadMembers?
     @State private var loadError: String?
+    /// Why the switch went back.
+    @State private var sharingError: LocalizedStringResource?
     @State private var invite: SquadInvite?
     @State private var inviting = false
     @State private var inviteError: String?
@@ -238,7 +240,8 @@ struct SquadView: View {
     /// Off until the person turns it on. Off again, what they shared goes at once.
     private var shareSection: some View {
         SettingsGroup(title: "Today") {
-            SettingsToggleRow(title: SquadCopy.switchTitle, subtitle: SquadCopy.switchNote,
+            // Once the switch has had to go back, its own line says so, in plain words whatever the server said: right where the person is looking.
+            SettingsToggleRow(title: SquadCopy.switchTitle, subtitle: sharingError ?? SquadCopy.switchNote,
                               isOn: Binding(get: { members?.sharing ?? false }, set: { setSharing($0) }),
                               hintOn: "Shows your Squad a mark on days you finish a session.",
                               hintOff: "Stops showing it, and deletes what was shared.")
@@ -250,7 +253,7 @@ struct SquadView: View {
         guard !sharingBusy else { return }
         CLHaptics.select()
         sharingBusy = true
-        loadError = nil
+        sharingError = nil
         // The switch moves as soon as it's touched, and goes back if the server says no.
         let before = members
         members?.sharing = on
@@ -260,7 +263,9 @@ struct SquadView: View {
                 withAnimation(CLMotion.settle) { members = updated }
             } catch {
                 members = before
-                loadError = RelayError.message(for: error)
+                let line = on ? SquadCopy.switchOnFailed : SquadCopy.switchOffFailed
+                sharingError = line
+                AccessibilityNotification.Announcement(String(localized: line)).post()
             }
             sharingBusy = false
         }
@@ -291,6 +296,7 @@ struct SquadView: View {
         }
         #if DEBUG
         if role == .owner, TestHarness.once("CRAMLESS_SQUAD") == "invite" { makeInvite() }
+        if TestHarness.once("CRAMLESS_SQUAD_SHARE") == "fail" { setSharing(true) }
         #endif
     }
 
@@ -349,16 +355,18 @@ private struct SeatsCard: View {
     let seats: Int
     let loading: Bool
 
+    @Environment(\.dynamicTypeSize) private var typeSize
+
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .firstTextBaseline) {
+            ReflowStack(verticalAlignment: .firstTextBaseline, spacing: 8) {
                 Text("Your Squad").clFont(.title2).foregroundStyle(CLColor.ink)
-                Spacer()
+                if !typeSize.isAccessibilitySize { Spacer(minLength: 8) }
                 if !loading {
                     Text("\(members.count) of \(seats) seats").clFont(.number(17, .bold)).foregroundStyle(CLColor.ink2)
                 }
             }
-            HStack(spacing: 12) {
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12, alignment: .top), count: typeSize.isAccessibilitySize ? 2 : max(seats, 1)), spacing: 12) {
                 ForEach(0..<max(seats, members.count), id: \.self) { i in
                     VStack(spacing: 6) {
                         if i < members.count {
@@ -372,7 +380,8 @@ private struct SeatsCard: View {
                         Text(i < members.count ? (members[i].isOwner ? "You" : members[i].name) : "Open")
                             .clFont(.caption)
                             .foregroundStyle(i < members.count ? CLColor.ink : CLColor.ink3)
-                            .lineLimit(1)
+                            .multilineTextAlignment(.center)
+                            .lineLimit(typeSize.isAccessibilitySize ? 2 : 1)
                     }
                     .frame(maxWidth: .infinity)
                     .redacted(reason: loading ? .placeholder : [])

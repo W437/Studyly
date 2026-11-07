@@ -87,6 +87,13 @@ struct SyllabusProposal: Equatable, Sendable {
         }
         format.questionCount = known.questionCount ?? format.questionCount
         format.minutes = known.minutes ?? format.minutes
+        // How many of each: what the reading counted, or the numbers in its words when those are on the page.
+        let quote = chosen.exam.formatQuote.flatMap { page.contains(normalized($0)) ? $0 : nil }
+        let counts = quote.map(StatedCounts.init) ?? StatedCounts()
+        let stated = (known.multipleChoiceCount ?? counts.multipleChoice, known.shortAnswerCount ?? counts.shortAnswer, known.essayCount ?? counts.essay)
+        if stated.0 != nil || stated.1 != nil || stated.2 != nil {
+            (format.multipleChoiceCount, format.shortAnswerCount, format.essayCount) = stated
+        }
         if let notes = known.notes?.clTrimmed.clNonEmpty, format.notes.clTrimmed.isEmpty { format.notes = notes }
         let formatKnown = sayable.contains(where: { $0 != nil }) || known.questionCount != nil || known.minutes != nil || known.notes != nil
 
@@ -124,6 +131,28 @@ struct SyllabusProposal: Equatable, Sendable {
     }
 }
 
+/// The numbers a line of a syllabus gives each kind of question ("30 multiple choice and 10 short answers"). Pure.
+struct StatedCounts: Equatable, Sendable {
+    var multipleChoice: Int?
+    var shortAnswer: Int?
+    var essay: Int?
+
+    init() {}
+
+    init(_ text: String) {
+        let lower = text.lowercased()
+        func number(_ pattern: String) -> Int? {
+            guard let regex = try? NSRegularExpression(pattern: pattern),
+                  let match = regex.firstMatch(in: lower, range: NSRange(lower.startIndex..., in: lower)),
+                  let range = Range(match.range(at: 1), in: lower) else { return nil }
+            return Int(lower[range])
+        }
+        multipleChoice = number(#"(\d{1,3})\s*(?:multiple[- ]choice|mcqs?\b|mc\b)"#)
+        shortAnswer = number(#"(\d{1,3})\s*short\b"#)
+        essay = number(#"(\d{1,2})\s*essays?\b"#)
+    }
+}
+
 /// The words of the syllabus flow.
 enum SyllabusCopy {
     static let question: LocalizedStringResource = "What does it cover?"
@@ -135,8 +164,9 @@ enum SyllabusCopy {
     static let readingDetail: LocalizedStringResource = "Topics, the date and the format"
     static let found: LocalizedStringResource = "Here's what I found"
     static let fromPhoto: LocalizedStringResource = "From your photo of the syllabus"
+    static let fromPDF: LocalizedStringResource = "From your syllabus PDF"
     static let noNotes: LocalizedStringResource = "No notes yet"
-    static let mockMatch: LocalizedStringResource = "Mock exams will match this"
+    static let mockMatch: LocalizedStringResource = "Mock exams follow this mix, as far as your questions go"
     static let edit: LocalizedStringResource = "Edit"
     static let looksRight: LocalizedStringResource = "Looks right"
     static let offline: LocalizedStringResource = "Read on your iPhone. Cloud AI reads syllabi better."

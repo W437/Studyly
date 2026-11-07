@@ -121,7 +121,7 @@ final class LadderEngineTests: XCTestCase {
         XCTAssertEqual(said.detail, "Next time, the same idea in a real problem?")
         XCTAssertEqual(said.action?.title, "Yes, harder")
         XCTAssertEqual(said.action?.run, .raiseQuestion(itemID: first.itemID))
-        XCTAssertEqual(said.cost, "1 draft")
+        XCTAssertEqual(said.cost, "Uses Cloud AI")
     }
 
     func testTheSwitchTurnsItOffAndAnExamTomorrowQuietsIt() {
@@ -254,6 +254,29 @@ final class LadderAppModelTests: CaptureTestCase {
         XCTAssertTrue(w.app.ladderOffers().isEmpty, "the idea has moved up: nothing more to offer for it")
         let after = w.app.readinessValue(of: snapshot)
         XCTAssertLessThan(abs(after - before) * 100, Ladder.maxReadinessDrop, "readiness moves less than 2 points")
+    }
+
+    /// A harder question is due tomorrow, and a long one: today's session doesn't take it as extra practice and lose several short ones for it.
+    func testAddingOneDoesNotShrinkTodaysSession() throws {
+        let cal = EngineTest.calendar("America/New_York")
+        let clock = TestClock(EngineTest.date(2026, 11, 6, 14, in: cal))
+        let app = try StudyTestApp.make(clock: clock, calendar: cal)
+        SampleData.seed(into: app)
+        let before = app.todaySummary()
+        let course = try XCTUnwrap(app.courses.first)
+        let parent = try XCTUnwrap(course.activeItems.filter { Ladder.next(after: $0.kind) != nil && app.reportSource(of: $0) != nil }.min { $0.prompt < $1.prompt })
+        let rung = StudyItem(course: course, kind: .apply, status: .draft, origin: .cloud, prompt: "Harder", answer: "Yes", now: app.now)
+        rung.rungOf = parent.id
+        rung.topicID = parent.topicID
+        app.context.insert(rung)
+        course.items.append(rung)
+        app.save()
+        XCTAssertTrue(app.adoptRung(rung.id))
+        let after = app.todayPlan()
+        XCTAssertFalse(after.session.entries.contains { $0.itemID == rung.id }, "due tomorrow")
+        // The easy one rests, and the day is measured in minutes: a longer question may fit where shorter ones sat. A few at most, and the same minutes.
+        XCTAssertLessThanOrEqual(abs(after.summary.plannedQuestions - before.plannedQuestions), 3, "\(before.plannedQuestions) became \(after.summary.plannedQuestions)")
+        XCTAssertEqual(after.summary.plannedMinutes, before.plannedMinutes)
     }
 
     func testAnOfferThatWouldSinkReadinessIsNotMade() throws {

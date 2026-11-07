@@ -77,16 +77,16 @@ final class TodayCopyTests: XCTestCase {
     /// The session from the card holds more than this exam's questions: the line says this exam's share and the whole, so it's true of what the button starts.
     func testTheReasonSaysTheExamsShareAndTheWholeSession() {
         XCTAssertEqual(TodayCopy.reason(weak: false, due: 6, new: 1, forExam: true, sessionTotal: 39),
-                       "6 questions you're about to forget and 1 new one for this exam. About 39 questions in all today.")
+                       "6 questions you're about to forget and 1 new one for this exam. About 39 questions fit in today's session.")
         XCTAssertEqual(TodayCopy.reason(weak: false, due: 1, new: 3, forExam: true, sessionTotal: 39),
-                       "1 question you're about to forget and 3 new ones for this exam. About 39 questions in all today.")
+                       "1 question you're about to forget and 3 new ones for this exam. About 39 questions fit in today's session.")
         XCTAssertEqual(TodayCopy.reason(weak: false, due: 6, new: 0, forExam: true, sessionTotal: 39),
-                       "6 questions you're about to forget for this exam. About 39 questions in all today.")
+                       "6 questions you're about to forget for this exam. About 39 questions fit in today's session.")
         XCTAssertEqual(TodayCopy.reason(weak: false, due: 0, new: 1, forExam: true, sessionTotal: 2),
-                       "1 new question for this exam. About 2 questions in all today.")
+                       "1 new question for this exam. About 2 questions fit in today's session.")
         XCTAssertEqual(TodayCopy.reason(weak: true, due: 12, new: 0, forExam: true, sessionTotal: 30),
-                       "The weakest topics for this exam, plus 12 questions you're about to forget. About 30 questions in all today.")
-        XCTAssertEqual(TodayCopy.reason(weak: false, due: 0, new: 0, forExam: true, sessionTotal: 12), "About 12 questions in all today.")
+                       "The weakest topics for this exam, plus 12 questions you're about to forget. About 30 questions fit in today's session.")
+        XCTAssertEqual(TodayCopy.reason(weak: false, due: 0, new: 0, forExam: true, sessionTotal: 12), "About 12 questions fit in today's session.")
         XCTAssertEqual(TodayCopy.reason(weak: false, due: 6, new: 1, forExam: true), "6 questions you're about to forget, and 1 new one.",
                        "the session is all for this exam: the counts are the whole")
     }
@@ -136,11 +136,11 @@ final class TodayCopyTests: XCTestCase {
     }
 
     func testCapIsQuietOnTheEve() {
-        XCTAssertEqual(TodayCopy.quietLine(examTitle: "Chem 110 Quiz", others: []), "Cap is quiet tonight.")
+        XCTAssertEqual(TodayCopy.quietLine(examTitle: "Chem 110 Quiz", others: []), "Cap is quiet today.")
         XCTAssertEqual(TodayCopy.quietLine(examTitle: "Chem 110 Quiz", others: ["Bio 101", "AP Psychology"]),
-                       "Cap is quiet tonight. Bio 101 and AP Psychology can wait until after Chem 110 Quiz.")
+                       "Cap is quiet today. Bio 101 and AP Psychology can wait until after Chem 110 Quiz.")
         XCTAssertEqual(TodayCopy.quietLine(examTitle: "Chem 110 Quiz", others: ["Bio 101", "AP Psychology", "Spanish II"]),
-                       "Cap is quiet tonight. Your other exams can wait until after Chem 110 Quiz.")
+                       "Cap is quiet today. Your other exams can wait until after Chem 110 Quiz.")
         XCTAssertEqual(TodayCopy.noticeCount(1, of: 3), "1 of 3")
     }
 }

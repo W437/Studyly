@@ -221,9 +221,12 @@ struct GradeSubject: Hashable, Sendable {
     /// The lines the item came from, for the cloud grader's context.
     var sourceExcerpt: String?
     var level: String?
+    /// Key ideas (by id) that are whole statements rather than terms someone chose: the rules want enough of a statement's own words in the answer, not any one of them. Stays on
+    /// this phone; a model reads every idea whole anyway.
+    var wholeIdeas: Set<String> = []
 
     init(kind: ItemKind, prompt: String, modelAnswer: String, keyIdeas: [KeyIdea] = [], choices: [Choice] = [],
-         cloze: ClozeSpec? = nil, diagramLabels: [String] = [], sourceExcerpt: String? = nil, level: String? = nil) {
+         cloze: ClozeSpec? = nil, diagramLabels: [String] = [], sourceExcerpt: String? = nil, level: String? = nil, wholeIdeas: Set<String> = []) {
         self.kind = kind
         self.prompt = prompt
         self.modelAnswer = modelAnswer
@@ -233,6 +236,7 @@ struct GradeSubject: Hashable, Sendable {
         self.diagramLabels = diagramLabels
         self.sourceExcerpt = sourceExcerpt
         self.level = level
+        self.wholeIdeas = wholeIdeas
     }
 
     init(item: GeneratedItem, sourceExcerpt: String? = nil, level: String? = nil) {

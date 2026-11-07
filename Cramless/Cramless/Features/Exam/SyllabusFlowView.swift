@@ -25,6 +25,8 @@ struct SyllabusFlowView: View {
     @State private var editingFormat = false
     @State private var asksConsent = false
     @State private var hint: LocalizedStringResource?
+    /// The page came from a PDF, not a photo: the proposal says so.
+    @State private var readFromPDF = false
 
     private enum Stage: Equatable {
         case start, camera, pick, reading, proposal, failed
@@ -191,6 +193,7 @@ struct SyllabusFlowView: View {
 
     private func read(paths: [String]) async {
         stage = .reading
+        readFromPDF = false
         var read: [PageText] = []
         for (index, path) in paths.prefix(RelayLimits.syllabusPages).enumerated() {
             if let page = try? await TextRecognizer.read(imageAt: path, pageIndex: index) {
@@ -204,6 +207,7 @@ struct SyllabusFlowView: View {
 
     private func read(pdf url: URL) async {
         stage = .reading
+        readFromPDF = true
         do {
             let kept = try ImportInbox.keep(url)
             let folder = "\(PageImageStore.stagingFolder)/\(UUID().uuidString)"
@@ -305,7 +309,7 @@ struct SyllabusFlowView: View {
                                 .foregroundStyle(CLColor.ink)
                                 .accessibilityAddTraits(.isHeader)
                                 .fixedSize(horizontal: false, vertical: true)
-                            Text(SyllabusCopy.fromPhoto)
+                            Text(readFromPDF ? SyllabusCopy.fromPDF : SyllabusCopy.fromPhoto)
                                 .clFont(.subheadline)
                                 .foregroundStyle(CLColor.ink2)
                                 .fixedSize(horizontal: false, vertical: true)
@@ -354,19 +358,10 @@ struct SyllabusFlowView: View {
     private func dateCard(_ proposal: SyllabusProposal) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             CLEyebrow(text: "When")
-            let picker = DatePicker(selection: Binding(get: { self.proposal?.date ?? base.date }, set: { self.proposal?.date = $0; self.proposal?.hasTime = true }),
-                                    displayedComponents: [.date, .hourAndMinute]) {
-                Text(verbatim: proposal.title).clFont(.bodyEmphasis).foregroundStyle(CLColor.ink)
-            }
-            .tint(CLColor.tangerine)
-            // The largest text gives the picker the row: beside it the name squeezes to a letter a line.
-            if typeSize.isAccessibilitySize {
-                Text(verbatim: proposal.title).clFont(.bodyEmphasis).foregroundStyle(CLColor.ink)
-                    .fixedSize(horizontal: false, vertical: true)
-                picker.labelsHidden()
-            } else {
-                picker
-            }
+            Text(verbatim: proposal.title).clFont(.bodyEmphasis).foregroundStyle(CLColor.ink)
+                .fixedSize(horizontal: false, vertical: true)
+            ProposedDateChips(date: Binding(get: { self.proposal?.date ?? base.date }, set: { self.proposal?.date = $0; self.proposal?.hasTime = true }),
+                              calendar: app.calendar)
             if let quote = proposal.dateQuote {
                 Text(verbatim: "“\(quote)”")
                     .clFont(.footnote)
@@ -541,3 +536,57 @@ enum SyllabusSample {
     }
 }
 #endif
+
+/// The proposal's date and time, reading as the exam editor does ("20 Nov 2026"). Outside a form a compact picker writes the day its own way ("20/11/2026") whatever room it has, so
+/// these are our words, each opening the system's picker in a popover.
+private struct ProposedDateChips: View {
+    @Binding var date: Date
+    let calendar: Calendar
+
+    @State private var editsDate = false
+    @State private var editsTime = false
+
+    var body: some View {
+        ReflowStack(spacing: 8) {
+            chip(date.formatted(LibraryFormat.dateStyle(calendar).day().month(.abbreviated).year()), label: "Exam date", isOn: $editsDate)
+                .popover(isPresented: $editsDate) {
+                    DatePicker("Exam date", selection: $date, displayedComponents: .date)
+                        .datePickerStyle(.graphical)
+                        .labelsHidden()
+                        .tint(CLColor.tangerine)
+                        .frame(width: 320)
+                        .padding(8)
+                        .presentationCompactAdaptation(.popover)
+                }
+            chip(date.formatted(LibraryFormat.dateStyle(calendar).hour().minute()), label: "Exam time", isOn: $editsTime)
+                .popover(isPresented: $editsTime) {
+                    DatePicker("Exam time", selection: $date, displayedComponents: .hourAndMinute)
+                        .datePickerStyle(.wheel)
+                        .labelsHidden()
+                        .frame(width: 260)
+                        .padding(8)
+                        .presentationCompactAdaptation(.popover)
+                }
+        }
+    }
+
+    private func chip(_ words: String, label: LocalizedStringResource, isOn: Binding<Bool>) -> some View {
+        Button {
+            CLHaptics.tap()
+            isOn.wrappedValue = true
+        } label: {
+            Text(verbatim: words)
+                .clFont(.body)
+                .foregroundStyle(CLColor.ink)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 7)
+                .frame(minHeight: CLMetrics.minHitTarget)
+                .background(CLColor.surface3, in: RoundedRectangle(cornerRadius: CLMetrics.minHitTarget / 2, style: .continuous))
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.pressable)
+        .accessibilityLabel(Text(label))
+        .accessibilityValue(Text(verbatim: words))
+    }
+}

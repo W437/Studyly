@@ -355,7 +355,7 @@ struct ImportDeckView: View {
         CLHaptics.success()
         var message = "Added \(CLFormat.count(outcome.added, "card")) to \(course.name)"
         if outcome.duplicates > 0 { message += ". \(outcome.duplicates) were already there" }
-        app.router.toast(.verbatim(message))
+        app.router.toast(.verbatim(message), detail: app.newQuestionsNote(added: outcome.added, in: course))
         app.router.dismissSheet()
     }
 }

@@ -137,6 +137,9 @@ struct LastLookIdea: Identifiable, Equatable, Sendable {
     /// Cap's sentence, written from the student's own question and lines. Nil: the question and its answer say it.
     var sentence: String?
     var ref: SourceRef?
+
+    /// An answer that means nothing on a line of its own: a number or a word or two, which reads in one breath with its question.
+    var answerIsBare: Bool { sentence == nil && !question.isEmpty && answer.count <= 12 && Lexicon.wordCount(answer) <= 2 }
 }
 
 /// A last look as its screen shows it.
@@ -147,6 +150,8 @@ struct LastLook: Equatable, Sendable {
     var minutes: Int { LastLookEngine.minutes(ideas: ideas.count) }
     /// Any of it is Cap's own wording.
     var isWritten: Bool { ideas.contains { $0.sentence != nil } }
+    /// Every idea is a sentence by itself: Cap's, or a fill-in's. Otherwise some are the student's own question and answer.
+    var isAllSentences: Bool { ideas.allSatisfy { $0.sentence != nil || $0.question.isEmpty } }
 }
 
 /// The last look's words: one sleep line everywhere ("Sleep is part of studying.").
@@ -158,15 +163,24 @@ enum LastLookCopy {
         [String(localized: "\(ideas) ideas"), String(localized: "about \(minutes) minutes"), String(localized: "no quiz")].joined(separator: " · ")
     }
 
-    /// The five the screen is meant to hold are named; when fewer are there, the number stays out of it.
-    static func subtitle(ideas: Int) -> String {
-        ideas == LastLookEngine.shown ? String(localized: "Your five shakiest ideas, in plain words")
-            : String(localized: "Your shakiest ideas, in plain words")
+    /// The five the screen is meant to hold are named; when fewer are there, the number stays out of it. "In plain words" only when they all are: a question and its answer are the
+    /// student's own words.
+    static func subtitle(ideas: Int, inSentences: Bool) -> String {
+        if inSentences {
+            return ideas == LastLookEngine.shown ? String(localized: "Your five shakiest ideas, in plain words") : String(localized: "Your shakiest ideas, in plain words")
+        }
+        return ideas == LastLookEngine.shown ? String(localized: "Your five shakiest ideas") : String(localized: "Your shakiest ideas")
     }
 
-    static let closing = String(localized: "That's enough for tonight. Sleep is part of studying. Good luck tomorrow.")
+    static let closing = String(localized: "That's enough for today. Sleep is part of studying. Good luck tomorrow.")
 
-    static let written = String(localized: "Cap wrote these from your questions and notes.")
+    /// Under the ideas, when Cap wrote any of them. Nil when he wrote none.
+    static func written(_ look: LastLook) -> String? {
+        let his = look.ideas.filter { $0.sentence != nil }.count
+        guard his > 0 else { return nil }
+        return his == look.ideas.count ? String(localized: "Cap wrote these from your questions and notes.")
+            : String(localized: "Cap wrote the sentences from your questions and notes. The rest are your own questions.")
+    }
 
     static func spoken(ideas: Int) -> LocalizedStringResource { "Your last look: \(ideas) ideas, no quiz" }
 }

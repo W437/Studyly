@@ -9,6 +9,10 @@ enum OutLoudCopy {
     static let asking: LocalizedStringResource = "Cap is asking"
     static let yourTurn: LocalizedStringResource = "Your turn"
     static let checking: LocalizedStringResource = "Cap is checking"
+    static let howItWent: LocalizedStringResource = "How it went"
+    static let theAnswer: LocalizedStringResource = "The answer"
+    /// Why the same minutes hold fewer questions than on screen.
+    static let whyFewer: LocalizedStringResource = "Spoken answers take longer, so the same minutes hold fewer questions."
     static let hint: LocalizedStringResource = "Say “repeat”, “skip” or “I don't know”."
     static let replyHint: LocalizedStringResource = "Say “got it” or “again”."
     static let nothingToAsk: LocalizedStringResource = "Nothing to ask out loud right now."

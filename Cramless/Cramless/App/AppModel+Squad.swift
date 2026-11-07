@@ -56,6 +56,9 @@ extension AppModel {
 
     /// The switch. Off deletes what was shared, on the server, at once. On says "studied" right away if a session is already done today.
     func setSquadSharing(_ on: Bool) async throws -> SquadMembers {
+        #if DEBUG
+        if config.isHarness, TestHarness.value("CRAMLESS_SQUAD_SHARE") == "fail" { throw RelayError.badRequest("There's no such endpoint.") }
+        #endif
         if on { await account.pushProfileIfNeeded() }
         let members = try await account.backend.setSquadSharing(on: on)
         noteSquadMembers(members)
