@@ -55,6 +55,8 @@ final class MockRunner: Identifiable {
     let examTitle: String
     let courseID: UUID?
     let plan: MockPlan
+    /// The real exam's format: what the intro compares this mock with.
+    let format: ExamFormat
 
     private(set) var phase: Phase = .intro
     /// The question on screen, as an index of `plan.entries`.
@@ -91,6 +93,7 @@ final class MockRunner: Identifiable {
         self.examTitle = exam.title
         self.courseID = exam.course?.id
         self.plan = plan
+        self.format = exam.format
         self.clock = clock
     }
 

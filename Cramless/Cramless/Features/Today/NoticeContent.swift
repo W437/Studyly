@@ -31,7 +31,7 @@ enum NoticeContent {
                              link: nil, cost: costLine(notice.cost))
         case .mockOffer(let offer):
             return CapNotice(id: notice.id, kind: .mockOffer, title: String(localized: "A mock exam for your \(offer.examTitle)"),
-                             detail: MockCopy.cardLine(questions: offer.questions, minutes: offer.minutes),
+                             detail: MockCopy.cardLine(questions: offer.questions, minutes: offer.minutes, realQuestions: offer.realQuestions),
                              action: .init(title: String(localized: "Take it"), systemImage: "doc.text", run: .takeMock(examID: offer.examID)),
                              link: .exam(offer.examID), cost: costLine(notice.cost))
         case .gap(let gap):
@@ -90,13 +90,12 @@ enum NoticeContent {
             : String(localized: "Your stars waited for you. 5 minutes today is a good start.")
     }
 
-    /// "No AI", "Uses Cloud AI", "1 draft", "Free". Never a price: no one is charged for a card.
-    static func costLine(_ cost: Notice.Cost) -> String {
+    /// "No AI" or "Uses Cloud AI". Nothing when the card's own button costs nothing and what follows may or may not use AI: no cost word, and never a price.
+    static func costLine(_ cost: Notice.Cost) -> String? {
         switch cost {
         case .none: String(localized: "No AI")
-        case .cloud: String(localized: "Uses Cloud AI")
-        case .drafts(let n): String(localized: "\(n) drafts")
-        case .free: String(localized: "Free")
+        case .cloud, .drafts: String(localized: "Uses Cloud AI")
+        case .free: nil
         }
     }
 

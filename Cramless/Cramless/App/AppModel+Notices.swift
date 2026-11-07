@@ -486,7 +486,8 @@ extension AppModel {
         upcomingExams().compactMap { exam in
             guard MockSuggestion.days.contains(calendar.dayDistance(from: now, to: exam.date)), mockIsDue(for: exam),
                   case .ready(let plan) = mockOffer(for: exam) else { return nil }
-            return NoticeMockOffer(examID: exam.id, examTitle: exam.title, examDate: exam.date, questions: plan.entries.count, minutes: plan.minutes)
+            return NoticeMockOffer(examID: exam.id, examTitle: exam.title, examDate: exam.date, questions: plan.entries.count, minutes: plan.minutes,
+                                   realQuestions: exam.format.questionCount)
         }
     }
 

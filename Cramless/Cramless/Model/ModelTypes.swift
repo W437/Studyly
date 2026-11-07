@@ -108,6 +108,12 @@ struct ClozeSpec: Codable, Hashable, Sendable {
         alternates = try c.decodeIfPresent([[String]].self, forKey: .alternates) ?? []
     }
 
+    /// The sentence with its blanks filled.
+    var filled: String { text.replacingOccurrences(of: "{{", with: "").replacingOccurrences(of: "}}", with: "") }
+
+    /// The sentence with a line in each blank.
+    var blanked: String { text.replacingOccurrences(of: #"\{\{.*?\}\}"#, with: "____", options: .regularExpression) }
+
     /// The blanks' answers, in order.
     var answers: [String] {
         var out: [String] = []
@@ -283,6 +289,29 @@ struct ExamFormat: Codable, Hashable, Sendable {
     var questionCount: Int? = nil
     /// How long the real exam is, in minutes, when known.
     var minutes: Int? = nil
+    /// How many of each kind the real exam has, when its page says ("30 multiple choice and 10 short answers"): a mock follows this mix.
+    var multipleChoiceCount: Int? = nil
+    var shortAnswerCount: Int? = nil
+    var essayCount: Int? = nil
+
+    /// The real exam's stated mix, in the kinds ticked. A ticked kind with no number takes what the exam's size leaves ("40 questions: 30
+    /// multiple choice", short answer ticked: 10). Nil when nothing is stated, or when the numbers can't say how the places divide.
+    var statedMix: (multiple: Int, short: Int, essay: Int)? {
+        let named = [multipleChoice ? multipleChoiceCount : nil, shortAnswer ? shortAnswerCount : nil, essay ? essayCount : nil]
+        guard named.contains(where: { $0 != nil }) else { return nil }
+        let ticked = [multipleChoice, shortAnswer, essay]
+        let unnamed = (0..<3).filter { ticked[$0] && named[$0] == nil }
+        let said = named.compactMap { $0 }.reduce(0, +)
+        var counts = named.map { $0 ?? 0 }
+        if !unnamed.isEmpty {
+            guard let size = questionCount, size > said else { return nil }
+            for (order, kind) in unnamed.enumerated() {
+                counts[kind] = (size - said) / unnamed.count + (order < (size - said) % unnamed.count ? 1 : 0)
+            }
+        }
+        guard counts.reduce(0, +) > 0 else { return nil }
+        return (counts[0], counts[1], counts[2])
+    }
 
     var summary: String {
         var parts: [String] = []

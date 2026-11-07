@@ -233,6 +233,21 @@ final class SyllabusTests: XCTestCase {
         XCTAssertEqual(made.format.notes, "Bring a pencil", "the person's own words stay")
     }
 
+    /// "30 multiple choice and 10 short answers" is the mix a mock follows, from the words on the page; words the page doesn't hold steer nothing.
+    func testTheQuoteGivesTheMix() throws {
+        let topic = [SyllabusTopic(name: "A", lineIds: [])]
+        var said = exam(topics: topic, format: SyllabusFormat(multipleChoice: true, shortAnswer: true, questionCount: 40))
+        said.formatQuote = "40 questions: 30 multiple choice and 10 short answers, 90 minutes."
+        let made = try XCTUnwrap(SyllabusProposal.make(exams: [said], examTitle: "Midterm", topicIDs: ids, base: ExamDraft(date: now),
+                                                       pageText: "Midterm exam\n\(said.formatQuote ?? "")", origin: .cloud, now: now, calendar: cal))
+        XCTAssertEqual(made.format.multipleChoiceCount, 30)
+        XCTAssertEqual(made.format.shortAnswerCount, 10)
+        XCTAssertEqual(made.format.statedMix?.short, 10)
+        let notOnThePage = try XCTUnwrap(SyllabusProposal.make(exams: [said], examTitle: "Midterm", topicIDs: ids, base: ExamDraft(date: now),
+                                                               pageText: "Midterm exam", origin: .cloud, now: now, calendar: cal))
+        XCTAssertNil(notOnThePage.format.multipleChoiceCount)
+    }
+
     func testLooksRightFillsTheDraftAndStoresNothing() throws {
         let topics = [SyllabusTopic(name: "x", topicId: "t2", lineIds: []), SyllabusTopic(name: "Meiosis", lineIds: []), SyllabusTopic(name: "Genetics", lineIds: [])]
         var made = try XCTUnwrap(proposal([exam(topics: topics, format: SyllabusFormat(minutes: 90))]))

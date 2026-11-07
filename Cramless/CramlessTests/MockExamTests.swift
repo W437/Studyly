@@ -110,6 +110,95 @@ final class MockExamTests: XCTestCase {
         XCTAssertEqual(MockExamBuilder.split(5, of: [0, 0], available: [0, 0], others: [0, 0]), [0, 0])
     }
 
+    // MARK: The exam's stated mix
+
+    private func stated(_ multiple: Int?, _ short: Int?, _ essay: Int? = nil, questions: Int? = 40, minutes: Int? = 90) -> ExamFormat {
+        ExamFormat(multipleChoice: multiple != nil, shortAnswer: short != nil, essay: essay != nil, questionCount: questions, minutes: minutes,
+                   multipleChoiceCount: multiple, shortAnswerCount: short, essayCount: essay)
+    }
+
+    func testAStatedMixIsFollowedWhereTheQuestionsAreThere() throws {
+        let topic = UUID()
+        let plan = try XCTUnwrap(builder.build(exam: exam(format: stated(30, 10)), items: items(40, .mcq, topic: topic) + items(20, .recall, topic: topic), seed: 3))
+        XCTAssertEqual(plan.entries.count, 40)
+        XCTAssertEqual(plan.multipleChoiceCount, 30)
+        XCTAssertEqual(plan.shortCount, 10)
+        XCTAssertEqual(plan.minutes, 90)
+        XCTAssertTrue(plan.holdsMix(of: stated(30, 10)))
+    }
+
+    /// The same mix at a smaller size: 3 in 4, not whatever the questions happen to be.
+    func testAMixScalesDownWithTheMock() throws {
+        let format = stated(10, 30)
+        let plan = try XCTUnwrap(builder.build(exam: exam(format: format), items: items(20, .mcq) + items(40, .recall), seed: 3, size: 20))
+        XCTAssertEqual(plan.multipleChoiceCount, 5, "a stated 1 in 4, where the default would be 3 in 4")
+        XCTAssertEqual(plan.shortCount, 15)
+    }
+
+    func testShortOfOneKindTheOtherFillsAndTheWordsSaySo() throws {
+        let format = stated(30, 10)
+        let plan = try XCTUnwrap(builder.build(exam: exam(format: format), items: items(6, .mcq) + items(7, .recall), seed: 3))
+        XCTAssertEqual(plan.entries.count, 13)
+        XCTAssertEqual(plan.multipleChoiceCount, 6)
+        XCTAssertEqual(plan.shortCount, 7)
+        XCTAssertFalse(plan.holdsMix(of: format))
+        XCTAssertEqual(plan.minutes, 30, "the real exam's pace: 13 of 40 at 90 minutes")
+        let words = MockCopy.offer(plan, format: format)
+        XCTAssertEqual(words.line, "13 of the real 40 questions · 30 min")
+        XCTAssertEqual(words.mix, "That's every question you have for it so far, with the time scaled to match. 6 multiple choice and 7 short answers: the real one's mix, as far as your questions go. Only this exam's topics.")
+    }
+
+    func testFillInsOnlyStandInForShortAnswersAndSaySo() throws {
+        let format = stated(30, 10)
+        // Enough short answers: no fill-in, though there are plenty.
+        let plenty = try XCTUnwrap(builder.build(exam: exam(format: format), items: items(30, .mcq) + items(10, .recall) + items(10, .cloze), seed: 1))
+        XCTAssertEqual(plenty.fillInCount, 0)
+        XCTAssertEqual(plenty.shortCount, 10)
+        XCTAssertFalse(MockCopy.offer(plenty, format: format).mix.contains("fill-in"))
+        XCTAssertTrue(MockCopy.offer(plenty, format: format).mix.hasPrefix("Matches your exam: 30 multiple choice and 10 short answers."))
+        // Too few: fill-ins take the short answers' places, before more multiple choice does.
+        let few = try XCTUnwrap(builder.build(exam: exam(format: format), items: items(40, .mcq) + items(2, .recall) + items(5, .cloze), seed: 1))
+        XCTAssertEqual(few.multipleChoiceCount, 33)
+        XCTAssertEqual(few.shortCount, 2)
+        XCTAssertEqual(few.fillInCount, 5)
+        XCTAssertEqual(MockCopy.offer(few, format: format).mix,
+                       "33 multiple choice and 2 short answers, with 5 fill-ins standing in for short answers you don't have yet. Only this exam's topics.")
+    }
+
+    /// The page's numbers are only a mix for the kinds still ticked, and a kind with no number takes what the exam's size leaves.
+    func testTheStatedMixReadsTheFormatAsItStands() {
+        XCTAssertEqual(stated(30, 10).statedMix?.multiple, 30)
+        XCTAssertEqual(stated(30, nil).statedMix?.short, 0)
+        var unnamed = ExamFormat(multipleChoice: true, shortAnswer: true, questionCount: 40, multipleChoiceCount: 30)
+        XCTAssertEqual(unnamed.statedMix?.short, 10, "what the size leaves")
+        unnamed.questionCount = nil
+        XCTAssertNil(unnamed.statedMix, "the numbers can't say how the places divide")
+        var unticked = stated(30, 10)
+        unticked.multipleChoice = false
+        XCTAssertEqual(unticked.statedMix?.multiple, 0)
+        XCTAssertEqual(unticked.statedMix?.short, 10)
+        XCTAssertNil(ExamFormat().statedMix)
+    }
+
+    func testTheNumbersInASyllabusLine() {
+        let line = StatedCounts("40 questions: 30 multiple choice and 10 short answers, 90 minutes.")
+        XCTAssertEqual(line.multipleChoice, 30)
+        XCTAssertEqual(line.shortAnswer, 10)
+        XCTAssertNil(line.essay)
+        XCTAssertEqual(StatedCounts("30 MCQs, 10 short, 2 essays").essay, 2)
+        XCTAssertEqual(StatedCounts("30 MCQs, 10 short, 2 essays").multipleChoice, 30)
+        XCTAssertNil(StatedCounts("Multiple choice and short answer").multipleChoice)
+    }
+
+    func testAMockShorterThanTheRealOneSaysWhy() {
+        XCTAssertEqual(MockCopy.cardLine(questions: 13, minutes: 30, realQuestions: 40), "13 of the real 40 questions · 30 min")
+        XCTAssertEqual(MockCopy.cardLine(questions: 40, minutes: 90, realQuestions: 40), "40 questions like the real one · 90 min")
+        XCTAssertEqual(MockCopy.cardLine(questions: 8, minutes: 15, realQuestions: 3), "8 questions · 15 min", "a real one smaller than a mock can be")
+        XCTAssertEqual(MockCopy.whyShorter(questions: 40, format: stated(70, 30, questions: 100)), "A mock stops at 40 questions, with the time scaled to match.")
+        XCTAssertEqual(MockCopy.whyShorter(questions: 13, format: stated(30, 10, minutes: nil)), "That's every question you have for it so far.")
+        XCTAssertNil(MockCopy.whyShorter(questions: 40, format: stated(30, 10)))
+    }
+
     func testAShortKindIsToppedUpFromTheOther() throws {
         let few = try XCTUnwrap(builder.build(exam: exam(), items: items(3, .mcq) + items(30, .recall), seed: 2, size: 20))
         XCTAssertEqual(few.multipleChoiceCount, 3)

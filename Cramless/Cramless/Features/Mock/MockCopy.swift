@@ -4,19 +4,54 @@ import Foundation
 enum MockCopy {
     static let title: LocalizedStringResource = "Mock exam"
 
-    /// "20 questions like the real one · 25 min".
-    static func cardLine(questions: Int, minutes: Int) -> String {
-        String(localized: "\(String(localized: "\(questions) questions")) like the real one · \(minutes) min")
+    /// "20 questions like the real one · 25 min". `realQuestions`: the real exam's size, when it's known and this mock isn't that size: "13 of the real
+    /// 40 questions · 30 min", and when the real one is smaller than a mock can be, no comparison at all.
+    static func cardLine(questions: Int, minutes: Int, realQuestions: Int? = nil) -> String {
+        if let real = realQuestions, real != questions {
+            return real > questions ? String(localized: "\(questions) of the real \(real) questions · \(minutes) min")
+                : String(localized: "\(String(localized: "\(questions) questions")) · \(minutes) min")
+        }
+        return String(localized: "\(String(localized: "\(questions) questions")) like the real one · \(minutes) min")
     }
 
-    /// "Matches your exam: 15 multiple choice, 2 fill-ins and 3 short answers. Only this exam's topics."
-    static func mixLine(multiple: Int, fillIns: Int = 0, short: Int, essay: Int) -> String {
+    /// Why this mock is shorter than the real exam. Nil when it isn't. "That's every question you have for it so far, with the time scaled to match."
+    static func whyShorter(questions: Int, format: ExamFormat) -> String? {
+        guard let real = format.questionCount, real > questions else { return nil }
+        let scaled = format.minutes != nil
+        if questions >= MockExamBuilder.maximumSize {
+            return scaled ? String(localized: "A mock stops at \(MockExamBuilder.maximumSize) questions, with the time scaled to match.")
+                : String(localized: "A mock stops at \(MockExamBuilder.maximumSize) questions.")
+        }
+        return scaled ? String(localized: "That's every question you have for it so far, with the time scaled to match.")
+            : String(localized: "That's every question you have for it so far.")
+    }
+
+    /// "Matches your exam: 15 multiple choice, 2 fill-ins and 3 short answers. Only this exam's topics." With `format` it says only what's true of that
+    /// exam: fill-ins it doesn't name stand in for short answers, and a mix it can't hold at this size is the real one's "as far as your questions go".
+    static func mixLine(multiple: Int, fillIns: Int = 0, short: Int, essay: Int, format: ExamFormat? = nil, holdsMix: Bool = true) -> String {
+        let standsIn = fillIns > 0 && format?.shortAnswer == true
         var parts: [String] = []
         if multiple > 0 { parts.append(String(localized: "\(multiple) multiple choice")) }
-        if fillIns > 0 { parts.append(String(localized: "\(fillIns) fill-ins")) }
+        if fillIns > 0, !standsIn { parts.append(String(localized: "\(fillIns) fill-ins")) }
         if short > 0 { parts.append(String(localized: "\(short) short answers")) }
         if essay > 0 { parts.append(String(localized: "\(essay) essay questions")) }
-        return String(localized: "Matches your exam: \(ListFormatter.localizedString(byJoining: parts)). Only this exam's topics.")
+        let list = ListFormatter.localizedString(byJoining: parts)
+        if standsIn {
+            let spare = parts.isEmpty ? String(localized: "\(fillIns) fill-ins, standing in for short answers you don't have yet.")
+                : String(localized: "\(list), with \(String(localized: "\(fillIns) fill-ins")) standing in for short answers you don't have yet.")
+            return "\(spare) \(String(localized: "Only this exam's topics."))"
+        }
+        if !holdsMix { return String(localized: "\(list): the real one's mix, as far as your questions go. Only this exam's topics.") }
+        return String(localized: "Matches your exam: \(list). Only this exam's topics.")
+    }
+
+    /// The card's and the intro's two lines for this mock of this exam.
+    static func offer(_ plan: MockPlan, format: ExamFormat) -> (line: String, mix: String) {
+        let questions = plan.entries.count
+        let mix = mixLine(multiple: plan.multipleChoiceCount, fillIns: plan.fillInCount, short: plan.shortCount, essay: plan.essayCount, format: format,
+                          holdsMix: plan.holdsMix(of: format))
+        return (cardLine(questions: questions, minutes: plan.minutes, realQuestions: format.questionCount),
+                [whyShorter(questions: questions, format: format), mix].compactMap { $0 }.joined(separator: " "))
     }
 
     /// "Last mock: 72% on Nov 3".

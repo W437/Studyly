@@ -266,6 +266,8 @@ struct NoticeMockOffer: Equatable, Sendable {
     var examDate: Date
     var questions: Int
     var minutes: Int
+    /// The real exam's size, when it's known.
+    var realQuestions: Int? = nil
 }
 
 // MARK: - A card

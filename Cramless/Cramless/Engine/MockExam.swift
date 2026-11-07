@@ -21,6 +21,13 @@ struct MockPlan: Sendable, Equatable {
     /// The fair score for the whole mock.
     var expected: Double { MockScorer.mean(entries.map { expectedByItem[$0.itemID] ?? 0 }) }
 
+    /// Whether this mock holds the real exam's stated mix at its own size, within a question of it. Always, when no mix is stated.
+    func holdsMix(of format: ExamFormat) -> Bool {
+        guard let stated = format.statedMix else { return true }
+        let places = MockExamBuilder.places(entries.count, weights: [Double(stated.multiple), Double(stated.short), Double(stated.essay)])
+        return abs(places[0] - multipleChoiceCount) <= 1 && abs(places[1] - shortCount - fillInCount) <= 1 && abs(places[2] - essayCount) <= 1
+    }
+
     /// The session this mock runs as.
     func built(id: UUID = UUID()) -> BuiltSession {
         BuiltSession(id: id, kind: .mock, entries: entries, budgetSeconds: Double(minutes) * 60, courseID: courseID, examID: examID)
@@ -29,10 +36,11 @@ struct MockPlan: Sendable, Equatable {
 
 /// Builds a mock from an exam's own questions. Pure and seeded: the same inputs give the same mock.
 ///
-/// Only the exam's scope, only the kinds its format has (multiple choice: `.mcq`; short answer: `.recall` and `.cloze`; essay: `.apply`; none
-/// ticked: all four). Flashcards and diagrams don't sit in a mock. Questions never studied are in there in proportion: a real exam
+/// Only the exam's scope, only the kinds its format has (multiple choice: `.mcq`; short answer: `.recall`, then `.cloze` where those run out; essay:
+/// `.apply`; none ticked: all four). Flashcards and diagrams don't sit in a mock. Questions never studied are in there in proportion: a real exam
 /// doesn't skip them. Every topic gets its share by how many questions it has (largest remainder, at least one each while there's
-/// room), and multiple choice takes three in four places where the format has both.
+/// room). The kinds share the places as the exam's page says (`ExamFormat.statedMix`), else multiple choice takes three in four where the
+/// format has both; a kind that runs short leaves its places to the others (`mix`).
 struct MockExamBuilder: Sendable {
     /// Below this a mock wouldn't be worth the name.
     static let minimumQuestions = 8
@@ -46,6 +54,56 @@ struct MockExamBuilder: Sendable {
     var fsrs: FSRS
     var calendar: Calendar
     var now: Date
+
+    /// How a mock's places divide among the kinds.
+    struct Mix: Equatable, Sendable {
+        var multiple = 0
+        var short = 0
+        /// Fill-ins standing in for short answers there aren't enough of. No exam's page names them, so a mock takes them last.
+        var fillIns = 0
+        var essay = 0
+    }
+
+    /// `count` shared by `weights`, largest remainder (the first in a tie).
+    static func places(_ count: Int, weights: [Double]) -> [Int] {
+        let sum = weights.reduce(0, +)
+        guard sum > 0, count > 0 else { return weights.map { _ in 0 } }
+        let exact = weights.map { $0 * Double(count) / sum }
+        var places = exact.map { Int($0) }
+        let remainders = exact.indices.map { exact[$0] - Double(places[$0]) }
+        var left = count - places.reduce(0, +)
+        for index in exact.indices.sorted(by: { remainders[$0] != remainders[$1] ? remainders[$0] > remainders[$1] : $0 < $1 }) where left > 0 {
+            places[index] += 1
+            left -= 1
+        }
+        return places
+    }
+
+    /// The places a mock of `count` gives each kind, from the questions there are: the exam's stated mix, or three in four multiple choice where both are
+    /// on offer, then what a kind can't fill goes to the others, the larger share first. Fill-ins only where short answers run out.
+    static func mix(count: Int, multiple: Int, recall: Int, cloze: Int, essay: Int, format: ExamFormat) -> Mix {
+        let short = recall + cloze
+        let available = [multiple, short, essay]
+        let weights: [Double]
+        if let stated = format.statedMix {
+            weights = [Double(stated.multiple), Double(stated.short), Double(stated.essay)]
+        } else {
+            let written = short + essay
+            let share = multiple == 0 ? 0 : (written == 0 ? 1 : multipleChoiceShare)
+            let perWritten = written == 0 ? 0 : (1 - share) / Double(written)
+            weights = [share, perWritten * Double(short), perWritten * Double(essay)]
+        }
+        var taken = zip(places(count, weights: weights), available).map { min($0, $1) }
+        var left = count - taken.reduce(0, +)
+        // The largest share first; a kind with no place in the mix last, and only if there's nothing else to ask.
+        for index in available.indices.sorted(by: { weights[$0] != weights[$1] ? weights[$0] > weights[$1] : $0 < $1 }) where left > 0 {
+            let more = min(left, available[index] - taken[index])
+            taken[index] += more
+            left -= more
+        }
+        let recalls = min(recall, taken[1])
+        return Mix(multiple: taken[0], short: recalls, fillIns: taken[1] - recalls, essay: taken[2])
+    }
 
     /// The kinds a format's mock asks.
     static func kinds(for format: ExamFormat) -> Set<ItemKind> {
@@ -99,7 +157,7 @@ struct MockExamBuilder: Sendable {
         let pool = Self.eligible(items, exam: exam)
         guard pool.count >= Self.minimumQuestions else { return nil }
         let wanted = min(Self.size(format: exam.format, requested: size), pool.count)
-        let picked = pick(pool, count: wanted, seed: seed)
+        let picked = pick(pool, count: wanted, format: exam.format, seed: seed)
 
         let entries = picked.map { item in
             SessionEntry(itemID: item.id, reason: item.isStudied ? .due : .new, kind: item.kind, topicID: item.topicID,
@@ -130,11 +188,17 @@ struct MockExamBuilder: Sendable {
 
     // MARK: Choosing
 
-    private func pick(_ pool: [ItemSnapshot], count: Int, seed: UInt64) -> [ItemSnapshot] {
+    private func pick(_ eligible: [ItemSnapshot], count: Int, format: ExamFormat, seed: UInt64) -> [ItemSnapshot] {
+        func rank(_ item: ItemSnapshot) -> UInt64 { StableRandom.mix(StableRandom.seed(item.id, day: 0) ^ seed) }
+        func total(_ kind: ItemKind) -> Int { eligible.filter { $0.kind == kind }.count }
+        let mix = Self.mix(count: count, multiple: total(.mcq), recall: total(.recall), cloze: total(.cloze), essay: total(.apply), format: format)
+        // Fill-ins only as many as stand in for short answers: the others aren't there to take a place.
+        let standIns = eligible.filter { $0.kind == .cloze }.sorted { rank($0) < rank($1) }.prefix(mix.fillIns)
+        let pool = eligible.filter { $0.kind != .cloze } + standIns
+
         // Each topic's questions in a seeded order, the buckets in a stable order (no topic comes last).
         var byTopic: [UUID?: [ItemSnapshot]] = [:]
         for item in pool { byTopic[item.topicID, default: []].append(item) }
-        func rank(_ item: ItemSnapshot) -> UInt64 { StableRandom.mix(StableRandom.seed(item.id, day: 0) ^ seed) }
         let topics = byTopic.keys.sorted { a, b in
             let ca = byTopic[a]?.count ?? 0, cb = byTopic[b]?.count ?? 0
             if ca != cb { return ca > cb }
@@ -142,20 +206,21 @@ struct MockExamBuilder: Sendable {
         }
         let quotas = Self.quotas(counts: topics.map { byTopic[$0]?.count ?? 0 }, total: count)
 
-        // How many of each: three in four multiple choice where the pool has both, topped up from the other kind when one runs short.
-        let multiple = pool.filter { $0.kind == .mcq }.count
-        let written = pool.count - multiple
-        var multipleTotal = written == 0 ? count : min(multiple, Int((Double(count) * Self.multipleChoiceShare).rounded()))
-        if count - multipleTotal > written { multipleTotal = count - written }
-
-        // Each topic's questions in the seeded order, split by kind, and that mix shared over the topics.
+        // That mix shared over the topics: first multiple choice, then essays among the places left.
         let sorted = topics.map { (byTopic[$0] ?? []).sorted { rank($0) < rank($1) } }
-        let multipleSplit = Self.split(multipleTotal, of: quotas, available: sorted.map { $0.filter { $0.kind == .mcq }.count },
+        func short(_ questions: [ItemSnapshot]) -> [ItemSnapshot] {
+            questions.filter { $0.kind == .recall } + questions.filter { $0.kind == .cloze }
+        }
+        let multipleSplit = Self.split(mix.multiple, of: quotas, available: sorted.map { $0.filter { $0.kind == .mcq }.count },
                                        others: sorted.map { $0.filter { $0.kind != .mcq }.count })
+        let written = zip(quotas, multipleSplit).map { $0 - $1 }
+        let essaySplit = Self.split(mix.essay, of: written, available: sorted.map { $0.filter { $0.kind == .apply }.count },
+                                    others: sorted.map { short($0).count })
         var picked: [ItemSnapshot] = []
         for (index, questions) in sorted.enumerated() {
             picked += questions.filter { $0.kind == .mcq }.prefix(multipleSplit[index])
-            picked += questions.filter { $0.kind != .mcq }.prefix(quotas[index] - multipleSplit[index])
+            picked += questions.filter { $0.kind == .apply }.prefix(essaySplit[index])
+            picked += short(questions).prefix(written[index] - essaySplit[index])
         }
         return picked
     }

@@ -519,7 +519,7 @@ final class NoticeEngineTests: XCTestCase {
         XCTAssertEqual(card.action?.title, "Take it")
         XCTAssertEqual(card.action?.run, .takeMock(examID: midterm.id))
         XCTAssertEqual(card.link, .exam(midterm.id))
-        XCTAssertEqual(card.cost, "Free", "its short answers may use AI, so it can't say No AI")
+        XCTAssertNil(card.cost, "its short answers may use AI, so it can't say No AI, and there's no cost word")
     }
 
     func testAMockCardIsNeverSentAndHasASwitch() {
@@ -843,7 +843,8 @@ final class NoticeEngineTests: XCTestCase {
         XCTAssertEqual(try card(cloud: true).cost, "Uses Cloud AI")
         XCTAssertEqual(try card(cloud: false).cost, "No AI")
         XCTAssertEqual(NoticeContent.costLine(.none), "No AI")
-        XCTAssertEqual(NoticeContent.costLine(.drafts(1)), "1 draft")
+        XCTAssertEqual(NoticeContent.costLine(.drafts(1)), "Uses Cloud AI")
+        XCTAssertNil(NoticeContent.costLine(.free))
     }
 
     /// What the look-alike's card says it costs comes from the route: a person under 13 never reaches the cloud, whatever else is true.
@@ -1013,7 +1014,7 @@ final class NoticeEngineTests: XCTestCase {
             XCTAssertFalse(words.lowercased().contains("card"), words)
             XCTAssertFalse(words.unicodeScalars.contains { $0.properties.isEmojiPresentation }, words)
             XCTAssertNotNil(card.action)
-            XCTAssertNotNil(card.cost)
+            XCTAssertEqual(card.cost != nil, notice.cost != .free, "a cost word only where there is a cost: \(notice.id)")
         }
         for kind in NoticeKind.allCases {
             XCTAssertFalse(String(localized: NoticeContent.switchTitle(kind)).isEmpty, kind.rawValue)
@@ -1113,7 +1114,7 @@ extension NoticeEngineTests {
         XCTAssertEqual(words.action?.title, "Fill the gap")
         XCTAssertEqual(words.action?.run, .fillGap(examID: midterm.id))
         XCTAssertEqual(words.link, .exam(midterm.id))
-        XCTAssertEqual(words.cost, "Free")
+        XCTAssertNil(words.cost)
         XCTAssertEqual(NoticeContent.pingBody(card), "Some topics on your Bio 101 Midterm have no notes yet. Cap can help you fill them in.")
     }
 
