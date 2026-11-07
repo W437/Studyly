@@ -61,7 +61,8 @@ struct ExamReadiness: Equatable, Sendable {
     var value: Double
     /// The same, if the plan is followed. 0…1.
     var projected: Double
-    /// Change in `value` over the last 7 days.
+    /// Change in `value` over the last 7 days, on the questions the student has had the chance to study: adding new ones doesn't take ground back
+    /// (`ReadinessEngine.readiness(for:…)`).
     var deltaThisWeek: Double
     var daysLeft: Int
     var topics: [TopicReadiness]
@@ -78,8 +79,12 @@ struct ExamReadiness: Equatable, Sendable {
     /// The share (0…1) of the exam's material its questions reach, when it can be told. `value` doesn't take it into account (it is
     /// the mean recall of the questions the app made); `projectedGrade` does.
     var coverage: Double? = nil
-    /// Change in `value` since the start of today ("+10% today").
+    /// Change in `value` since the start of today ("+10% today"), read as `deltaThisWeek` is.
     var deltaToday: Double = 0
+    /// Questions added lately and not studied yet, while they hold `value` down by a point or more (0 otherwise): why the number moved.
+    var newQuestions: Int = 0
+    /// The plan has places for new questions.
+    var newQuestionsInPlan = false
 }
 
 struct StreakState: Equatable, Sendable {

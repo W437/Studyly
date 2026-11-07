@@ -49,6 +49,9 @@ struct TodayExam: Identifiable, Equatable, Sendable {
     var itemsInScope: Int = 0
     /// Readiness gained since the start of today.
     var deltaToday: Double = 0
+    /// Questions just added and not studied yet, while they hold its readiness down, and whether its plan has places for them (`ExamReadiness.newQuestions`).
+    var newQuestions: Int = 0
+    var newQuestionsInPlan = false
 }
 
 /// The exam the session serves (`SessionFocus`: one this week with 20% of its minutes, else one with 40%), as the day card names it.
@@ -173,7 +176,8 @@ struct TodaySnapshot: Equatable, Sendable {
                                  color: exam.course?.color ?? .sky, date: exam.date, daysLeft: r.daysLeft,
                                  readiness: r.value, delta: r.deltaThisWeek,
                                  when: TodayCopy.when(exam.date, now: now, calendar: calendar),
-                                 itemsInScope: r.itemsInScope, deltaToday: r.deltaToday)
+                                 itemsInScope: r.itemsInScope, deltaToday: r.deltaToday, newQuestions: r.newQuestions,
+                                 newQuestionsInPlan: r.newQuestionsInPlan)
             }
         let firstDay = !app.hasFinishedAnySession()
         var snapshot = TodaySnapshot(

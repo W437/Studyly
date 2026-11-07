@@ -613,7 +613,7 @@ struct DraftReviewView: View {
         let course = app.source(sourceID)?.course
         CLHaptics.success()
         if !isOnboarding, let course {
-            app.router.toast("Added \(CLFormat.count(added, "question")) to \(course.name)")
+            app.router.toast("Added \(CLFormat.count(added, "question")) to \(course.name)", detail: app.newQuestionsNote(added: added, in: course))
         }
         finish(course?.id)
     }

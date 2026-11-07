@@ -163,18 +163,20 @@ extension View {
     }
 }
 
-/// A topic on the course page: its readiness for the next exam with a meter, a coverage gap with "Add material", or (not on that exam, or
-/// no exam to come) just its questions. Only the first shows a number.
+/// A topic on the course page: its readiness for the next exam with a meter, a coverage gap with "Add material", questions waiting with "Review them", or (not on
+/// that exam, or no exam to come) just its questions. Only the first shows a number. At the largest text sizes the name takes the line.
 struct LibraryTopicRow: View {
     let name: String
     let state: LibraryFormat.TopicLine.State
     var questionCount: Int = 0
     var onAdd: (() -> Void)?
+    var onReview: ((UUID) -> Void)?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .firstTextBaseline, spacing: 10) {
+            ReflowStack(verticalAlignment: .firstTextBaseline, spacing: 10) {
                 Text(name).clFont(.subheadlineEmphasis).foregroundStyle(CLColor.ink)
+                    .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 switch state {
                 case .value(let value):
@@ -182,7 +184,9 @@ struct LibraryTopicRow: View {
                         .clFont(.number(15, .bold))
                         .foregroundStyle(questionCount > 0 && value < 0.005 ? CLColor.ink3 : CLColor.ink)
                 case .gap:
-                    CLPill(text: "No material yet", tone: .rose)
+                    ReflowPill(text: "No notes yet", tone: .rose)
+                case .waiting:
+                    ReflowPill(text: "Waiting for review", tone: .sky)
                 case .notOnExam, .noExam:
                     Text("\(questionCount) questions").clFont(.footnote).foregroundStyle(CLColor.ink3)
                 }
@@ -192,6 +196,17 @@ struct LibraryTopicRow: View {
             } else if case .gap = state, let onAdd {
                 Button(action: onAdd) {
                     Label("Add material", systemImage: "plus")
+                        .clFont(.footnoteEmphasis)
+                        .foregroundStyle(CLColor.skyInk)
+                        .frame(minHeight: CLMetrics.minHitTarget, alignment: .leading)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            } else if case .waiting(let source) = state, let onReview {
+                Button {
+                    onReview(source)
+                } label: {
+                    Label("Review them", systemImage: "checklist")
                         .clFont(.footnoteEmphasis)
                         .foregroundStyle(CLColor.skyInk)
                         .frame(minHeight: CLMetrics.minHitTarget, alignment: .leading)
@@ -211,7 +226,8 @@ struct LibraryTopicRow: View {
         case .value(let value):
             if questionCount > 0 && value < 0.005 { return String(localized: "Not studied yet") }
             return String(localized: "\(Int((value * 100).rounded())) percent ready")
-        case .gap: return String(localized: "No material yet")
+        case .gap: return String(localized: "No notes yet")
+        case .waiting: return String(localized: "Waiting for review")
         case .notOnExam(let exam): return String(localized: "Not on the \(exam)")
         case .noExam: return String(localized: "\(questionCount) questions")
         }
@@ -331,6 +347,39 @@ struct ReflowStack<Content: View>: View {
             ? AnyLayout(VStackLayout(alignment: horizontalAlignment, spacing: spacing))
             : AnyLayout(HStackLayout(alignment: verticalAlignment, spacing: spacing))
         layout { content }
+    }
+}
+
+extension View {
+    /// A sheet's main button at the accessibility text sizes: pinned above the bottom edge and one button tall (its text held at the size a session's footer holds), so it's
+    /// never a long scroll away. At other sizes nothing changes: the page keeps its button in place, and the view leaves it out of the page only at those sizes.
+    func pinnedActionAtLargeText<Action: View>(when shown: Bool = true, @ViewBuilder _ action: () -> Action) -> some View {
+        modifier(PinnedActionAtLargeText(shown: shown, action: action()))
+    }
+}
+
+private struct PinnedActionAtLargeText<Action: View>: ViewModifier {
+    let shown: Bool
+    let action: Action
+
+    @Environment(\.dynamicTypeSize) private var typeSize
+
+    func body(content: Content) -> some View {
+        content.safeAreaInset(edge: .bottom, spacing: 0) {
+            if shown, typeSize.isAccessibilitySize {
+                action
+                    .dynamicTypeSize(...DynamicTypeSize.accessibility2)
+                    .padding(.horizontal, CLSpace.gutter)
+                    .padding(.top, 10)
+                    .padding(.bottom, 6)
+                    .frame(maxWidth: .infinity)
+                    .background(alignment: .top) {
+                        CLColor.background
+                            .overlay(alignment: .top) { Rectangle().fill(CLColor.hairline).frame(height: 0.5) }
+                            .ignoresSafeArea(edges: .bottom)
+                    }
+            }
+        }
     }
 }
 

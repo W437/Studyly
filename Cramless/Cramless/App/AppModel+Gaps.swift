@@ -25,11 +25,34 @@ extension AppModel {
         return ExamGaps.find(exam: exam, topicReadiness: topics, draftTopicIDs: drafts, daysLeft: days, within: within)
     }
 
+    /// Each topic with drafts waiting, and the set they came from.
+    func draftSources(in course: Course) -> [UUID: UUID] {
+        var sources: [UUID: UUID] = [:]
+        for item in course.items where item.deletedAt == nil && item.status == .draft {
+            if let topic = item.topicID, let source = item.sourceRef?.sourceID, sources[topic] == nil { sources[topic] = source }
+        }
+        return sources
+    }
+
     /// The set of drafts waiting for review on these topics.
     func draftSource(forTopics topicIDs: [UUID], in courseID: UUID) -> UUID? {
         guard let course = course(courseID) else { return nil }
         let wanted = Set(topicIDs)
         return course.items.first { $0.deletedAt == nil && $0.status == .draft && $0.topicID.map(wanted.contains) == true }?.sourceRef?.sourceID
+    }
+
+    /// What to say beside "Added 15 questions to Bio 101" when they hold an exam's readiness down: the same words as its page and Today's card. Nil when no exam moved
+    /// by a point, or with nothing added. Read after the questions are in.
+    func newQuestionsNote(added: Int, in course: Course?) -> String? {
+        guard added > 0, let course else { return nil }
+        let engine = ReadinessEngine(fsrs: fsrs, calendar: calendar, now: now)
+        let items = itemSnapshots(in: course)
+        for exam in upcomingExams() where exam.course?.id == course.id {
+            if engine.newQuestionsShown(of: ExamSnapshot(exam), in: items) > 0 {
+                return ExamPresentation.newQuestionsLine(added, inPlan: plan(for: exam).days.contains { $0.newItems > 0 })
+            }
+        }
+        return nil
     }
 
     /// "Later" on the exam page's card: the same as on Cap's.

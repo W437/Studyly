@@ -55,6 +55,81 @@ final class EngineReadinessTests: XCTestCase {
         XCTAssertNil(byTopic[2].value)
     }
 
+    // MARK: New questions
+
+    /// Fifteen new questions lower the ring at once, and say why; they don't take ground back from "this week", and the line goes as they are studied.
+    func testAddingQuestionsKeepsTheNumberAndTheWeek() {
+        let exam = ExamSnapshot(courseID: course, date: cal.adding(days: 14, to: now))
+        let reviewed = cal.adding(days: -3, to: now)
+        var settled: [ItemSnapshot] = []
+        var logs: [ReviewSnapshot] = []
+        for _ in 0..<20 {
+            var item = EngineTest.studied(topic: topicA, course: course, recall: 0.9, daysAgo: 3, now: now, cal: cal)
+            item.addedAt = cal.adding(days: -40, to: now)
+            settled.append(item)
+            logs.append(ReviewSnapshot(itemID: item.id, reviewedAt: reviewed, rating: .good, stateBefore: .review,
+                                       stabilityAfter: item.memory.stability))
+        }
+        let plan = StudyPlan(examID: exam.id, target: 0.9, daysLeft: 14, dailyMinutes: 15, itemsInScope: 20, newItems: 0, reviewsPlanned: 0,
+                             days: [PlanDay(date: now, dayNumber: 0, kind: .study, minutes: 10, sessionMinutes: 15, newItems: 3, reviews: 0, isToday: true, isEasyDay: false)],
+                             lastIntroDay: nil, examEve: nil, curve: [], projectedReadiness: 0.8, targetReachedOn: nil, suggestedMinutes: nil)
+        func read(_ items: [ItemSnapshot]) -> ExamReadiness {
+            engine.readiness(for: exam, items: items, topics: topics, logs: logs, plan: plan, grade: GradeModel.uncalibrated(for: ExamFormat()))
+        }
+        let before = read(settled)
+        XCTAssertEqual(before.newQuestions, 0)
+        XCTAssertGreaterThan(before.deltaThisWeek, 0)
+
+        var new = (0..<15).map { _ in EngineTest.fresh(topic: topicB, course: course) }
+        for index in new.indices { new[index].addedAt = cal.adding(days: -1, to: now) }
+        let after = read(settled + new)
+        XCTAssertLessThan(after.value, before.value - 0.1, "the number stays honest: they count as nothing yet")
+        XCTAssertEqual(after.newQuestions, 15)
+        XCTAssertTrue(after.newQuestionsInPlan)
+        XCTAssertEqual(after.deltaThisWeek, min(before.deltaThisWeek, after.value), accuracy: 1e-9, "adding questions isn't losing ground")
+        XCTAssertEqual(after.deltaToday, before.deltaToday, accuracy: 1e-9)
+
+        // Added more than a week ago and still not studied: no longer news.
+        var old = new
+        for index in old.indices { old[index].addedAt = cal.adding(days: -8, to: now) }
+        XCTAssertEqual(read(settled + old).newQuestions, 0)
+
+        // Studied, they leave the line; a last one left that moves the ring by under a point doesn't keep it up.
+        var almost = new.map { item -> ItemSnapshot in
+            var studied = EngineTest.studied(topic: topicB, course: course, recall: 0.9, daysAgo: 0, now: now, cal: cal)
+            studied.id = item.id
+            return studied
+        }
+        XCTAssertEqual(read(settled + almost).newQuestions, 0)
+        almost.removeLast()
+        var many = (0..<200).map { _ in EngineTest.studied(topic: topicA, course: course, recall: 0.2, daysAgo: 3, now: now, cal: cal) }
+        many.append(new[0])
+        XCTAssertEqual(engine.newQuestionsShown(of: exam, in: many), 0, "under a point: nothing to explain")
+    }
+
+    /// A first week reads as what it gained, never more than the ring holds.
+    func testAFirstWeekIsNeverMoreThanTheRing() {
+        let exam = ExamSnapshot(courseID: course, date: cal.adding(days: 14, to: now))
+        var items: [ItemSnapshot] = (0..<10).map { _ in
+            var item = EngineTest.studied(topic: topicA, course: course, recall: 0.9, daysAgo: 1, now: now, cal: cal)
+            item.addedAt = cal.adding(days: -2, to: now)
+            return item
+        }
+        items += (0..<20).map { _ in
+            var item = EngineTest.fresh(topic: topicA, course: course)
+            item.addedAt = cal.adding(days: -2, to: now)
+            return item
+        }
+        let logs = items.prefix(10).map { ReviewSnapshot(itemID: $0.id, reviewedAt: cal.adding(days: -1, to: now), rating: .good, stateBefore: .new,
+                                                         stabilityAfter: $0.memory.stability) }
+        let plan = StudyPlan(examID: exam.id, target: 0.9, daysLeft: 14, dailyMinutes: 15, itemsInScope: 30, newItems: 20, reviewsPlanned: 0, days: [],
+                             lastIntroDay: nil, examEve: nil, curve: [], projectedReadiness: 0.8, targetReachedOn: nil, suggestedMinutes: nil)
+        let r = engine.readiness(for: exam, items: items, topics: topics, logs: logs, plan: plan, grade: GradeModel.uncalibrated(for: ExamFormat()))
+        XCTAssertEqual(r.deltaThisWeek, r.value, accuracy: 1e-9)
+        XCTAssertEqual(r.newQuestions, 20)
+        XCTAssertFalse(r.newQuestionsInPlan, "no place for them in this plan")
+    }
+
     func testDeltaThisWeekComesFromTheReviewLog() {
         let exam = ExamSnapshot(courseID: course, date: cal.adding(days: 14, to: now))
         let id = UUID()
@@ -442,9 +517,9 @@ final class EnginePlanTests: XCTestCase {
         let examDay = cal.dayNumber(for: exam.date)
         XCTAssertEqual(bent.days.reduce(0) { $0 + $1.newItems }, 40)
         XCTAssertTrue(bent.days.filter { $0.dayNumber > examDay - 3 }.allSatisfy { $0.newItems == 0 })
-        // The new items planned for the missed day are spread over the days left, not dumped on tomorrow.
+        // The new items planned for the missed day are spread over the days left, not dumped on tomorrow. (A session's own floor may already cover the spread.)
         let firstPlanned = planned.days.first!.newItems
-        XCTAssertGreaterThan(bent.days.first!.newItems, planned.days[1].newItems)
+        XCTAssertGreaterThanOrEqual(bent.days.first!.newItems, planned.days[1].newItems)
         XCTAssertLessThan(bent.days.first!.newItems, planned.days[1].newItems + firstPlanned)
         // 150 overdue reviews (more than a day's 15 minutes) spread over the next three days.
         XCTAssertLessThan(bent.days[0].reviews, 120)

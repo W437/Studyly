@@ -149,6 +149,12 @@ enum AppSheet: Identifiable, Hashable, Sendable {
     case lastLook(examID: UUID)
 
     var id: String { String(describing: self) }
+
+    /// A page in the person's theme, even from the sky (`followsTheme`). "How you remember" is the sky's own panel, and stays night over it.
+    var followsTheme: Bool {
+        if case .skyMemory = self { return false }
+        return true
+    }
 }
 
 enum AppCover: Identifiable, Hashable, Sendable {
@@ -166,6 +172,14 @@ enum AppCover: Identifiable, Hashable, Sendable {
     case teach(topicID: UUID)
 
     var id: String { String(describing: self) }
+
+    /// A page in the person's theme, whatever opened it (`followsTheme`). Recording chooses for itself, night while it records; onboarding has its own night welcome.
+    var followsTheme: Bool {
+        switch self {
+        case .record, .onboarding: false
+        case .session, .mockExam, .scanner, .captureFlow, .outLoud, .teach: true
+        }
+    }
 }
 
 /// What a toast's button opens.
@@ -222,6 +236,11 @@ final class Router {
 
     func toast(_ message: LocalizedStringResource, systemImage: String = "checkmark.circle.fill", tone: Toast.Tone = .success) {
         toast = Toast(message: message, systemImage: systemImage, tone: tone)
+    }
+
+    /// A toast with a second line that says why (`detail`), up a little longer to read it. Without one, the plain toast.
+    func toast(_ message: LocalizedStringResource, detail: String?, systemImage: String = "checkmark.circle.fill", tone: Toast.Tone = .success) {
+        toast = Toast(message: message, detail: detail, systemImage: systemImage, tone: tone, duration: detail == nil ? 3 : 6)
     }
 
     /// A toast with a button ("Open"): stays a little longer, and its button runs `action`.

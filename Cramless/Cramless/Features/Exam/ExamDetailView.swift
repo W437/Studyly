@@ -71,6 +71,8 @@ struct ExamDetailModel {
     var gap: ExamGap?
     /// The drafts waiting for the gap's `waiting` topics.
     var gapDrafts: UUID?
+    /// The seconds the other exams' plans give each day: with this one's, what the plan's stops name.
+    var otherExams: [Int: Double]
     var now: Date
     var calendar: Calendar
 
@@ -96,9 +98,10 @@ struct ExamDetailModel {
         let read = app.readinessAndPlan(for: exam)
         readiness = read.readiness
         plan = read.plan
+        otherExams = app.otherExamsSeconds(besides: read.plan)
         let history = app.readinessHistory(for: exam, days: 14)
         path = ExamPresentation.path(history: history, plan: plan, examDate: exam.date, now: app.now, calendar: app.calendar)
-        topics = ExamPresentation.topicsWeakestFirst(readiness.topics, target: readiness.target)
+        topics = ExamPresentation.topicsWeakestFirst(readiness.topics, target: readiness.target, drafts: app.draftSources(in: course))
         // Today's session as Today starts it, built once: the "Study" button and the plan's first stop read it.
         let (summary, session) = app.todayPlan()
         let strip = ExamPresentation.weekStrip(plan: plan, yesterday: app.dayRecordSnapshot(for: app.calendar.adding(days: -1, to: app.now)),
@@ -128,7 +131,8 @@ struct ExamDetailModel {
             if case .ahead = phase { canAdd = true }
             let summary = app.coverage(for: exam)
             let target = summary.flatMap { app.restTarget(in: $0) }
-            coverage = summary.map { ExamPresentation.coverageNote($0, canAddMore: canAdd && target != nil) }
+            let empty = canAdd ? topics.filter(\.isEmpty).count : 0
+            coverage = summary.map { ExamPresentation.coverageNote($0, canAddMore: canAdd && target != nil, emptyTopics: empty) }
             offersRest = canAdd && target != nil
         }
         let items = course.liveItems
@@ -185,13 +189,14 @@ private struct ExamDetailContent: View {
                     mockCard(mock).padding(.top, 16)
                 }
                 topicsSection.id("topics")
-                if let note = model.coverage {
-                    // The ring is how well the questions are remembered; this is how much of the material they reach.
+                // The ring is how well the questions are remembered; this is how much of the material they reach, and what no material reaches yet.
+                if let gap = model.gap {
+                    gapCard(gap).padding(.top, 12)
+                } else if let note = model.coverage {
                     CoverageNoteCard(sentence: note.sentence, detail: note.mainGap, isThin: note.isThin,
                                      offersMore: note.offersMore && model.offersRest, centered: false, onAdd: addForTheRest)
                         .padding(.top, 12)
                 }
-                if let gap = model.gap { gapCard(gap).padding(.top, 12) }
                 planSection.id("plan")
                 materials.id("materials")
                 if !model.isPast { historyFold.padding(.top, 16).id("path") }
@@ -349,7 +354,8 @@ private struct ExamDetailContent: View {
         ExamPresentation.projection(phase: model.phase, plan: shownSkipPlan ?? model.plan, questionCount: model.readiness.itemsInScope,
                                     weakestTopic: model.topics.first { $0.isWeakest }?.name,
                                     grade: model.readiness.projectedGrade, examDate: model.date, now: model.now,
-                                    calendar: model.calendar, skipping: shownSkipPlan == nil ? nil : model.skip, eveDone: model.eveDone)
+                                    calendar: model.calendar, skipping: shownSkipPlan == nil ? nil : model.skip, eveDone: model.eveDone,
+                                    newQuestions: model.readiness.newQuestions, newQuestionsInPlan: model.readiness.newQuestionsInPlan)
     }
 
     private func projectionCard(_ p: ExamPresentation.Projection) -> some View {
@@ -364,6 +370,15 @@ private struct ExamDetailContent: View {
                     .clFont(.subheadline)
                     .foregroundStyle(CLColor.ink2)
                     .fixedSize(horizontal: false, vertical: true)
+            }
+            if let new = p.newQuestions {
+                Label {
+                    Text(verbatim: new).fixedSize(horizontal: false, vertical: true)
+                } icon: {
+                    Image(systemName: "text.badge.plus").foregroundStyle(CLColor.skyInk)
+                }
+                .clFont(.subheadline)
+                .foregroundStyle(CLColor.ink2)
             }
             if let letter = p.letter {
                 Label {
@@ -530,7 +545,8 @@ private struct ExamDetailContent: View {
 
     // MARK: The gap
 
-    /// A topic of this exam with no notes can't count toward readiness: the card says which, and offers help.
+    /// A topic of this exam with no notes can't count toward readiness: the card says which, offers help, and says how much of what has been added its questions reach:
+    /// one statement, so a share of the notes never reads as all of the exam.
     private func gapCard(_ gap: ExamGap) -> some View {
         HStack(alignment: .top, spacing: 12) {
             CLIconBadge(systemImage: "text.badge.plus", tint: .tangerine, size: 40)
@@ -569,6 +585,29 @@ private struct ExamDetailContent: View {
                         Button("Review them") {
                             CLHaptics.tap()
                             app.router.present(.reviewDraft(sourceID: source))
+                        }
+                        .buttonStyle(.cl(.soft, size: .medium, fullWidth: false))
+                        .padding(.top, 4)
+                    }
+                }
+                if let note = model.coverage {
+                    Text(verbatim: note.covered)
+                        .clFont(.subheadline)
+                        .foregroundStyle(note.isThin ? CLColor.sunInk : CLColor.ink2)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.top, 8)
+                    if let detail = note.mainGap {
+                        Text(verbatim: detail)
+                            .clFont(.footnote)
+                            .foregroundStyle(note.isThin ? CLColor.sunInk : CLColor.ink3)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    if note.offersMore, model.offersRest {
+                        Button {
+                            CLHaptics.tap()
+                            addForTheRest()
+                        } label: {
+                            Text("Add questions for the rest")
                         }
                         .buttonStyle(.cl(.soft, size: .medium, fullWidth: false))
                         .padding(.top, 4)
@@ -618,6 +657,8 @@ private struct ExamDetailContent: View {
                                                                    minutes: topic.practiceMinutes, topicID: topic.id)))
                     } onAdd: {
                         app.router.present(.fillGap(examID: model.id, topicID: topic.id))
+                    } onReview: { source in
+                        app.router.present(.reviewDraft(sourceID: source))
                     }
                     .padding(.horizontal, 16)
                     .padding(.vertical, 12)
@@ -633,7 +674,8 @@ private struct ExamDetailContent: View {
         let stops = ExamPresentation.stops(plan: shownSkipPlan ?? model.plan, phase: model.phase, examTitle: model.title,
                                            examDate: model.date, today: model.today,
                                            skipped: shownSkipPlan == nil ? nil : model.skip?.offset,
-                                           tonightMinutes: model.tonightMinutes, eveDone: model.eveDone, now: model.now, calendar: model.calendar)
+                                           tonightMinutes: model.tonightMinutes, eveDone: model.eveDone, otherExams: model.otherExams,
+                                           now: model.now, calendar: model.calendar)
         if !stops.isEmpty, model.readiness.itemsInScope > 0 {
             CLSectionHeader(title: "The plan", actionTitle: "Adjust") { app.router.push(.settingsPage(.study)) }
             ExamPlanPath(stops: stops, skip: model.skip, skipping: shownSkipPlan != nil, cost: skipCost) { toggleSkip() }
@@ -736,11 +778,13 @@ struct GradeBars: View {
 }
 
 /// A topic on the exam page: its readiness for the exam with a meter, "Your weakest topic" on the first under the goal, and a
-/// practice round ("Practice · 3 min"), "On track" at the goal, or for a gap "No material yet" with Add material.
+/// practice round ("Practice · 3 min"), "On track" at the goal, for a gap "No notes yet" with Add material, or with questions written and
+/// not yet added, "Waiting for review" with Review them: what the card about it says. At the largest text sizes the name takes the line and the rest goes under it.
 private struct ExamTopicRow: View {
     let topic: ExamPresentation.TopicRow
     var onPractice: () -> Void
     var onAdd: () -> Void
+    var onReview: (UUID) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -750,15 +794,18 @@ private struct ExamTopicRow: View {
                     .fontWeight(.semibold)
                     .foregroundStyle(CLColor.tangerineInk)
             }
-            HStack(alignment: .firstTextBaseline, spacing: 10) {
+            ReflowStack(verticalAlignment: .firstTextBaseline, spacing: 10) {
                 Text(topic.name).clFont(.subheadlineEmphasis).foregroundStyle(CLColor.ink)
+                    .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 if let value = topic.value {
                     Text(topic.questionCount > 0 && value < 0.005 ? "New" : CLFormat.percent(value))
                         .clFont(.number(15, .bold))
                         .foregroundStyle(topic.questionCount > 0 && value < 0.005 ? CLColor.ink3 : CLColor.ink)
+                } else if topic.reviewSource != nil {
+                    ReflowPill(text: "Waiting for review", tone: .sky)
                 } else {
-                    CLPill(text: "No material yet", tone: .rose)
+                    ReflowPill(text: "No notes yet", tone: .rose)
                 }
             }
             .accessibilityElement(children: .ignore)
@@ -783,6 +830,19 @@ private struct ExamTopicRow: View {
                 .accessibilityLabel(Text("Practice \(topic.name), \(minutes) minutes"))
             } else if topic.isOnTrack {
                 CLPill(text: "On track", tone: .mint, systemImage: "checkmark")
+            } else if let source = topic.reviewSource {
+                Button {
+                    CLHaptics.tap()
+                    onReview(source)
+                } label: {
+                    Label("Review them", systemImage: "checklist")
+                        .clFont(.footnoteEmphasis)
+                        .foregroundStyle(CLColor.skyInk)
+                        .frame(minHeight: CLMetrics.minHitTarget, alignment: .leading)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(Text("Review the questions for \(topic.name)"))
             } else if topic.value == nil {
                 Button(action: onAdd) {
                     Label("Add material", systemImage: "plus")
@@ -797,7 +857,9 @@ private struct ExamTopicRow: View {
     }
 
     private var accessibilityValue: String {
-        guard let value = topic.value else { return String(localized: "No material yet") }
+        guard let value = topic.value else {
+            return topic.reviewSource != nil ? String(localized: "Waiting for review") : String(localized: "No notes yet")
+        }
         if topic.questionCount > 0 && value < 0.005 { return String(localized: "Not studied yet") }
         let ready = String(localized: "\(Int((value * 100).rounded())) percent ready")
         return topic.isWeakest ? String(localized: "Your weakest topic.") + " " + ready : ready

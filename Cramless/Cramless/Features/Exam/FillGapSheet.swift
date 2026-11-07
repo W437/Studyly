@@ -138,7 +138,7 @@ struct FillGapSheet: View {
             if offersResearch {
                 Button(action: askForResearch) {
                     CaptureOptionRow(systemImage: "globe", tint: .sky, title: String(localized: "Find it on trusted study sites"),
-                                     subtitle: String(localized: "Cap reads three, you see each one"), trailing: isPaid ? "chevron.right" : nil)
+                                     subtitle: String(localized: "Up to three searches, and you see every page"), trailing: isPaid ? "chevron.right" : nil)
                         .overlay(alignment: .trailing) {
                             if !isPaid { CLPill(text: "Pro", tone: .tangerine).padding(.trailing, 14) }
                         }

@@ -12,6 +12,8 @@ struct ItemSnapshot: Sendable, Hashable, Identifiable {
     var memory: MemoryState
     var status: ItemStatus
     var createdAt: Date
+    /// When it last changed. For a question never studied, that's when it joined the course: a draft waits, then its adding is the last thing to touch it.
+    var addedAt: Date
     /// The generator's difficulty guess, 0 (easy) … 1 (hard).
     var difficultyHint: Double
     /// It comes from a moment of a lecture marked for the exam: first among ties in a session. Readiness doesn't read it.
@@ -20,7 +22,7 @@ struct ItemSnapshot: Sendable, Hashable, Identifiable {
     var reported: Bool
 
     init(id: UUID = UUID(), kind: ItemKind = .flashcard, topicID: UUID? = nil, courseID: UUID? = nil,
-         memory: MemoryState = .new, status: ItemStatus = .active, createdAt: Date = .distantPast,
+         memory: MemoryState = .new, status: ItemStatus = .active, createdAt: Date = .distantPast, addedAt: Date? = nil,
          difficultyHint: Double = 0.5, examFlagged: Bool = false, reported: Bool = false) {
         self.id = id
         self.kind = kind
@@ -29,6 +31,7 @@ struct ItemSnapshot: Sendable, Hashable, Identifiable {
         self.memory = memory
         self.status = status
         self.createdAt = createdAt
+        self.addedAt = addedAt ?? createdAt
         self.difficultyHint = difficultyHint
         self.examFlagged = examFlagged
         self.reported = reported

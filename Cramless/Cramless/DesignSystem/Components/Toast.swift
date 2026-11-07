@@ -8,6 +8,8 @@ struct Toast: Identifiable, Equatable, Sendable {
 
     let id = UUID()
     var message: LocalizedStringResource
+    /// A second, quieter line: why something moved.
+    var detail: String?
     var systemImage: String = "checkmark.circle.fill"
     var tone: Tone = .neutral
     var actionTitle: LocalizedStringResource?
@@ -28,10 +30,19 @@ struct ToastView: View {
             Image(systemName: toast.systemImage)
                 .font(.system(size: 17, weight: .semibold))
                 .foregroundStyle(iconColor)
-            Text(toast.message)
-                .clFont(.subheadlineEmphasis)
-                .foregroundStyle(CLColor.ink)
-                .lineLimit(2)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(toast.message)
+                    .clFont(.subheadlineEmphasis)
+                    .foregroundStyle(CLColor.ink)
+                    .lineLimit(toast.detail == nil ? 2 : nil)
+                    .fixedSize(horizontal: false, vertical: toast.detail != nil)
+                if let detail = toast.detail {
+                    Text(verbatim: detail)
+                        .clFont(.footnote)
+                        .foregroundStyle(CLColor.ink2)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
             if let title = toast.actionTitle, let onAction {
                 Spacer(minLength: 4)
                 Button(title, action: onAction)
@@ -45,8 +56,9 @@ struct ToastView: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
-        .background(CLColor.surface, in: Capsule())
-        .overlay(Capsule().strokeBorder(CLColor.hairline, lineWidth: 1))
+        // A capsule on one line; with more, its corners stay off the words.
+        .background(CLColor.surface, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 24, style: .continuous).strokeBorder(CLColor.hairline, lineWidth: 1))
         .shadow(color: CLColor.night.opacity(0.16), radius: 14, y: 6)
         .padding(.horizontal, 20)
         .accessibilityElement(children: .combine)

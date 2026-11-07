@@ -11,7 +11,7 @@ import Foundation
 /// | No exam (or none the session serves, `SessionFocus`) | none | its topics or courses | "Study · 15 min" |
 /// | Exam eve | moon, the exam · "Tomorrow · 10:00" | "Tonight: weak spots only" | "Tonight · 4 min" (the session's own minutes) |
 /// | Eve, nothing weak | the same | "Nothing left to review tonight" | none |
-/// | Eve, done | the same | "That's enough for tonight" | "Your last look" (quiet), when it has ideas |
+/// | Eve, done | the same | "That's enough for today" | "Your last look" (quiet), when it has ideas |
 /// | Done | "Done for today" · "15 min · 24 answers" | "Bright tonight" | "5 more minutes" (quiet) |
 /// | All lit | none | "All lit" | "Practice Limiting reagents · 5 min", or "Practice · 5 min" when that doesn't fit |
 /// | No questions yet | none | "Let's make your first set" / "Add your first material" | "Try a sample page", "Scan a page" |
@@ -73,7 +73,8 @@ struct TodayHeroContent: Equatable, Sendable {
         var now: Double
         /// Shown only when today moves it by a point or more.
         var after: Double?
-        /// "Based on 7 questions so far." when the exam has few questions yet.
+        /// "15 new questions count once you've studied them. They're in your plan now." while they hold it down, or "Based on 7 questions so far." when
+        /// the exam has few questions yet.
         var footnote: String?
     }
 
@@ -144,7 +145,9 @@ struct TodayHeroContent: Equatable, Sendable {
             }
             let exam = focus.exam
             let after = focus.forecast - exam.readiness >= 0.01 ? focus.forecast : nil
-            let footnote = exam.itemsInScope < TodayCopy.fewQuestions ? TodayCopy.basedOn(exam.itemsInScope) : nil
+            // Why the number is lower than it was, while that's so; else, how little it rests on.
+            let footnote = exam.newQuestions > 0 ? ExamPresentation.newQuestionsLine(exam.newQuestions, inPlan: exam.newQuestionsInPlan)
+                : (exam.itemsInScope < TodayCopy.fewQuestions ? TodayCopy.basedOn(exam.itemsInScope) : nil)
             return TodayHeroContent(
                 cap: .watchingTheSky, sky: .live,
                 chip: Chip(text: String(localized: "For \(exam.title)"), symbol: "graduationcap.fill", tone: .exam), when: exam.when,
@@ -175,7 +178,7 @@ struct TodayHeroContent: Equatable, Sendable {
             return TodayHeroContent(
                 cap: .asleep, sky: .regionLit(id), twinkles: false,
                 chip: Chip(text: title, symbol: "moon.stars.fill", tone: .eve), when: exam?.when,
-                title: String(localized: "That's enough for tonight"), reason: TodayCopy.eveRest(title: title, several: several, time: time),
+                title: String(localized: "That's enough for today"), reason: TodayCopy.eveRest(title: title, several: several, time: time),
                 actions: snapshot.lastLookIdeas > 0 ? [.lastLook(examID: id, ideas: snapshot.lastLookIdeas)] : [])
 
         case .done:

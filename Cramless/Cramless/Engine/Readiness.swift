@@ -100,6 +100,8 @@ struct GradeModel: Sendable, Equatable {
 /// - The past (a week ago, a chart's history): each item's state rebuilt from the last review-log entry before
 ///   that moment (`stabilityAfter` at `reviewedAt`); items with no log at all but a memory (an Anki import) use
 ///   their memory once their last review is in the past of that moment.
+/// - New questions (`newQuestions`): added lately and not studied yet. They count 0 in the ring, which is honest, so adding some lowers it at once;
+///   the screens keep the number and say why while it applies. The deltas leave them out on both sides, so filling a gap isn't read as losing ground.
 struct ReadinessEngine: Sendable {
     var fsrs: FSRS
     var calendar: Calendar
@@ -122,6 +124,25 @@ struct ReadinessEngine: Sendable {
 
     func scope(of exam: ExamSnapshot, in items: [ItemSnapshot]) -> [ItemSnapshot] {
         items.filter { $0.isActive && exam.covers($0) }
+    }
+
+    /// How long a question not studied yet counts as just added.
+    static let newQuestionDays = 7
+
+    /// The exam's questions added in the last week and not studied yet.
+    func newQuestions(of exam: ExamSnapshot, in items: [ItemSnapshot]) -> [ItemSnapshot] {
+        let since = calendar.adding(days: -Self.newQuestionDays, to: now)
+        return scope(of: exam, in: items).filter { !$0.isStudied && $0.addedAt > since }
+    }
+
+    /// How many new questions there are, while they hold the ring down by a point as the student reads it; 0 otherwise.
+    func newQuestionsShown(of exam: ExamSnapshot, in items: [ItemSnapshot]) -> Int {
+        let new = newQuestions(of: exam, in: items)
+        guard !new.isEmpty else { return 0 }
+        let ids = Set(new.map(\.id))
+        let without = value(of: exam, items: items.filter { !ids.contains($0.id) })
+        let moved = Int((without * 100).rounded()) - Int((value(of: exam, items: items) * 100).rounded())
+        return moved >= 1 ? new.count : 0
     }
 
     /// Mean predicted recall on exam day over the exam's active items (0 with no items).
@@ -266,16 +287,24 @@ struct ReadinessEngine: Sendable {
         let scope = scope(of: exam, in: items)
         let current = value(of: exam, items: items)
         let byItem = Self.byItem(logs)
-        let weekAgo = value(of: exam, items: items, at: calendar.adding(days: -7, to: now), logsByItem: byItem)
-        let morning = value(of: exam, items: items, at: calendar.startOfDay(for: now), logsByItem: byItem)
+        // Change is read on the questions there was a chance to study. Never more than the ring itself: a first week reads as "+23%" at 23%.
+        let new = Set(newQuestions(of: exam, in: items).map(\.id))
+        let settled = new.isEmpty ? items : items.filter { !new.contains($0.id) }
+        let settledNow = value(of: exam, items: settled)
+        func change(since date: Date) -> Double {
+            let gained = settledNow - value(of: exam, items: settled, at: date, logsByItem: byItem)
+            return gained > 0 ? min(gained, current) : gained
+        }
         let topicList = topicReadiness(for: exam, items: items, topics: topics)
         return ExamReadiness(examID: exam.id, value: current, projected: plan.projectedReadiness,
-                             deltaThisWeek: current - weekAgo,
+                             deltaThisWeek: change(since: calendar.adding(days: -7, to: now)),
                              daysLeft: max(0, calendar.dayDistance(from: now, to: exam.date)), topics: topicList,
                              projectedGrade: grade.grade(plan.projectedReadiness, coverage: coverage), itemsInScope: scope.count,
                              unseenItems: scope.filter { !$0.isStudied }.count, target: exam.target,
                              targetReachedOn: plan.targetReachedOn,
                              coverageGaps: topicList.filter { $0.value == nil }.count, coverage: coverage,
-                             deltaToday: current - morning)
+                             deltaToday: change(since: calendar.startOfDay(for: now)),
+                             newQuestions: newQuestionsShown(of: exam, in: items),
+                             newQuestionsInPlan: plan.days.contains { $0.newItems > 0 })
     }
 }
