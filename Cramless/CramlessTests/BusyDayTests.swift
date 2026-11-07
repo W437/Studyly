@@ -187,7 +187,7 @@ final class BusyDayTests: AskTestCase {
 
     func testTheAppSaysWhyItAsks() throws {
         let line = try XCTUnwrap(Bundle.main.object(forInfoDictionaryKey: "NSCalendarsFullAccessUsageDescription") as? String)
-        XCTAssertTrue(line.contains("nothing leaves your iPhone"), line)
+        XCTAssertTrue(line.contains("nothing from your calendar leaves your iPhone"), line)
     }
 
     func testATestOrHarnessAppNeverTouchesTheRealCalendar() {

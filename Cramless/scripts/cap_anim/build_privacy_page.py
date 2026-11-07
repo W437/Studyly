@@ -93,7 +93,7 @@ def main() -> None:
             i = j
     page = f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Privacy wording for Ask Cap</title>
+<title>Privacy wording for Capling</title>
 <style>
 :root {{ --bg:#fbfaf7; --ink:#1d2433; --ink2:#556070; --card:#fff; --line:#e3e0d8; --accent:#f77f1d; --code:#f1eee8; }}
 @media (prefers-color-scheme: dark) {{ :root {{ --bg:#141a26; --ink:#eef0f4; --ink2:#a6afbf; --card:#1c2433; --line:#2c3547; --code:#243049; }} }}
@@ -121,6 +121,7 @@ document.getElementById('copy').addEventListener('click', function () {{
 }});
 </script></body></html>
 """
+    OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(page)
     print("wrote", OUT)
 

@@ -4,7 +4,7 @@ import SwiftUI
 /// carries `AISuggestion.allowCloud` or `.allowPhotos`; the router never presents it. Allow records the consent
 /// version (`AIConsent.currentVersion`); the screen then runs the job again, and the router reads the new settings.
 ///
-/// The copy says what is sent (page text; photos only with their own switch), who processes it (OpenAI,
+/// The copy says what is sent (`AIConsent.Words`: what's added, asked and answered; photos only with their own switch), who processes it (OpenAI,
 /// through Capling's server), that notes never train models, and how to turn it off. It never says nothing leaves the
 /// device: with Cloud AI on, things do.
 ///
@@ -30,7 +30,7 @@ struct ConsentSheet: View {
                         .foregroundStyle(CLColor.ink2)
                 } else {
                     VStack(alignment: .leading, spacing: CLSpace.l) {
-                        ForEach(points, id: \.title) { point in
+                        ForEach(points, id: \.icon) { point in
                             ConsentPoint(systemImage: point.icon, title: point.title, text: point.text)
                         }
                     }
@@ -155,21 +155,23 @@ struct ConsentSheet: View {
         }
     }
 
-    private struct Point { var icon: String; var title: String; var text: String }
+    private struct Point { var icon: String; var title: LocalizedStringResource; var text: LocalizedStringResource }
 
     private var points: [Point] {
-        var sent: String
+        let sent: [Point]
         switch reason {
         case .cloudAI:
-            sent = "Your questions to Cap, and with each one the notes of the course Cap is answering from (every course, if you chose All courses): the text of your pages and lectures, the cards of decks you imported and the names of what you added. All of it when it's short, otherwise the parts that fit your question. When you ask Cap to look through your notes, the passages it finds in any of your courses go too. Also the answers you type or say when they're graded (the words, never your voice). So Cap can make things for the right course, it also sees the names of your courses, topics and exams, your exam dates, how ready you are, which topics are fading and how many cards are due. If you ask it to research something online, that topic is searched on trusted study sites. Page photos only go if you turn on the switch below."
+            sent = [
+                Point(icon: "doc.text", title: AIConsent.Words.addedTitle, text: AIConsent.Words.added),
+                Point(icon: "bubble.left.and.text.bubble.right", title: AIConsent.Words.askedTitle, text: AIConsent.Words.asked),
+                Point(icon: "checkmark.bubble", title: AIConsent.Words.answeredTitle, text: AIConsent.Words.answered),
+            ]
         case .photos:
-            sent = "Photos of the pages you scan, made smaller first, along with their text, for as long as this switch is on."
-            if !hasConsent {
-                sent += " This also turns on Cloud AI, so your notes, your answers and your questions to Cap go too."
-            }
+            sent = [Point(icon: "doc.text", title: "What's sent", text: hasConsent
+                ? "Photos of the pages you scan, made smaller first, along with their text, for as long as this switch is on."
+                : "Photos of the pages you scan, made smaller first, along with their text, for as long as this switch is on. This also turns on Cloud AI, so your notes, your answers and your questions to Cap go too.")]
         }
-        return [
-            Point(icon: "doc.text", title: "What's sent", text: sent),
+        return sent + [
             Point(icon: "server.rack", title: "Who reads it",
                   text: "\(AIConsent.processor), through Capling's own server, never straight from your phone to an AI company. Our server doesn't keep what you send."),
             Point(icon: "hand.raised", title: "Never used for training",
@@ -183,8 +185,8 @@ struct ConsentSheet: View {
 /// One point of the consent sheet: an icon, a short title and a plain sentence or two.
 private struct ConsentPoint: View {
     let systemImage: String
-    let title: String
-    let text: String
+    let title: LocalizedStringResource
+    let text: LocalizedStringResource
 
     var body: some View {
         HStack(alignment: .top, spacing: CLSpace.m) {

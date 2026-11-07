@@ -2019,29 +2019,68 @@ final class TutorPrivacyCopyTests: XCTestCase {
     }
 
     func testTheScreensAndTheDocSayThatTheCoursesNotesGoWithEachQuestion() throws {
+        let words = try read("Cramless/AI/AIConsent.swift")
         let sheet = try read("Cramless/Features/Settings/ConsentSheet.swift")
         let page = try read("Cramless/Features/Settings/AIPrivacyPage.swift")
         let doc = try read("docs/privacy-wording.md")
-        for (name, text) in [("the consent sheet", sheet), ("Settings ▸ AI and privacy", page), ("docs/privacy-wording.md", doc)] {
+        for (name, text) in [("the screens' words", words), ("docs/privacy-wording.md", doc)] {
             XCTAssertTrue(text.contains("the cards of decks you imported"), "\(name) says that imported decks' cards go")
             XCTAssertTrue(text.contains("the names of what you added"), "\(name) says that the names of sources go")
             XCTAssertTrue(text.contains("the notes of the course Cap is answering from"), "\(name) says whose notes go with a question")
             XCTAssertFalse(text.contains("the notes of the course you're asking about"), "\(name) no longer says it that way")
         }
+        // Both screens show the same words, so they can't say different things.
+        for (name, text) in [("the consent sheet", sheet), ("Settings ▸ AI and privacy", page)] {
+            for part in ["AIConsent.Words.added", "AIConsent.Words.asked", "AIConsent.Words.answered"] {
+                XCTAssertTrue(text.contains(part), "\(name) shows \(part)")
+            }
+        }
         // A lookup in the notes searches every course, so the passages it finds in any of them are sent too: the screens and the doc say so.
-        XCTAssertTrue(sheet.contains("When you ask Cap to look through your notes, the passages it finds in any of your courses go too."))
-        XCTAssertTrue(page.contains("When you ask Cap to look through your notes, the passages it finds in any of your courses go too."))
+        XCTAssertTrue(words.contains("When you ask Cap to look through your notes, the passages it finds in any of your courses go too."))
         XCTAssertTrue(page.contains("the passages it finds in any of your courses when you ask it to look through your notes"))
         XCTAssertTrue(doc.contains("when you ask Cap to look through your notes, the passages it finds in any of your courses"))
         XCTAssertTrue(sheet.contains("Our server doesn't keep what you send."))
         XCTAssertTrue(page.contains("Our server doesn't keep what you send."))
-        XCTAssertTrue(sheet.contains("All of it when it's short, otherwise the parts that fit your question"))
-        XCTAssertTrue(page.contains("All of it when it's short, otherwise the parts that fit your question"))
+        XCTAssertTrue(words.contains("All of it when it's short, otherwise the parts that fit your question"))
         // What the old words promised is gone.
         XCTAssertFalse(doc.contains("a few passages from your notes that match your question"))
         XCTAssertFalse(doc.contains("up to 24 passages"))
-        let consent = try read("Cramless/AI/AIConsent.swift")
-        XCTAssertTrue(consent.contains("cards of imported decks"), "the version note says what is sent")
+        XCTAssertFalse(page.contains("Not your notes, answers or chats"), "with sync on, a signed-in person's notes are on the server")
+        XCTAssertTrue(words.contains("cards of imported decks"), "the version note says what is sent")
+    }
+
+    /// What each route carries has a sentence on the screens: a route that starts sending something new is said here first.
+    func testTheScreensNameEveryKindOfThingThatGoes() throws {
+        let words = try read("Cramless/AI/AIConsent.swift")
+        for part in ["pages, PDFs, syllabi and lecture transcripts", "the sentence with the date", "Never a lecture's audio", "Page photos only go with their own switch",
+                     "only its words go, never the photo", "Answers you type or say", "Teach Cap", "the words, never your voice", "The questions you mix up or that look alike",
+                     "A question you say looks wrong", "go by themselves when you open Capling", "how many questions are due"] {
+            XCTAssertTrue(words.contains(part), part)
+        }
+    }
+
+    /// The version note, the doc and the code give the same sizes: 4,000 words on the tutor's route, 6,000 on the assistant's.
+    func testTheWordsSayTheSizesTheCodeSends() throws {
+        XCTAssertEqual(TutorSelection.tutor.everythingWords, 4_000)
+        XCTAssertEqual(TutorSelection.assistant.everythingWords, 6_000)
+        for (name, text) in [("AIConsent", try read("Cramless/AI/AIConsent.swift")), ("docs/privacy-wording.md", try read("docs/privacy-wording.md"))] {
+            XCTAssertTrue(text.contains("4,000 words"), name)
+            XCTAssertTrue(text.contains("6,000"), name)
+            XCTAssertFalse(text.contains("about 6,000 words"), "\(name): that was the tutor's old size")
+        }
+    }
+
+    func testThePurposeStringsSayWhatTheCodeDoes() throws {
+        func string(_ key: String) throws -> String { try XCTUnwrap(Bundle.main.object(forInfoDictionaryKey: key) as? String, key) }
+        let camera = try string("NSCameraUsageDescription")
+        XCTAssertTrue(camera.contains("a syllabus"), camera)
+        let microphone = try string("NSMicrophoneUsageDescription")
+        XCTAssertTrue(microphone.contains("never uploads the recording"), microphone)
+        XCTAssertTrue(microphone.contains("keeps no audio"), microphone)
+        XCTAssertFalse(microphone.contains("into notes on this iPhone"), "with Cloud AI on, the notes are written from the transcript by the cloud")
+        XCTAssertTrue(try string("NSSpeechRecognitionUsageDescription").contains("on this iPhone"))
+        // The system's photo picker runs outside the app: no photo library string, and the app asks for no access.
+        XCTAssertNil(Bundle.main.object(forInfoDictionaryKey: "NSPhotoLibraryUsageDescription"))
     }
 }
 

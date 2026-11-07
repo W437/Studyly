@@ -32,7 +32,7 @@ const SUBS = [
     note: 'Squad shares Capling Pro with up to three friends, billed once a year to the owner. Settings (your initial at the top of Today) > Squad, or the plans at Settings > Subscription > See Pro and Squad.' },
   { key: 'yearly', productId: 'com.loopware.Capling.pro.yearly', reference: 'Pro Yearly', name: 'Pro Yearly', description: 'Every Capling Pro feature, billed yearly.',
     period: 'ONE_YEAR', level: 2, usd: '49.99', trial: 'ONE_WEEK',
-    note: 'Capling Pro unlocks unlimited scans, PDFs and lectures, answers graded in your own words, a tutor that knows your notes, and exam plans and readiness. The plans appear at the end of the welcome and later at Settings (your initial at the top of Today) > Subscription > See Pro and Squad. "Continue free" always closes them.' },
+    note: 'Capling Pro is the AI work: no weekly limit on AI scans, PDFs and lecture notes, answers in your own words graded by Cloud AI, no daily limit on Cap\'s answers and drafts, and web research from trusted sites. Reviews, flashcards, a plan and readiness for every exam, mock exams and imports are free for everyone. The plans appear at the end of the welcome and later at Settings (your initial at the top of Today) > Subscription > See Pro and Squad. "Continue free" always closes them.' },
   { key: 'monthly', productId: 'com.loopware.Capling.pro.monthly', reference: 'Pro Monthly', name: 'Pro Monthly', description: 'Every Capling Pro feature, billed monthly.',
     period: 'ONE_MONTH', level: 3, usd: '9.99',
     note: 'The same Capling Pro features, billed monthly. The plans appear at the end of the welcome and later at Settings (your initial at the top of Today) > Subscription > See Pro and Squad.' },
@@ -130,6 +130,14 @@ async function reviewShot(kind, ownerId, label, file) {
   log(`  ${label}: review screenshot uploaded`);
 }
 
+// A product's App Review note follows the words here: creating a product sets it, and this keeps one that exists in step. Not yet run against the live record.
+async function syncNote(type, product, plan) {
+  if (isDry(product) || product.attributes.reviewNote === plan.note) return;
+  const path = type === 'inAppPurchases' ? `/v2/inAppPurchases/${product.id}` : `/v1/subscriptions/${product.id}`;
+  await api('PATCH', path, { data: { type, id: product.id, attributes: { reviewNote: plan.note } } });
+  log('  review note: updated');
+}
+
 // ---- the whole set ----------------------------------------------------------------------------------------------------------------------
 
 async function main() {
@@ -161,6 +169,7 @@ async function main() {
         name: plan.reference, productId: plan.productId, subscriptionPeriod: plan.period, familySharable: false, groupLevel: plan.level, reviewNote: plan.note,
       }, relationships: { group: rel('subscriptionGroups', group.id) } } })).data;
     }
+    await syncNote('subscriptions', sub, plan);
     if (isDry(sub) || isDry(group)) continue;
     await ensureLocalization('name', `/v1/subscriptions/${sub.id}/subscriptionLocalizations`, '/v1/subscriptionLocalizations', 'subscriptionLocalizations', sub.id, 'subscriptions', 'subscription', plan.name, plan.description);
     await subscriptionAvailability(sub, territories);     // Apple refuses a price in a territory the product is not available in yet
@@ -176,6 +185,7 @@ async function main() {
       name: PASS.reference, productId: PASS.productId, inAppPurchaseType: 'NON_RENEWING_SUBSCRIPTION', reviewNote: PASS.note, familySharable: false,
     }, relationships: { app: rel('apps', app.id) } } })).data;
   }
+  await syncNote('inAppPurchases', pass, PASS);
   if (!isDry(pass)) {
     await ensureLocalization('name', `/v2/inAppPurchases/${pass.id}/inAppPurchaseLocalizations`, '/v1/inAppPurchaseLocalizations', 'inAppPurchaseLocalizations', pass.id, 'inAppPurchases', 'inAppPurchaseV2', PASS.name, PASS.description);
     if (!(await api('GET', `/v2/inAppPurchases/${pass.id}/iapPriceSchedule`).catch(soft))?.data) {

@@ -130,7 +130,7 @@ enum PaywallCopy {
         let endDay = calendar.dayDistance(from: now, to: end)
         return [
             TimelineStep(symbol: "lock.open", title: "Today",
-                         detail: "Everything unlocks. Your plan starts."),
+                         detail: "Every Pro feature unlocks."),
             TimelineStep(symbol: "bell", title: "Day \(remindDay)",
                          detail: "We remind you on \(remind.formatted(short)) that the trial is ending."),
             TimelineStep(symbol: "calendar.badge.checkmark", title: "Day \(endDay)",

@@ -33,7 +33,7 @@ open Cramless.xcodeproj                     # or run from Xcode (the scheme atta
 
 The app needs no keys or backend to run. With `Secrets.xcconfig` blank (the default), it works on this iPhone
 alone:
-- AI runs on-device where the iPhone has Apple Intelligence, and through offline rules everywhere else.
+- Questions, grades and Cap's answers come from the offline rules on the iPhone (Apple's on-device model is switched off in this build, `AIBuild.onDeviceModelEnabled`).
 - Nothing syncs.
 
 With a Supabase project configured, three more things work:
@@ -68,8 +68,8 @@ The owner provides these, and nothing in the repo invents them:
    - the four products from `Cramless.storekit`: Pro Yearly with a 7-day trial, Pro Monthly, Squad Yearly with a
      7-day trial, and the Exam Pass (non-renewing)
    - the server notifications URL
-   - Terms and Privacy URLs: the paywall hides those links until `AppLinks` has them, and App Review requires
-     both for subscriptions
+   - Terms and Privacy URLs: both are set in `StoreCatalog` (Apple's standard terms and loopware.app/privacy), and App Review
+     requires both for subscriptions
 5. **Run the two checks that need you** (see `docs/BUILD.md`, "Verified against real services", for what is
    already proven on this Mac and on a local Supabase stack):
    - `OPENAI_API_KEY=… deno task live`, in `supabase/functions`: real OpenAI on the sample page, with verdicts
