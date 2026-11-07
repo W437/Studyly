@@ -169,6 +169,14 @@ enum SessionCopy {
         return "You keep mixing up \(lowerFirst(parts[0])) and \(lowerFirst(parts[1]))."
     }
 
+    /// The same mix-up when its last answer came right: it isn't tripping them up just now.
+    static func mixUpComingAlong(_ name: String) -> String {
+        if name == ConfusionCandidate.unnamed { return String(localized: "These questions are coming along.") }
+        let parts = name.components(separatedBy: " vs ")
+        guard parts.count == 2 else { return String(localized: "\(name) is coming along.") }
+        return String(localized: "\(Lexicon.capitalizedFirst(lowerFirst(parts[0]))) and \(lowerFirst(parts[1])) are coming along.")
+    }
+
     /// "anaphase and telophase" for a summary or a fix ("You told anaphase and telophase apart").
     static func mixUpPair(_ name: String) -> String {
         if name == ConfusionCandidate.unnamed { return String(localized: "them") }
@@ -177,8 +185,25 @@ enum SessionCopy {
         return "\(lowerFirst(parts[0])) and \(lowerFirst(parts[1]))"
     }
 
+    /// What the button says and how long it takes: a slip on one question is a look back, not a fix of two ideas.
+    static func fixTitle(questions: Int) -> String {
+        questions == 1 ? String(localized: "Go over it · 1 min") : String(localized: "Fix it · 2 min")
+    }
+
+    /// The same on a session's summary.
+    static func fixNowTitle(questions: Int) -> String {
+        questions == 1 ? String(localized: "Go over it · 1 min") : String(localized: "Fix it now · 2 min")
+    }
+
+    /// The context line's name for a fix drill: a short one isn't two minutes.
+    static func fixSessionTitle(entries: Int) -> String {
+        entries <= 2 ? String(localized: "Quick look") : title(for: .fix)
+    }
+
     /// "Missed 3 of the last 4 times. Want a 2-minute fix?"
     static func missLine(_ note: ConfusionNote) -> String {
+        let offer = note.questions == 1 ? String(localized: "Want to go over it?") : String(localized: "Want a 2-minute fix?")
+        if note.rightRun >= 1, note.missCount > 0 { return "\(String(localized: "You got the last one right.")) \(offer)" }
         let lead: String
         if note.recentAnswers >= 3, note.recentMisses >= 2 {
             lead = "Missed \(note.recentMisses) of the last \(note.recentAnswers) times."
@@ -190,7 +215,7 @@ enum SessionCopy {
         } else {
             lead = "Missed it lately."
         }
-        return lead + " Want a 2-minute fix?"
+        return "\(lead) \(offer)"
     }
 
     /// Lower-cases the first letter unless the first word looks like an acronym or a name with capitals inside

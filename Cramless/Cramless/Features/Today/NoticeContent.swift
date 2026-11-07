@@ -17,7 +17,7 @@ enum NoticeContent {
                                            run: .showLookAlike(pair)),
                              link: nil, cost: costLine(notice.cost))
         case .fading(let rescue):
-            return CapNotice(id: notice.id, kind: .fading, title: String(localized: "\(rescue.dimCount) questions will be dim by exam day"),
+            return CapNotice(id: notice.id, kind: .fading, title: String(localized: "\(rescue.dimCount) questions could go dim by exam day"),
                              detail: fadingDetail(rescue, now: now, calendar: calendar),
                              action: .init(title: String(localized: "Fix my week"), systemImage: "calendar.badge.plus", run: .fixMyWeek(rescue)),
                              link: .exam(rescue.examID), cost: costLine(notice.cost))
@@ -69,11 +69,12 @@ enum NoticeContent {
     /// An open mix-up as a card. One that was spotted before any mistake (an adopted look-alike) says so, until the first miss.
     static func card(for note: ConfusionNote) -> CapNotice {
         let parts = note.name.components(separatedBy: " vs ")
-        let title = note.missCount == 0 && parts.count == 2 ? lookAlikeTitle(parts[0], parts[1]) : SessionCopy.mixUpLine(note.name)
+        let title = note.missCount == 0 && parts.count == 2 ? lookAlikeTitle(parts[0], parts[1])
+            : note.rightRun >= 1 ? SessionCopy.mixUpComingAlong(note.name) : SessionCopy.mixUpLine(note.name)
         // The fix's length holds together on one line ("2-minute" never breaks at its hyphen).
         return CapNotice(id: NoticeEngine.mixUpID(note.id), kind: .mixUp, title: title,
                          detail: SessionCopy.missLine(note).replacingOccurrences(of: "2-minute", with: "2\u{2011}minute"),
-                         action: .init(title: String(localized: "Fix it · 2 min"), systemImage: "wand.and.stars",
+                         action: .init(title: SessionCopy.fixTitle(questions: note.questions), systemImage: "wand.and.stars",
                                        run: .fixMixUp(confusionID: note.id)),
                          link: .confusion(note.id))
     }
@@ -213,8 +214,11 @@ enum NoticeContent {
             let first = pair.termA.prefix(1).uppercased() + pair.termA.dropFirst()
             return String(localized: "\(first) and \(SessionCopy.lowerFirst(pair.termB)) look alike, and both are on your \(pair.examTitle). Cap can show you the difference.")
         case .mixUp(let note):
-            if note.name == ConfusionCandidate.unnamed { return String(localized: "Still tripping on the same questions? A 2-minute fix is ready.") }
-            return String(localized: "Still mixing up \(SessionCopy.mixUpPair(note.name))? A 2-minute fix is ready.")
+            let ready = note.questions == 1 ? String(localized: "A quick look is ready.") : String(localized: "A 2-minute fix is ready.")
+            if note.name == ConfusionCandidate.unnamed { return "\(String(localized: "Still tripping on the same questions?")) \(ready)" }
+            // The name as it stands: lower-casing it loses a name's capital, and a topic isn't something you mix up.
+            guard note.name.contains(" vs ") else { return "\(String(localized: "\(note.name) keeps tripping you up.")) \(ready)" }
+            return "\(String(localized: "\(note.name): still mixing them up?")) \(ready)"
         case .gap(let gap):
             return String(localized: "Some topics on your \(gap.examTitle) have no notes yet. Cap can help you fill them in.")
         case .welcomeBack, .mockOffer, .lectureDate, .tooEasy, .teachBack, .busyAsk, .busyDay:

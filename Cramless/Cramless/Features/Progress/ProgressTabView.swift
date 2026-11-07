@@ -63,6 +63,8 @@ struct ProgressModel {
         var name: String
         var courseName: String
         var misses: Int
+        /// How many questions it's about: one is a quick look, not a fix.
+        var questions = 2
     }
 
     var calendar: Calendar
@@ -116,7 +118,7 @@ struct ProgressModel {
         confusions = app.courses.flatMap { course in
             course.confusions.filter { $0.deletedAt == nil && $0.status == .open }
                 .sorted { $0.lastSeenAt > $1.lastSeenAt }
-                .map { ConfusionLine(id: $0.id, name: $0.name, courseName: course.name, misses: $0.missCount) }
+                .map { ConfusionLine(id: $0.id, name: $0.name, courseName: course.name, misses: $0.missCount, questions: $0.itemIDs.count) }
         }
         badges = app.badgeStatuses()
         dailyMinutes = app.settings.dailyMinutes
@@ -433,7 +435,8 @@ private struct ConfusionsSection: View {
                             CapFace(size: 36)
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(confusion.name).clFont(.subheadlineEmphasis).foregroundStyle(CLColor.ink)
-                                Text("Missed \(CLFormat.count(confusion.misses, "time")) · \(confusion.courseName) · a 2-minute fix")
+                                Text(confusion.questions == 1 ? "Missed \(CLFormat.count(confusion.misses, "time")) · \(confusion.courseName) · a quick look"
+                                    : "Missed \(CLFormat.count(confusion.misses, "time")) · \(confusion.courseName) · a 2-minute fix")
                                     .clFont(.footnote).foregroundStyle(CLColor.ink2)
                             }
                             .frame(maxWidth: .infinity, alignment: .leading)

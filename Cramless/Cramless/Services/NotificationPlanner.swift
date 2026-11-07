@@ -177,6 +177,8 @@ enum NotificationPlanner {
         var noticeDays = Set<Int>(), noticeLinks = Set<String>()
         for ping in input.notices.sorted(by: { $0.dayOffset < $1.dayOffset }) {
             let left = dayOffset(of: ping.examDate) - ping.dayOffset
+            // The reminder it replaces stays quiet once the day's study is in, and so does Cap.
+            guard ping.dayOffset != 0 || !studiedToday else { continue }
             guard !noticeDays.contains(ping.dayOffset), !noticeLinks.contains(ping.linkID), NoticeEngine.pingWindow.contains(left),
                   let date = time(input.reminderMinutes ?? fallbackMinutes, onDay: ping.dayOffset) else { continue }
             noticeDays.insert(ping.dayOffset)

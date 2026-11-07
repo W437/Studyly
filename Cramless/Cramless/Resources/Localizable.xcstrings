@@ -41,6 +41,16 @@
         }
       }
     },
+    "%@ and %@ are coming along." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ and %2$@ are coming along."
+          }
+        }
+      }
+    },
     "%@ and %@ look alike" : {
       "localizations" : {
         "en" : {
@@ -141,6 +151,7 @@
         }
       }
     },
+    "%@ is coming along." : {},
     "%@ is in your plan" : {},
     "%@ is now %@ ready." : {
       "localizations" : {
@@ -174,6 +185,7 @@
     },
     "%@ is tomorrow. Sleep is part of studying." : {},
     "%@ is too easy now" : {},
+    "%@ keeps tripping you up." : {},
     "%@ left your Squad. A seat is open." : {},
     "%@ lights at %lld" : {
       "localizations" : {
@@ -402,6 +414,7 @@
         }
       }
     },
+    "%@: still mixing them up?" : {},
     "%@: the real one's mix, as far as your questions go. Only this exam's topics." : {},
     "%lld" : {},
     "%lld answered" : {},
@@ -1863,6 +1876,28 @@
         }
       }
     },
+    "%lld questions could go dim by exam day" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld question could go dim by exam day"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld questions could go dim by exam day"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "%lld questions fading" : {
       "localizations" : {
         "en" : {
@@ -1908,6 +1943,7 @@
       }
     },
     "%lld questions will be dim by exam day" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "variations" : {
@@ -2339,6 +2375,7 @@
     "7 days in a row." : {},
     "70%" : {},
     "95%" : {},
+    "A 2-minute fix is ready." : {},
     "A Squad seat belongs to an account, so codes can't be used here." : {},
     "A blanket full of stars." : {},
     "A code works once, for one friend. Share it as a link, or read it out." : {},
@@ -2386,6 +2423,8 @@
     "A plan! I love a plan." : {},
     "A problem from a photo always starts with hints." : {},
     "A projection from your recall so far, not a promise." : {},
+    "A quick look" : {},
+    "A quick look is ready." : {},
     "A run climbing, an almost, five in a row, a miss, a save, the finish" : {},
     "A session" : {},
     "A short review of what you know." : {},
@@ -3479,6 +3518,36 @@
     "For handwriting, math and diagrams. Photos of the pages you scan go along with their text. You can change this later." : {},
     "For handwriting, math and diagrams. Photos of the pages you scan go with their text. Needs Cloud AI." : {},
     "For your %@." : {},
+    "For “%@”, the answer is %@, not %@." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "For “%1$@”, the answer is %2$@, not %3$@."
+          }
+        }
+      }
+    },
+    "For “%@”, the answer is %@." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "For “%1$@”, the answer is %2$@."
+          }
+        }
+      }
+    },
+    "For “%@”, the answer: %@." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "For “%1$@”, the answer: %2$@."
+          }
+        }
+      }
+    },
     "Forgetting is normal. Reviewing helps." : {},
     "Format" : {},
     "Format: %@" : {},
@@ -3549,6 +3618,7 @@
     "Go Pro" : {},
     "Go on, I'm writing it down." : {},
     "Go on, tap one." : {},
+    "Go over it · 1 min" : {},
     "Goal %@" : {},
     "Goal reached" : {},
     "Goes to the questions" : {},
@@ -3940,6 +4010,16 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Missed %1$@ · %2$@ · a 2-minute fix"
+          }
+        }
+      }
+    },
+    "Missed %@ · %@ · a quick look" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Missed %1$@ · %2$@ · a quick look"
           }
         }
       }
@@ -4413,6 +4493,7 @@
     "Questions, checks of fill-ins and choices, and Cap's answers from your notes, with no network and no AI. They never count against a limit. Answers in your own words you mark yourself, unless an AI is there to check them." : {},
     "Questions? Ask a real person" : {},
     "Quick check" : {},
+    "Quick look" : {},
     "Quick question…" : {},
     "Quiet hours" : {},
     "Quiet mode" : {},
@@ -4821,9 +4902,8 @@
     },
     "Still hearing: %@" : {},
     "Still learning, still good." : {},
-    "Still mixing up %@? A 2-minute fix is ready." : {},
     "Still to come. Last week %@" : {},
-    "Still tripping on the same questions? A 2-minute fix is ready." : {},
+    "Still tripping on the same questions?" : {},
     "Still up? Me too." : {},
     "Stop Cap" : {},
     "Stop and mark" : {},
@@ -5134,6 +5214,7 @@
     "There is nothing to save yet." : {},
     "There. Everything's current." : {},
     "There. That's one memory." : {},
+    "These questions are coming along." : {},
     "These questions are gone" : {},
     "These questions aren't in your library any more." : {},
     "These questions keep tripping you up." : {},
@@ -5347,7 +5428,9 @@
     "Waiting for review" : {},
     "Wait… I know this." : {},
     "Wake me at the good part." : {},
+    "Want a 2-minute fix?" : {},
     "Want the full answer when you're back online?" : {},
+    "Want to go over it?" : {},
     "Want to quiz me? I dare you." : {},
     "Warm blanket thoughts." : {},
     "Wave back? I'll wait." : {},
@@ -5470,6 +5553,7 @@
       }
     },
     "You got %@." : {},
+    "You got the last one right." : {},
     "You have %lld free AI scans left, so Cap reads the first %lld of %lld pages." : {
       "localizations" : {
         "en" : {

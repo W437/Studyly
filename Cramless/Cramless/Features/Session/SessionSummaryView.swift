@@ -569,7 +569,7 @@ struct SessionSummaryView: View {
             HStack(spacing: 8) {
                 Button { fix(offer) } label: {
                     ZStack {
-                        Text("Fix it now · 2 min").opacity(writingFix ? 0 : 1)
+                        Text(verbatim: SessionCopy.fixNowTitle(questions: offer.candidate.itemIDs.count)).opacity(writingFix ? 0 : 1)
                         if writingFix { ProgressView() }
                     }
                 }

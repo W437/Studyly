@@ -38,7 +38,7 @@ private struct ConfusionDetail: View {
             VStack(alignment: .leading, spacing: 0) {
                 header
                 if let lesson = confusion.fix?.lesson, !lesson.isEmpty {
-                    CLSectionHeader(title: "The 2-minute lesson")
+                    CLSectionHeader(title: confusion.itemIDs.count == 1 ? "A quick look" : "The 2-minute lesson")
                     HighlightedText(text: lesson, marks: lessonMarks(lesson), revealed: lessonShown, style: .callout)
                         .lineSpacing(4)
                         .fixedSize(horizontal: false, vertical: true)
@@ -65,7 +65,7 @@ private struct ConfusionDetail: View {
         }
         .clScreenBackground()
         .safeAreaBar(edge: .bottom) {
-            Button(confusion.status == .fixed ? "Practice it again" : "Fix it now · 2 min", action: fix)
+            Button(confusion.status == .fixed ? String(localized: "Practice it again") : SessionCopy.fixNowTitle(questions: confusion.itemIDs.count), action: fix)
                 .buttonStyle(.cl(confusion.status == .fixed ? .soft : .primary))
                 .padding(.horizontal, CLSpace.gutter)
                 .padding(.top, 8)

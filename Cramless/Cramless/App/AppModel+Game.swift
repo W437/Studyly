@@ -336,6 +336,7 @@ extension AppModel {
     /// The game loop after a finished session: quests ticked off, a sky maybe lit, badges earned.
     @discardableResult
     func settleGame() -> GameOutcome {
+        closeRecoveredConfusions()
         var outcome = settleQuests()
         outcome.badges = settleBadges()
         return outcome

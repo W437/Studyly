@@ -933,6 +933,111 @@ final class NoticeEngineTests: XCTestCase {
         XCTAssertEqual(Set(planned.map(\.notice.linkID)), [card.linkID], "planned for later today: it can be planned again")
     }
 
+    // MARK: A mix-up that's getting better
+
+    private func note(right: Int, later: Int, misses: Int = 3) -> ConfusionNote {
+        ConfusionNote(id: UUID(), name: "Anaphase vs telophase", missCount: misses, recentMisses: 4 - right, recentAnswers: 4, rightRun: right, laterRight: later)
+    }
+
+    func testTheRunCountsOnlyRightAnswersOnALaterDayThanTheLastMiss() {
+        let day = { (back: Int) in self.cal.adding(days: -back, to: self.now) }
+        var run = ConfusionNote.run(of: [(true, day(0)), (true, day(1)), (false, day(1)), (true, day(3))], calendar: cal)
+        XCTAssertEqual(run.right, 2)
+        XCTAssertEqual(run.later, 1, "the one right after the miss, the same day, doesn't show it has stuck")
+        run = ConfusionNote.run(of: [(false, day(0)), (true, day(1))], calendar: cal)
+        XCTAssertEqual(run.right, 0)
+        run = ConfusionNote.run(of: [(true, day(0)), (true, day(1))], calendar: cal)
+        XCTAssertEqual(run.later, 2, "no miss in sight")
+    }
+
+    func testRecentRightAnswersQuietAMixUpCardAndNotificationAndChangeItsWords() throws {
+        func cards(_ note: ConfusionNote) -> [Notice] {
+            let midterm = exam(in: 5)
+            let item = ItemSnapshot(id: UUID(), kind: .mcq, topicID: nil, courseID: course, memory: .new, status: .active, createdAt: now, addedAt: now, difficultyHint: 0.5, reported: false)
+            return inputs { $0.exams = [midterm]; $0.items = [item]; $0.mixUps = [NoticeMixUp(note: note, itemIDs: [item.id], courseID: course)] }
+                .engineCandidates.filter { $0.kind == .mixUp }
+        }
+        XCTAssertTrue(cards(note(right: 2, later: 1)).isEmpty, "two right, one on a later day: nothing to say")
+        XCTAssertEqual(cards(note(right: 2, later: 0)).count, 1, "the same sitting isn't recovery")
+        XCTAssertEqual(cards(note(right: 3, later: 2, misses: 0)).count, 1, "a look-alike has nothing to recover from")
+
+        let one = try XCTUnwrap(cards(note(right: 1, later: 1)).first)
+        XCTAssertFalse(one.notifiable, "no notification on the strength of an answer that came right")
+        let card = NoticeContent.card(one, firstName: "", now: now, calendar: cal)
+        XCTAssertEqual(card.title, "Anaphase and telophase are coming along.")
+        XCTAssertEqual(card.detail, "You got the last one right. Want a 2\u{2011}minute fix?")
+        XCTAssertTrue(try XCTUnwrap(cards(note(right: 0, later: 0)).first).notifiable)
+    }
+
+    func testAMixUpCloses_OnlyWhenItHasRecovered() {
+        XCTAssertFalse(note(right: 2, later: 1).hasRecovered)
+        XCTAssertTrue(note(right: 3, later: 1).hasRecovered)
+        XCTAssertFalse(note(right: 3, later: 0).hasRecovered)
+        XCTAssertFalse(note(right: 3, later: 3, misses: 0).hasRecovered)
+    }
+
+    // MARK: A mix-up on its exam's day
+
+    func testNoFixIsOfferedForAnExamsMaterialOnItsDay() {
+        let item = ItemSnapshot(id: UUID(), kind: .mcq, topicID: nil, courseID: course, memory: .new, status: .active, createdAt: now, addedAt: now, difficultyHint: 0.5, reported: false)
+        func cards(hour: Int, finished: Bool, days: Int = 0) -> [Notice] {
+            var today = exam(in: days, hour: hour)
+            if finished { today.readinessAtExam = 0.6 }
+            return inputs {
+                if finished { $0.finishedExams = [today] } else { $0.exams = [today] }
+                $0.items = [item]
+                $0.mixUps = [NoticeMixUp(note: mixUp().note, itemIDs: [item.id], courseID: course)]
+            }.engineCandidates.filter { $0.kind == .mixUp }
+        }
+        XCTAssertTrue(cards(hour: 23, finished: false).isEmpty, "before the exam")
+        XCTAssertTrue(cards(hour: 1, finished: true).isEmpty, "after it")
+        XCTAssertEqual(cards(hour: 9, finished: false, days: 2).count, 1, "another day is fine")
+    }
+
+    // MARK: How often a mix-up notifies
+
+    func testOnlyOneMixUpNotificationAWeek() {
+        let midterm = exam(in: 5)
+        let items = (0..<2).map { _ in ItemSnapshot(id: UUID(), kind: .mcq, topicID: nil, courseID: course, memory: .new, status: .active, createdAt: now, addedAt: now, difficultyHint: 0.5, reported: false) }
+        let first = NoticeMixUp(note: mixUp().note, itemIDs: [items[0].id], courseID: course)
+        let second = NoticeMixUp(note: mixUp("Mitosis vs meiosis").note, itemIDs: [items[1].id], courseID: course)
+        var i = inputs {
+            $0.exams = [midterm]
+            $0.items = items
+            $0.mixUps = [first, second]
+        }
+        var engine = NoticeEngine(i)
+        var pings = engine.pings(engine.candidates()).map(\.notice.linkID)
+        XCTAssertEqual(Set(pings).count, 1, "today's and tomorrow's aren't two mix-ups with the same words")
+
+        i.ledger.pinged[NoticeEngine.mixUpID(first.note.id)] = cal.adding(days: -3, to: now)
+        engine = NoticeEngine(i)
+        pings = engine.pings(engine.candidates()).map(\.notice.linkID)
+        XCTAssertTrue(pings.isEmpty, "another went out three days ago")
+
+        i.ledger.pinged[NoticeEngine.mixUpID(first.note.id)] = cal.adding(days: -7, to: now)
+        engine = NoticeEngine(i)
+        XCTAssertEqual(engine.pings(engine.candidates()).first?.notice.linkID, NoticeEngine.mixUpID(second.note.id), "a week on")
+    }
+
+    // MARK: How often a mock is offered
+
+    func testAMockCardShowsOnceThenRests() {
+        let midterm = exam(in: 7)
+        func shown(seenDaysAgo: Int?) -> Bool {
+            inputs {
+                $0.exams = [midterm]
+                $0.mockOffers = [mockOffer(for: midterm)]
+                if let seenDaysAgo { $0.ledger.seen[NoticeEngine.mockOfferID(midterm.id)] = [cal.dayKey(for: cal.adding(days: -seenDaysAgo, to: now))] }
+            }.engineCandidates.contains { $0.kind == .mockOffer }
+        }
+        XCTAssertTrue(shown(seenDaysAgo: nil))
+        XCTAssertTrue(shown(seenDaysAgo: 0), "it stays for the day it was seen")
+        XCTAssertFalse(shown(seenDaysAgo: 1))
+        XCTAssertFalse(shown(seenDaysAgo: 3))
+        XCTAssertTrue(shown(seenDaysAgo: 4))
+    }
+
     func testPingWordsHaveNoCounts() {
         let midterm = exam(in: 5)
         let rescue = FadeRescue(noticeID: "fade", examID: midterm.id, examTitle: midterm.title, examDate: midterm.date, daysLeft: 5, dimCount: 18, dimShare: 0.5,
@@ -942,7 +1047,15 @@ final class NoticeEngineTests: XCTestCase {
         let pairCard = Notice(id: "p", kind: .lookAlike, rank: 0, evidence: .lookAlike(pair()))
         XCTAssertEqual(NoticeContent.pingBody(pairCard), "Metaphase and telophase look alike, and both are on your Bio 101 Midterm. Cap can show you the difference.")
         let mix = Notice(id: "m", kind: .mixUp, rank: 0, evidence: .mixUp(mixUp().note))
-        XCTAssertEqual(NoticeContent.pingBody(mix), "Still mixing up anaphase and telophase? A 2-minute fix is ready.")
+        XCTAssertEqual(NoticeContent.pingBody(mix), "Anaphase vs telophase: still mixing them up? A 2-minute fix is ready.")
+        // A name keeps its capitals, a topic isn't a pair, and one question is a look, not a fix.
+        let topic = Notice(id: "t", kind: .mixUp, rank: 0, evidence: .mixUp(mixUp("TCP segment structure").note))
+        XCTAssertEqual(NoticeContent.pingBody(topic), "TCP segment structure keeps tripping you up. A 2-minute fix is ready.")
+        let named = Notice(id: "n", kind: .mixUp, rank: 0, evidence: .mixUp(mixUp("Longbourn vs Netherfield").note))
+        XCTAssertEqual(NoticeContent.pingBody(named), "Longbourn vs Netherfield: still mixing them up? A 2-minute fix is ready.")
+        var slip = mixUp("Water availability").note
+        slip.questions = 1
+        XCTAssertEqual(NoticeContent.pingBody(Notice(id: "s", kind: .mixUp, rank: 0, evidence: .mixUp(slip))), "Water availability keeps tripping you up. A quick look is ready.")
         XCTAssertNil(NoticeContent.pingBody(Notice(id: "b", kind: .welcomeBack, rank: 0, evidence: .welcomeBack(best: 3))))
     }
 
@@ -964,14 +1077,14 @@ final class NoticeEngineTests: XCTestCase {
         XCTAssertEqual(NoticeContent.dayWords([cal.adding(days: 1, to: now), cal.adding(days: 5, to: now)], now: now, calendar: cal), "tomorrow and Tuesday")
         XCTAssertEqual(NoticeContent.dayWords([cal.adding(days: 2, to: now), cal.adding(days: 5, to: now)], now: now, calendar: cal), "on Saturday and Tuesday")
         let card = NoticeContent.card(Notice(id: "f", kind: .fading, rank: 0, evidence: .fading(rescue([0], kept: 18, origin: nil))), firstName: "", now: now, calendar: cal)
-        XCTAssertEqual(card.title, "18 questions will be dim by exam day")
+        XCTAssertEqual(card.title, "18 questions could go dim by exam day")
         XCTAssertEqual(card.action?.title, "Fix my week")
         XCTAssertEqual(card.cost, "No AI")
         XCTAssertEqual(card.link, .exam(midterm.id))
         var one = rescue([0], kept: 1, origin: nil)
         one.dimCount = 1
         XCTAssertEqual(NoticeContent.card(Notice(id: "f", kind: .fading, rank: 0, evidence: .fading(one)), firstName: "", now: now, calendar: cal).title,
-                       "1 question will be dim by exam day")
+                       "1 question could go dim by exam day")
     }
 
     func testPlanUpdatedSaysWhatChanged() throws {
@@ -1377,4 +1490,8 @@ extension NoticeEngineTests {
         XCTAssertNotNil(NoticeContent.switchNote(.busyDay))
         XCTAssertNil(NoticeContent.switchNote(.mixUp))
     }
+}
+
+private extension NoticeInputs {
+    var engineCandidates: [Notice] { NoticeEngine(self).candidates() }
 }

@@ -72,8 +72,10 @@ extension AppModel {
 
     func confusionNote(_ confusion: Confusion) -> ConfusionNote {
         let recent = recentAnswers(itemIDs: confusion.itemIDs, limit: 4)
+        let run = ConfusionNote.run(of: recent.map { ($0.wasCorrect, $0.reviewedAt) }, calendar: calendar)
         return ConfusionNote(id: confusion.id, name: confusion.name, missCount: confusion.missCount,
-                             recentMisses: recent.filter { !$0.wasCorrect }.count, recentAnswers: recent.count)
+                             recentMisses: recent.filter { !$0.wasCorrect }.count, recentAnswers: recent.count,
+                             rightRun: run.right, laterRight: run.later, questions: confusion.itemIDs.count)
     }
 
     /// The latest answers to these items, newest first.
@@ -144,6 +146,17 @@ extension AppModel {
         return true
     }
 
+    /// Mix-ups the student got past in ordinary sessions: a drill isn't the only way out.
+    func closeRecoveredConfusions() {
+        var changed = false
+        for confusion in openConfusions() where confusionNote(confusion).hasRecovered {
+            confusion.status = .fixed
+            touch(confusion)
+            changed = true
+        }
+        if changed { save() }
+    }
+
     /// The share of first-try answers a fix drill needs for the mix-up to count as fixed.
     static let fixedAccuracy = 0.75
 
@@ -153,7 +166,13 @@ extension AppModel {
         let logs = fetch(FetchDescriptor<ReviewLog>(predicate: #Predicate { $0.sessionID == sid }))
         let missed = Set(logs.filter { !$0.wasCorrect }.map(\.itemID))
         guard !missed.isEmpty else { return nil }
-        return confusionCandidates().first { !missed.isDisjoint(with: $0.itemIDs) }
+        let exams = examSnapshots()
+        return confusionCandidates().first { candidate in
+            guard !missed.isDisjoint(with: candidate.itemIDs) else { return false }
+            let items = candidate.itemIDs.compactMap(item).map { ItemSnapshot($0, courseID: candidate.courseID) }
+            // On an exam's day a fix of its material is too late, or over.
+            return !NoticeEngine.isExamDay(of: items, exams: exams, now: now, calendar: calendar)
+        }
     }
 
     /// The candidate's mistakes as the confusions job reads them.
@@ -167,13 +186,22 @@ extension AppModel {
 
     /// Names and explains a candidate by the offline rules alone, at once. What the summary shows before any tap: no AI is asked.
     func explainByRules(_ candidate: ConfusionCandidate) -> (explained: ConfusionOut?, origin: ItemOrigin) {
+        if let recap = recap(of: candidate) { return (recap, .rules) }
         let ids = Set(candidate.itemIDs.map(\.uuidString))
         return (LocalConfusions.find(mistakeInputs(for: candidate)).first { !ids.isDisjoint(with: $0.itemIds) }, .rules)
     }
 
-    /// Names and explains a candidate (Cloud AI when allowed, else the rules). Runs only after "Fix it now", and gives up on the cloud
-    /// after `AppModel.lessonWait`. Nothing is saved.
+    /// One question missed isn't a pattern: what the rules say about it, with no relay call. Nil for a candidate of several.
+    private func recap(of candidate: ConfusionCandidate) -> ConfusionOut? {
+        let inputs = mistakeInputs(for: candidate)
+        guard inputs.count == 1, let only = inputs.first else { return nil }
+        return LocalConfusions.recap(only, name: candidate.name, explanation: candidate.defaultExplanation)
+    }
+
+    /// Names and explains a candidate (Cloud AI when allowed, else the rules; always the rules for one question, where the relay would write nothing).
+    /// Runs only after "Fix it now", and gives up on the cloud after `AppModel.lessonWait`. Nothing is saved.
     func explainConfusion(_ candidate: ConfusionCandidate) async -> (explained: ConfusionOut?, origin: ItemOrigin) {
+        if let recap = recap(of: candidate) { return (recap, .rules) }
         let inputs = mistakeInputs(for: candidate)
         guard !inputs.isEmpty else { return (nil, .rules) }
         let course = course(candidate.courseID)?.name ?? ""

@@ -312,9 +312,9 @@
       }
     }
   },
-  "%lld questions will be dim by exam day": {
-    "one": "%lld question will be dim by exam day",
-    "other": "%lld questions will be dim by exam day"
+  "%lld questions could go dim by exam day": {
+    "one": "%lld question could go dim by exam day",
+    "other": "%lld questions could go dim by exam day"
   },
   "%lld more minutes %@ keeps them.": {
     "value": "%#@minutes@ %2$@ keeps them.",
