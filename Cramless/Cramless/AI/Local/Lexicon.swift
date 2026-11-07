@@ -114,6 +114,16 @@ enum Lexicon {
         return words.joined(separator: " ")
     }
 
+    /// The stored answer itself, in any language: the same words once case, accents, spacing, width and outer punctuation are set aside. An answer with no words at all ("≈", "→")
+    /// has to be the same marks.
+    static func isSameAnswer(_ given: String, as stored: String) -> Bool {
+        func wide(_ text: String) -> String { text.folding(options: [.widthInsensitive], locale: nil) }
+        let g = normalizedAnswer(wide(given)), s = normalizedAnswer(wide(stored))
+        guard g.isEmpty, s.isEmpty else { return g == s && !g.isEmpty }
+        let a = given.clTrimmed, b = stored.clTrimmed
+        return !a.isEmpty && a == b
+    }
+
     // MARK: Japanese and Chinese
 
     private static func isKana(_ c: Character) -> Bool {

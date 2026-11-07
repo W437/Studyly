@@ -43,6 +43,10 @@ enum LocalGrader {
     // MARK: - Own words
 
     static func gradeOwnWords(_ subject: GradeSubject, _ answer: String) -> GradeOutcome {
+        // The stored answer, word for word, is right: key ideas are for answers in other words.
+        if Lexicon.isSameAnswer(answer, as: subject.modelAnswer) {
+            return outcome(score: 1, verdict: .correct, confidence: 0.99, marks: [], hit: subject.keyIdeas.map(\.id), missing: [], feedback: "Right.", fix: "")
+        }
         // A calculation's answer is a number, and its key ideas describe the method a right number never states: when the person's number is
         // the model answer's, it is right (never the other way: a different number goes to the grading below, or to a model).
         if NumericAnswer.agrees(modelAnswer: subject.modelAnswer, typed: answer) {
@@ -286,6 +290,8 @@ enum LocalGrader {
             let a = Lexicon.tokens(candidate)
             guard !a.isEmpty else { continue }
             if g.map(\.word) == a.map(\.word) { return .exact }
+            // "Not mitosis" isn't "mitosis": the words that matter leave the "not" out, so it's read here.
+            if g.contains(where: \.isNegation), !a.contains(where: \.isNegation) { continue }
             // Compare the words that matter; "the centromeres" and "centromeres" are the same answer.
             let gc = g.filter(\.isContent), ac = a.filter(\.isContent)
             let left = gc.isEmpty ? g : gc, right = ac.isEmpty ? a : ac
@@ -390,7 +396,8 @@ enum LocalGrader {
 
     static func lowerFirst(_ text: String) -> String {
         guard let first = text.split(separator: " ").first else { return text }
-        if first.filter(\.isUppercase).count >= 2 { return text }
+        // A letter is a name ("PTR vs A"), and so is an acronym.
+        if first.count < 2 || first.filter(\.isUppercase).count >= 2 { return text }
         return text.prefix(1).lowercased() + text.dropFirst()
     }
 

@@ -186,4 +186,45 @@ final class GraderTests: XCTestCase {
         XCTAssertTrue(tokens[4].isNegation)
         XCTAssertTrue(tokens[0].endsClause)
     }
+
+    // MARK: The stored answer itself
+
+    /// Stored answers like the ones real decks hold, key ideas included: typed back, in any case and with the outer punctuation gone or kept, they are right.
+    func testAStoredAnswerTypedBackIsRightInEveryLanguage() {
+        let rows: [(answer: String, ideas: [KeyIdea])] = [
+            ("12 bytes of options.", [KeyIdea(id: "a", label: "Option length", terms: ["option length", "options field"]), KeyIdea(id: "b", label: "Twelve", terms: ["twelve"])]),
+            ("It was the end of the war.", [KeyIdea(id: "a", label: "Peace", terms: ["peace"])]),
+            ("La inflación sube porque hay más dinero.", [KeyIdea(id: "a", label: "Oferta monetaria", terms: ["oferta monetaria"])]),
+            ("Die Verdunstung nimmt im Sommer zu.", [KeyIdea(id: "a", label: "Temperatur", terms: ["temperatur"])]),
+            ("明治維新は1868年に始まった。", [KeyIdea(id: "a", label: "王政復古", terms: ["王政復古"])]),
+            ("Elle a dit non.", [KeyIdea(id: "a", label: "Refus", terms: ["refus"])]),
+            ("It isn't a bond, not at all.", [KeyIdea(id: "a", label: "Bond", terms: ["bond"])]),
+            ("≈ 5 %", [KeyIdea(id: "a", label: "About five", terms: ["about five"])]),
+        ]
+        for row in rows {
+            let subject = GradeSubject(kind: .recall, prompt: "What?", modelAnswer: row.answer, keyIdeas: row.ideas)
+            for typed in [row.answer, row.answer.uppercased(), row.answer.lowercased(), "  \(row.answer) ", row.answer.trimmingCharacters(in: .punctuationCharacters),
+                          row.answer.folding(options: .diacriticInsensitive, locale: nil), row.answer.folding(options: .widthInsensitive, locale: nil)] {
+                let result = LocalGrader.grade(subject, answer: .text(typed))
+                XCTAssertEqual(result.verdict, .correct, "\(row.answer) typed as \(typed)")
+                XCTAssertEqual(result.score, 1)
+                XCTAssertEqual(Grading.rating(forScore: result.score), .good)
+                XCTAssertTrue(result.missing.isEmpty)
+            }
+            XCTAssertNil(AIRouter.refinableText(subject, .text(row.answer)), "no model is asked to second-guess it")
+        }
+    }
+
+    func testOnlyTheWholeStoredAnswerIsRightByThatRule() {
+        let ideas = [KeyIdea(id: "a", label: "Bytes", terms: ["bytes"]), KeyIdea(id: "b", label: "Options", terms: ["option length"])]
+        let subject = GradeSubject(kind: .recall, prompt: "How long?", modelAnswer: "12 bytes of options.", keyIdeas: ideas)
+        XCTAssertEqual(LocalGrader.grade(subject, answer: .text("12 bytes")).verdict, .partial, "part of it is still part of it")
+        XCTAssertNotNil(AIRouter.refinableText(subject, .text("12 bytes")))
+        XCTAssertFalse(Lexicon.isSameAnswer("", as: ""))
+        XCTAssertFalse(Lexicon.isSameAnswer("  ", as: "12"))
+        XCTAssertFalse(Lexicon.isSameAnswer("≠", as: "≈"))
+        XCTAssertFalse(Lexicon.isSameAnswer("13 bytes", as: "12 bytes"))
+        XCTAssertTrue(Lexicon.isSameAnswer("１２ bytes", as: "12 bytes"), "full-width digits")
+    }
+
 }

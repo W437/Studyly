@@ -161,9 +161,9 @@ extension AIRouter {
     static func refinableText(_ subject: GradeSubject, _ answer: AnswerInput) -> String? {
         guard subject.kind.isOwnWords, !subject.keyIdeas.isEmpty, case .text(let text) = answer else { return nil }
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        // The person's number is the model answer's: the offline grade is the whole check, and no model is asked to second-guess it
+        // The person's number is the model answer's, or their words are the stored answer's: the offline grade is the whole check, and no model is asked to second-guess it
         // against key ideas that describe the method.
-        if trimmed.isEmpty || NumericAnswer.agrees(modelAnswer: subject.modelAnswer, typed: trimmed) { return nil }
+        if trimmed.isEmpty || NumericAnswer.agrees(modelAnswer: subject.modelAnswer, typed: trimmed) || Lexicon.isSameAnswer(trimmed, as: subject.modelAnswer) { return nil }
         return text
     }
 
