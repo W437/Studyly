@@ -1,10 +1,10 @@
 # Loopware's privacy page: Capling's section, as it should appear
 
-A draft for the owner to approve at Launch. Nothing here is published, and the repo below hasn't been touched.
+The text for Loopware's page, approved for publishing on 7 Nov 2026 (release step 28). It describes build 1.0 (6), in TestFlight, and the backend that is live.
 
 - **Where it lives:** `~/Documents/GitHub/loopware-landing`, `src/components/PrivacyPage.jsx`, the `#capling` section. Netlify publishes a push to main within a minute, and other sessions push there, so work in a separate worktree and fetch right before pushing. Live at https://loopware.app/privacy.
-- **Publish it with the release, not before.** It describes the Stage 1 to 4 build; build 1.0 (5) has no calendar, no spoken answers, no Squad mark.
-- **Read against the code** at commit 112198e on 2026-11-07; the facts route by route are in `docs/privacy-wording.md`.
+- **It describes the Stage 1 to 4 build** (1.0 (6)); build 1.0 (5) had no calendar, no spoken answers, no Squad mark.
+- **Read against the code** at commit 112198e on 2026-11-07; the facts route by route are in `docs/privacy-wording.md`. Rechecked against its section 0 the same day: the time zone is kept for every account, not only with a first name (`AccountService.pushProfileIfNeeded`); the calendar counts events marked busy or away (`BusyCalendar.counts`); the age band stays on the phone, but tutor, assistant and research requests carry a `minor` flag.
 - **Changed from the live section:** on the phone (spoken answers, calendar, snapped photos), Cloud AI (syllabus, a date heard in a lecture, "Looks wrong?", harder questions, look-alikes, the last look, spoken grading), Ask Cap (a snapped problem, a question kept for later), web research (the real list of sites; Fill the gap), the server's record (Squad's day), sync (grades, marks), Squad (the mark), permissions (all), age limits (when iOS reports them).
 
 ---
@@ -21,7 +21,7 @@ When you answer questions out loud or explain a topic to Cap, your iPhone turns 
 
 When you snap a syllabus or a problem you're stuck on, the photo is read on your iPhone and isn't kept. It is never sent.
 
-If you let Capling read your calendar, it looks only at when you're busy (the times of events marked busy), on your iPhone, to offer to move study off long days. It doesn't read what your events are, it doesn't keep what it reads, and nothing from your calendar leaves your iPhone.
+If you let Capling read your calendar, it looks only at when you're busy (the times of events marked busy or away), on your iPhone, to offer to move study off long days. It doesn't read what your events are, it doesn't keep what it reads, and nothing from your calendar leaves your iPhone.
 
 ### Cloud AI (optional)
 
@@ -60,7 +60,7 @@ Our server doesn't store the content of your requests or of Cap's replies, and w
 
 ### Your account
 
-You don't need an account to use Capling. When Cloud AI or a purchase first needs our server, Capling creates an anonymous account ID: a random ID with no name or email. If you give Capling your first name in Settings → Account, which is optional, our server keeps it with your account ID, along with your time zone, which sets when your daily and weekly limits reset and which day counts as today for your Squad.
+You don't need an account to use Capling. When Cloud AI or a purchase first needs our server, Capling creates an anonymous account ID: a random ID with no name or email. Our server keeps your iPhone's time zone with your account ID: it sets when your daily and weekly limits reset and which day counts as today for your Squad. If you give Capling your first name in Settings → Account, which is optional, our server keeps that too.
 
 Signing in is optional. You can sign in with Apple, or with a 6-digit code we email you. It turns on sync and is needed for Squad. Sign in with Apple gives us an ID from Apple and your email address, or Apple's private relay address if you choose to hide yours. If you haven't given Capling a first name, it uses the one Apple shares. With an email code, we receive your email address. Signing in starts a new account; the anonymous ID you used before isn't merged into it. You can sign out at any time, and everything you studied stays on your iPhone.
 
@@ -94,7 +94,7 @@ To add photos, Capling uses Apple's photo picker, so it sees only the photos you
 
 ### Younger students
 
-Capling is made for students 13 and up. If iOS tells Capling an account is under 13, Cloud AI stays off and nothing goes to it. If iOS says an account is under 18, or you told Capling you're in high school, Cap starts with hints, Cap asks before adding anything, and web research is off. The same goes if iOS gives no age range and you didn't tell Capling you're in college or grad school. iOS shares your age range only if you allow it, and Capling keeps the answer on your iPhone.
+Capling is made for students 13 and up. If iOS tells Capling an account is under 13, Cloud AI stays off and nothing goes to it. If iOS says an account is under 18, or you told Capling you're in high school, Cap starts with hints, Cap asks before adding anything, and web research is off. The same goes if iOS gives no age range and you didn't tell Capling you're in college or grad school. iOS shares your age range only if you allow it, and Capling keeps the answer on your iPhone: requests to Ask Cap and web research carry only whether the rules for under-18s apply.
 
 ### Deleting your data
 
