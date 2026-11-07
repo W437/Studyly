@@ -41,9 +41,7 @@ extension AppModel {
         guard let exam = upcoming.first(where: { $0.id == examID }) else { return nil }
         let day = calendar.dayNumber(for: exam.date)
         let exams = [exam] + upcoming.filter { $0.id != exam.id && calendar.dayNumber(for: $0.date) == day }
-        let store = lastLookStore
-        let prepared = exams.flatMap { store.packs[$0.id]?.itemIDs ?? [] }
-        return (exams, lastLookEngine.shown(items: itemSnapshots(), exams: exams, prepared: prepared))
+        return (exams, lastLookEngine.shown(items: itemSnapshots(), exams: exams))
     }
 
     // MARK: Preparing
@@ -80,7 +78,6 @@ extension AppModel {
             let picked = engine.picks(items: itemSnapshots(), exams: [exam], limit: LastLookEngine.prepared)
             pack.itemIDs = picked
             pack.day = today
-            pack.sentences = pack.sentences.filter { picked.contains($0.key) }
             storeLastLook(pack)
         }
         guard pack.askedDay != today, ai.route(.lastLook).usesCloud else { return }

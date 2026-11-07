@@ -61,21 +61,25 @@ final class LastLookEngineTests: XCTestCase {
         XCTAssertEqual(engine.picks(items: [lasting, quick], exams: [later], limit: 1), [quick.id])
     }
 
-    func testTonightShowsTheLowestOfWhatWasPreparedAsTheyStandNow() {
+    func testTonightShowsTheShakiestOfEverythingAsTheyStandNow() {
         let items = (0..<8).map { item(recall: 0.5 + Double($0) / 20, topic: UUID()) }
         var after = items
         // Tonight's session put the two weakest right.
         for i in [0, 1] { after[i] = EngineTest.studied(items[i].id, topic: items[i].topicID, course: course, recall: 0.99, daysAgo: 1, now: now, cal: cal) }
         let worse = item(recall: 0.1, topic: UUID())
-        let shown = engine.shown(items: after + [worse], exams: [exam()], prepared: items.map(\.id))
-        XCTAssertEqual(shown, [items[2].id, items[3].id, items[4].id, items[5].id, items[6].id], "what wasn't prepared waits")
+        let shown = engine.shown(items: after + [worse], exams: [exam()])
+        XCTAssertEqual(shown, [worse.id, items[2].id, items[3].id, items[4].id, items[5].id], "chosen when it opens, wherever the sentences were written")
     }
 
-    func testWhatRunsOutIsFilledFromTheRestAndNothingPreparedPicksAfresh() {
-        let items = (0..<6).map { item(recall: 0.5 + Double($0) / 20, topic: UUID()) }
-        XCTAssertEqual(engine.shown(items: items, exams: [exam()], prepared: []), items.prefix(5).map(\.id))
-        let shown = engine.shown(items: items, exams: [exam()], prepared: [items[4].id, UUID()])
-        XCTAssertEqual(shown, [items[4].id] + items.prefix(4).map(\.id), "a deleted question drops out")
+    func testAnEveWithQuestionsAlwaysHasSomethingToShow() {
+        let studied = (0..<2).map { item(recall: 0.5 + Double($0) / 20, topic: UUID()) }
+        let fresh = (0..<4).map { _ in EngineTest.fresh(kind: .flashcard, topic: UUID(), course: course, createdAt: now) }
+        let shown = engine.shown(items: studied + fresh, exams: [exam()])
+        XCTAssertEqual(Array(shown.prefix(2)), studied.map(\.id), "what was studied comes first")
+        XCTAssertEqual(shown.count, LastLookEngine.shown, "then questions not studied yet")
+        XCTAssertEqual(Set(shown.dropFirst(2)).isSubset(of: Set(fresh.map(\.id))), true)
+        XCTAssertEqual(engine.shown(items: fresh, exams: [exam()]).count, 4, "nothing studied at all")
+        XCTAssertEqual(engine.shown(items: [], exams: [exam()]), [])
     }
 
     func testTheWindowOpensTwoDaysBeforeAndClosesAtSixOnTheEve() {
@@ -339,14 +343,26 @@ final class LastLookAppModelTests: AskTestCase {
         deck.deletedAt = app.now
     }
 
-    func testNothingStudiedNothingToLookAt() {
+    func testNoQuestionsNothingToLookAt() {
         let app = app()
-        let bio = makeBio(app)
-        let exam = Exam(course: bio.course, title: "Quiz", date: app.now.addingTimeInterval(20 * 3600), now: app.now)
+        let course = app.createCourse(name: "Empty", color: .sky, symbol: "leaf")
+        let exam = Exam(course: course, title: "Quiz", date: app.now.addingTimeInterval(20 * 3600), now: app.now)
         app.context.insert(exam)
         app.save()
         XCTAssertNil(app.lastLook(for: exam.id))
         XCTAssertEqual(app.lastLookCount(for: exam.id), 0)
+    }
+
+    func testNothingStudiedStillHasALook() throws {
+        let app = app()
+        let bio = makeBio(app)
+        let question = StudyItem(course: bio.course, kind: .recall, status: .active, origin: .cloud, prompt: "What splits the cell?", answer: "Cytokinesis", now: app.now)
+        app.context.insert(question)
+        bio.course.items.append(question)
+        let exam = Exam(course: bio.course, title: "Quiz", date: app.now.addingTimeInterval(20 * 3600), now: app.now)
+        app.context.insert(exam)
+        app.save()
+        XCTAssertEqual(app.lastLookCount(for: exam.id), 1)
     }
 
     func testTheWordsSayWhoWroteWhat() {
