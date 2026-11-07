@@ -35,7 +35,7 @@ struct IntroPage: Identifiable, Sendable {
 
     static let all: [IntroPage] = [
         IntroPage(id: 0, scene: .snap, title: "Snap a page.\nGet a study set.",
-                  body: "Photos, PDFs, slides or a lecture. Flashcards and questions, each linked back to the page it came from.",
+                  body: "Photos, PDFs or a lecture. Flashcards and questions, each linked back to the page it came from.",
                   sceneDescription: "Demo: a textbook page is scanned. Its key lines are highlighted, and three cards appear, a flashcard, a multiple choice question and an own-words question, each linked to page 87."),
         IntroPage(id: 1, scene: .flashcards, title: "Flashcards that\ncome back in time.",
                   body: "Cards return just before you'd forget them. Bring your Anki or Quizlet decks.",

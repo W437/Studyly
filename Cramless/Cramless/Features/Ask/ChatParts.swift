@@ -809,10 +809,13 @@ struct AskTitleMenu: View {
                         .lineLimit(1)
                     Image(systemName: "chevron.down").font(.system(size: 9, weight: .bold))
                 }
-                .foregroundStyle(CLColor.ink3)
+                .foregroundStyle(CLColor.ink2)
             }
+            .padding(.horizontal, 14)
             .frame(minHeight: CLMetrics.minHitTarget)
-            .contentShape(Rectangle())
+            // A floating control on glass, like the buttons beside it: the chat scrolls under the title and must not read through its words.
+            .glassEffect(.regular.interactive(), in: .capsule)
+            .contentShape(Capsule())
         }
         .dynamicTypeSize(...DynamicTypeSize.accessibility1)
         .accessibilityLabel(Text(verbatim: title))

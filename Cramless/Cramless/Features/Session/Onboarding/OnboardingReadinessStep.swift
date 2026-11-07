@@ -208,7 +208,7 @@ struct OnboardingReadinessStep: View {
             let daysLine = days == 1 ? "One day to go" : "\(days) days to go"
             return Model(value: readiness.value, hasExam: true,
                          title: "You're \(CLFormat.percent(readiness.value)) ready for your \(SessionCopy.unbroken(exam.title))",
-                         detail: "\(daysLine), and it climbs every time you study. Next: your path to \(target) by \(date).",
+                         detail: "\(daysLine), and it climbs every time you study. Next: a projection of your path to \(target) by \(date).",
                          caption: "ready", topics: Array(topics))
         }
         if let course {

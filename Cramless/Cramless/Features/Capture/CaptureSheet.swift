@@ -44,7 +44,7 @@ struct CaptureSheet: View {
                            note: AllowanceCopy.lectures(left: app.ai.freeCloudUsesLeft(for: .lecture))) {
                         go(.record(courseID: selectedCourseID))
                     }
-                    option("doc.richtext", .sky, "PDF or slides", "From Files, Drive or email", note: scans) {
+                    option("doc.richtext", .sky, "PDF", "Slides too, once saved as a PDF", note: scans) {
                         importingPDF = true
                     }
                     option("rectangle.stack", .mint, "Import Quizlet or Anki", "Keep every set you have") {

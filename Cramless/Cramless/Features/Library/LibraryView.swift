@@ -129,8 +129,8 @@ private struct BringYourStuff: View {
                       subtitle: ".apkg decks, scheduling kept")
             }
             Button { app.router.present(.capture(courseID: nil)) } label: {
-                CLRow(icon: "doc.richtext", tint: .tangerine, title: "Upload PDFs or slides",
-                      subtitle: "Up to 300 pages at once")
+                CLRow(icon: "doc.richtext", tint: .tangerine, title: "Upload a PDF",
+                      subtitle: "Slides too, saved as a PDF")
             }
             Button { app.router.present(.newItem(courseID: nil)) } label: {
                 CLRow(icon: "square.and.pencil", tint: .sun, title: "Make cards yourself",
@@ -152,7 +152,7 @@ private struct LibraryEmptyState: View {
                 .clFont(.title2)
                 .foregroundStyle(CLColor.ink)
                 .multilineTextAlignment(.center)
-            Text("Snap a page, add slides or import a deck. Capling turns it into questions, each one linked to where it came from.")
+            Text("Snap a page, add a PDF or import a deck. Capling turns it into questions, each one linked to where it came from.")
                 .clFont(.callout)
                 .foregroundStyle(CLColor.ink2)
                 .multilineTextAlignment(.center)
