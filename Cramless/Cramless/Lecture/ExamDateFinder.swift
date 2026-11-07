@@ -1,8 +1,8 @@
 import Foundation
 
-/// A date a lecturer gave for an exam: "the midterm is on November 20th". The rules decide on their own: a date counts only with an exam word beside it, and only within 200
-/// days after the recording, so an example from the subject or a date from last year doesn't get through. They can still mishear, which is why the words are always shown and
-/// nothing is added without a tap.
+/// A date a lecturer gave for an exam: "the midterm is on November 20th". The rules decide on their own: a date counts only with an exam word beside it, only within 200 days after
+/// the recording, and only when its sentence isn't about something else (an example, an exam that isn't happening or was last year, the homework or the review session that goes with
+/// it). They can still mishear, which is why the words are always shown, nothing is added without a tap, and refusing it is one tap.
 struct ExamMention: Codable, Hashable, Sendable, Identifiable {
     /// `<segment>-<day>`: stable for what was said.
     var id: String
@@ -45,6 +45,7 @@ enum ExamDateFinder {
             for hit in hits {
                 guard let date = TextDates.date(day: hit.day, calendar: calendar),
                       (1...maxDaysAhead).contains(calendar.dayDistance(from: recordedAt, to: date)),
+                      !isAboutSomethingElse(hit, in: segment.text),
                       let word = wordBeside(hit, in: segment.text, own: words[index], before: before.map { ($0, sorted[index - 1].text) },
                                             after: after) else { continue }
                 guard seen.insert(hit.day).inserted else { continue }
@@ -55,6 +56,33 @@ enum ExamDateFinder {
             }
         }
         return out
+    }
+
+    /// Words that make a whole sentence something other than an announcement: an example, an exam that won't happen, one that has been.
+    nonisolated(unsafe) private static let notAnAnnouncement = try? NSRegularExpression(pattern: #"\b(?:for example|for instance|suppose|imagine|let'?s say|por ejemplo|supongamos|zum beispiel|angenommen|par exemple)\b"#
+        + #"|\b(?:no|not an?|isn'?t an?|won'?t be an?|there won'?t be|kein(?:e|en)?|no hay|no habr[aá])\s+(?:exam|test|quiz|midterm|final|class|lecture|examen|parcial|pr[uü]fung|klausur)"#
+        + #"|\b(?:exam|test|quiz|midterm|final)\s+(?:is|was|has been)\s+(?:cancell?ed|off)\b"#
+        + #"|\b(?:last (?:year|semester|term|time|spring|fall|month)|was on|were on|took place|happened|began|aired|published|el a[nñ]o pasado|letztes jahr)\b"#, options: [.caseInsensitive])
+    /// Another event in the date's own clause: the date is its, whatever exam comes up beside it.
+    nonisolated(unsafe) private static let anotherEvent = try? NSRegularExpression(pattern: #"\b(?:homework|assignments?|problem sets?|psets?|office hours?|review sessions?|study guides?|practice (?:exam|test|quiz)s?|presentations?|deadlines?|due|last day|drop|withdraw|grades?|graded|results?|essays?|lab reports?|tarea|entrega|hausaufgaben?|abgabe|sprechstunde|devoirs)\b"#
+        + #"|\b(?:get|gets|hand|hands|handed|give|gives|return|returned)\b[^.,;]{0,40}\bback\b"#, options: [.caseInsensitive])
+
+    /// The date's sentence says it isn't this exam's date.
+    static func isAboutSomethingElse(_ hit: TextDates.Hit, in text: String) -> Bool {
+        let whole = sentence(holding: hit, in: text)
+        if notAnAnnouncement?.firstMatch(in: whole, range: NSRange(whole.startIndex..., in: whole)) != nil { return true }
+        // "moved from the 18th": the old date.
+        if text[..<hit.range.lowerBound].lowercased().range(of: #"\b(?:moved|changed|rescheduled|pushed|postponed)\b.*\bfrom\s*$"#, options: .regularExpression) != nil { return true }
+        if hit.quote.lowercased().hasPrefix("from "), whole.lowercased().range(of: #"\b(?:moved|changed|rescheduled|pushed|postponed)\b"#, options: .regularExpression) != nil { return true }
+        // The clause: from the mark before the date to the mark after it.
+        let marks = CharacterSet(charactersIn: ",;:—–()")
+        func isMark(_ c: Character) -> Bool { c.unicodeScalars.allSatisfy { marks.contains($0) } }
+        var start = hit.range.lowerBound
+        while start > text.startIndex, !isMark(text[text.index(before: start)]), text[text.index(before: start)] != "." { start = text.index(before: start) }
+        var end = hit.range.upperBound
+        while end < text.endIndex, !isMark(text[end]), text[end] != "." { end = text.index(after: end) }
+        let clause = String(text[start..<end])
+        return anotherEvent?.firstMatch(in: clause, range: NSRange(clause.startIndex..., in: clause)) != nil
     }
 
     private static func wordBeside(_ hit: TextDates.Hit, in text: String, own: [ExamWords.Found], before: (ExamWords.Found, String)?,
@@ -107,7 +135,9 @@ enum ExamHeardMatch: Equatable, Sendable {
 enum ExamHeardCopy {
     static let title: LocalizedStringResource = "Cap heard an exam date"
     static let add: LocalizedStringResource = "Add the exam"
-    static let notNow: LocalizedStringResource = "Not now"
+    /// Refusing it, on the card and on the lecture's page: it doesn't come back.
+    static let wrong = String(localized: "That's wrong")
+    static let refused = String(localized: "Cap won't bring it up again")
     static let known: LocalizedStringResource = "Already in your exams"
     static let wholeCourse: LocalizedStringResource = "It will cover the whole course. You can narrow it down in the exam."
     static let doubt: LocalizedStringResource = "Cap isn't sure this was about an exam."

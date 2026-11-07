@@ -18,6 +18,67 @@ extension EnvironmentValues {
     @Entry var paywallFinish: PaywallFinishAction?
 }
 
+// MARK: - Nothing to buy
+
+/// What an account under 13 sees wherever Pro would be offered (`AppSettings.canBuyPro`): the plain reason, what stays free, and Restore. No prices and
+/// no purchase. A restore that finds one turns the paywall into the purchased screen, which says what Pro can't do here.
+struct NoPurchaseView: View {
+    var primaryTitle: LocalizedStringResource = "Done"
+    let onPrimary: () -> Void
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+                CapView(pose: .wave, size: 170, decorative: true)
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 20)
+                Text(PaywallCopy.noPurchaseTitle)
+                    .clFont(.brandTitle(30))
+                    .foregroundStyle(CLColor.ink)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityAddTraits(.isHeader)
+                    .padding(.top, 16)
+                Text(PaywallCopy.noPurchaseDetail)
+                    .clFont(.callout)
+                    .foregroundStyle(CLColor.ink2)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, 8)
+                AlwaysFreeCard()
+                    .padding(.top, 20)
+                SettingsGroup { RestorePurchasesRow() }
+                    .padding(.top, 8)
+                HelpLink(alignment: .center)
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 8)
+            }
+            .padding(.horizontal, CLSpace.gutter)
+            .padding(.bottom, 12)
+            .frame(maxWidth: CLMetrics.readableWidth)
+            .frame(maxWidth: .infinity)
+        }
+        .scrollIndicators(.hidden)
+        .safeAreaBar(edge: .bottom) {
+            Button(action: onPrimary) { Text(primaryTitle) }
+                .buttonStyle(.cl(.primary))
+                .padding(.horizontal, CLSpace.gutter)
+                .padding(.top, 10)
+        }
+        .background(CLColor.background.ignoresSafeArea())
+    }
+}
+
+/// The line under Pro's rows, and on the purchased screen, when Pro can't do its work as things stand (`PaywallCopy.proCaveat`).
+struct ProCaveatLine: View {
+    let text: LocalizedStringResource
+
+    var body: some View {
+        Label { Text(text) } icon: { Image(systemName: "info.circle") }
+            .clFont(.footnoteEmphasis)
+            .foregroundStyle(CLColor.ink2)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+}
+
 // MARK: - Hero
 
 /// The night hero: stars, Cap asleep on a stack of index cards, and the close button. It stretches when the

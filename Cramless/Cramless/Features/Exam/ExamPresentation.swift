@@ -130,11 +130,11 @@ enum ExamPresentation {
     /// The exam page offers Exam Pass when the offer's rule holds (`ExamPassOffer`: a free plan, the soonest upcoming exam 8 to 21
     /// days away, so never in exam week, on the eve or the day) and this exam is itself in that window: a pass bought now covers
     /// it. `examDates` are every upcoming exam's, this one's included.
-    static func offersExamPass(plan: Plan, examDate: Date, examDates: [Date], now: Date, calendar: Calendar) -> Bool {
-        guard ExamPassOffer.isEligible(plan: plan, examDates: examDates + [examDate], now: now, calendar: calendar) else {
+    static func offersExamPass(plan: Plan, canBuyPro: Bool, examDate: Date, examDates: [Date], now: Date, calendar: Calendar) -> Bool {
+        guard ExamPassOffer.isEligible(plan: plan, canBuyPro: canBuyPro, examDates: examDates + [examDate], now: now, calendar: calendar) else {
             return false
         }
-        return ExamPassOffer.isEligible(plan: plan, examDates: [examDate], now: now, calendar: calendar)
+        return ExamPassOffer.isEligible(plan: plan, canBuyPro: canBuyPro, examDates: [examDate], now: now, calendar: calendar)
     }
 
     // MARK: The mock exam
@@ -475,6 +475,23 @@ enum ExamPresentation {
         return StudyAction(kind: .practice(topicID: nil, minutes: nil), title: String(localized: "Practice \(courseName)"), subline: done)
     }
 
+    // MARK: A thin scope
+
+    /// A scope that holds too little for a percentage to mean anything, while the course holds much more.
+    struct ThinScope: Equatable, Sendable {
+        var inScope: Int
+        var line: String
+        var ringCaption: String
+        /// "1 question on it", for VoiceOver.
+        var spoken: String
+    }
+
+    static func thinScope(inScope: Int, inCourse: Int) -> ThinScope? {
+        guard SyllabusCopy.isFew(inScope, of: inCourse) else { return nil }
+        return ThinScope(inScope: inScope, line: SyllabusCopy.thinScope(inScope, of: inCourse), ringCaption: String(localized: "on this exam"),
+                         spoken: String(localized: "\(inScope) questions on it"))
+    }
+
     // MARK: Topics
 
     /// A topic on the exam page, weakest first.
@@ -493,13 +510,16 @@ enum ExamPresentation {
         /// No active questions, but drafts for it waiting: it reads "Waiting for review", as the gap's card says, and opens those drafts.
         var reviewSource: UUID?
 
+        /// No questions filed under it, but the student's questions or notes speak of it: not a gap (`SyllabusMatcher`).
+        var isCovered = false
+
         /// Nothing added for it yet: a real gap.
-        var isEmpty: Bool { value == nil && reviewSource == nil }
+        var isEmpty: Bool { value == nil && reviewSource == nil && !isCovered }
     }
 
     /// The exam's topics: gaps first (nothing there can count yet), then the lowest readiness first; ties keep the course's order.
-    /// `drafts`: the set of drafts waiting, by topic.
-    static func topicsWeakestFirst(_ topics: [TopicReadiness], target: Double, drafts: [UUID: UUID] = [:]) -> [TopicRow] {
+    /// `drafts`: the set of drafts waiting, by topic. `covered`: empty topics the student's questions or notes speak of.
+    static func topicsWeakestFirst(_ topics: [TopicReadiness], target: Double, drafts: [UUID: UUID] = [:], covered: Set<UUID> = []) -> [TopicRow] {
         let ordered = topics.enumerated().sorted { a, b in
             switch (a.element.value, b.element.value) {
             case (nil, nil): return a.offset < b.offset
@@ -511,7 +531,10 @@ enum ExamPresentation {
         var flagged = false
         return ordered.map { t in
             var row = TopicRow(id: t.id, name: t.name, value: t.value, questionCount: t.itemCount)
-            if t.value == nil { row.reviewSource = drafts[t.id] }
+            if t.value == nil {
+                row.reviewSource = drafts[t.id]
+                row.isCovered = row.reviewSource == nil && covered.contains(t.id)
+            }
             if let v = t.value, t.itemCount > 0 {
                 if v >= target - 1e-9 {
                     row.isOnTrack = true

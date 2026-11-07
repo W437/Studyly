@@ -411,14 +411,15 @@ enum SkyRenderer {
             let middle = f.camera.screen(region.center, in: size)
             let radius = region.radius * f.camera.scale
             guard radius > 40 else { continue }
-            let y = middle.y + radius - 8
+            // On the rim: every star of the region stays `regionMargin` inside it, so no constellation runs through the name.
+            let y = middle.y + radius
             guard y > 8, y < size.height - 8 else { continue }
             let color = (f.scene.courseColors[region.courseID] ?? .sky).fill.mix(with: .white, by: 0.4)
             var text = g.resolve(Text(verbatim: region.title.uppercased()).font(.system(size: 10, weight: .semibold)).tracking(1.2).foregroundColor(color.opacity(0.8)))
             text.shading = .color(color.opacity(0.8))
             g.drawLayer { layer in
                 layer.addFilter(.shadow(color: f.palette.top.opacity(0.9), radius: 3))
-                layer.draw(text, at: CGPoint(x: middle.x, y: y), anchor: .bottom)
+                layer.draw(text, at: CGPoint(x: middle.x, y: y), anchor: .center)
             }
         }
     }

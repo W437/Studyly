@@ -1,8 +1,7 @@
 #!/bin/bash
 # The source screens for the launch set of Capling's App Store screenshots: the demo world with its clock pinned, light mode, US formats, no taps.
 #   scripts/store_art/capture_launch.sh <udid> [out-dir] [name ...]      ->  <out>/<name>.png   (default build/listing/launch/src, every shot)
-# The app must be installed on <udid>. CRAMLESS_NOW pins every number: the Chem quiz is on Sunday at 10:00. Look at every frame before it is used.
-# One number still moves between launches: the Bio midterm's exam-day projection reads 90% or 91% (plan and exam-bio). Retake until those two agree.
+# The app must be installed on <udid>. CRAMLESS_NOW and the time zone pin every number: the Chem quiz is on Sunday at 10:00. Look at every frame before it is used.
 set -u
 cd "$(dirname "$0")/../.." || exit 2
 udid=${1:?udid}; out=${2:-build/listing/launch/src}; shift; [ $# -gt 0 ] && shift
@@ -10,11 +9,13 @@ want=" $* "
 mkdir -p "$out"
 bundle=com.loopware.Capling
 NOW_PIN=2026-11-06T14:00:00-05:00
+# The zone the set was taken in. The demo world's days and weeks are local, so its numbers follow it: the Bio midterm reads 91% here, 90% in New York.
+TZ_PIN=Asia/Jerusalem
 xcrun simctl status_bar "$udid" override --time 9:41 --batteryState charged --batteryLevel 100 --cellularBars 4 --wifiBars 3
 shot() {  # name route wait [KEY=VALUE ...]   (a value may hold spaces)
   local name=$1 route=$2 wait=$3; shift 3
   [ "$want" != "  " ] && [[ "$want" != *" $name "* ]] && return
-  local env_args=(SIMCTL_CHILD_CRAMLESS_UITEST=1 "SIMCTL_CHILD_CRAMLESS_ROUTE=$route" SIMCTL_CHILD_CRAMLESS_THEME=light "SIMCTL_CHILD_CRAMLESS_NOW=$NOW_PIN")
+  local env_args=(SIMCTL_CHILD_CRAMLESS_UITEST=1 "SIMCTL_CHILD_CRAMLESS_ROUTE=$route" SIMCTL_CHILD_CRAMLESS_THEME=light "SIMCTL_CHILD_CRAMLESS_NOW=$NOW_PIN" "SIMCTL_CHILD_TZ=$TZ_PIN")
   for kv in "$@"; do env_args+=("SIMCTL_CHILD_$kv"); done
   xcrun simctl terminate "$udid" "$bundle" >/dev/null 2>&1
   env "${env_args[@]}" xcrun simctl launch "$udid" "$bundle" -AppleLanguages "(en-US)" -AppleLocale en_US >/dev/null || { echo "launch failed: $name"; return; }

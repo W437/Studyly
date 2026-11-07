@@ -12,11 +12,23 @@ struct SyllabusProposal: Equatable, Sendable {
     struct Topic: Identifiable, Equatable, Sendable {
         var id: String { name.lowercased() }
         var name: String
-        /// The course's own topic; nil for a new one, which has no notes yet.
+        /// The course's own topic of that name; nil when none has it.
         var existingID: UUID?
         var included = true
+        /// The student's questions that speak of it, in whatever topics they sit (`SyllabusMatcher`).
+        var questions = 0
+        /// The course topics those questions sit in.
+        var matchedTopics: Set<UUID> = []
+        /// The student's notes speak of it.
+        var inNotes = false
+        /// A title with nothing to match on ("Chapter 3"): it can't be said to have notes or not.
+        var saysNothing = false
 
         var isNew: Bool { existingID == nil }
+        /// Nothing the student has speaks of it: this one has no notes yet. Only this makes a new topic: the rest are already in the exam.
+        var isGap: Bool { isNew && questions == 0 && !inNotes && !saysNothing }
+        /// Only a new, empty topic or one of the course's own can be taken off. What's matched by its questions alone has nothing to take.
+        var canUntick: Bool { !isNew || isGap }
     }
 
     /// "Also on this syllabus: Final, Dec 14": said, never set, in this version.
@@ -31,12 +43,18 @@ struct SyllabusProposal: Equatable, Sendable {
     var hasTime = false
     var dateQuote: String?
     var topics: [Topic] = []
+    /// The course's topics the syllabus says nothing of. They stay on the exam unless the student unticks them.
+    var alsoInCourse: [Topic] = []
     var format: ExamFormat
     /// The syllabus says something about the format.
     var formatKnown = false
     var formatQuote: String?
     var others: [OtherExam] = []
     var origin: ItemOrigin
+    /// The questions the course holds, in all and by topic (`match(against:)`): what "Looks right" keeps is counted from them.
+    var courseQuestions = 0
+    var questionsByTopic: [UUID: Int] = [:]
+    var courseTopicIDs: [UUID] = []
 
     /// The ids a request uses for the course's topics: "t1", "t2", in the order it sends them.
     static func requestIDs(for topics: [(id: UUID, name: String)]) -> [String: (id: UUID, name: String)] {
@@ -103,7 +121,30 @@ struct SyllabusProposal: Equatable, Sendable {
                                 formatQuote: chosen.exam.formatQuote, others: others, origin: origin)
     }
 
-    /// "Looks right": what the person kept goes into the draft. A date without a time keeps the draft's hour. With no topic kept, what's on it stays as it was.
+    /// Reads the topics against what the course already holds, so a topic with questions is never called empty.
+    mutating func match(against library: SyllabusLibrary) {
+        let matcher = SyllabusMatcher(library)
+        courseQuestions = library.questions.count
+        courseTopicIDs = library.topics.map(\.id)
+        questionsByTopic = library.questions.reduce(into: [:]) { counts, question in
+            if let topic = question.topicID { counts[topic, default: 0] += 1 }
+        }
+        for index in topics.indices {
+            let found = matcher.match(topics[index].name)
+            let own = topics[index].existingID.flatMap { questionsByTopic[$0] } ?? 0
+            topics[index].questions = max(found.questions, own)
+            topics[index].matchedTopics = found.topicIDs
+            topics[index].inNotes = found.inNotes
+            topics[index].saysNothing = SyllabusMatcher.saysNothing(topics[index].name)
+        }
+        let named = Set(topics.compactMap(\.existingID)).union(topics.flatMap(\.matchedTopics))
+        alsoInCourse = library.topics.filter { !named.contains($0.id) && questionsByTopic[$0.id] != nil }.map {
+            Topic(name: $0.name, existingID: $0.id, questions: questionsByTopic[$0.id] ?? 0)
+        }
+    }
+
+    /// "Looks right": what the person kept goes into the draft. A date without a time keeps the draft's hour. A syllabus never takes a question out of an exam by itself: what's on the
+    /// draft stays, a topic nothing speaks of joins as a gap, and a scope the student already narrowed grows by what the syllabus names. A course topic leaves only when they untick it.
     func apply(to draft: inout ExamDraft, courseName: String, calendar: Calendar) {
         if draft.title.clTrimmed.isEmpty {
             draft.title = courseName.isEmpty ? title : "\(courseName) \(title)"
@@ -117,13 +158,31 @@ struct SyllabusProposal: Equatable, Sendable {
             }
         }
         let kept = topics.filter(\.included)
-        if !kept.isEmpty {
-            draft.wholeCourse = false
-            draft.scope = Set(kept.compactMap(\.existingID))
-            draft.newTopics = kept.filter(\.isNew).map(\.name)
+        draft.newTopics = kept.filter(\.isGap).map(\.name)
+        if !draft.wholeCourse {
+            for topic in kept {
+                if let id = topic.existingID { draft.scope.insert(id) }
+                draft.scope.formUnion(topic.matchedTopics)
+            }
+        }
+        let removed = (topics + alsoInCourse).filter { !$0.included }.compactMap(\.existingID)
+        if !removed.isEmpty {
+            if draft.wholeCourse {
+                draft.wholeCourse = false
+                draft.scope = Set(courseTopicIDs)
+            }
+            draft.scope.subtract(removed)
         }
         draft.format = format
         draft.fromSyllabus = true
+    }
+
+    /// What "Looks right" will do to this draft, in plain words, before it's pressed.
+    func effect(on base: ExamDraft) -> String {
+        var after = base
+        apply(to: &after, courseName: "", calendar: .current)
+        let kept = after.wholeCourse ? courseQuestions : after.scope.reduce(0) { $0 + (questionsByTopic[$1] ?? 0) }
+        return SyllabusCopy.effect(kept: kept, of: courseQuestions, gaps: after.newTopics.count)
     }
 
     private static func normalized(_ text: String) -> String {
@@ -175,6 +234,40 @@ enum SyllabusCopy {
     static let noDate: LocalizedStringResource = "I couldn't find a date. Set it yourself."
     static let noTopics: LocalizedStringResource = "I couldn't find any topics on this page."
     static let filledNote: LocalizedStringResource = "Set from your syllabus. Check anything Cap misread before you save."
+    static let inNotes: LocalizedStringResource = "In your notes"
+    static let alsoInCourse: LocalizedStringResource = "Also in this course"
+    static let alreadyOnIt: LocalizedStringResource = "Its questions are on the exam already, under other topics."
+    static let alsoInCourseNote: LocalizedStringResource = "The syllabus doesn't name these. They stay on the exam unless you untick them."
+
+    /// Fewer questions than this, or under a third of the course's, is too little for a ring to mean much.
+    static let fewQuestions = 10
+
+    static func isFew(_ kept: Int, of total: Int) -> Bool { kept < total && (kept < fewQuestions || kept * 3 < total) }
+
+    /// "Keeps your 99 questions. Adds 3 topics you have no notes for."
+    static func effect(kept: Int, of total: Int, gaps: Int) -> String {
+        var parts: [String] = []
+        if total == 0 {
+            parts.append(String(localized: "Your questions join this exam as you add notes."))
+        } else if kept >= total {
+            parts.append(String(localized: "Keeps your \(total) questions."))
+        } else {
+            parts.append(String(localized: "Keeps \(kept) of your \(total) questions."))
+            if isFew(kept, of: total) { parts.append(String(localized: "That's very few for a number to mean much.")) }
+        }
+        if gaps > 0 { parts.append(String(localized: "Adds \(gaps) topics you have no notes for.")) }
+        return parts.joined(separator: " ")
+    }
+
+    /// A topic's question count on the proposal: "17 questions".
+    static func questions(_ count: Int) -> LocalizedStringResource { "\(count) questions" }
+
+    /// On the exam page: a scope that holds too little for its ring to mean anything.
+    static func thinScope(_ inScope: Int, of total: Int) -> String {
+        String(localized: "This exam rests on \(inScope) of your \(total) questions, too few for a number that means much.")
+    }
+
+    static let useWholeCourse: LocalizedStringResource = "Use the whole course"
 
     /// "Also on this syllabus: Final exam, Dec 14".
     static func alsoOnIt(_ others: [SyllabusProposal.OtherExam], calendar: Calendar) -> String? {

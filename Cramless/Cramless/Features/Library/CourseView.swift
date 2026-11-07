@@ -45,7 +45,7 @@ struct CourseView: View {
     private func content(_ course: Course) -> some View {
         let next = app.nextExam(of: course.id)
         let lines = LibraryFormat.topicLines(courseTopics: app.courseTopics(course), examTopics: next.map { app.topicReadiness(for: $0) },
-                                             examTitle: next?.title, courseName: course.name, drafts: app.draftSources(in: course))
+                                             examTitle: next?.title, courseName: course.name, drafts: app.draftSources(in: course), covered: app.coveredTopics(in: course))
         let topicNames = Dictionary(uniqueKeysWithValues: lines.map { ($0.id, $0.name) })
         let topicOrder = Dictionary(uniqueKeysWithValues: lines.enumerated().map { ($0.element.id, $0.offset) })
         let items = course.liveItems.filter { $0.status == .active || $0.status == .suspended }

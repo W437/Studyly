@@ -65,6 +65,8 @@ enum LibraryFormat {
             case value(Double)
             /// No notes yet: nothing can count toward readiness.
             case gap
+            /// No questions filed under it, but the student's questions or notes speak of it (`SyllabusMatcher`).
+            case covered
             /// Questions written for it, waiting for review, from this set of drafts.
             case waiting(UUID)
             /// Outside the next exam's scope: "Not on the Midterm", no number.
@@ -83,8 +85,8 @@ enum LibraryFormat {
     /// the others "Not on the <exam>", and with no exam to come, only their questions. `examTopics` is
     /// `AppModel.topicReadiness(for:)` of the next exam (nil without one). `drafts`: the set of drafts waiting, by topic (`AppModel.draftSources`).
     static func topicLines(courseTopics: [CourseTopic], examTopics: [TopicReadiness]?, examTitle: String?,
-                           courseName: String, drafts: [UUID: UUID] = [:]) -> [TopicLine] {
-        func empty(_ topic: UUID) -> TopicLine.State { drafts[topic].map { .waiting($0) } ?? .gap }
+                           courseName: String, drafts: [UUID: UUID] = [:], covered: Set<UUID> = []) -> [TopicLine] {
+        func empty(_ topic: UUID) -> TopicLine.State { drafts[topic].map { .waiting($0) } ?? (covered.contains(topic) ? .covered : .gap) }
         guard let examTopics, let examTitle else {
             return courseTopics.map {
                 TopicLine(id: $0.id, name: $0.name, questionCount: $0.questionCount, state: $0.questionCount == 0 ? empty($0.id) : .noExam)

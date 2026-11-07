@@ -7,7 +7,7 @@ import SwiftUI
 /// Pro's rows name only the AI work it adds; the "Always free" card under them says what nobody pays for (plans, readiness,
 /// reviews, imports, the free AI allowance) before any price shows. "Continue free" is always on screen (in the bottom bar
 /// beside the button), the trial timeline is honest about the reminder and the first charge, the footer has a way to reach a
-/// real person, and Terms and Privacy appear only once real URLs exist.
+/// real person, and Terms and Privacy appear only once real URLs exist. An account under 13 is sold nothing (`NoPurchaseView`).
 ///
 /// DEBUG hooks, read once: `CRAMLESS_PAYWALL_PLAN=yearly|monthly|squad` preselects a plan;
 /// `CRAMLESS_PAYWALL_STATE=purchasing|pending|cancelled|failed|purchased|restored` shows that state;
@@ -48,6 +48,8 @@ struct PaywallView: View {
                 } else if store.isPro {
                     PurchasedView(mode: .current, primaryTitle: finish == nil ? "Done" : "Continue",
                                   onPrimary: { close(after: .current) }, onInvite: nil)
+                } else if !app.settings.canBuyPro {
+                    NoPurchaseView(primaryTitle: finish == nil ? "Done" : "Continue", onPrimary: { close(after: .current) })
                 } else {
                     offer(topInset: outer.safeAreaInsets.top)
                         .transition(.opacity)
@@ -96,6 +98,7 @@ struct PaywallView: View {
                         ForEach(PaywallCopy.benefits(isMinor: app.settings.isMinor)) {
                             PaywallBenefitRow(symbol: $0.symbol, text: $0.text)
                         }
+                        if let caveat { ProCaveatLine(text: caveat) }
                     }
                     .padding(.top, 20)
                     AlwaysFreeCard()
@@ -207,6 +210,10 @@ struct PaywallView: View {
 
     // MARK: State
 
+    private var caveat: LocalizedStringResource? {
+        PaywallCopy.proCaveat(canBuyPro: app.settings.canBuyPro, cloudAvailable: app.ai.cloudAvailableInThisBuild, cloudAllowed: app.hasCloudConsent)
+    }
+
     private var isPurchasing: Bool { store.purchasing != nil || simulatedPurchasing }
     private var isBusy: Bool { isPurchasing || restoring }
 
@@ -278,7 +285,7 @@ struct PaywallView: View {
     private func decline() {
         if let finish { finish(.declined); return }
         let exams = app.upcomingExams()
-        if ExamPassOffer.isEligible(plan: store.plan, examDates: exams.map(\.date), now: app.now, calendar: app.calendar) {
+        if ExamPassOffer.isEligible(plan: store.plan, canBuyPro: app.settings.canBuyPro, examDates: exams.map(\.date), now: app.now, calendar: app.calendar) {
             app.router.present(.examPass(examID: exams.first?.id))
         } else {
             dismiss()

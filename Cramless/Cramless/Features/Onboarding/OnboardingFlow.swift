@@ -63,7 +63,7 @@ final class OnboardingCoordinator {
         case .declined:
             declinedPaywall = true
             let examDates = [app.settings.nextExamDate].compactMap { $0 } + app.upcomingExams().map(\.date)
-            if ExamPassOffer.isEligible(plan: app.purchases.plan, examDates: examDates, now: app.now, calendar: app.calendar) {
+            if ExamPassOffer.isEligible(plan: app.purchases.plan, canBuyPro: app.settings.canBuyPro, examDates: examDates, now: app.now, calendar: app.calendar) {
                 showsExamPass = true
             } else {
                 advance()
@@ -87,7 +87,7 @@ final class OnboardingCoordinator {
         finished = true
         withAnimation(CLMotion.fade) { app.settings.onboardingCompleted = true }
         if case .onboarding = app.router.cover { app.router.dismissCover() }
-        if declinedPaywall && !app.purchases.isPro {
+        if declinedPaywall && !app.purchases.isPro && app.settings.canBuyPro {
             Task { @MainActor in
                 try? await nap(700)
                 app.router.toast("You're on the free plan. Upgrade anytime.", systemImage: "sparkles", tone: .neutral)

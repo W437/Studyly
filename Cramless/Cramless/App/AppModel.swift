@@ -64,6 +64,8 @@ final class AppModel {
     @ObservationIgnored let coverageCache = CoverageCache()
     /// Every upcoming exam's plan, sharing the daily goal (`AppModel+Insights.swift`), worked out again per revision and hour.
     @ObservationIgnored let examPlanCache = ExamPlanCache()
+    /// A course's empty topics its questions already speak of (`AppModel+Gaps.swift`).
+    @ObservationIgnored let coveredCache = CoveredTopicsCache()
     /// "Looks wrong?": how a report came out, on its way from the sheet to the open question (`AppModel+Report`).
     var recheckDelivery: RecheckDelivery?
     @ObservationIgnored var rechecksInFlight: Set<UUID> = []

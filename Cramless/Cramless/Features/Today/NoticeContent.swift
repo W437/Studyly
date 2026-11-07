@@ -44,7 +44,7 @@ enum NoticeContent {
                              detail: String(localized: "“\(heard.quote)” From \(heard.lectureTitle)."),
                              action: .init(title: String(localized: "See it"), systemImage: "waveform",
                                            run: .openHeardDate(sourceID: heard.sourceID, noticeID: notice.id)),
-                             cost: costLine(notice.cost))
+                             cost: costLine(notice.cost), decline: .heardDate(sourceID: heard.sourceID, mentionID: heard.mentionID))
         case .tooEasy(let offer):
             return CapNotice(id: notice.id, kind: .tooEasy, title: LadderCopy.noticeTitle(topic: offer.topicName),
                              detail: LadderCopy.noticeLine(next: offer.next),
@@ -220,7 +220,7 @@ enum NoticeContent {
                 return "\(same) \(ready)"
             }
             // The name as it stands: lower-casing it loses a name's capital, and a topic isn't something you mix up.
-            guard note.name.contains(" vs ") else { return "\(String(localized: "\(note.name) keeps tripping you up.")) \(ready)" }
+            guard note.name.contains(" vs ") else { return "\(String(localized: "\(note.name): still tripping you up.")) \(ready)" }
             return "\(String(localized: "\(note.name): still mixing them up?")) \(ready)"
         case .gap(let gap):
             return String(localized: "Some topics on your \(gap.examTitle) have no notes yet. Cap can help you fill them in.")

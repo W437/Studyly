@@ -154,7 +154,7 @@ final class WidgetLaneServiceTests: XCTestCase {
         XCTAssertEqual(AgeRange.band(lowerBound: nil, upperBound: nil), .unknown)
         XCTAssertEqual(AgeRange.fallback(level: .highSchool), .teen)
         XCTAssertEqual(AgeRange.fallback(level: .college), .adult)
-        XCTAssertEqual(AgeRange.fallback(level: nil), .unknown)
+        XCTAssertEqual(AgeRange.fallback(level: nil), .notShared)
         XCTAssertEqual(AgeRange.resolved(declared: .teen, current: .adult, level: .college), .teen, "a shared range wins")
         XCTAssertEqual(AgeRange.resolved(declared: nil, current: .adult, level: .highSchool), .adult,
                        "a band already shared isn't overwritten by a guess")

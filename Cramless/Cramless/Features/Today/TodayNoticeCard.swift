@@ -102,9 +102,15 @@ struct TodayNoticeCard: View {
             Button(action.title) { onAction(action) }
                 .buttonStyle(.cl(.dark, size: .medium, fullWidth: typeSize.isAccessibilitySize))
         }
-        Button("Later", action: onLater)
-            .buttonStyle(.cl(.ghost, size: .medium, fullWidth: typeSize.isAccessibilitySize))
-            .accessibilityHint("Cap brings it up tomorrow")
+        if notice.decline != nil {
+            Button(action: onLater) { Text(verbatim: ExamHeardCopy.wrong) }
+                .buttonStyle(.cl(.ghost, size: .medium, fullWidth: typeSize.isAccessibilitySize))
+                .accessibilityHint(Text(verbatim: ExamHeardCopy.refused))
+        } else {
+            Button("Later", action: onLater)
+                .buttonStyle(.cl(.ghost, size: .medium, fullWidth: typeSize.isAccessibilitySize))
+                .accessibilityHint("Cap brings it up tomorrow")
+        }
     }
 
     @ViewBuilder private var costCaption: some View {

@@ -22,7 +22,56 @@ extension AppModel {
         let topics = known ?? ReadinessEngine(fsrs: fsrs, calendar: calendar, now: now).topicReadiness(for: exam, items: items, topics: topicSnapshots(in: course))
         guard topics.contains(where: { $0.value == nil }) else { return nil }
         let drafts = Set(course.items.filter { $0.deletedAt == nil && $0.status == .draft }.compactMap(\.topicID))
-        return ExamGaps.find(exam: exam, topicReadiness: topics, draftTopicIDs: drafts, daysLeft: days, within: within)
+        return ExamGaps.find(exam: exam, topicReadiness: topics, draftTopicIDs: drafts, covered: coveredTopics(in: course), daysLeft: days, within: within)
+    }
+
+    /// What a course already holds, for a syllabus to be read against and for telling a true gap from a topic its questions already cover.
+    func syllabusLibrary(courseID: UUID?, withNotes: Bool = true) -> SyllabusLibrary {
+        guard let course = course(courseID), course.deletedAt == nil else { return .empty }
+        let names = Dictionary(course.liveTopics.map { ($0.id, $0.name) }, uniquingKeysWith: { a, _ in a })
+        let questions = course.items.filter { $0.deletedAt == nil && $0.status == .active }.map { item in
+            let words = [item.topicID.flatMap { names[$0] } ?? "", item.prompt, item.answer] + item.keyIdeas.map(\.label)
+            return SyllabusLibrary.Question(topicID: item.topicID, text: words.joined(separator: " "))
+        }
+        return SyllabusLibrary(questions: questions, topics: course.liveTopics.map { .init(id: $0.id, name: $0.name) }, noteLines: withNotes ? noteLines(of: course) : [])
+    }
+
+    /// The course's notes, a line each: pages as stored, and what lectures said.
+    private func noteLines(of course: Course) -> [String] {
+        course.liveSources.flatMap { source -> [String] in
+            source.kind == .lecture ? source.segments.map(\.text) : source.sortedPages.flatMap { $0.text.components(separatedBy: .newlines) }
+        }.filter { !$0.isEmpty }
+    }
+
+    /// The course's empty topics whose words its questions or notes already speak of: a syllabus named them, and what's there is filed under other names. They aren't gaps.
+    /// Read once per shape of the course (answering a question doesn't change it), and only when it has an empty topic: the questions at once, the notes off the main thread (a
+    /// long PDF takes a noticeable moment), and the screens hear of it if that changes anything.
+    func coveredTopics(in course: Course) -> Set<UUID> {
+        let live = course.items.filter { $0.deletedAt == nil && $0.status == .active }
+        let filled = Set(live.compactMap(\.topicID))
+        let empty = course.liveTopics.filter { !filled.contains($0.id) }
+        guard !empty.isEmpty, !live.isEmpty || !course.liveSources.isEmpty else { return [] }
+        let key = CoveredTopicsCache.Key(questions: live.count, sources: course.liveSources.count, empty: Set(empty.map(\.id)))
+        if let cached = coveredCache.values[course.id], cached.key == key { return cached.covered }
+        let library = syllabusLibrary(courseID: course.id, withNotes: false)
+        let names = empty.map { (id: $0.id, name: $0.name) }
+        let covered = CoveredTopicsCache.covered(names, by: SyllabusMatcher(library))
+        coveredCache.values[course.id] = (key, covered)
+        let lines = noteLines(of: course)
+        guard !lines.isEmpty else { return covered }
+        let courseID = course.id
+        Task.detached(priority: .utility) { [weak self] in
+            var full = library
+            full.noteLines = lines
+            let read = CoveredTopicsCache.covered(names, by: SyllabusMatcher(full))
+            guard read != covered else { return }
+            await MainActor.run {
+                guard let self, self.coveredCache.values[courseID]?.key == key else { return }
+                self.coveredCache.values[courseID] = (key, read)
+                self.save()
+            }
+        }
+        return covered
     }
 
     /// Each topic with drafts waiting, and the set they came from.
@@ -65,5 +114,20 @@ extension AppModel {
         save()
         guard let coverage = coverage(of: source), let plan = restPlan(for: coverage) else { return nil }
         return .rest(plan, in: courseID, topicID: topicID)
+    }
+}
+
+/// Each course's covered topics (`AppModel.coveredTopics(in:)`), for the shape of the course they were read from.
+final class CoveredTopicsCache {
+    struct Key: Equatable, Sendable {
+        var questions: Int
+        var sources: Int
+        var empty: Set<UUID>
+    }
+
+    var values: [UUID: (key: Key, covered: Set<UUID>)] = [:]
+
+    nonisolated static func covered(_ topics: [(id: UUID, name: String)], by matcher: SyllabusMatcher) -> Set<UUID> {
+        Set(topics.filter { let found = matcher.match($0.name); return found.questions > 0 || found.inNotes }.map(\.id))
     }
 }

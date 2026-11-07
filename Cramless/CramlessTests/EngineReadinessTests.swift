@@ -695,3 +695,68 @@ final class EnginePlanTests: XCTestCase {
                        [1: 6], "with one day left to spread over, all of it")
     }
 }
+
+// MARK: - The same inputs give the same plan
+
+/// A plan reads a course's questions, and a to-many relationship in the store hands them over in an order of its own, which changes
+/// from launch to launch. Where a day can't hold all its work, what gets planned followed that order, so the projection read 90% on
+/// one launch and 91% on the next. The order given must change nothing.
+final class PlanOrderTests: XCTestCase {
+    let cal = EngineTest.calendar()
+    lazy var now = EngineTest.date(2026, 11, 6, 14, in: cal)
+    let course = UUID()
+
+    /// Questions in every state that competes for a day's room: overdue, due soon, due after the exam, and new, many with the same stability and the same date.
+    func world(seed: UInt64) -> [ItemSnapshot] {
+        var rng = SeededGenerator(seed: seed)
+        var items: [ItemSnapshot] = []
+        let kinds: [ItemKind] = [.flashcard, .mcq, .recall, .cloze]
+        for i in 0..<70 {
+            var item = EngineTest.studied(kind: kinds[i % kinds.count], course: course, recall: [0.55, 0.7, 0.85].randomElement(using: &rng)!,
+                                          daysAgo: Int.random(in: 1...9, using: &rng), now: now, cal: cal)
+            item.memory.due = cal.adding(days: Int.random(in: -6...30, using: &rng), to: now)
+            items.append(item)
+        }
+        for i in 0..<40 {
+            items.append(EngineTest.fresh(kind: kinds[i % kinds.count], course: course, createdAt: cal.adding(days: -2, to: now), hint: 0.5))
+        }
+        return items
+    }
+
+    func testTheOrderOfTheQuestionsChangesNothing() {
+        for seed in 1...12 as ClosedRange<UInt64> {
+            let items = world(seed: seed)
+            let exam = ExamSnapshot(courseID: course, date: cal.adding(days: 6 + Int(seed), to: now), target: 0.9)
+            var builder = PlanBuilder(fsrs: FSRS(), calendar: cal, now: now, dailyMinutes: 15)
+            // A share of each day, as an exam gets behind a sooner one.
+            builder.capacity = Dictionary(uniqueKeysWithValues: (0..<30).map { ($0, $0 % 3 == 0 ? 300.0 : 600.0) })
+            let first = builder.plan(for: exam, items: items)
+            var rng = SeededGenerator(seed: seed &* 31)
+            for round in 0..<25 {
+                let plan = builder.plan(for: exam, items: items.shuffled(using: &rng))
+                XCTAssertEqual(plan, first, "world \(seed), order \(round): \(plan.projectedReadiness) against \(first.projectedReadiness)")
+            }
+        }
+    }
+
+    func testTheOrderChangesNothingWithoutALimitToo() {
+        let items = world(seed: 99)
+        let exam = ExamSnapshot(courseID: course, date: cal.adding(days: 14, to: now), target: 0.9)
+        let builder = PlanBuilder(fsrs: FSRS(), calendar: cal, now: now, dailyMinutes: 15)
+        let first = builder.plan(for: exam, items: items)
+        var rng = SeededGenerator(seed: 7)
+        for _ in 0..<25 { XCTAssertEqual(builder.plan(for: exam, items: items.shuffled(using: &rng)), first) }
+    }
+}
+
+/// The same numbers from a seed, for building and shuffling test worlds.
+struct SeededGenerator: RandomNumberGenerator {
+    var state: UInt64
+    init(seed: UInt64) { state = seed &* 0x9E37_79B9_7F4A_7C15 | 1 }
+    mutating func next() -> UInt64 {
+        state ^= state << 13
+        state ^= state >> 7
+        state ^= state << 17
+        return state
+    }
+}

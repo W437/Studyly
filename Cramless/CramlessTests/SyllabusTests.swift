@@ -256,8 +256,7 @@ final class SyllabusTests: XCTestCase {
         made.apply(to: &draft, courseName: "Bio 101", calendar: cal)
         XCTAssertEqual(draft.title, "Bio 101 Midterm")
         XCTAssertEqual(draft.date, EngineTest.date(2026, 11, 20, 10, in: cal), "a time from the page")
-        XCTAssertFalse(draft.wholeCourse)
-        XCTAssertEqual(draft.scope, [ids["t2"]!.id])
+        XCTAssertTrue(draft.wholeCourse, "a syllabus keeps every question in the exam")
         XCTAssertEqual(draft.newTopics, ["Meiosis"], "unticked stays out")
         XCTAssertEqual(draft.format.minutes, 90)
         XCTAssertTrue(draft.fromSyllabus)
@@ -268,6 +267,151 @@ final class SyllabusTests: XCTestCase {
         made.apply(to: &titled, courseName: "Bio 101", calendar: cal)
         XCTAssertEqual(titled.title, "My midterm", "a name already typed stays")
         XCTAssertEqual(titled.date, EngineTest.date(2026, 11, 20, 15, in: cal), "no time on the page: the draft keeps its hour")
+    }
+
+    // MARK: A syllabus never takes questions out
+
+    private func library(_ rows: [(UUID, String)], topics: [(UUID, String)]) -> SyllabusLibrary {
+        SyllabusLibrary(questions: rows.map { .init(topicID: $0.0, text: $0.1) }, topics: topics.map { .init(id: $0.0, name: $0.1) })
+    }
+
+    func testLooksRightKeepsEveryQuestionAndAddsOnlyTrueGaps() throws {
+        let t2 = ids["t2"]!.id, founding = UUID()
+        let rows = (0..<5).map { (founding, "Founding documents. The Gettysburg Address at Gettysburg, line \($0).") } + (0..<3).map { _ in (t2, "Cytokinesis splits the cell") }
+        let said = [SyllabusTopic(name: "x", topicId: "t2", lineIds: []), SyllabusTopic(name: "The Gettysburg Address", lineIds: []), SyllabusTopic(name: "Meiosis", lineIds: []),
+                    SyllabusTopic(name: "Chapter 3", lineIds: [])]
+        var made = try XCTUnwrap(proposal([exam(topics: said)]))
+        made.match(against: library(rows, topics: [(t2, "Cytokinesis"), (founding, "Founding documents")]))
+
+        XCTAssertEqual(made.topics[1].questions, 5, "questions speak of it under another topic's name")
+        XCTAssertFalse(made.topics[1].isGap)
+        XCTAssertTrue(made.topics[2].isGap)
+        XCTAssertFalse(made.topics[3].isGap, "a bare chapter number can't be said to have no notes")
+        XCTAssertEqual(made.alsoInCourse.map(\.name), [], "both of the course's topics are named")
+
+        var draft = ExamDraft(courseID: UUID(), date: now)
+        XCTAssertEqual(made.effect(on: draft), SyllabusCopy.effect(kept: 8, of: 8, gaps: 1))
+        made.apply(to: &draft, courseName: "", calendar: cal)
+        XCTAssertTrue(draft.wholeCourse)
+        XCTAssertEqual(draft.newTopics, ["Meiosis"], "only what nothing speaks of")
+    }
+
+    func testAScopeTheStudentChoseGrowsByWhatTheSyllabusNames() throws {
+        let t2 = ids["t2"]!.id, other = UUID(), named = UUID()
+        let rows = (0..<4).map { _ in (named, "Enzyme kinetics and rates") } + (0..<2).map { _ in (other, "Plants") }
+        var made = try XCTUnwrap(proposal([exam(topics: [SyllabusTopic(name: "Enzyme kinetics", lineIds: [])])]))
+        made.match(against: library(rows, topics: [(t2, "Cytokinesis"), (other, "Plants"), (named, "Rates")]))
+        var draft = ExamDraft(courseID: UUID(), date: now, wholeCourse: false, scope: [other])
+        made.apply(to: &draft, courseName: "", calendar: cal)
+        XCTAssertFalse(draft.wholeCourse)
+        XCTAssertEqual(draft.scope, [other, named])
+    }
+
+    func testOnlyTheStudentCanTakeATopicOffAndThePageSaysWhatThatLeaves() throws {
+        let t2 = ids["t2"]!.id, other = UUID()
+        let rows = (0..<30).map { _ in (other, "Plants and roots") } + (0..<3).map { _ in (t2, "Cytokinesis splits the cell") }
+        var made = try XCTUnwrap(proposal([exam(topics: [SyllabusTopic(name: "x", topicId: "t2", lineIds: [])])]))
+        made.match(against: library(rows, topics: [(t2, "Cytokinesis"), (other, "Plants")]))
+        XCTAssertEqual(made.alsoInCourse.map(\.name), ["Plants"], "a course topic the syllabus doesn't name is listed, on the exam")
+        XCTAssertEqual(made.alsoInCourse[0].questions, 30)
+        XCTAssertTrue(made.alsoInCourse[0].included)
+
+        var draft = ExamDraft(courseID: UUID(), date: now)
+        var kept = draft
+        made.apply(to: &kept, courseName: "", calendar: cal)
+        XCTAssertTrue(kept.wholeCourse, "nothing unticked: the whole course")
+
+        made.alsoInCourse[0].included = false
+        XCTAssertEqual(made.effect(on: draft), SyllabusCopy.effect(kept: 3, of: 33, gaps: 0))
+        made.apply(to: &draft, courseName: "", calendar: cal)
+        XCTAssertFalse(draft.wholeCourse)
+        XCTAssertEqual(draft.scope, [t2], "what they unticked goes, and only that")
+    }
+
+    func testTheEffectSaysWhatTheTapDoes() {
+        XCTAssertEqual(SyllabusCopy.effect(kept: 99, of: 99, gaps: 3), "Keeps your 99 questions. Adds 3 topics you have no notes for.")
+        XCTAssertEqual(SyllabusCopy.effect(kept: 99, of: 99, gaps: 0), "Keeps your 99 questions.")
+        XCTAssertEqual(SyllabusCopy.effect(kept: 40, of: 99, gaps: 0), "Keeps 40 of your 99 questions.")
+        XCTAssertEqual(SyllabusCopy.effect(kept: 2, of: 39, gaps: 1), "Keeps 2 of your 39 questions. That's very few for a number to mean much. Adds 1 topic you have no notes for.")
+        XCTAssertEqual(SyllabusCopy.effect(kept: 0, of: 0, gaps: 5), "Your questions join this exam as you add notes. Adds 5 topics you have no notes for.")
+    }
+
+    func testAThinScopeSaysSoInsteadOfARing() {
+        XCTAssertNotNil(ExamPresentation.thinScope(inScope: 2, inCourse: 39))
+        XCTAssertNotNil(ExamPresentation.thinScope(inScope: 12, inCourse: 57), "under a third")
+        XCTAssertNil(ExamPresentation.thinScope(inScope: 30, inCourse: 57))
+        XCTAssertNil(ExamPresentation.thinScope(inScope: 3, inCourse: 3), "the whole course, however small: Today's line says how little it rests on")
+        XCTAssertNil(ExamPresentation.thinScope(inScope: 0, inCourse: 0), "nothing yet")
+        XCTAssertEqual(ExamPresentation.thinScope(inScope: 2, inCourse: 39)?.line, "This exam rests on 2 of your 39 questions, too few for a number that means much.")
+    }
+
+    func testUseWholeCoursePutsTheQuestionsBack() throws {
+        let app = makeApp(mode: .local, consent: false)
+        let course = try XCTUnwrap(app.createCourse(name: "Bio 101", color: .sky, symbol: "leaf"))
+        let known = try XCTUnwrap(ItemFactory.topic(named: "Cytokinesis", in: course, now: now))
+        let exam = try XCTUnwrap(app.createExam(ExamDraft(title: "Midterm", courseID: course.id, date: cal.adding(days: 14, to: now), wholeCourse: false, scope: [known.id])))
+        XCTAssertFalse(exam.scope.isEmpty)
+        app.useWholeCourse(examID: exam.id)
+        XCTAssertTrue(exam.scope.isEmpty)
+    }
+
+    func testAFreshExamsTopicIsNoGapOnceQuestionsSpeakOfIt() throws {
+        let app = makeApp(mode: .local, consent: false)
+        let course = try XCTUnwrap(app.createCourse(name: "History", color: .sky, symbol: "leaf"))
+        var draft = ExamDraft(title: "Midterm", courseID: course.id, date: cal.adding(days: 14, to: now))
+        draft.newTopics = ["The Gettysburg Address", "Meiosis"]
+        let exam = try XCTUnwrap(app.createExam(draft))
+        XCTAssertEqual(Set(app.examGap(for: exam)?.topics.map(\.name) ?? []), ["The Gettysburg Address", "Meiosis"], "before any questions, both are gaps")
+        let filed = try XCTUnwrap(ItemFactory.topic(named: "Speeches", in: course, now: now))
+        for index in 0..<3 {
+            let item = StudyItem(course: course, topicID: filed.id, kind: .recall, status: .active, origin: .cloud, prompt: "Why give the Gettysburg Address? \(index)", answer: "To honour the dead.", now: now)
+            app.context.insert(item)
+        }
+        app.save()
+        XCTAssertEqual(app.examGap(for: exam)?.topics.map(\.name), ["Meiosis"], "the exam takes the questions in, and the topic they speak of stops being a gap")
+    }
+
+    func testATopicInTheNotesIsNoGapEither() async throws {
+        let app = makeApp(mode: .local, consent: false)
+        let course = try XCTUnwrap(app.createCourse(name: "History", color: .sky, symbol: "leaf"))
+        var draft = ExamDraft(title: "Midterm", courseID: course.id, date: cal.adding(days: 14, to: now))
+        draft.newTopics = ["Reconstruction"]
+        let exam = try XCTUnwrap(app.createExam(draft))
+        let source = Source(course: course, kind: .pdf, title: "Reading", now: now)
+        app.context.insert(source)
+        course.sources.append(source)
+        let page = SourcePage(source: source, pageIndex: 0, label: "1", text: "Reconstruction began in 1865.\nReconstruction ended in 1877.\nReconstruction amendments.", lines: [])
+        app.context.insert(page)
+        source.pages.append(page)
+        app.save()
+        XCTAssertEqual(app.examGap(for: exam)?.topics.map(\.name), ["Reconstruction"], "the notes are read off the main thread")
+        for _ in 0..<200 where app.examGap(for: exam) != nil { try await Task.sleep(for: .milliseconds(20)) }
+        XCTAssertNil(app.examGap(for: exam))
+    }
+
+    func testTheMatcherReadsTitlesAsStudentsWriteThem() {
+        let topic = UUID()
+        let questions = ["The Gettysburg Address was given in 1863.", "Why did Lincoln give the Gettysburg Address?", "Inflación: causas de la inflación según el texto",
+                         "Las causas de la inflación monetaria", "La inflación de costos y sus causas", "Carbonyl compounds react with nucleophiles", "Carbonyl compounds and enolates",
+                         "What does the American constitution say?", "How was the constitution amended?", "Who wrote the constitution?", "A carbohydrate substrate"]
+        let matcher = SyllabusMatcher(SyllabusLibrary(questions: questions.map { .init(topicID: topic, text: $0) }, topics: [.init(id: topic, name: "Well pumping")], noteLines: ["Meiosis has two divisions", "Meiosis makes gametes", "Meiosis halves chromosomes"]))
+        XCTAssertEqual(matcher.match("The Gettysburg Address").questions, 2)
+        XCTAssertEqual(matcher.match("Causes of inflation").questions, 3, "the same roots across languages")
+        XCTAssertEqual(matcher.match("Period 3 (1754-1800) American Revolution and the Constitution").questions, 3, "one part is enough")
+        XCTAssertEqual(matcher.match("Spectroscopy of carbonyl compounds").questions, 0, "a word found nowhere isn't covered by the rest of its title")
+        XCTAssertEqual(matcher.match("Carbohydrates").questions, 0, "one word in passing")
+        XCTAssertTrue(matcher.match("Meiosis").inNotes)
+        XCTAssertFalse(matcher.match("Mitosis").inNotes)
+        XCTAssertTrue(SyllabusMatcher.saysNothing("Chapter 3"))
+        XCTAssertTrue(SyllabusMatcher.saysNothing("Week 12: Review"))
+        XCTAssertFalse(SyllabusMatcher.saysNothing("Chapter 3: Enzymes"))
+        XCTAssertFalse(SyllabusMatcher.sameRoot("port", "portion"))
+        XCTAssertTrue(SyllabusMatcher.sameRoot("inflation", "inflacion"))
+    }
+
+    func testAFieldLabelIsNoTopic() {
+        let names = read(["Midterm exam", "Covers:", "- Date: Nov 20", "- Sliding windows", "Time:"]).first?.topics.map(\.name)
+        XCTAssertEqual(names, ["Sliding windows"], "the words a form uses aren't topics")
     }
 
     func testWithNoTopicsWhatsOnItStaysAsItWas() throws {

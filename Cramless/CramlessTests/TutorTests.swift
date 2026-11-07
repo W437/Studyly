@@ -1004,6 +1004,18 @@ final class TutorSelectionTests: XCTestCase {
                        TutorSelection.select(retriever: whole, searchText: "and the quagga?").sources)
     }
 
+    func testAShortFollowUpKeepsWhatItFindsItself() {
+        let retriever = LocalRetriever(material: [TutorFixtures.source("Cheat sheet", paragraphs: 12, replacing: [3: "Slow start: cwnd begins small and doubles every round trip."])])
+        let long = String(repeating: "Paragraph words about the reading and matter things. ", count: 8)
+        let messages = [TutorMessage(role: .user, text: "Tell me about the reading and the matter in paragraph one"),
+                        TutorMessage(role: .assistant, text: long),
+                        TutorMessage(role: .user, text: "slow start?")]
+        let alone = AIRouter.retrieve(retriever, messages: [TutorMessage(role: .user, text: "slow start?")], context: nil, limit: 4)
+        XCTAssertTrue(alone.hits.contains { $0.passage.text.contains("Slow start") })
+        let inChat = AIRouter.retrieve(retriever, messages: messages, context: nil, limit: 4)
+        XCTAssertTrue(inChat.hits.contains { $0.passage.text.contains("Slow start") }, "asked in a chat, the same line is sent")
+    }
+
     func testRetrievalKeepsWhatTheChatSaidBeforeApart() {
         let retriever = LocalRetriever(material: AITestSupport.material)
         let answer = String(repeating: "Mitosis ends with telophase. ", count: 30)

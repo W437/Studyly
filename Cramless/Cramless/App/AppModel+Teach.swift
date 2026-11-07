@@ -73,7 +73,8 @@ extension AppModel {
             mastery += topics
             for topic in topics { courseOf[topic.id] = course.id }
         }
-        return TeachPlanner.offers(mastery: mastery, courseOf: courseOf, items: items, exams: exams, taught: noticeLedger.taught, now: now, calendar: calendar)
+        // Every exam, not only those to come: one just sat keeps its topics quiet for a few days.
+        return TeachPlanner.offers(mastery: mastery, courseOf: courseOf, items: items, exams: examSnapshots(), taught: noticeLedger.taught, now: now, calendar: calendar)
     }
 }
 

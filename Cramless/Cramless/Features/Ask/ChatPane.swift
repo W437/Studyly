@@ -694,7 +694,7 @@ struct AskEmptyState: View {
     }
 
     private var line: LocalizedStringResource {
-        if sourceCount == 0 { return "Scan a page or add slides, and ask away. Every answer points to where it says so." }
+        if sourceCount == 0 { return "Scan a page or add a PDF, and ask away. Every answer points to where it says so." }
         let course = courseName ?? String(localized: "your courses")
         return "Ask about \(course). I answer from your \(sourceCount) sources and show you where."
     }

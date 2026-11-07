@@ -78,8 +78,8 @@ enum TrialReminder {
 /// Another exam closer than that keeps it quiet too, whichever exam the person is looking at. Settings ▸ Subscription lists it
 /// at any time, as a catalogue the person opened.
 enum ExamPassOffer {
-    static func isEligible(plan: Plan, examDates: [Date], now: Date, calendar: Calendar) -> Bool {
-        guard plan == .free, let soonest = examDates.filter({ $0 > now }).min() else { return false }
+    static func isEligible(plan: Plan, canBuyPro: Bool, examDates: [Date], now: Date, calendar: Calendar) -> Bool {
+        guard canBuyPro, plan == .free, let soonest = examDates.filter({ $0 > now }).min() else { return false }
         let days = calendar.dayDistance(from: now, to: soonest)
         return days > StoreCatalog.examPassQuietDays && days <= StoreCatalog.examPassWindowDays
     }

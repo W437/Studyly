@@ -334,7 +334,7 @@ struct SheetDestination: View {
         case .paywall(let context): PaywallView(context: context)
         case .examPass(let id): ExamPassView(examID: id)
         case .consent(let reason): ConsentSheet(reason: reason)
-        case .squadRedeem(let code): SquadRedeemView(code: code)
+        case .squadRedeem(let code): SquadRedeemSheet(code: code)
         case .badge(let badge): BadgeSheet(badge: badge)
         case .todayReasons: TodayReasonsSheet()
         case .quests: TodayQuestsSheet()

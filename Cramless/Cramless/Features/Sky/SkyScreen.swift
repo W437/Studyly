@@ -81,7 +81,7 @@ struct SkyScreen: View {
         ZStack {
             if let scene {
                 MemorySkyView(scene: scene, sceneID: sceneID, focus: $focus, relight: relight, interactive: true,
-                              animates: animates, insetTop: top, insetBottom: bottom, onRelight: relightConstellation,
+                              animates: animates, insetTop: top, insetBottom: bottom, safeArea: geo.safeAreaInsets, onRelight: relightConstellation,
                               onPlayed: { relight = .none })
                     .ignoresSafeArea()
                 if scene.isEmpty {

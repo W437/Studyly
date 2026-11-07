@@ -286,8 +286,9 @@ extension AIRouter {
             let lastAnswer = String((messages.last { $0.role == .assistant }?.text ?? "").prefix(400))
             searchText = [asked, earlier, lastAnswer].filter { !$0.isEmpty }.joined(separator: " ")
             studentText = [asked, earlier].filter { !$0.isEmpty }.joined(separator: " ")
-            let widened = retriever.search(searchText, limit: limit)
-            if !widened.isEmpty { hits = widened }
+            // What the question itself finds stays first: the earlier turns only add to it, or a short follow-up loses its own passage to theirs.
+            let own = Set(hits.map(\.passage.key))
+            hits = Array((hits + retriever.search(searchText, limit: limit).filter { !own.contains($0.passage.key) }).prefix(limit))
         }
         var before = Array(userTurns.dropLast().suffix(2).reversed())
         if let answer = messages.last(where: { $0.role == .assistant })?.text.prefix(400), !answer.isEmpty {

@@ -31,9 +31,9 @@ struct LastLookStore: Codable, Equatable, Sendable {
 /// The last look on an exam's eve (pure): the ideas a student is shakiest on, to read once and go to bed. No quiz, and nothing recorded. The same recall as the eve's
 /// session reads (`FSRS.forecastRecall` on the exam's date), and no topic gets more than its share, so the screen isn't one chapter five times.
 ///
-/// The ideas are picked ahead of time, from 48 hours before the exam until 18:00 on its eve (`AppModel.prepareLastLooks()`), so their sentences are on the phone before the evening
-/// and it works with no connection. On the eve the look shows the 5 lowest of what was prepared, as they stand then: an idea tonight's session put right sinks down the list, one it
-/// didn't stays. With nothing prepared (no window, a first open on the eve), it picks from the whole scope; every idea without a sentence says its question and answer.
+/// The ideas are chosen when the look opens, from everything the exam holds, as they stand then: an idea tonight's session put right sinks down the list, and one it didn't stays. Sentences
+/// are written ahead of time for what's shakiest, from 48 hours before the exam until 18:00 on its eve (`AppModel.prepareLastLooks()`), so they're on the phone with no connection; an idea
+/// without one says its question and answer. With fewer than five studied ideas it fills with questions not studied yet, so an eve with questions always has something to look at.
 struct LastLookEngine: Sendable {
     /// How many ideas are prepared, and how many are shown.
     static let prepared = 8
@@ -95,14 +95,14 @@ struct LastLookEngine: Sendable {
         return out
     }
 
-    /// What tonight shows: the lowest of what was prepared, as they stand now, then (if those run out) the lowest of the rest.
-    func shown(items: [ItemSnapshot], exams: [ExamSnapshot], prepared: [UUID]) -> [UUID] {
-        let wanted = Set(prepared)
-        let ready = items.filter { wanted.contains($0.id) }
-        let first = picks(items: ready, exams: exams, limit: Self.shown)
-        guard first.count < Self.shown else { return first }
-        let firstIDs = Set(first)
-        return first + picks(items: items, exams: exams, limit: Self.shown - first.count, taken: items.filter { firstIDs.contains($0.id) })
+    /// What tonight shows: the shakiest of everything these exams hold, as they stand now, then (if too few have been studied) questions not studied yet.
+    func shown(items: [ItemSnapshot], exams: [ExamSnapshot]) -> [UUID] {
+        let studied = picks(items: items, exams: exams, limit: Self.shown)
+        guard studied.count < Self.shown else { return studied }
+        let fresh = items.filter { item in
+            item.isActive && !item.isStudied && !item.reported && item.kind != .diagram && exams.contains { $0.covers(item) }
+        }
+        return studied + fresh.sorted { $0.id < $1.id }.prefix(Self.shown - studied.count).map(\.id)
     }
 
     /// "About 2 minutes".

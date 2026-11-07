@@ -146,10 +146,37 @@ final class ExamGapTests: XCTestCase {
         XCTAssertTrue(source.sortedPages.flatMap(\.lines).map(\.text).joined(separator: " ").contains("openstax.org"), "the note says where it came from")
     }
 
+    /// The router reads consent itself, so a caller that forgets can't send anything.
+    func testResearchSendsNothingWithoutConsentWhoeverAsks() async throws {
+        let (app, _) = try makeApp()
+        let spy = AssistantSpyTransport()
+        app.ai.transportOverride = spy
+        let off = String(localized: "Web research needs Cloud AI, which is off.")
+
+        app.withdrawCloudAI()
+        var steps = 0
+        let withdrawn = await app.ai.research(topic: "Meiosis", focus: nil, course: "Bio 101") { _ in steps += 1 }
+        XCTAssertEqual(withdrawn, .failed(message: off, needsPro: false))
+        XCTAssertEqual(steps, 0)
+
+        app.allowCloudAI()
+        app.settings.ageBand = .under13
+        let child = await app.ai.research(topic: "Meiosis", focus: nil, course: "Bio 101") { _ in steps += 1 }
+        XCTAssertEqual(child, .failed(message: off, needsPro: false), "consent given, but never under 13")
+        XCTAssertTrue(spy.researchRequests.isEmpty, "nothing went out")
+
+        app.settings.ageBand = .adult
+        guard case .done = await app.ai.research(topic: "Meiosis", focus: nil, course: "Bio 101", update: { _ in }) else {
+            return XCTFail("allowed again, it runs")
+        }
+        XCTAssertEqual(spy.researchRequests.count, 1)
+    }
+
     func testResearchRunsOutsideTheChatAndSaysWhyItCant() async throws {
         let (app, _) = try makeApp()
         let spy = AssistantSpyTransport()
         app.ai.transportOverride = spy
+        app.allowCloudAI()
         var steps = 0
         let done = await app.ai.research(topic: "Meiosis", focus: nil, course: "Bio 101") { _ in steps += 1 }
         guard case .done(let result) = done else { return XCTFail("\(done)") }

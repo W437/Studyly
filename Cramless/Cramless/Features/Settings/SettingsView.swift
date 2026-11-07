@@ -42,7 +42,8 @@ struct SettingsView: View {
                     }
                     .buttonStyle(.pressable)
                 }
-                if squad {
+                // An account under 13 is sold nothing; one already on a Squad keeps its way to leave it.
+                if squad, app.settings.canBuyPro || app.purchases.plan != .free {
                     NavigationLink(value: Route.squad) {
                         CLRow(icon: "person.3.fill", tint: .mint, title: "Squad", subtitle: .verbatim(SettingsSummary.squadLine(app: app)))
                     }
@@ -87,7 +88,7 @@ struct ProfileHeader: View {
             .buttonStyle(.pressable)
             .accessibilityLabel(Text("\(name.isEmpty ? "No name yet" : name), \(plan == .free ? "free plan" : plan.displayName + " plan")"))
             .accessibilityHint(Text("Opens your account"))
-            if plan == .free {
+            if plan == .free && app.settings.canBuyPro {
                 Button("Go Pro") {
                     CLHaptics.tap()
                     app.router.present(.paywall(.settings))

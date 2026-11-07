@@ -29,8 +29,6 @@ struct SessionSummaryView: View {
     @State private var streakShown: Int?
     @State private var info: Info?
     @State private var mixUp: MixUp?
-    /// "Fix it now" was pressed and Cloud AI is writing the fix.
-    @State private var writingFix = false
     @State private var mixUpHandled = false
     @State private var fixed = false
     @State private var decision = CelebrationDecision.none
@@ -568,33 +566,22 @@ struct SessionSummaryView: View {
             }
             HStack(spacing: 8) {
                 Button { fix(offer) } label: {
-                    ZStack {
-                        Text(verbatim: SessionCopy.fixNowTitle(questions: offer.candidate.itemIDs.count)).opacity(writingFix ? 0 : 1)
-                        if writingFix { ProgressView() }
-                    }
+                    Text(verbatim: SessionCopy.fixTitle(questions: offer.candidate.itemIDs.count))
                 }
                 .buttonStyle(.cl(.dark, size: .medium, fullWidth: false))
-                .disabled(writingFix)
                 Button("Not now") { later(offer) }
                     .buttonStyle(.cl(.ghost, size: .medium, fullWidth: false))
-                    .disabled(writingFix)
             }
             .padding(.leading, 56)
         }
         .clCard()
     }
 
-    /// "Fix it now": the tap that lets Cloud AI write the lesson and the fix's questions, when it's allowed; the rules' version otherwise.
+    /// The same fix as Cap's card and the mix-up's page: it opens, and its screen gets the lesson written (`AppModel.readyFix`).
     private func fix(_ offer: MixUp) {
         CLHaptics.commit()
-        writingFix = true
-        Task {
-            let (explained, origin) = await app.explainConfusion(offer.candidate)
-            writingFix = false
-            let confusion = app.adoptConfusion(offer.candidate, explained: explained ?? offer.explained, origin: origin,
-                                               withFixQuestions: true)
-            if let request = app.prepareFix(confusion.id) { onStart(request) }
-        }
+        let confusion = app.adoptConfusion(offer.candidate, explained: offer.explained, origin: offer.origin, withFixQuestions: false)
+        if let request = app.prepareFix(confusion.id) { onStart(request) }
     }
 
     private func later(_ offer: MixUp) {

@@ -89,7 +89,7 @@ final class LadderEngineTests: XCTestCase {
     }
 
     func testTheCardsWords() {
-        XCTAssertEqual(LadderCopy.noticeTitle(topic: "Limiting reagents"), "Limiting reagents is too easy now")
+        XCTAssertEqual(LadderCopy.noticeTitle(topic: "Limiting reagents"), "Limiting reagents: too easy now")
         XCTAssertEqual(LadderCopy.noticeTitle(topic: nil), "This one is too easy now")
         XCTAssertEqual(LadderCopy.noticeLine(next: .apply), "Next time, the same idea in a real problem?")
         XCTAssertEqual(LadderCopy.noticeLine(next: .cloze), "Next time, the same idea as a fill-in?")
@@ -117,7 +117,7 @@ final class LadderEngineTests: XCTestCase {
         XCTAssertEqual(card.id, NoticeEngine.tooEasyID(first.itemID))
         XCTAssertFalse(card.notifiable, "there's no hurry in it")
         let said = NoticeContent.card(card, firstName: "Maya", now: now, calendar: calendar)
-        XCTAssertEqual(said.title, "Limiting reagents is too easy now")
+        XCTAssertEqual(said.title, "Limiting reagents: too easy now")
         XCTAssertEqual(said.detail, "Next time, the same idea in a real problem?")
         XCTAssertEqual(said.action?.title, "Yes, harder")
         XCTAssertEqual(said.action?.run, .raiseQuestion(itemID: first.itemID))

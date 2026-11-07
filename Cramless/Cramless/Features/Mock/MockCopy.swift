@@ -59,8 +59,8 @@ enum MockCopy {
         String(localized: "Last mock: \(CLFormat.percent(score)) on \(LibraryFormat.shortDate(date, calendar: calendar))")
     }
 
-    /// Why there's no mock yet, in the exam's own terms, because other screens count every question: "This exam is multiple choice. A mock
-    /// needs 8 of those, and you have 2." With no format ticked a mock asks anything but flashcards and diagrams.
+    /// Why there's no mock yet and what to do about it, in the exam's own terms, because other screens count every question: "This exam is multiple choice. A mock
+    /// needs 8 of those, and you have 2. Add a page or paste your notes, and Cap writes more." With no format ticked a mock asks anything but flashcards and diagrams.
     static func tooFew(have: Int, format: ExamFormat) -> String {
         var kinds: [String] = []
         if format.multipleChoice { kinds.append(String(localized: "multiple choice")) }
@@ -68,9 +68,9 @@ enum MockCopy {
         if format.essay { kinds.append(String(localized: "essay questions")) }
         let need = MockExamBuilder.minimum(for: format)
         guard !kinds.isEmpty else {
-            return String(localized: "A mock needs \(need) multiple-choice or written questions, and you have \(have).")
+            return String(localized: "A mock needs \(need) multiple-choice or written questions, and you have \(have). Add a page or paste your notes, and Cap writes more.")
         }
-        return String(localized: "This exam is \(ListFormatter.localizedString(byJoining: kinds)). A mock needs \(need) of those, and you have \(have).")
+        return String(localized: "This exam is \(ListFormatter.localizedString(byJoining: kinds)). A mock needs \(need) of those, and you have \(have). Add a page or paste your notes, and Cap writes more.")
     }
 
     /// "3 of 20".

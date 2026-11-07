@@ -45,6 +45,16 @@ final class MockExamTests: XCTestCase {
                        "nothing ticked asks all four")
     }
 
+    /// What the sample page gives with Cloud AI off, and the review notes rely on: 8 questions, 6 of them of a mock's kinds. That's two short, and the words say what to do
+    /// next. A mock of six, with a score to hold against Cap's prediction, wouldn't say much, so the minimum stays.
+    func testASampleOnlyStudentIsTwoShortAndToldWhatToDoNext() {
+        let pool = items(3, .mcq) + items(2, .recall) + items(1, .cloze) + items(2, .flashcard)
+        XCTAssertEqual(MockExamBuilder.eligible(pool, exam: exam()).count, 6)
+        XCTAssertNil(builder.build(exam: exam(), items: pool, seed: 1))
+        XCTAssertEqual(MockCopy.tooFew(have: 6, format: ExamFormat()),
+                       "This exam is multiple choice and short answer. A mock needs 8 of those, and you have 6. Add a page or paste your notes, and Cap writes more.")
+    }
+
     func testFlashcardsDiagramsAndSuspendedQuestionsStayOut() throws {
         let pool = items(10, .mcq) + items(10, .flashcard) + items(5, .diagram) + [item(.mcq, status: .suspended)]
         let plan = try XCTUnwrap(builder.build(exam: exam(), items: pool, seed: 1))
@@ -355,7 +365,7 @@ final class MockExamTests: XCTestCase {
         var both = essays
         both.multipleChoice = true
         XCTAssertEqual(MockExamBuilder.minimum(for: both), MockExamBuilder.minimumQuestions, "a mixed exam isn't essay-only")
-        XCTAssertEqual(MockCopy.tooFew(have: 1, format: essays), "This exam is essay questions. A mock needs 2 of those, and you have 1.")
+        XCTAssertEqual(MockCopy.tooFew(have: 1, format: essays), "This exam is essay questions. A mock needs 2 of those, and you have 1. Add a page or paste your notes, and Cap writes more.")
         XCTAssertTrue(MockSuggestion.isDue(daysLeft: 5, eligible: 2, studied: 1, minimum: MockExamBuilder.minimum(for: essays), lastMockAt: nil, now: now, calendar: cal))
     }
 
@@ -383,15 +393,15 @@ final class MockExamTests: XCTestCase {
     func testTheWordsReadRight() {
         XCTAssertEqual(MockCopy.cardLine(questions: 20, minutes: 25), "20 questions like the real one · 25 min")
         XCTAssertEqual(MockCopy.tooFew(have: 2, format: ExamFormat(multipleChoice: true, shortAnswer: false)),
-                       "This exam is multiple choice. A mock needs 8 of those, and you have 2.")
+                       "This exam is multiple choice. A mock needs 8 of those, and you have 2. Add a page or paste your notes, and Cap writes more.")
         XCTAssertEqual(MockCopy.tooFew(have: 3, format: ExamFormat(multipleChoice: false, shortAnswer: true)),
-                       "This exam is short answer. A mock needs 8 of those, and you have 3.")
+                       "This exam is short answer. A mock needs 8 of those, and you have 3. Add a page or paste your notes, and Cap writes more.")
         XCTAssertEqual(MockCopy.tooFew(have: 0, format: ExamFormat(multipleChoice: false, shortAnswer: false, essay: true)),
-                       "This exam is essay questions. A mock needs 2 of those, and you have 0.")
+                       "This exam is essay questions. A mock needs 2 of those, and you have 0. Add a page or paste your notes, and Cap writes more.")
         XCTAssertEqual(MockCopy.tooFew(have: 5, format: ExamFormat(multipleChoice: true, shortAnswer: true)),
-                       "This exam is multiple choice and short answer. A mock needs 8 of those, and you have 5.")
+                       "This exam is multiple choice and short answer. A mock needs 8 of those, and you have 5. Add a page or paste your notes, and Cap writes more.")
         XCTAssertEqual(MockCopy.tooFew(have: 1, format: ExamFormat(multipleChoice: false, shortAnswer: false)),
-                       "A mock needs 8 multiple-choice or written questions, and you have 1.")
+                       "A mock needs 8 multiple-choice or written questions, and you have 1. Add a page or paste your notes, and Cap writes more.")
         XCTAssertEqual(MockCopy.verdictLine(.asExpected), "Right where Cap expected.")
         XCTAssertEqual(MockCopy.verdictLine(.better), "Better than Cap expected.")
         XCTAssertEqual(MockCopy.scored(0.72), "You scored 72%.")

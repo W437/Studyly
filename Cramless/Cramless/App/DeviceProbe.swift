@@ -3,6 +3,7 @@ import ActivityKit
 import AVFoundation
 import CoreHaptics
 import Foundation
+import Speech
 import UIKit
 import UserNotifications
 import VisionKit
@@ -146,8 +147,11 @@ enum DeviceProbe {
             return result
         }
         let t = Date()
+        // Read, never asked for: `SpeechAnalyzer` has no authorization call. A transcript with this still "notDetermined" settles that it needs none on a phone.
+        result["speechAuthorizationBefore"] = SFSpeechRecognizer.authorizationStatus().rawValue
         do {
             let segments = try await LectureFileTranscriber.transcribe(url, choice: choice)
+            result["speechAuthorizationAfter"] = SFSpeechRecognizer.authorizationStatus().rawValue
             result["seconds"] = Date().timeIntervalSince(t)
             result["segments"] = segments.count
             result["transcript"] = segments.map(\.text).joined(separator: " ")

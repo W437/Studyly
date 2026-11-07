@@ -20,6 +20,8 @@ struct MemorySkyView: View {
     /// What the screen's chrome covers at the top and the bottom, so the sky is framed in what's left.
     var insetTop = 0.0
     var insetBottom = 0.0
+    /// The screen's safe area, which those insets count from. It arrives after the first layout, so the camera is framed again when it does.
+    var safeArea = EdgeInsets()
     var onRelight: (Int) -> Void = { _ in }
     /// Called once the relight has played (or has been skipped), so the owner can clear it.
     var onPlayed: () -> Void = {}
@@ -31,6 +33,8 @@ struct MemorySkyView: View {
 
     @State private var plan: SkyPlan?
     @State private var camera: SkyCamera?
+    /// The whole sky's framing as of the last time it was framed: a relight's visit comes back to it, even if the safe area arrived on the way.
+    @State private var restingFit: SkyCamera?
     @State private var move: CameraMove?
     @State private var playback: SkyPlayback?
     @State private var clockStart = Date()
@@ -94,6 +98,10 @@ struct MemorySkyView: View {
             }
             .onChange(of: focus) { frame(size: size, fit: fit, animated: true) }
             .onChange(of: size) { viewSize = size; frame(size: size, fit: fit, animated: false) }
+            .onChange(of: safeArea) {
+                // A relight's visit under way keeps going, and comes back to the new framing.
+                if move == nil { frame(size: size, fit: fit, animated: false) } else { restingFit = fit }
+            }
             .task(id: relightKey) { await play() }
         }
         .accessibilityElement(children: .contain)
@@ -122,6 +130,7 @@ struct MemorySkyView: View {
 
     /// Puts the camera where the focus says: the whole sky, or the focused constellation.
     private func frame(size: CGSize, fit: SkyCamera, animated: Bool) {
+        restingFit = fit
         let layout = scene.layout
         let target: SkyCamera
         if let i = focus, layout.constellations.indices.contains(i) {
@@ -173,7 +182,7 @@ struct MemorySkyView: View {
         guard !Task.isCancelled else { return }
         playback = nil
         if visited, focus == nil {
-            glide(to: fit, fit: fit, duration: 0.8)
+            glide(to: restingFit ?? fit, fit: restingFit ?? fit, duration: 0.8)
             try? await nap(900)
         }
         onPlayed()

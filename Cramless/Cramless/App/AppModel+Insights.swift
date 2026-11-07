@@ -368,11 +368,13 @@ extension AppModel {
         }
     }
 
-    /// One course's active items.
+    /// One course's active items, in the same fixed order as `itemSnapshots()`: a relationship hands its members over in an order of its own, which
+    /// changes from launch to launch.
     func itemSnapshots(in course: Course?) -> [ItemSnapshot] {
         guard let course, course.deletedAt == nil else { return [] }
         return course.items.filter { $0.deletedAt == nil && $0.status == .active }
             .map { ItemSnapshot($0, courseID: course.id) }
+            .sorted { $0.id < $1.id }
     }
 
     /// Specific items in the given order, any status but rejected (a quick check may run on a fresh draft).
@@ -384,8 +386,9 @@ extension AppModel {
     }
 
     func examSnapshots(upcomingOnly: Bool = false) -> [ExamSnapshot] {
+        // Two exams at the same time keep one order too: the sooner exam's plan takes its share of each day first.
         let exams = fetch(FetchDescriptor<Exam>(predicate: #Predicate { $0.deletedAt == nil },
-                                                sortBy: [SortDescriptor(\.date)]))
+                                                sortBy: [SortDescriptor(\.date), SortDescriptor(\.id)]))
         return exams.filter { ($0.course?.deletedAt == nil) && (!upcomingOnly || $0.date > now) }.map(ExamSnapshot.init)
     }
 

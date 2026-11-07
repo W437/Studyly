@@ -20,6 +20,9 @@ struct SessionView: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var runner: SessionRunner?
     @State private var confirmLeave = false
+    /// A fix's first screen: Cap writing its lesson, then the lesson, then the questions. Nil for everything else.
+    @State private var fixLesson: FixLessonView.Step?
+    @State private var fixRequest: SessionRequest?
     #if DEBUG
     @State private var debug = SessionDebug.read()
     #endif
@@ -27,14 +30,21 @@ struct SessionView: View {
     var body: some View {
         ZStack {
             CLColor.background.ignoresSafeArea()
-            if let runner {
+            if let fixLesson {
+                FixLessonView(step: fixLesson, title: fixRequest?.confusionID.flatMap { app.confusion($0)?.name } ?? "", questions: fixRequest?.confusionID.flatMap { app.confusion($0)?.itemIDs.count } ?? 2,
+                              onStart: {
+                                  self.fixLesson = nil
+                                  if let fixRequest { begin(fixRequest) }
+                              }, onClose: { app.router.dismissCover() })
+                    .transition(.opacity)
+            } else if let runner {
                 content(runner)
                     .id(runner.id)
                     .transition(.opacity)
             }
         }
         .captureDebugCanvas()
-        .onAppear { if runner == nil { begin(request) } }
+        .onAppear { if runner == nil, fixRequest == nil { open(request) } }
         .onDisappear {
             runner?.close()
             app.stopReadingAloud()
@@ -83,7 +93,7 @@ struct SessionView: View {
         case .finished:
             if let summary = runner.summary, runner.kind != .quickCheck {
                 SessionSummaryView(runner: runner, summary: summary, onDone: { app.router.dismissCover() },
-                                   onStart: { begin($0) })
+                                   onStart: { open($0) })
                     .transition(.opacity)
             } else {
                 Color.clear.onAppear { app.router.dismissCover() }
@@ -111,6 +121,42 @@ struct SessionView: View {
 
     /// Starts `request` (the first session, a fix from the summary, or a bonus round). The day's own session picks up where it
     /// stood when iOS closed the app earlier today.
+    /// One way into every fix: from Cap's card, a session's summary, the mix-up's page or a link, the lesson comes first and the questions after it.
+    private func open(_ request: SessionRequest) {
+        guard request.kind == .fix, !request.lessonSeen, let id = request.confusionID else {
+            begin(request)
+            return
+        }
+        fixRequest = request
+        #if DEBUG
+        if app.config.isHarness {
+            // The other hooks open a drill as they always have; this one asks for the lesson first.
+            switch TestHarness.once("CRAMLESS_FIX_LESSON") {
+            case "writing":
+                fixLesson = .writing
+                return
+            case "lesson":
+                break
+            default:
+                begin(request)
+                return
+            }
+        }
+        #endif
+        if app.fixWillBeWritten(id) { fixLesson = .writing }
+        Task {
+            let lesson = await app.readyFix(id)
+            withAnimation(CLMotion.settle) {
+                if let lesson {
+                    fixLesson = .lesson(lesson)
+                } else {
+                    fixLesson = nil
+                    begin(request)
+                }
+            }
+        }
+    }
+
     private func begin(_ request: SessionRequest) {
         #if DEBUG
         if runner == nil, TestHarness.once("CRAMLESS_SESSION_RESUME") == "1" { app.debugCutOffSession(request) }

@@ -536,6 +536,8 @@ struct NoticeEngine: Sendable {
             let rank = Self.isBehindTheStudent(items, index: index) ? Rank.finishedMixUp(misses: misses) : Rank.mixUp(misses: misses)
             return Notice(id: Self.mixUpID(mixUp.note.id), kind: .mixUp, rank: rank,
                           examID: exam?.id, examDate: exam?.date, examTitle: exam?.title, evidence: .mixUp(mixUp.note),
+                          // Its fix opens on a lesson Cloud AI writes when it's allowed (one question is the rules' recap).
+                          cost: inputs.cloudLessons && mixUp.note.questions > 1 ? .cloud : .none,
                           notifiable: mixUp.note.rightRun == 0 && (daysLeft.map { $0 <= Self.mixUpPingDays } ?? false))
         }
     }

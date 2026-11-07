@@ -73,10 +73,19 @@ extension AppModel {
 
     // MARK: Deciding
 
-    /// "Not now", or a date already in the plan: this one isn't brought up again.
+    /// "That's wrong", or a date already in the plan: this one isn't brought up again.
     func dismissExamHeard(_ heard: ExamHeard) {
         settings.heardDatesHandled.insert(Self.handledKey(heard.sourceID, heard.mention.id))
         save()
+    }
+
+    /// "That's wrong" on Cap's card: the same, from Today.
+    func decline(_ decline: CapNotice.Decline) {
+        switch decline {
+        case .heardDate(let sourceID, let mentionID):
+            settings.heardDatesHandled.insert(Self.handledKey(sourceID, mentionID))
+            save()
+        }
     }
 
     /// The one AI look at the words, after the student's tap. It may correct the name and choose among the days read; it may also doubt the whole thing, and then the student decides.

@@ -162,6 +162,14 @@ extension AppModel {
         return Array(Set(draft.scopeIDs + new)).filter(live.contains).sorted { $0.uuidString < $1.uuidString }
     }
 
+    /// Puts the whole course back on an exam: every question counts, and every new one joins.
+    func useWholeCourse(examID: UUID) {
+        guard let exam = exam(examID), exam.deletedAt == nil, !exam.scope.isEmpty else { return }
+        exam.scope = []
+        touch(exam)
+        save()
+    }
+
     func deleteExam(_ id: UUID) {
         guard let exam = exam(id), exam.deletedAt == nil else { return }
         exam.deletedAt = now

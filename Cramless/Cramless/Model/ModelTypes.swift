@@ -372,6 +372,21 @@ enum ConfusionStatus: String, Codable, Sendable { case open, fixed, dismissed }
 struct ConfusionFix: Codable, Hashable, Sendable {
     var lesson: String
     var itemIDs: [UUID]
+    /// Cloud AI has been asked for this fix's lesson and questions, however it answered: a call is spent once.
+    var asked = false
+
+    init(lesson: String, itemIDs: [UUID], asked: Bool = false) {
+        self.lesson = lesson
+        self.itemIDs = itemIDs
+        self.asked = asked
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        lesson = try container.decode(String.self, forKey: .lesson)
+        itemIDs = try container.decode([UUID].self, forKey: .itemIDs)
+        asked = try container.decodeIfPresent(Bool.self, forKey: .asked) ?? false
+    }
 }
 
 // MARK: - Helpers

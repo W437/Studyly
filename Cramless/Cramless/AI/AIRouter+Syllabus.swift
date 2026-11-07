@@ -11,6 +11,8 @@ struct SyllabusInput: Sendable {
     var pages: [PageText]
     /// The draft the proposal starts from.
     var base: ExamDraft
+    /// What the course already holds: the proposal's topics are read against it.
+    var library = SyllabusLibrary.empty
 }
 
 struct SyllabusOutcome: Sendable {
@@ -44,7 +46,7 @@ extension AIRouter {
             do {
                 let response = try await transport.syllabus(request)
                 if let read = proposal(response.exams, origin: .cloud) {
-                    return SyllabusOutcome(proposal: read, origin: .cloud, model: response.model)
+                    return SyllabusOutcome(proposal: await matched(read, with: input.library), origin: .cloud, model: response.model)
                 }
                 // The model found nothing: the rules may still find a schedule, and they'll say so.
             } catch {
@@ -55,8 +57,17 @@ extension AIRouter {
         let local = await Task.detached(priority: .userInitiated) {
             LocalSyllabus.read(pages: pages, topics: requestTopics, examTitle: input.examTitle, today: now, calendar: calendar)
         }.value
-        return SyllabusOutcome(proposal: proposal(local, origin: .rules), origin: .rules, model: LocalGrader.model,
+        return SyllabusOutcome(proposal: await matched(proposal(local, origin: .rules), with: input.library), origin: .rules, model: LocalGrader.model,
                                suggestion: route.usesCloud ? nil : (offlineOnly ? .allowCloud(feature: AIJob.syllabus.feature) : route.suggestion), fellBack: fellBack)
+    }
+
+    /// The topics read against the course, off the main thread: a big library's words aren't free.
+    private func matched(_ proposal: SyllabusProposal?, with library: SyllabusLibrary) async -> SyllabusProposal? {
+        guard var proposal else { return nil }
+        return await Task.detached(priority: .userInitiated) {
+            proposal.match(against: library)
+            return proposal
+        }.value
     }
 
     /// The one AI look at a date heard in a lecture, after the student's tap; on the hidden `extras` meter. Nil when it isn't allowed or doesn't answer: the rules' reading stands.

@@ -731,6 +731,82 @@ final class ExamDateFinderTests: XCTestCase {
         let settings = try JSONDecoder.cramless.decode(AppSettings.self, from: Data("{}".utf8))
         XCTAssertTrue(settings.heardDatesHandled.isEmpty)
     }
+
+    // MARK: Dates said in class, as a table
+
+    private func heard(_ sentence: String) -> [String] {
+        let calendar = EngineTest.calendar()
+        let recorded = EngineTest.date(2026, 11, 5, 15, in: calendar)
+        let lines = ["We'll carry on with the reading next time.", sentence, "All right, back to the material."]
+        let segments = lines.enumerated().map { TranscriptSegment(id: "s\($0.offset)", start: Double($0.offset) * 8, end: Double($0.offset) * 8 + 7, text: $0.element) }
+        return ExamDateFinder.find(in: segments, recordedAt: recorded, calendar: calendar).map(\.day)
+    }
+
+    func testDatesAnExamIsAnnouncedOn() {
+        let rows: [(String, String)] = [
+            ("The midterm is on November twentieth.", "2026-11-20"),
+            ("Your final exam will be December 14th at 2 pm.", "2026-12-14"),
+            ("Okay, quick reminder, quiz two is next Friday.", "2026-11-13"),
+            ("We'll have the exam a week from Monday.", "2026-11-16"),
+            ("The test is on the twentieth.", "2026-11-20"),
+            ("The midterm will be in two weeks.", "2026-11-19"),
+            ("So the exam is on the 3rd of December.", "2026-12-03"),
+            ("Your final is Thursday, December 10th, in this room at nine.", "2026-12-10"),
+            ("Exam on Nov. 30, don't forget.", "2026-11-30"),
+            ("The exam is 11/24.", "2026-11-24"),
+            ("There's a quiz this coming Tuesday on chapter four.", "2026-11-10"),
+            ("okay so the midterm is going to be on november twenty third so plan for that", "2026-11-23"),
+            ("El examen final será el 20 de noviembre.", "2026-11-20"),
+            ("El parcial es el 3 de diciembre a las diez.", "2026-12-03"),
+            ("Die Klausur ist am 20. November.", "2026-11-20"),
+            ("期末試験は11月20日です。", "2026-11-20"),
+            ("L'examen final aura lieu le 20 novembre.", "2026-11-20"),
+        ]
+        for (sentence, day) in rows { XCTAssertEqual(heard(sentence), [day], sentence) }
+    }
+
+    func testDatesThatAreNotAnExamsAreNotHeard() {
+        let rows = [
+            "A test of significance published on December 3rd found no effect.",
+            "The quiz show aired on November 12 and nobody watched it.",
+            "There's no exam on November 25th because of Thanksgiving.",
+            "Last year the midterm was on October 20th.",
+            "The homework is due December 1st, that's separate from the midterm.",
+            "Office hours before the exam are on November 18th.",
+            "The review session for the final is December 12th.",
+            "The final battle began on March 3rd.",
+            "I'll post the study guide on November 13, a week before the exam.",
+            "Project presentations are on December 2nd, then the final exam a week later.",
+            "They tested the drug in a trial that ends in February.",
+            "For example, suppose your exam was on January 15th, how many days would you need?",
+            "The Treaty was finalised after the examination of the delegates on May 5th.",
+            "The exam moved from the 18th to the 20th.",
+            "The last day to drop the course before the final is November 27th.",
+            "You'll get your midterm back on November 17.",
+            "Slow start for the exam: cwnd starts at 1 MSS and doubles.",
+            "Ya armé el resumen pa'l final del viernes 15.",
+        ]
+        for sentence in rows { XCTAssertEqual(heard(sentence), [], sentence) }
+    }
+
+    func testATimeWithADayKeepsBoth() throws {
+        let calendar = EngineTest.calendar()
+        let anchor = EngineTest.date(2026, 11, 5, 15, in: calendar)
+        let hit = try XCTUnwrap(TextDates.find(in: "Final exam: November 16 at 2:00 PM", from: anchor, calendar: calendar).first)
+        XCTAssertEqual(hit.day, "2026-11-16")
+        XCTAssertEqual(hit.time, "14:00")
+        XCTAssertEqual(TextDates.find(in: "期末試験: 2026年11月16日 11時", from: anchor, calendar: calendar).first?.time, "11:00")
+        XCTAssertEqual(TextDates.find(in: "the cwnd starts at 1 and grows", from: anchor, calendar: calendar), [])
+    }
+
+    func testRefusingAHeardDateIsOneTapAndItStaysGone() throws {
+        XCTAssertEqual(ExamHeardCopy.wrong, "That's wrong")
+        let source = UUID()
+        let notice = Notice(id: NoticeEngine.heardID(sourceID: source, mentionID: "m"), kind: .lectureDate, rank: 1,
+                            evidence: .lectureDate(NoticeHeardDate(sourceID: source, lectureTitle: "Lecture 3", mentionID: "m", quote: "The exam is 11/24.", date: Date(), title: "Exam")), cost: .free)
+        let card = NoticeContent.card(notice, firstName: "", now: Date(), calendar: EngineTest.calendar())
+        XCTAssertEqual(card.decline, .heardDate(sourceID: source, mentionID: "m"))
+    }
 }
 
 /// The engine choice for a course with its own words (measured with scripts/speech_live/run.sh).

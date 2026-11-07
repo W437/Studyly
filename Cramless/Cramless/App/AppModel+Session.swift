@@ -117,6 +117,46 @@ extension AppModel {
         save()
     }
 
+    /// Cloud AI will be asked to write this fix when it opens, so its screen says Cap is writing. Once per mix-up, and only when it's allowed.
+    func fixWillBeWritten(_ id: UUID) -> Bool {
+        guard let confusion = confusion(id), confusion.deletedAt == nil, confusion.fix?.asked != true, confusion.fix?.itemIDs.isEmpty != false, confusion.itemIDs.count > 1 else { return false }
+        return ai.route(.confusions).usesCloud
+    }
+
+    /// Readies a mix-up's fix for its screen, wherever it was tapped: the lesson and the questions that teach the difference, written once (Cloud AI when allowed, within `lessonWait`;
+    /// the rules otherwise), and kept. The lesson to show first; nil when there's nothing to say before the questions.
+    @discardableResult
+    func readyFix(_ id: UUID) async -> String? {
+        guard let confusion = confusion(id), confusion.deletedAt == nil else { return nil }
+        let lesson = confusion.fix?.lesson ?? ""
+        guard confusion.fix?.asked != true, confusion.fix?.itemIDs.isEmpty != false, let candidate = candidate(for: confusion) else { return lesson.clNonEmpty }
+        let (explained, origin) = await explainConfusion(candidate)
+        // The wait is over: it may have gone.
+        guard let confusion = self.confusion(id), confusion.deletedAt == nil else { return nil }
+        var fix = confusion.fix ?? ConfusionFix(lesson: "", itemIDs: [])
+        fix.asked = origin == .cloud
+        if let explained {
+            confusion.name = explained.name
+            if !explained.explanation.isEmpty { confusion.explanation = explained.explanation }
+            if !explained.lesson.isEmpty { fix.lesson = explained.lesson }
+            fix.itemIDs += makeFixQuestions(explained, candidate: candidate, origin: origin)
+        }
+        confusion.fix = fix
+        touch(confusion)
+        save()
+        return fix.lesson.clNonEmpty
+    }
+
+    /// A named mix-up as the lesson's writer reads it: its questions, with what the student last answered.
+    private func candidate(for confusion: Confusion) -> ConfusionCandidate? {
+        let items = confusion.itemIDs.compactMap { item($0) }.filter { $0.deletedAt == nil }
+        guard !items.isEmpty else { return nil }
+        let reason: ConfusionCandidate.Reason = confusion.missCount == 0 ? .lookAlike : .repeatedMisses
+        let mistakes = items.map { ConfusionCandidate.Mistake(itemID: $0.id, prompt: $0.prompt, expected: $0.answer, given: lastWrongAnswer(itemID: $0.id) ?? "", misses: $0.lapses) }
+        return ConfusionCandidate(id: ConfusionFinder.stableID("fix", items.map(\.id)), courseID: confusion.course?.id, topicID: items.first?.topicID, name: confusion.name, reason: reason,
+                                  itemIDs: items.map(\.id), missCount: confusion.missCount, lastMissAt: confusion.lastSeenAt ?? now, mistakes: mistakes)
+    }
+
     /// Readies a confusion's 2-minute fix: its own questions that are still drafts become active (starting the
     /// fix is the person's yes to them). Returns the session to present.
     @discardableResult
@@ -239,21 +279,7 @@ extension AppModel {
             return existing
         }
         let course = course(candidate.courseID)
-        var fixIDs: [UUID] = []
-        if withFixQuestions, let explained, let course {
-            let page = sourcePage(for: candidate)
-            let source = page?.source
-            for question in explained.questions where !question.prompt.isEmpty && !question.answer.isEmpty {
-                let topic = ItemFactory.topic(named: question.topic, in: course, now: now)
-                let made = ItemFactory.makeItem(from: question, course: course, topicID: topic?.id ?? candidate.topicID,
-                                                source: source, page: page, origin: origin, status: .active, now: now)
-                made.checkedAt = origin == .cloud ? now : nil
-                context.insert(made)
-                course.items.append(made)
-                touch(made)
-                fixIDs.append(made.id)
-            }
-        }
+        let fixIDs = withFixQuestions ? explained.map { makeFixQuestions($0, candidate: candidate, origin: origin) } ?? [] : []
         let explanation = explained?.explanation ?? candidate.defaultExplanation
         let confusion = Confusion(course: course, name: explained?.name ?? candidate.name, explanation: explanation,
                                   itemIDs: candidate.itemIDs,
@@ -265,6 +291,25 @@ extension AppModel {
         touch(confusion)
         save()
         return confusion
+    }
+
+    /// The questions an explanation brought, as active items of the fix.
+    private func makeFixQuestions(_ explained: ConfusionOut, candidate: ConfusionCandidate, origin: ItemOrigin) -> [UUID] {
+        guard let course = course(candidate.courseID) else { return [] }
+        let page = sourcePage(for: candidate)
+        let source = page?.source
+        var made: [UUID] = []
+        for question in explained.questions where !question.prompt.isEmpty && !question.answer.isEmpty {
+            let topic = ItemFactory.topic(named: question.topic, in: course, now: now)
+            let item = ItemFactory.makeItem(from: question, course: course, topicID: topic?.id ?? candidate.topicID,
+                                            source: source, page: page, origin: origin, status: .active, now: now)
+            item.checkedAt = origin == .cloud ? now : nil
+            context.insert(item)
+            course.items.append(item)
+            touch(item)
+            made.append(item.id)
+        }
+        return made
     }
 
     // MARK: - Onboarding

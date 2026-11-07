@@ -77,6 +77,12 @@ struct PurchasedView: View {
                     .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.top, 10)
+                if let caveat = PaywallCopy.proCaveat(canBuyPro: app.settings.canBuyPro, cloudAvailable: app.ai.cloudAvailableInThisBuild,
+                                                      cloudAllowed: app.hasCloudConsent) {
+                    ProCaveatLine(text: caveat)
+                        .multilineTextAlignment(.center)
+                        .padding(.top, 12)
+                }
 
                 if showsInvite, let onInvite {
                     VStack(alignment: .leading, spacing: 6) {

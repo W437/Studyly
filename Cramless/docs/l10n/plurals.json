@@ -583,5 +583,37 @@
   "%lld new questions count once you've studied them.": {
     "one": "%lld new question counts once you've studied it.",
     "other": "%lld new questions count once you've studied them."
+  },
+  "Keeps your %lld questions.": {
+    "one": "Keeps your %lld question.",
+    "other": "Keeps your %lld questions."
+  },
+  "Adds %lld topics you have no notes for.": {
+    "one": "Adds %lld topic you have no notes for.",
+    "other": "Adds %lld topics you have no notes for."
+  },
+  "%lld questions on it": {
+    "one": "%lld question on it",
+    "other": "%lld questions on it"
+  },
+  "Keeps %lld of your %lld questions.": {
+    "value": "Keeps %1$lld of %#@questions@.",
+    "substitutions": {
+      "questions": {
+        "argNum": 2,
+        "one": "your %arg question",
+        "other": "your %arg questions"
+      }
+    }
+  },
+  "This exam rests on %lld of your %lld questions, too few for a number that means much.": {
+    "value": "This exam rests on %1$lld of %#@questions@, too few for a number that means much.",
+    "substitutions": {
+      "questions": {
+        "argNum": 2,
+        "one": "your %arg question",
+        "other": "your %arg questions"
+      }
+    }
   }
 }
