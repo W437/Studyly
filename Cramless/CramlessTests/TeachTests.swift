@@ -216,6 +216,28 @@ final class TeachPlannerTests: XCTestCase {
         return TeachPlanner.offers(mastery: mastery, courseOf: [topic: course], items: items, exams: exams, taught: taught, now: now, calendar: cal)
     }
 
+    func testNotOnTheExamsOwnDayOrJustAfter() {
+        let course = UUID()
+        let items = snapshots(studied: 4, course: course)
+        let mastery = [TopicReadiness(id: topic, name: "Meiosis", value: 0.9, itemCount: items.count)]
+        func offered(examHoursAgo hours: Double) -> [NoticeTeachBack] {
+            let sat = ExamSnapshot(id: UUID(), courseID: course, title: "Midterm", date: now.addingTimeInterval(-hours * 3600), scope: [], target: 0.8, format: ExamFormat())
+            return TeachPlanner.offers(mastery: mastery, courseOf: [topic: course], items: items, exams: [sat], taught: [:], now: now, calendar: cal)
+        }
+        XCTAssertTrue(offered(examHoursAgo: 8).isEmpty, "that evening")
+        XCTAssertTrue(offered(examHoursAgo: 24).isEmpty, "the next day")
+        XCTAssertFalse(offered(examHoursAgo: 24 * 4).isEmpty, "a few days later")
+    }
+
+    func testANameThatDoesntReadAsATopicIsNotOffered() {
+        for name in ["First", "Dear", "What does he say", "In cracks and pores in rock.", "Why it matters?"] {
+            XCTAssertFalse(TeachPlanner.readsAsATopic(name), name)
+        }
+        for name in ["Meiosis", "The Gettysburg Address", "TCP segment structure", "First impressions", "Causes of inflation", "明治維新"] {
+            XCTAssertTrue(TeachPlanner.readsAsATopic(name), name)
+        }
+    }
+
     func testAStrongTopicIsOffered() {
         let course = UUID()
         XCTAssertEqual(offers(items: snapshots(studied: 4, course: course), course: course).map(\.topicID), [topic])

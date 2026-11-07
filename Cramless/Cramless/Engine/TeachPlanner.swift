@@ -63,8 +63,8 @@ struct NoticeTeachBack: Equatable, Sendable {
 /// before a second from any. Questions never studied come last: nobody should be marked down for what they haven't met yet.
 ///
 /// The offer ("You know \(topic). Can you teach it?") reads topic recall (`ReadinessEngine.topicMastery`), which no screen shows as a number. It
-/// wants most of the topic studied and well remembered, an exam a week or more away (closer than that, reviews matter more), and no teaching of it in the last
-/// 14 days.
+/// wants most of the topic studied and well remembered, an exam a week or more away (closer than that, reviews matter more), no exam on it in the last few days (it's fresh, and they've
+/// earned a rest), no teaching of it in the last 14 days, and a name that reads as a topic.
 enum TeachPlanner {
     static let maxIdeas = 6
     static let minIdeas = 2
@@ -73,6 +73,8 @@ enum TeachPlanner {
     static let offerMinStudied = 3
     static let offerStudiedShare = 0.6
     static let offerExamDays = 7
+    /// Days after an exam that Cap doesn't ask to teach what was on it.
+    static let offerAfterExamDays = 3
     static let offerQuietDays = 14
     /// The fewest words an answer needs to say something by itself. "Metaphase" and "The centromeres" don't; "The part of interphase when DNA is replicated" does.
     static let statementWords = 4
@@ -189,12 +191,14 @@ enum TeachPlanner {
     static func offers(mastery: [TopicReadiness], courseOf: [UUID: UUID], items: [ItemSnapshot], exams: [ExamSnapshot], taught: [String: Date], now: Date,
                        calendar: Calendar) -> [NoticeTeachBack] {
         let index = ExamIndex(exams, after: now, calendar: calendar)
+        let justSat = exams.filter { $0.date <= now && calendar.dayDistance(from: $0.date, to: now) < offerAfterExamDays }
         var byTopic: [UUID: [ItemSnapshot]] = [:]
         for item in items where item.isActive {
             if let topic = item.topicID { byTopic[topic, default: []].append(item) }
         }
         let good = mastery.compactMap { topic -> (NoticeTeachBack, Double)? in
-            guard let recall = topic.value, recall >= offerRecall, let its = byTopic[topic.id] else { return nil }
+            guard let recall = topic.value, recall >= offerRecall, let its = byTopic[topic.id], readsAsATopic(topic.name) else { return nil }
+            if its.contains(where: { item in justSat.contains { $0.covers(item) } }) { return nil }
             let studied = its.filter(\.isStudied).count
             guard studied >= offerMinStudied, Double(studied) / Double(its.count) >= offerStudiedShare else { return nil }
             if let date = taught[topic.id.uuidString], calendar.dayDistance(from: date, to: now) < offerQuietDays { return nil }
@@ -203,6 +207,21 @@ enum TeachPlanner {
             return (NoticeTeachBack(topicID: topic.id, topicName: topic.name, courseID: courseOf[topic.id]), recall)
         }
         return good.sorted { $0.1 != $1.1 ? $0.1 > $1.1 : $0.0.topicName < $1.0.topicName }.map(\.0)
+    }
+
+    /// Words that can't follow "You know": what was left of a heading, a question or a sentence, filed as a topic's name.
+    private static let notANameWords: Set<String> = ["first", "second", "third", "fourth", "last", "next", "other", "others", "dear", "misc", "general", "notes", "more", "part", "section", "intro"]
+    private static let openers: Set<String> = ["what", "why", "how", "when", "where", "who", "which", "whose", "whom", "do", "does", "did", "is", "are", "was", "were", "can", "could", "should", "would",
+                                               "in", "on", "at", "by", "for", "from", "to", "with", "and", "or", "but", "if", "because", "that", "this", "these", "those", "he", "she", "they", "it", "we", "you"]
+
+    /// A name Cap can say a sentence about: not one word like "First", not a question, not a sentence.
+    static func readsAsATopic(_ name: String) -> Bool {
+        let trimmed = name.clTrimmed
+        guard !trimmed.isEmpty, !trimmed.hasSuffix("."), !trimmed.hasSuffix("?"), !trimmed.hasSuffix("!") else { return false }
+        let words = Lexicon.tokens(trimmed).map(\.word)
+        guard let first = words.first else { return false }
+        if words.count == 1, notANameWords.contains(first) { return false }
+        return !openers.contains(first)
     }
 
     /// A flashcard's front, not a question: a few words with no question mark or full stop.
