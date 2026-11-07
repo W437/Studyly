@@ -31,11 +31,14 @@ struct AppConfig: Sendable {
     var isRelayConfigured: Bool { supabaseURL != nil && !(supabaseAnonKey ?? "").isEmpty }
 
     static func resolve(environment env: [String: String] = ProcessInfo.processInfo.environment,
-                        info: [String: Any] = Bundle.main.infoDictionary ?? [:]) -> AppConfig {
+                        info given: [String: Any]? = nil) -> AppConfig {
+        let isTests = env["XCTestConfigurationFilePath"] != nil
+        // A test run never takes the backend from the app's own Info.plist, even with a filled Secrets.xcconfig: a test that
+        // starts an account would sign up on production. A test that wants a backend names it in `info`.
+        let info = given ?? (isTests ? [:] : Bundle.main.infoDictionary ?? [:])
         let host = (info["CramlessSupabaseHost"] as? String ?? "").trimmingCharacters(in: .whitespaces)
         let key = (info["CramlessSupabaseAnonKey"] as? String ?? "").trimmingCharacters(in: .whitespaces)
         let url: URL? = host.isEmpty ? nil : URL(string: host.hasPrefix("http") ? host : "https://\(host)")
-        let isTests = env["XCTestConfigurationFilePath"] != nil
         #if DEBUG
         let harness = env["CRAMLESS_UITEST"] == "1"
         let mock = env["CRAMLESS_MOCK_AI"] == "1" || (harness && env["CRAMLESS_MOCK_AI"] != "0")

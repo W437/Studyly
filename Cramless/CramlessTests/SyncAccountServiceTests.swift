@@ -6,6 +6,17 @@ import XCTest
 /// AccountService against a stubbed Supabase: sessions, tokens, sign-in flows, the profile and the modes.
 @MainActor
 final class SyncAccountServiceTests: XCTestCase {
+    func testATestRunNeverTakesTheBackendFromTheAppsOwnSettings() {
+        let run = AppConfig.resolve(environment: ["XCTestConfigurationFilePath": "here"])
+        XCTAssertNil(run.supabaseURL)
+        XCTAssertFalse(run.isRelayConfigured)
+        XCTAssertEqual(run.aiMode, .local)
+
+        let named = AppConfig.resolve(environment: ["XCTestConfigurationFilePath": "here"],
+                                      info: ["CramlessSupabaseHost": "http://127.0.0.1:58421", "CramlessSupabaseAnonKey": "key"])
+        XCTAssertEqual(named.aiMode, .relay)
+    }
+
     func testFirstTokenCreatesOneAnonymousSessionForConcurrentCallers() async throws {
         let server = StubServer()
         server.on("POST", "/auth/v1/signup") { _ in .json(BackendTest.sessionJSON(), delay: 0.25) }
