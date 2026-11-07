@@ -1886,6 +1886,32 @@ From main 3105a20. No app code changed and nothing went to App Store Connect, Su
 - **Found:** `tools/tutor_bakeoff/run.ts` reads `~/.config/capling/openai_key` before `OPENAI_API_KEY`, and that file exists, so a run under `lockbox run` would use the file's key.
 - **Verified:** the frames by eye against the old set; the page on cloud1. No tests (scripts and docs).
 
+## The build plan's gates (2026-11-06/07)
+
+Every stage was built in lanes, merged into main, and passed a gate: the full suite on the merged tree, a review page of
+every changed screen (light, dark, largest text, SE size), the simulated 14-day user test, a polish lane for what those
+found, and a build on the owner's phone (development signing). Review pages: tshare `capling-stage-1-review` to
+`capling-stage-4-review`; user tests: `capling-stage-1-14-day-user-test`, `capling-stage-2-14-day-user-test` and one run
+for Stages 3 and 4 (none shared).
+
+- **Stage 1, Clear and honest. Verified:** the full suite on the merged tree, 1,604 run, 27 skipped, one stale wording
+  assertion fixed and its class rerun; after its polish (408df99), 1,761 run, with the catalog regenerated and the failed
+  classes rerun green. User test $3.89; build 1.0 (5) at cd6ad9c on the owner's phone by link.
+- **Stage 2, Cap notices. Verified:** 1,860 run, 27 skipped, 0 failures at aeb8c56; after its polish, 2,080 run, 27 skipped,
+  0 failures at 7332f72, relay 267 passed. User test $3.86; build at 7332f72 by link.
+- **Stage 3, Exams that know their scope. Verified:** the same run at 7332f72 (all of Stage 3 merged); its polish
+  ran with Stage 4's below.
+- **Stage 4, Study out loud. Verified:** 2,246 run, 27 skipped, 0 failures on the tree main became at 7c51c19, relay 277
+  passed; with the Stage 3 and 4 polish, 2,300 run, 0 failures (112198e). User test for Stages 3 and 4 $3.90; build at
+  112198e installed on the owner's phone.
+- **Before 1.0. Verified:** the final polish's tree, identical to main at 3105a20: 2,344 run, 27 skipped (opt-in), 0
+  failures, `TZ=America/New_York`. Installed on the owner's phone at 3105a20 (Release, development signing). Not run: the
+  relay's live checks and the tutor bakeoff (they need the OpenAI key; the request ran out unapproved), anything against
+  production, and the device checks in `docs/release-1.0.md`.
+- **Tests and production:** a full suite run from a checkout with a filled `Secrets.xcconfig` put the tests in relay mode,
+  and a test that started an account signed up 28 anonymous users on the live project (22:14 UTC, 6 Nov; no AI calls, no
+  data). `AppConfig.resolve` now never reads the backend from Info.plist in a test run (55330e1).
+
 ## Left for the owner
 
 - Accounts and keys (see README "Before the App Store"):
