@@ -844,6 +844,20 @@ final class NoticeEngineTests: XCTestCase {
         XCTAssertEqual(try card(cloud: false).cost, "No AI")
         XCTAssertEqual(NoticeContent.costLine(.none), "No AI")
         XCTAssertEqual(NoticeContent.costLine(.drafts(1)), "Uses Cloud AI")
+
+        // A mix-up's fix opens on a lesson Cloud AI writes when it may; one question's recap is the rules'.
+        func fixCard(cloud: Bool, questions: Int) throws -> CapNotice {
+            var one = mixUp()
+            one.note.questions = questions
+            let i = inputs {
+                $0.mixUps = [one]
+                $0.cloudLessons = cloud
+            }
+            return NoticeContent.card(try XCTUnwrap(NoticeEngine(i).candidates().first), firstName: "", now: now, calendar: cal)
+        }
+        XCTAssertEqual(try fixCard(cloud: true, questions: 2).cost, "Uses Cloud AI")
+        XCTAssertEqual(try fixCard(cloud: false, questions: 2).cost, "No AI")
+        XCTAssertEqual(try fixCard(cloud: true, questions: 1).cost, "No AI")
         XCTAssertNil(NoticeContent.costLine(.free))
     }
 

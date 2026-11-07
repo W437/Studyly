@@ -27,7 +27,7 @@ Every row goes from the iPhone to Capling's server (the `ai` Edge Function on Su
 | A question to Cap, assistant | The last 10 messages, the notes, the study overview (course, topic and exam names, exam dates, readiness, fading topics, due counts), tool results. The passages `search_notes` finds, in any course when none is named (`AI/AIRouter+Assistant.swift`) | On send, up to 4 rounds | `assistant` | None |
 | A problem, snapped | The words the student checked on "Check the problem", as an ordinary question, flagged `fromPhoto`. Never the photo (`Capture/SnapReader.swift`) | On send | `tutor` | None |
 | Web research | Topic, focus, course name, `minor` flag, to OpenAI's web search on a fixed list of 40 sites (`RESEARCH_DOMAINS`) | When asked in the chat, or "Find it on trusted study sites" in Fill the gap | `research` | Pro, and not under 18 |
-| Mix-ups | Course, each missed question: topic, question, expected answer, the answer given, how many misses | Only after "Fix it now" (`AppModel+Session.swift`) | `confusions` | None |
+| Mix-ups | Course, each missed question: topic, question, expected answer, the answer given, how many misses | Only when its fix is opened ("Fix it" on Cap's card, a summary or the mix-up's page), once per mix-up, and never for a single question (`AppModel.readyFix`) | `confusions` | None |
 | Look-alikes | Course, two questions and their answers; nothing of the student's | Only after "Show me" | `confusions` | None |
 | Lecture notes | Course, title, the transcript with times, the moments flagged. Never audio | When notes are made from a lecture | `lecture` | None |
 | Cards from a chat | Course, the chat's messages | "Make cards" | `cards-from-chat` | None |
