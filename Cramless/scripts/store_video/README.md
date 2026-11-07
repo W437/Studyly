@@ -51,9 +51,10 @@ Renders go through `simq run media -- npm run render` on this Mac. `out/` and `r
 - Apple's reference data (read 2026-11-01): the iPhone App Preview takes 886 x 1920 or 1920 x 886, 23 to 30 fps, 15 to 30 s, **audio required**, 500 MB.
   The header (3840 x 1646) and search-results (3:2) video slots take 5 to 30 s at 30 or 60 fps with no audio requirement.
 - App Review guideline 2.3.4: previews may only use screen captures of the app. This piece is drawn, so it may be refused as the App Preview.
-- The numbers on screen (42% to 91%, 63 stars, 17 dim) are the demo world's. The readiness ring climbs with the path's line being drawn (`ringValue` reads the
-  height of the line's head), so the ring, the line's end (just above its 90% goal line) and its label "Exam day 91%" are one number (`END_VALUE` in `s3.tsx`);
-  the chart is labelled a projection.
+- The numbers on screen (53% to 91%, the goal reached by Nov 29; 63 stars, 20 dim) are what the app shows for the demo world with its clock pinned
+  (`CRAMLESS_NOW=2026-11-06T14:00:00-05:00`, the Bio 101 Midterm). The readiness ring climbs with the path's line being drawn (`ringValue` reads the height of the
+  line's head), so the ring, the line's end (just above its 90% goal line) and its label "Exam day 91%" are one number (`START_VALUE` and `END_VALUE` in `s3.tsx`);
+  the chart is labelled a projection. Those two and `DIM_START` (`s4.tsx`) move no frame, so the sound needs no new score.
 - Remotion renders JPEG frames by default and tags the file full range with a BT.601 matrix: `--image-format=png --color-space=bt709` fixes both
   (limited range, BT.709). `--scale` must give whole pixels: 0.5 does, 0.4 does not.
 - Cap's clips are 24 fps and the edit is 30: each picture is held for its time, every fifth one twice (an extreme at a multiple of 4 is the held one),

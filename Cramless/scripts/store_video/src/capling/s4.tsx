@@ -25,7 +25,7 @@ const CLUSTERS: Cluster[] = [
   {stars: [{p: [0.44, 0.22], state: 'lit', r: 12}, {p: [0.52, 0.4], state: 'off'}, {p: [0.34, 0.52], state: 'dim'}, {p: [0.18, 0.44], state: 'lit', r: 9}, {p: [0.62, 0.1], state: 'dim'}],
     edges: [[0, 1], [1, 2], [2, 3], [0, 4]]},
 ];
-export const DIM_START = 17;
+export const DIM_START = 20;
 /** Every star that is lit by the end (lit from the start, or relit), with its size, for the stars that rise into the dawn. */
 export const CLUSTERS_LIT = CLUSTERS.flatMap((c) => c.stars.filter((st) => st.state === 'lit' || st.relit).map((st) => ({p: st.p, r: st.r ?? 9})));
 const RELIGHT = CLUSTERS[2].stars.map((s) => s.relit ?? 0);

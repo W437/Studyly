@@ -1831,6 +1831,16 @@ The Capling record on the Loopware team (app 6828649543) is filled in by `script
   - Loopware's privacy page had no Capling section. It is drafted on the branch `capling-privacy` of the loopware-landing repo
     (commit e92c033), not pushed.
 
+## The store page for launch (2026-11-07, not uploaded)
+
+Prepared on the `launch-store` branch from main 112198e; nothing went to App Store Connect (the draft there still has the old screenshots, words and video).
+
+- **Screenshots:** `scripts/store_art/capture_launch.sh <udid>` takes the sources (the demo world, `CRAMLESS_NOW=2026-11-06T14:00:00-05:00`, light, US formats) and `scripts/store_art/launch_set.py` draws the set from them in the look the owner picked (the Gizmo frames on the Sky ground): `01`..`08`, the other words for image 5 (`05-cards`, `05-help`) and three frames for what the first set never showed (`x-notice`, `x-mock`, `x-loud`, at most two: Apple takes ten). Finals are in the main checkout's `build/review/launch-store/final/en-US/`. `capling_asc.mjs screenshots` wants them named `01`..`10` in one folder. The Sky ground is `gizmo_colours.THEMES["sky"]`; `gizmo_final.CTA_ICON` is the only change to the old scripts and keeps their output.
+- **Other languages' screenshots are not made.** The overlays have no translation table, the 3D lettering has no font for several scripts, and the app's screens are English only (`Localizable.xcstrings`). Apple shows the primary language's set where a language has none.
+- **Words:** `scripts/asc/capling_copy.json` (English description) and `capling_copy_locales.json` (35 languages; en-AU, en-CA and en-GB reuse English) rewritten for the finished app, every claim checked against the code; translations are still drafts for a native read. Subtitles, keywords and promotional text are unchanged: nothing in them is stale. `reviewNotes` holds the draft in `docs/review-notes-draft.md`, whose list of what to check on a phone still stands. `capling_asc.mjs` checks the limits before it writes.
+- **Video:** `scripts/store_video`: readiness goes 53% to 91% (`START_VALUE`, `END_VALUE` in `s3.tsx`, the Bio midterm's numbers), the sky starts at 20 dim (`DIM_START`), and the verdict's chip has the app's words. No frame moved, so `preview-audio.wav` is the same score. App Review 2.3.4 remains a risk: it is drawn, not a screen capture.
+- **Duo:** this Mac has Xcode 27.2 and an iPhone Duo simulator (`simq sim --device "iPhone Duo" --udid`, iOS 27.2; `simctl io screenshot` needs `--display=1` for the outer screen, 1398 x 2034, or `--display=3` for the inner, 2007 x 2853). The app runs on the outer screen with the tab bar moved to the side. The inner screen stays black: opening the fold needs Device Hub, and `simctl` has no control for it. No Duo screenshots are made: they need a new layout for the wider shape. Required for submissions from April 2027.
+
 ## Left for the owner
 
 - Accounts and keys (see README "Before the App Store"):

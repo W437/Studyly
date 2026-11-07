@@ -1,5 +1,6 @@
-// Beat 3, "Know your Readiness": the three check marks fly out of the answer card and become a readiness ring that fills from 42% to 91%,
-// then the path to 90% draws itself and ends on the same 91% (a projection, labelled so, never a promise). The numbers are the demo world's (Chem 110 Quiz).
+// Beat 3, "Know your Readiness": the three check marks fly out of the answer card and become a readiness ring that fills to 53% and climbs to 91%,
+// as the path to 90% draws itself and ends on the same 91% (a projection, labelled so, never a promise). The numbers are the app's own for the demo
+// world's Bio 101 Midterm with its clock pinned (CRAMLESS_NOW=2026-11-06T14:00:00-05:00): "Today 53%", "Exam day 91%", the goal reached by Nov 29.
 import React from 'react';
 import {Cap, capRise, capSquash, Check, clamp01, easeIn, easeOut, F, hits, lerp, Pill, pop, ramp, rng, sfStyle, springAt, Star4} from './kit';
 import {Icon} from './elements';
@@ -10,10 +11,12 @@ export const PLATE = {cx: W / 2, cy: 830, r: 284};
 export const BORN_AT = 285;
 const RING = {r: 214, stroke: 46};
 const BORN = BORN_AT; // the check marks arrive and the plate pops
-/** Where the ring stops and where the path ends on exam day: one number, so the ring, the chart and its label agree (above the 90% goal). */
+/** Where the ring starts, and where it stops and the path ends on exam day: the same numbers on the ring, the chart and its labels. */
+export const START_VALUE = 0.53;
 export const END_VALUE = 0.91;
-// The path card's curve. y300 is 42% and the goal line (y138) is 90%: 3.375 px a point, so END_VALUE ends at y = 300 - (END_VALUE - 0.42) * 100 * 3.375 = 135.
-const END_Y = 300 - (END_VALUE - 0.42) * 100 * 3.375;
+const GOAL = 0.9;
+// The path card's curve. y300 is START_VALUE and the goal line (y138) is GOAL, so END_VALUE ends just above that line.
+const END_Y = 300 - ((END_VALUE - START_VALUE) / (GOAL - START_VALUE)) * (300 - 138);
 const CURVE = `M30 300 C 150 296, 230 284, 330 250 S 520 ${END_Y + 46}, 700 ${END_Y}`;
 type Pt2 = [number, number];
 const SEGS: Pt2[][] = [
@@ -55,13 +58,13 @@ export const PATH_DRAW_AT = 360;
 export const pathDraw = (f: number) => ramp(f, PATH_DRAW_AT, 390, (t) => 1 - Math.pow(1 - t, 3));
 const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 
-/** The ring's value over time: fills to 42% (the chart's "Today"), holds, then climbs with the path being drawn: at every moment it reads the height
- *  of the line's drawing head, so it ends on the 91% the path ends on and the two never disagree. */
+/** The ring's value over time: fills to START_VALUE (the chart's "Today"), holds, then climbs with the path being drawn: at every moment it reads the
+ *  height of the line's drawing head, so it ends on the number the path ends on and the two never disagree. */
 export const ringValue = (f: number) => {
   if (f < BORN + 4) return 0;
-  if (f < 330) return 0.42 * easeOut(clamp01((f - BORN - 4) / (330 - BORN - 4)));
-  if (f < PATH_DRAW_AT) return 0.42;
-  return lerp(0.42, END_VALUE, pathHeight(pathDraw(f)));
+  if (f < 330) return START_VALUE * easeOut(clamp01((f - BORN - 4) / (330 - BORN - 4)));
+  if (f < PATH_DRAW_AT) return START_VALUE;
+  return lerp(START_VALUE, END_VALUE, pathHeight(pathDraw(f)));
 };
 /** Readiness colour: rose below 50, sun to 79, mint from 80 (the app's rule), blended over a few points so the change isn't a jump. */
 const hex = (h: string) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
@@ -145,7 +148,7 @@ const PathCard: React.FC<{f: number}> = ({f}) => {
   return (
     <div style={{position: 'absolute', left: PATH.left, top: PATH.top + (1 - Math.min(1.08, p)) * 600 + leave * 900, width: PATH.w, height: PATH.h, borderRadius: 34, background: '#fff', boxShadow: '0 30px 70px rgba(8,30,100,0.32), 0 6px 16px rgba(8,30,100,0.14)', overflow: 'hidden', opacity: clamp01(p * 2)}}>
       <div style={{position: 'absolute', left: 30, top: 24, ...sfStyle(35, 720), color: COL.ink}}>Your path to 90%</div>
-      <div style={{position: 'absolute', right: 26, top: 22}}><Pill text="Exam 23 Nov" bg={COL.tangerineSoft} fg={COL.tangerineInk} size={23} icon={<Icon name="bolt" size={22} color={COL.tangerineInk} stroke={2.4} />} /></div>
+      <div style={{position: 'absolute', right: 26, top: 22}}><Pill text="Nov 29" bg={COL.mintSoft} fg={COL.mintInk} size={23} icon={<Icon name="scope" size={22} color={COL.mintInk} stroke={2.4} />} /></div>
       <svg width={PATH.w} height={PATH.h} style={{position: 'absolute', left: 0, top: 0, overflow: 'visible'}}>
         <line x1={30} y1={130 + 8} x2={PATH.w - 30} y2={130 + 8} stroke={COL.mint} strokeWidth={3} strokeDasharray="3 10" strokeLinecap="round" opacity={clamp01(p * 2)} />
         <text x={30} y={130 - 8} style={{...sfStyle(21, 650)}} fill={COL.mintInk}>90% goal</text>
@@ -159,7 +162,7 @@ const PathCard: React.FC<{f: number}> = ({f}) => {
         <circle cx={700} cy={END_Y} r={16 * dot} fill={COL.tangerine} opacity={dot > 0 ? 1 : 0} />
         <circle cx={700} cy={END_Y} r={16 + 22 * tail} fill="none" stroke={COL.tangerine} strokeWidth={4} opacity={0.5 * (1 - tail) * (dot > 0 ? 1 : 0)} />
       </svg>
-      <div style={{position: 'absolute', left: 30, top: 318, ...sfStyle(23, 600), color: COL.ink3}}>Today 42%</div>
+      <div style={{position: 'absolute', left: 30, top: 318, ...sfStyle(23, 600), color: COL.ink3}}>Today {Math.round(START_VALUE * 100)}%</div>
       <div style={{position: 'absolute', right: 30, top: 318, ...sfStyle(23, 700), color: COL.ink, opacity: clamp01(label * 2)}}>Exam day {Math.round(END_VALUE * 100)}%</div>
       <div style={{position: 'absolute', left: 30, top: 366, ...sfStyle(21, 500), color: COL.ink3}}>Projected, if you follow the plan</div>
     </div>

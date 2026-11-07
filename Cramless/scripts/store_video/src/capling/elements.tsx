@@ -4,7 +4,7 @@ import {clamp01, easeIn, easeOut, hash, lerp, pop, ramp, sfStyle, shadowCard, sp
 import {COL} from './theme';
 
 // ---- icons (simple, drawn here; the app uses SF Symbols) -----------------------------------------------------------------------------------
-export const Icon: React.FC<{name: 'list' | 'cursor' | 'pencil' | 'speaker' | 'doc' | 'cards' | 'camera' | 'mic' | 'bolt'; size: number; color: string; stroke?: number}> = ({name, size, color, stroke = 2}) => {
+export const Icon: React.FC<{name: 'list' | 'cursor' | 'pencil' | 'speaker' | 'doc' | 'cards' | 'camera' | 'mic' | 'bolt' | 'scope'; size: number; color: string; stroke?: number}> = ({name, size, color, stroke = 2}) => {
   const p = {fill: 'none', stroke: color, strokeWidth: stroke, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const};
   return (
     <svg width={size} height={size} viewBox="0 0 24 24">
@@ -17,6 +17,7 @@ export const Icon: React.FC<{name: 'list' | 'cursor' | 'pencil' | 'speaker' | 'd
       {name === 'camera' ? (<><path {...p} d="M4 8.5h3l1.5-2.5h7L17 8.5h3v10H4z" /><circle {...p} cx="12" cy="13.2" r="3.2" /></>) : null}
       {name === 'mic' ? (<><rect {...p} x="9" y="3.5" width="6" height="11" rx="3" /><path {...p} d="M5.5 11.5a6.5 6.5 0 0013 0M12 18v3" /></>) : null}
       {name === 'bolt' ? <path {...p} d="M13 3L5.5 13.5H12L11 21l7.5-10.5H12z" /> : null}
+      {name === 'scope' ? (<><circle {...p} cx="12" cy="12" r="7" /><path {...p} d="M12 2.5v4M12 17.5v4M2.5 12h4M17.5 12h4" /></>) : null}
     </svg>
   );
 };

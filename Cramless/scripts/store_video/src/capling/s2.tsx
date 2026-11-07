@@ -167,7 +167,7 @@ export const NicePanel: React.FC<{f: number}> = ({f}) => {
       <div style={{position: 'absolute', left: 0, top, width: W, height: 640, borderRadius: '48px 48px 0 0', background: '#D8F5E8', boxShadow: '0 -18px 50px rgba(8,30,100,0.22)'}}>
         <div style={{position: 'absolute', left: 54, top: 52, ...({fontFamily: F.title, fontSize: 88, lineHeight: 1, color: COL.mintInk, letterSpacing: -2} as React.CSSProperties), transform: `scale(${0.4 + 0.6 * word}) rotate(${(1 - word) * -6}deg)`, transformOrigin: '0 100%', opacity: clamp01(word * 3)}}>Nice!</div>
         <div style={{position: 'absolute', left: 56, top: 168, ...sfStyle(34, 500), color: COL.ink, opacity: clamp01(body * 2), transform: `translateY(${(1 - body) * 20}px)`}}>Every key idea is there.</div>
-        <div style={{position: 'absolute', left: 54, top: 232, opacity: clamp01(chip * 2), transform: `translateY(${(1 - chip) * 20}px)`}}><SourceChip text="p. 87 · Checked on your iPhone" scale={1.05} /></div>
+        <div style={{position: 'absolute', left: 54, top: 232, opacity: clamp01(chip * 2), transform: `translateY(${(1 - chip) * 20}px)`}}><SourceChip text="p. 87 · Matched to the key ideas on your iPhone" scale={1.05} /></div>
         <div style={{position: 'absolute', left: 40, top: 330, width: W - 80, height: 96, opacity: clamp01(btn * 2), transform: `translateY(${(1 - btn) * 30}px)`}}>
           <div style={{position: 'absolute', inset: 0, borderRadius: 30, background: COL.mint, boxShadow: `0 8px 0 ${COL.mintEdge}`, display: 'flex', alignItems: 'center', justifyContent: 'center', ...sfStyle(40, 720), color: COL.night}}>Continue</div>
         </div>
