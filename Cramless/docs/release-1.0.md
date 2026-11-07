@@ -23,6 +23,8 @@ Commands run from `Cramless/` of a checkout of main unless they say otherwise.
 | Approve the relay deploy | Steps 7 and 8 | Step 6's results |
 | Approve the upload | Step 16 | The full suite's result, step 12 |
 | A featuring date, and with it the release option | Steps 26 and 27 | `docs/featuring-nomination-draft.md` |
+| The paywall headline: keep "You'll be ready." (a promise, while the exam page says "not a promise"), or "Sleep the night before. You'll know where you stand.", or "More of Cap, right up to the exam." | Step 12 (it's in the build) | The paywall screen; `Features/Paywall/PaywallCopy.swift` |
+| Delete the test users on production: the simulated user tests' `~/Documents/capling-user-test/stage2/cleanup.sql` and `stage34/cleanup.sql`, the 28 anonymous users a test run made at 22:14 UTC on 6 Nov, and `f5aac1be-6b6b-475d-abb4-e0ea2d21301e` (a filming take); each delete waits for a yes at the Supabase prompt | Before real users | `docs/BUILD.md` ▸ The build plan's gates |
 
 ## A. The owner's accounts (now, in parallel with everything else)
 
