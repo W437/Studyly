@@ -1757,6 +1757,22 @@ From the Stage 2 replays, tested on real timetables:
 - **"Could go dim"**: the card and "Fix my week" stay, and the words stop promising. The count isn't tightened: the prediction misses far more than sessions running over would explain, and no simple change to the reach comes close to what really fades.
 - **The mock card**: built with the sitting's seed, so its minutes are the sitting's; shown once, then a 4-day rest; and Today offers it only when a quarter of its questions have been studied.
 
+## Launch: the words (2026-11-07, lane `launch-words`)
+
+Everything a person or Apple reads about what the app does with data, read again from the code. Nothing was published, uploaded or deployed.
+
+- **`docs/privacy-wording.md`** now opens with what leaves the phone, route by route, and what stays. Section 2 is worded for release 1.0: build 1.0 (5), attached today, predates most of it.
+- **App Privacy:** no answer has to change for the new routes. They all fall in rows already declared, and the Squad mark is Product Interaction: Apple's form has no question about data other users see. One gap to decide: the time zone in `profiles` is undeclared (`docs/privacy-wording.md` section 3).
+- **The screens:** the consent sheet and Settings ▸ AI and privacy show one set of words, `AIConsent.Words` (What you add, What you ask Cap, What you answer), which now cover the syllabus, a date heard in a lecture, a snapped problem, "Looks wrong?" and the last look, the one Cloud AI request nobody asked for at that moment. Consent stays at version 3. "What our server keeps" no longer says the server holds none of a person's notes, which sync does.
+- **The size that goes with a question:** 4,000 words on the tutor's route and 6,000 on the assistant's (`TutorSelection.tutor`, `.assistant`), not the "about 6,000" the words gave for both.
+- **Research sites:** the settings page and the policy described encyclopedias, open textbooks and universities. Since 2026-11-04 the list is 40 sites: public agencies, Wikimedia, open-access journals and free references (`RESEARCH_DOMAINS`). Loopware's live page still says the old thing.
+- **Purpose strings** (`Resources/Info.plist`): camera names the syllabus; microphone no longer says notes are made on the iPhone (with Cloud AI they aren't), and says Capling never uploads the recording; calendar says nothing *from the calendar* leaves. No catalog holds them, and the app is English only, so every language sees the English ones. No photo library string: the system picker needs none. The code never asks for Speech Recognition itself; the string stays until a phone shows whether iOS asks.
+- **The privacy manifest** gains file timestamps (C617.1): `PageImageStore.removeStaleStaging` reads a folder's modification date in the app's own container.
+- **Paywall:** the headline is unchanged, for the owner to decide. "Everything unlocks. Your plan starts." became "Every Pro feature unlocks.", since plans are free; Squad's "You'll see when they study" became a choice each friend makes, since the mark is opt-in.
+- **Drafts for the owner:** `docs/privacy-page-draft.md` (Loopware's section, in `loopware-landing`) and `docs/review-notes-draft.md` (under Apple's 4,000 characters, with a demo path walked on the simulator: the sample page leaves a mock two questions short, so the notes carry a passage to paste).
+- **Scripts:** `capling_products.mjs` no longer lists plans and readiness under Pro, and now updates a changed review note on a product that exists (it only set the note at creation, so the live note still has the old words; never run against the live record). `tour_content.py`, `j_study.py` and the README no longer mention a projected grade or Apple's model. Rebuilding the tour changes its "build next" options, and Anis's old answer on Teach Cap has no option to land on. `capling_copy.json` (store text and review notes) is the store lane's.
+- **Verified:** `TutorPrivacyCopyTests`, `PaywallCopyTests`, `LocalizationTests`, `BusyDayTests`, `AskSnapTests`; screens in `build/review/launch-words/` of the main checkout. Not the full suite (wording). Not on a phone: the permission prompts, Declared Age Range and a sandbox Squad.
+
 ## App Store Connect (2026-11-01)
 
 The Capling record on the Loopware team (app 6828649543) is filled in by `scripts/asc/`. Every command is re-runnable and has

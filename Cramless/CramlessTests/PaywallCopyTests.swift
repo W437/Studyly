@@ -90,7 +90,7 @@ final class PaywallCopyTests: XCTestCase {
                                               quietEnd: 7 * 60, now: now, calendar: calendar)
         let steps = PaywallCopy.timeline(trialDays: 7, price: yearly, now: now, reminder: reminder, calendar: calendar)
         XCTAssertEqual(steps.map(\.title), ["Today", "Day 5", "Day 7"])
-        XCTAssertEqual(steps[0].detail, "Everything unlocks. Your plan starts.")
+        XCTAssertEqual(steps[0].detail, "Every Pro feature unlocks.")
         XCTAssertTrue(steps[1].detail.hasPrefix("We remind you on "))
         XCTAssertTrue(steps[2].detail.contains("$49.99"))
         XCTAssertTrue(steps[2].detail.hasSuffix("unless you cancel before."))

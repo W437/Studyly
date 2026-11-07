@@ -48,7 +48,7 @@ struct AssistantPage: View {
                 title: "On the web",
                 footer: minor
                     ? "Not available for accounts under 18."
-                    : "Only when you ask, and only from trusted study sites: encyclopedias, open textbooks, universities and public science bodies. What it finds is shown with its sources and is only saved as a note if you say so. Part of Capling Pro."
+                    : "Only when you ask, and only from trusted study sites: Wikipedia and its sister sites, government and science agencies, open-access journals and free reference sites. What it finds is shown with its sources and is only saved as a note if you say so. Part of Capling Pro."
             ) {
                 SettingsToggleRow(
                     title: "Let Cap research online",

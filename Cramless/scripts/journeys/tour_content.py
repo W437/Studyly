@@ -34,8 +34,8 @@ BRIEF = """    <p>I filmed the real app running in a simulator, with a demo stud
     you're ready.</p>
     <p>What I need: watch what you care about, in any order (the clips run {total} minutes in all; you won't need them all), and tap
     Comment to pin a note where something feels wrong, missing or confusing. Five questions sit in the sections they're about, and at the very end a few open ones ask what you think, in your own words.</p>
-    <p>Ignore: the AI's wording is plainer here, because the simulator has no Apple Intelligence (the clips use the app's built-in
-    offline AI); and a recording can't show haptics. In the four clips where Cap makes things, Cap's replies are scripted by the
+    <p>Ignore: the AI's wording is plainer here, because the clips use the app's built-in offline rules, not Cloud AI; and a recording
+    can't show haptics. In the four clips where Cap makes things, Cap's replies are scripted by the
     app's demo server, so they're the same every time: judge how it works, not the wording.</p>"""
 
 # Folded right under the brief: where Capling sits among the other apps, how it differs, its edge. The facts are from the plan in
@@ -53,8 +53,8 @@ WHERE = """<p class="fine">Our read, October 2026; company figures are their own
     <p><b>How we differ.</b> A readiness score and a daily plan to your exam date. Questions checked against, and linked to, your own page.
     Answers graded on your ideas, not the exact words. Cards, notes and exams that Cap drafts are checked against your own pages, and
     added only when you say so.</p>
-    <p><b>Our advantage.</b> Making cards is free everywhere now; knowing what you know is not, and nobody owns it yet. The AI runs on the
-    iPhone first, so the free plan costs us little.</p>"""
+    <p><b>Our advantage.</b> Making cards is free everywhere now; knowing what you know is not, and nobody owns it yet. Reviews, plans,
+    readiness and mock exams run on the iPhone with no AI, so the free plan costs us little.</p>"""
 
 HOW = [
     ("Tap a title to open it", "Sections start folded. Each has a clip and its moments, and some have a question."),
@@ -96,7 +96,7 @@ SECTIONS: list[dict] = [
          look="the “on the exam” flags. Would you use that in a real lecture?"),
     dict(id="quiz", group="Studying", chip="Quiz prep", film="quiz", title="Two days before a quiz",
          lede=("Maya has a Chem quiz on Wednesday, and the app says Maya is 42% ready: its estimate of how much of the quiz material "
-               "will still be remembered on the day. The exam page shows where that comes from and what the projected grade rests on. "
+               "will still be remembered on the day. The exam page shows where that comes from and what it would take to reach the goal. "
                "Then a practice run uses every kind of question: flashcards, multiple choice, fill in the blank, and answers typed in "
                "Maya's own words, graded on the ideas the answer contains rather than the exact wording. A wrong answer says "
                "“Not yet.” and shows the fix. The summary shows what moved."),
@@ -104,8 +104,8 @@ SECTIONS: list[dict] = [
     dict(id="ask", group="Studying", chip="Ask Cap", film="ask", title="Ask Cap",
          lede=("A tutor that answers questions only from Maya's own notes and names the page. By default Cap asks before it tells; one "
                "tap and it just explains. Tapping the source opens the page with the line highlighted, and the questions made from it. "
-               "(The words come from the app's built-in offline tutor; on a phone Apple's on-device model writes them, or the cloud "
-               "if you allow it.) Cap can also make things for Maya, and on Capling Pro look things up: the next four clips."),
+               "(The words come from the app's built-in offline tutor; with Cloud AI, if you allow it, the cloud writes them.) "
+               "Cap can also make things for Maya, and on Capling Pro look things up: the next four clips."),
          look="whether “only from your notes” is a strength or a limit. Would you ask this, or use ChatGPT?"),
     dict(id="ask-make", group="Studying", chip="Cap makes", film="assist-cards", title="Ask Cap to make something",
          lede=("New: Cap doesn't only answer, it makes things. Maya taps Make flashcards, types the topic, and Cap writes six cards "
@@ -121,8 +121,8 @@ SECTIONS: list[dict] = [
          look="whether a quiz, a note and an exam from one chat is useful, or too much."),
     dict(id="ask-research", group="Studying", chip="Research", film="assist-research", title="Research online, on trusted sites",
          lede=("Capling Pro only, 3 a day (Pro is the paid plan: see Free, Pro, Exam Pass and Squad further down; a developer setting "
-               "makes Maya a Pro subscriber in this clip). Cap searches trusted study sites only (encyclopedias, open textbooks, "
-               "universities and public science bodies, about 50 in all), writes a short summary, and shows the pages it rests on. "
+               "makes Maya a Pro subscriber in this clip). Cap searches trusted study sites only (Wikipedia and its sister sites, "
+               "government and science agencies, open-access journals and free reference sites, about 40 in all), writes a short summary, and shows the pages it rests on. "
                "Nothing is saved unless Maya says so. Under 18, Cap does not look things up online. (The sites and the summary are "
                "scripted by the app's demo server.)"),
          look="whether you would pay for research on trusted sites, or ask ChatGPT."),
@@ -153,7 +153,7 @@ SECTIONS: list[dict] = [
          look="anything missing from privacy, accessibility or your data."),
     dict(id="plans", group="Around it", chip="Plans", film="plans", title="Free, Pro, Exam Pass and Squad",
          lede=("Free is unlimited flashcard reviews, 3 scans a week and 20 graded answers a day. Pro adds unlimited scans, PDFs and "
-               "lectures, answers graded in your own words without the daily limit, and the tutor. Plans, readiness and mock exams are free. "
+               "lecture notes, answers in your own words graded without the daily limit, and Cap's answers without the daily limit. Plans, readiness and mock exams are free. "
                "Exam Pass is Pro for the 30 days around one exam, paid once. Squad is Pro for you and three friends on one plan."),
          look="whether the free plan feels fair and the prices feel right."),
 ]
@@ -183,8 +183,8 @@ DECISIONS: list[dict] = [
          watch=("plans", 10)),
     dict(after="plans", id="build-next",
          question="To get students coming back every day, which one should I build next?",
-         options="teach:Teach Cap: explain a topic out loud and Cap asks a follow-up|widget:Answer a flashcard from the Home Screen|squad:A shared sky for your Squad, and term-end recap cards|watch:Apple Watch cards",
-         context="All four are planned (Watch comes last on the roadmap). Eight more languages and studying by voice are on it too."),
+         options="widget:Answer a flashcard from the Home Screen|squad:A shared sky for your Squad, and term-end recap cards|watch:Apple Watch cards|scan:A scan that lights each line as it's read",
+         context="All four are planned (Watch comes last on the roadmap). Eight more languages are on it too."),
 ]
 
 ALSO_TITLE = "What else is in the app, and what's planned"
@@ -195,12 +195,14 @@ ALSO: list[tuple[str, str]] = [                          # ("built" | "pending" 
     ("built", "Import from Anki, Quizlet, CSV, PDFs and pasted text; read-aloud for questions"),
     ("built", "One reminder a day, never in quiet hours, with exam countdowns"),
     ("built", "Dynamic Type, VoiceOver labels, Reduce Motion, a dyslexia-friendly font"),
-    ("pending", "Sign in with Apple or an email code, sync across devices, Squad invites by link or code: built, and they switch on when the server goes live"),
-    ("next", "Teach Cap: explain a topic out loud, Cap asks one follow-up"),
+    ("built", "Sign in with Apple or an email code, sync across devices, Squad invites by link or code"),
+    ("built", "Teach Cap: explain a topic out loud, Cap asks one follow-up"),
+    ("built", "Study out loud with the screen off: Cap asks, you answer, nothing you say is recorded"),
+    ("built", "Free mock exams, Cap's cards, snap the syllabus, the last look on an exam's eve"),
     ("next", "A scan that lights each line as it's read, and an exam-eve goodnight"),
     ("next", "Widgets you can answer from the Home Screen"),
     ("next", "A shared Squad sky and a term-end Wrapped"),
-    ("next", "Studying by voice with VoiceOver, then eight more languages, then Apple Watch"),
+    ("next", "VoiceOver gestures for studying by voice, then eight more languages, then Apple Watch"),
 ]
 
 # Open questions at the very end, after the reference list: a labelled text box each. The gateway saves what is typed as it is typed, and one with
