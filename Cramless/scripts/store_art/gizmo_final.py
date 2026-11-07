@@ -20,6 +20,7 @@ from mimic_a import mk, sk, W, H, put, WHITE  # noqa: E402
 SH = dict(blur=34, dy=22, alpha=0.34, colour=(30, 6, 90))
 
 SHEET_ROW = 1768      # in graded-full.png: the card's bottom edge; the verdict sheet starts a few rows below it
+CTA_ICON = (60 + 332, 1368 + 36, 60 + 392, 1368 + 108)   # the sparkles in the Today capture's button; launch_set.py names its own
 
 
 def card(name, width):
@@ -59,7 +60,7 @@ def big_cta(width=1000, height=228, lip=18, text="Study \u00b7 15 min", size=96)
     d.rounded_rectangle((0, lp, w - 1, h + lp - 1), h // 2, fill=sk.TANGERINE_EDGE)
     d.rounded_rectangle((0, 0, w - 1, h - 1), h // 2, fill=sk.TANGERINE)
     # the real icon: the dark glyph left of the label in the Today screen's button, as a mask
-    real = sk._open("today").crop((60 + 332, 1368 + 36, 60 + 392, 1368 + 108)).convert("RGB")
+    real = sk._open("today").crop(CTA_ICON).convert("RGB")
     a = np.asarray(real).astype(float)
     fill, ink = np.array(sk.TANGERINE, float), np.array(sk.NIGHT, float)
     m = np.clip(np.abs(a - fill).sum(axis=2) / np.abs(ink - fill).sum(), 0, 1)
