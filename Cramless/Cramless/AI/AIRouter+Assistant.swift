@@ -430,10 +430,12 @@ extension AIRouter {
         case failed(message: String, needsPro: Bool)
     }
 
-    /// Runs web research on trusted study sites, reporting each step of it: shared by Ask Cap's tool and "Fill the gap". Nothing is saved here. The relay
-    /// refuses it for a free plan (`needsPro`) and for anyone under 18.
+    /// Runs web research on trusted study sites, reporting each step of it: shared by Ask Cap's tool and "Fill the gap". Nothing is saved here. Nothing goes
+    /// out without Cloud AI's consent, read here so no caller has to remember it. The relay refuses it for a free plan (`needsPro`) and for anyone under 18.
     func research(topic: String, focus: String?, course: String?, update: @escaping @MainActor (ResearchResult) -> Void) async -> ResearchRun {
-        guard let transport else { return .failed(message: String(localized: "Say what to research."), needsPro: false) }
+        guard cloudStillAllowed(), let transport else {
+            return .failed(message: String(localized: "Web research needs Cloud AI, which is off."), needsPro: false)
+        }
         var result = ResearchResult(topic: topic)
         let request = ResearchRequest(minor: app?.settings.isMinor ?? false, topic: topic, focus: focus, course: course).fitted()
         do {
