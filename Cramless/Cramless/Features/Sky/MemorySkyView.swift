@@ -20,6 +20,8 @@ struct MemorySkyView: View {
     /// What the screen's chrome covers at the top and the bottom, so the sky is framed in what's left.
     var insetTop = 0.0
     var insetBottom = 0.0
+    /// The screen's safe area, which those insets count from. It arrives after the first layout, so the camera is framed again when it does.
+    var safeArea = EdgeInsets()
     var onRelight: (Int) -> Void = { _ in }
     /// Called once the relight has played (or has been skipped), so the owner can clear it.
     var onPlayed: () -> Void = {}
@@ -94,6 +96,7 @@ struct MemorySkyView: View {
             }
             .onChange(of: focus) { frame(size: size, fit: fit, animated: true) }
             .onChange(of: size) { viewSize = size; frame(size: size, fit: fit, animated: false) }
+            .onChange(of: safeArea) { frame(size: size, fit: fit, animated: false) }
             .task(id: relightKey) { await play() }
         }
         .accessibilityElement(children: .contain)
