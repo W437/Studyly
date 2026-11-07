@@ -50,11 +50,11 @@ struct CLButtonStyle: ButtonStyle {
             .frame(maxWidth: fullWidth ? .infinity : nil)
             .frame(minHeight: height - depth)
             .foregroundStyle(foreground)
-            .background(background(pressed: pressed), in: Capsule())
+            .background(background(pressed: pressed), in: shape)
             // The face sinks onto its edge while pressed; the edge stays put underneath.
             .offset(y: pressed ? depth : 0)
             .background {
-                if depth > 0 { Capsule().fill(edge).offset(y: depth) }
+                if depth > 0 { shape.fill(edge).offset(y: depth) }
             }
             .padding(.bottom, depth)
             // The small size draws 38 pt but takes taps over 44 pt, the minimum target.
@@ -63,6 +63,11 @@ struct CLButtonStyle: ButtonStyle {
             .scaleEffect(pressed && depth == 0 ? 0.965 : 1)
             .opacity(isEnabled ? 1 : 0.4)
             .animation(pressed ? CLMotion.press : CLMotion.release, value: pressed)
+    }
+
+    /// A capsule; at the accessibility sizes, where a label can take two or three lines, a rounded box that keeps its corners off the words.
+    private var shape: AnyShape {
+        typeSize.isAccessibilitySize ? AnyShape(RoundedRectangle(cornerRadius: 24, style: .continuous)) : AnyShape(Capsule())
     }
 
     /// How far the face stands above its edge.

@@ -18,13 +18,16 @@ struct TodayNoticeCard: View {
     var onOpen: (CapNotice.Link) -> Void
     var onHide: () -> Void = {}
 
+    @Environment(\.dynamicTypeSize) private var typeSize
+
     var body: some View {
+        // At the largest text the words take the card's whole width: beside the face, "Cap noticed" breaks inside a word.
+        let large = typeSize.isAccessibilitySize
         HStack(alignment: .top, spacing: 12) {
-            CapFace(size: 44)
+            if !large { CapFace(size: 44) }
             VStack(alignment: .leading, spacing: 4) {
-                HStack(alignment: .firstTextBaseline) {
-                    CLEyebrow(text: "Cap noticed", color: CLColor.tangerineInk)
-                        .accessibilityHidden(true)
+                HStack(alignment: large ? .center : .firstTextBaseline) {
+                    if large { CapFace(size: 44) } else { eyebrow }
                     Spacer(minLength: 8)
                     if total > 1, !notice.isConfirmation {
                         Text(verbatim: TodayCopy.noticeCount(index, of: total))
@@ -37,6 +40,7 @@ struct TodayNoticeCard: View {
                 }
                 // The menu's hit area reaches over the title's first line; it stays on top.
                 .zIndex(1)
+                if large { eyebrow.fixedSize(horizontal: false, vertical: true) }
                 titleView
                 Text(verbatim: notice.detail)
                     .clFont(.subheadline)
@@ -53,6 +57,11 @@ struct TodayNoticeCard: View {
                                  : String(localized: "Cap noticed")))
     }
 
+    private var eyebrow: some View {
+        CLEyebrow(text: "Cap noticed", color: CLColor.tangerineInk)
+            .accessibilityHidden(true)
+    }
+
     /// A button's words are never cut: what it costs goes beside the buttons when all of it fits, and under them when it doesn't.
     @ViewBuilder private var buttons: some View {
         if notice.isConfirmation {
@@ -64,6 +73,11 @@ struct TodayNoticeCard: View {
                         .buttonStyle(.cl(.ghost, size: .medium, fullWidth: false))
                         .accessibilityHint("Takes the minutes off your plan")
                 }
+            }
+        } else if typeSize.isAccessibilitySize {
+            VStack(alignment: .leading, spacing: 6) {
+                actionButtons
+                costCaption
             }
         } else {
             ViewThatFits(in: .horizontal) {
@@ -86,10 +100,10 @@ struct TodayNoticeCard: View {
     @ViewBuilder private var actionButtons: some View {
         if let action = notice.action {
             Button(action.title) { onAction(action) }
-                .buttonStyle(.cl(.dark, size: .medium, fullWidth: false))
+                .buttonStyle(.cl(.dark, size: .medium, fullWidth: typeSize.isAccessibilitySize))
         }
         Button("Later", action: onLater)
-            .buttonStyle(.cl(.ghost, size: .medium, fullWidth: false))
+            .buttonStyle(.cl(.ghost, size: .medium, fullWidth: typeSize.isAccessibilitySize))
             .accessibilityHint("Cap brings it up tomorrow")
     }
 
@@ -134,7 +148,7 @@ struct TodayNoticeCard: View {
     }
 }
 
-/// The eve's line in Cap's place: he is quiet tonight, and the other exams wait until after this one.
+/// The eve's line in Cap's place: he is quiet today, and the other exams wait until after this one.
 struct TodayQuietLine: View {
     let text: String
 

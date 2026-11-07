@@ -33,7 +33,7 @@ struct DiagramQuestionView: View {
     private var targets: [DiagramTarget] { item.diagram?.targets ?? [] }
 
     var body: some View {
-        QuestionScroll {
+        QuestionScroll(revealsDetails: panel != nil) {
             QuestionCard {
                 QuestionHeader(item: item, entry: entry, topic: runner.topicName(entry.topicID))
                 Text(item.prompt)
@@ -52,6 +52,7 @@ struct DiagramQuestionView: View {
                         .padding(.top, 16)
                 } else if let panel {
                     AccessibilityOnly { FeedbackDetails(feedback: panel).padding(.top, 10) }
+                        .id(QuestionScroll<EmptyView>.detailsID)
                 }
             }
             AccessibilityOnly { secondary }

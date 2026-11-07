@@ -387,7 +387,10 @@ struct ItemEditorView: View {
         let source = app.source(ref.sourceID)
         let isLecture = source?.kind == .lecture
         return Section {
-            if let source, source.deletedAt == nil {
+            if let source, source.deletedAt == nil, !app.opens(ref) {
+                // A card from an imported deck: where it came from, and nothing to open.
+                Text(verbatim: source.title).clFont(.subheadline).foregroundStyle(CLColor.ink2)
+            } else if let source, source.deletedAt == nil {
                 NavigationLink(value: isLecture ? Route.lectureNotes(ref.sourceID)
                                : Route.sourcePage(sourceID: ref.sourceID, pageIndex: ref.pageIndex ?? 0, highlight: ref.anchorIDs)) {
                     HStack(spacing: 10) {

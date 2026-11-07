@@ -30,7 +30,7 @@ struct ClozeQuestionView: View {
     private var tokens: [ClozeToken] { ClozeToken.parse(spec.text) }
 
     var body: some View {
-        QuestionScroll {
+        QuestionScroll(revealsDetails: panel != nil) {
             QuestionCard {
                 QuestionHeader(item: item, entry: entry, topic: runner.topicName(entry.topicID))
                 if !item.prompt.isEmpty, item.prompt != spec.text {
@@ -48,6 +48,7 @@ struct ClozeQuestionView: View {
                 .accessibilityElement(children: .contain)
                 if let panel {
                     AccessibilityOnly { FeedbackDetails(feedback: panel).padding(.top, 10) }
+                        .id(QuestionScroll<EmptyView>.detailsID)
                 }
             }
             AccessibilityOnly { secondary }

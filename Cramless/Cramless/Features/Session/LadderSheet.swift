@@ -19,6 +19,13 @@ struct LadderSheet: View {
     @State private var showsAnswer = false
     @State private var contentHeight: CGFloat = 320
     @State private var detent: PresentationDetent = .height(320)
+    @Environment(\.dynamicTypeSize) private var typeSize
+
+    /// The harder question on screen, to add.
+    private var proposed: UUID? {
+        if case .proposal(let id) = phase, app.item(id)?.modelContext != nil { return id }
+        return nil
+    }
 
     var body: some View {
         ScrollView {
@@ -44,6 +51,9 @@ struct LadderSheet: View {
             }
         }
         .scrollBounceBehavior(.basedOnSize)
+        .pinnedActionAtLargeText(when: proposed != nil) {
+            if let id = proposed { addButton(id) }
+        }
         .captureDebugCanvas(widthOnly: true)
         .background(CLColor.background.ignoresSafeArea())
         .presentationDetents([.height(contentHeight), .large], selection: $detent)
@@ -99,13 +109,7 @@ struct LadderSheet: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .clCard(padding: 16)
-            Button("Add it") {
-                CLHaptics.success()
-                if app.adoptRung(id) {
-                    withAnimation(CLMotion.fade) { phase = .added(id) }
-                }
-            }
-            .buttonStyle(.cl(.primary))
+            if !typeSize.isAccessibilitySize { addButton(id) }
             Button("Not this one") {
                 CLHaptics.tap()
                 app.declineRung(id)
@@ -113,6 +117,16 @@ struct LadderSheet: View {
             }
             .buttonStyle(.cl(.soft))
         }
+    }
+
+    private func addButton(_ id: UUID) -> some View {
+        Button("Add it") {
+            CLHaptics.success()
+            if app.adoptRung(id) {
+                withAnimation(CLMotion.fade) { phase = .added(id) }
+            }
+        }
+        .buttonStyle(.cl(.primary))
     }
 
     @ViewBuilder

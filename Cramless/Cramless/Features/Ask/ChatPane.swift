@@ -127,9 +127,11 @@ struct ChatPane: View {
                     FreeAnswersNote()
                     if showsEmptyState, entries.isEmpty, live == nil, draft.isEmpty, hasMaterial {
                         AskDockChipRow(chips: dockChips, onTap: tap)
+                            // Its row runs to the screen's edge, past the sides of the sheet that opens over it.
+                            .opacity(snapSession == nil ? 1 : 0)
                     }
                     ChatComposer(text: $draft, focused: $composerFocused, isAnswering: live != nil,
-                                 placeholder: "Ask about your notes…", thread: thread, showsMode: true,
+                                 placeholder: "Ask Cap…", thread: thread, showsMode: true,
                                  onCamera: canSnap ? { snap() } : nil,
                                  onSend: { send(draft) },
                                  onStop: { if let id = threadID { streams.stop(id, app: app) } })

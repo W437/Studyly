@@ -149,9 +149,17 @@ struct ExplainMistakeView: View {
                         checkPage(steps: steps, first: first, entries: entries, live: live, item: item)
                     }
                     if !followingUp && typeSize.isAccessibilitySize {
-                        // At the largest text sizes the buttons end the page instead of covering half of it.
-                        pagerButtons(steps: steps, shown: shown, live: live)
-                            .padding(.top, 8)
+                        // At the largest text sizes the dots and Back end the page instead of covering half of it.
+                        VStack(spacing: 10) {
+                            if steps.total > 1 {
+                                MistakeStepDots(current: position(of: shown, in: steps), total: steps.total)
+                            }
+                            if let back = previous(shown, in: steps) {
+                                Button("Back") { go(to: back, steps: steps) }
+                                    .buttonStyle(.cl(.soft))
+                            }
+                        }
+                        .padding(.top, 8)
                     }
                     Color.clear.frame(height: 1).id("end")
                 }
@@ -298,8 +306,15 @@ struct ExplainMistakeView: View {
                              },
                              onStop: { if let id = threadID { streams.stop(id, app: app) } })
             }
-        } else if !typeSize.isAccessibilitySize {
-            pagerButtons(steps: steps, shown: shown, live: live)
+        } else {
+            // At the largest text sizes only the way on stays in reach, one button tall, held at the size a session's footer holds; the dots and Back end the page.
+            Group {
+                if typeSize.isAccessibilitySize {
+                    forwardButton(steps: steps, shown: shown).dynamicTypeSize(...DynamicTypeSize.accessibility2)
+                } else {
+                    pagerButtons(steps: steps, shown: shown, live: live)
+                }
+            }
                 .padding(.horizontal, CLSpace.gutter)
                 .padding(.top, 10)
                 .padding(.bottom, 6)
@@ -330,6 +345,11 @@ struct ExplainMistakeView: View {
             Button("Back") { go(to: back, steps: steps) }
                 .buttonStyle(.cl(.soft))
         }
+        forwardButton(steps: steps, shown: shown)
+    }
+
+    @ViewBuilder
+    private func forwardButton(steps: MistakeSteps, shown: MistakeSteps.Page) -> some View {
         if isLast(shown, in: steps) {
             Button(isOverSession ? "Back to my session" : "Done") { close() }
                 .buttonStyle(.cl(.primary))

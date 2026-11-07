@@ -30,10 +30,12 @@ struct HeroWorldGeometry: Equatable, Sendable {
     /// Today's band under the status bar, the same on every phone, and the low band at the accessibility text sizes.
     static let bandHeight: CGFloat = 188
     static let compactBand: CGFloat = 180
+    /// What a screen under 700 points gives up, so the day's card, its links included, clears the floating tab bar before any scroll.
+    static let shortTrim: CGFloat = 20
 
     /// Today's band for a screen `width` wide whose status bar is `topInset` tall.
-    static func band(width: CGFloat, topInset: CGFloat, compact: Bool) -> HeroWorldGeometry {
-        HeroWorldGeometry(width: width, height: topInset + (compact ? compactBand : bandHeight), topInset: topInset,
+    static func band(width: CGFloat, topInset: CGFloat, compact: Bool, short: Bool = false) -> HeroWorldGeometry {
+        HeroWorldGeometry(width: width, height: topInset + (compact ? compactBand : short ? bandHeight - shortTrim : bandHeight), topInset: topInset,
                           compact: compact, style: .band)
     }
 
@@ -56,8 +58,8 @@ struct HeroWorldGeometry: Equatable, Sendable {
 
     // MARK: The ground and Cap
 
-    /// Cap's size: in the band he stands on the shore at 96 pt; in the welcome's world he is large, in the scene and not beside it.
-    var capSize: CGFloat { compact ? 0 : isBand ? 96 : min(196, max(120, width * 0.46)) }
+    /// Cap's size: in the band he stands on the shore at 96 pt (76 in a short band, so his head stays clear of the greeting); in the welcome's world he is large, in the scene and not beside it.
+    var capSize: CGFloat { compact ? 0 : isBand ? (band < Self.bandHeight ? 76 : 96) : min(196, max(120, width * 0.46)) }
     /// Where the water's top edge is, and how deep it is: the lake mirrors the stars above it (in the world; the band's is a strip).
     var lakeTop: CGFloat { height - (compact ? 14 : isBand ? 16 : 50) }
     var lakeDepth: CGFloat { compact ? 10 : isBand ? 12 : 34 }

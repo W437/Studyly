@@ -28,7 +28,7 @@ struct ChoiceQuestionView: View {
     private var correctIndex: Int? { choices.firstIndex(where: \.correct) }
 
     var body: some View {
-        QuestionScroll {
+        QuestionScroll(revealsDetails: panel != nil) {
             QuestionCard {
                 QuestionHeader(item: item, entry: entry, topic: runner.topicName(entry.topicID))
                 Text(item.prompt)
@@ -45,6 +45,7 @@ struct ChoiceQuestionView: View {
                 .padding(.top, 18)
                 if let panel {
                     AccessibilityOnly { FeedbackDetails(feedback: panel).padding(.top, 10) }
+                        .id(QuestionScroll<EmptyView>.detailsID)
                 }
             }
             AccessibilityOnly { secondary }
@@ -250,24 +251,23 @@ struct ChoiceOptionTile: View {
     @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
-        HStack(alignment: typeSize.isAccessibilitySize ? .top : .center, spacing: 12) {
-            Text(letter)
-                .clFont(.number(14, .bold))
-                .foregroundStyle(state.isMarked ? CLColor.onFill : CLColor.ink2)
-                .frame(width: 28, height: 28)
-                .background(state.keyFill, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
-            Text(text)
-                .clFont(.bodyEmphasis)
-                .foregroundStyle(CLColor.ink)
-                .multilineTextAlignment(.leading)
-                .fixedSize(horizontal: false, vertical: true)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            if state.isMarked {
-                Image(systemName: symbol)
-                    .font(.system(size: 20, weight: .semibold))
-                    .foregroundStyle(symbolInk)
-                    // Draws itself on; symbol effects follow the system's Reduce Motion by themselves.
-                    .transition(.symbolEffect(.drawOn))
+        Group {
+            if typeSize.isAccessibilitySize {
+                // The words take the whole width, so a long word isn't broken in two: the letter and the mark sit above them.
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 12) {
+                        key
+                        Spacer(minLength: 0)
+                        mark
+                    }
+                    words
+                }
+            } else {
+                HStack(alignment: .center, spacing: 12) {
+                    key
+                    words
+                    mark
+                }
             }
         }
         .padding(.horizontal, 14)
@@ -276,6 +276,33 @@ struct ChoiceOptionTile: View {
         .background(state.fill, in: RoundedRectangle(cornerRadius: CLRadius.option, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: CLRadius.option, style: .continuous)
             .strokeBorder(state.border, lineWidth: 2))
+    }
+
+    private var key: some View {
+        Text(letter)
+            .clFont(.number(14, .bold))
+            .foregroundStyle(state.isMarked ? CLColor.onFill : CLColor.ink2)
+            .frame(width: 28, height: 28)
+            .background(state.keyFill, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+    }
+
+    private var words: some View {
+        Text(text)
+            .clFont(.bodyEmphasis)
+            .foregroundStyle(CLColor.ink)
+            .multilineTextAlignment(.leading)
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    @ViewBuilder private var mark: some View {
+        if state.isMarked {
+            Image(systemName: symbol)
+                .font(.system(size: 20, weight: .semibold))
+                .foregroundStyle(symbolInk)
+                // Draws itself on; symbol effects follow the system's Reduce Motion by themselves.
+                .transition(.symbolEffect(.drawOn))
+        }
     }
 
     private var symbol: String {

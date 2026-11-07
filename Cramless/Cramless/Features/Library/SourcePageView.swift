@@ -18,6 +18,7 @@ struct SourcePageView: View {
     var closes = false
 
     @Environment(AppModel.self) private var app
+    @Environment(\.dynamicTypeSize) private var typeSize
     @Environment(\.dismiss) private var dismiss
     @State private var shown: Int?
     @State private var showsText = false
@@ -193,15 +194,22 @@ struct SourcePageView: View {
     }
 
     private func controls(pages: [PageInfo], current: PageInfo, position: Int) -> some View {
-        HStack(spacing: 10) {
+        // At the largest text sizes the chips and the pager each take a line, so no chip shrinks or breaks.
+        (typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8)) : AnyLayout(HStackLayout(spacing: 10))) {
             if current.hasImage {
                 Button {
                     CLHaptics.select()
                     showsText.toggle()
                 } label: {
-                    ViewThatFits(in: .horizontal) {
-                        CLChip(title: "Recognised text", systemImage: "text.viewfinder", selected: showsText).fixedSize()
-                        CLChip(title: "Text", systemImage: "text.viewfinder", selected: showsText).fixedSize()
+                    Group {
+                        if typeSize.isAccessibilitySize {
+                            CLChip(title: "Recognised text", systemImage: "text.viewfinder", selected: showsText)
+                        } else {
+                            ViewThatFits(in: .horizontal) {
+                                CLChip(title: "Recognised text", systemImage: "text.viewfinder", selected: showsText).fixedSize()
+                                CLChip(title: "Text", systemImage: "text.viewfinder", selected: showsText).fixedSize()
+                            }
+                        }
                     }
                     .frame(minHeight: CLMetrics.minHitTarget)
                     .contentShape(Rectangle())
@@ -220,7 +228,7 @@ struct SourcePageView: View {
                 }
                 .buttonStyle(.plain)
             }
-            Spacer(minLength: 4)
+            if !typeSize.isAccessibilitySize { Spacer(minLength: 4) }
             if pages.count > 1 {
                 CLIconButton(systemImage: "chevron.left", label: "Previous page") { go(to: position - 1, in: pages) }
                     .disabled(position == 0)

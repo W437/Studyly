@@ -46,7 +46,8 @@ struct TodayView: View {
 
     /// Where everything in the band sits on this screen, and so what shape its sky is laid out for.
     private func heroGeometry(_ geo: GeometryProxy) -> HeroWorldGeometry {
-        HeroWorldGeometry.band(width: geo.size.width, topInset: geo.safeAreaInsets.top, compact: textSize.isAccessibilitySize)
+        HeroWorldGeometry.band(width: geo.size.width, topInset: geo.safeAreaInsets.top, compact: textSize.isAccessibilitySize,
+                               short: geo.size.height + geo.safeAreaInsets.top + geo.safeAreaInsets.bottom < 700)
     }
 
     /// The text size Today is drawn at: the person's, or in DEBUG `CRAMLESS_TODAY_TYPE=xxxl|ax1…ax5` (to look at the largest sizes
