@@ -236,4 +236,12 @@ final class SquadTests: AskTestCase {
         XCTAssertEqual(members.members[1].studiedToday, true)
         XCTAssertTrue(try RelayFixtures.load(SquadStudiedResponse.self, "squad-studied").recorded)
     }
+
+    func testServerWordsNeverReachTheScreen() {
+        XCTAssertEqual(RelayError.badRequest("There's no such endpoint.").friendlyMessage, RelayError.couldNotDoIt, "a build newer than its server")
+        XCTAssertEqual(RelayError.badRequest("That method isn't supported here.").friendlyMessage, RelayError.couldNotDoIt)
+        XCTAssertEqual(RelayError.badRequest("That Squad is full.").friendlyMessage, "That Squad is full.", "words meant for the person stay")
+        XCTAssertEqual(String(localized: SquadCopy.switchOnFailed), "Couldn't turn this on. Try again in a while.")
+        XCTAssertEqual(String(localized: SquadCopy.switchOffFailed), "Couldn't turn this off. Try again in a while.")
+    }
 }

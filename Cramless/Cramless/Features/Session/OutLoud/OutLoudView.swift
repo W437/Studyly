@@ -130,6 +130,10 @@ private struct OutLoudIntroView: View {
                 .clFont(.headline)
                 .foregroundStyle(CLColor.ink)
                 .fixedSize(horizontal: false, vertical: true)
+            Text(OutLoudCopy.whyFewer)
+                .clFont(.subheadline)
+                .foregroundStyle(CLColor.ink2)
+                .fixedSize(horizontal: false, vertical: true)
             Label(OutLoudCopy.screenOff, systemImage: "lock.fill")
                 .clFont(.subheadline)
                 .foregroundStyle(CLColor.ink2)
@@ -231,11 +235,7 @@ private struct OutLoudSessionView: View {
     let controller: OutLoudController
     let onClose: () -> Void
 
-    @Environment(\.dynamicTypeSize) private var typeSize
-
     var body: some View {
-        // At the largest text sizes the buttons go with the page, so the question has the screen.
-        let pinned = !typeSize.isAccessibilitySize
         VStack(spacing: 0) {
             SessionTopBar(runner: controller.runner, onClose: onClose)
             ScrollView {
@@ -253,10 +253,9 @@ private struct OutLoudSessionView: View {
                 .padding(.horizontal, CLSpace.gutter)
                 .padding(.vertical, 8)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                if !pinned { OutLoudControls(controller: controller) }
             }
             .scrollBounceBehavior(.basedOnSize)
-            if pinned { OutLoudControls(controller: controller) }
+            OutLoudControls(controller: controller)
         }
         .overlay { SkyFlareView(flare: controller.runner.saveFlare) }
         .animation(CLMotion.settle, value: controller.verdict)
@@ -289,6 +288,8 @@ private struct OutLoudStatus: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
+            // One label for each state: never one word fading over the last, whatever the page around it is animating.
+            .transaction { $0.animation = nil }
             Spacer(minLength: 0)
         }
         .accessibilityElement(children: .combine)
@@ -309,6 +310,8 @@ private struct OutLoudStatus: View {
         case .listening: OutLoudCopy.yourTurn
         case .checking: OutLoudCopy.checking
         case .paused(let pause): pause.line
+        // Graded, or only said: a flashcard's answer, or one asked for with "I don't know".
+        case .verdict: controller.verdict?.tone == .neutral ? OutLoudCopy.theAnswer : OutLoudCopy.howItWent
         default: OutLoudCopy.asking
         }
     }
@@ -432,14 +435,20 @@ private struct OutLoudControls: View {
         .padding(.bottom, 12)
     }
 
-    /// Repeat and Skip side by side, Pause as a mark beside them, which leaves their words room on the smallest iPhone. At the largest text sizes, a column.
+    /// Repeat and Skip side by side, Pause as a mark beside them, which leaves their words room on the smallest iPhone. At the largest text sizes, three marks in a row: the words
+    /// won't fit, and a column of three would cover the question. VoiceOver and a long press say what they are.
     @ViewBuilder private var buttons: some View {
         if typeSize.isAccessibilitySize {
-            VStack(spacing: 8) {
-                repeatButton
-                skipButton
-                Button(action: pause) { Label("Pause", systemImage: "pause") }
-                    .buttonStyle(.cl(.soft, size: .medium))
+            HStack(spacing: 8) {
+                markButton(OutLoudActivityCopy.repeatTitle, systemImage: "arrow.counterclockwise") {
+                    CLHaptics.tap()
+                    controller.perform(.repeatQuestion)
+                }
+                markButton(OutLoudActivityCopy.skipTitle, systemImage: "forward.end") {
+                    CLHaptics.tap()
+                    controller.perform(.skip)
+                }
+                markButton("Pause", systemImage: "pause", action: pause)
             }
         } else {
             HStack(spacing: 8) {
@@ -448,6 +457,15 @@ private struct OutLoudControls: View {
                 CLIconButton(systemImage: "pause.fill", label: String(localized: "Pause"), action: pause)
             }
         }
+    }
+
+    private func markButton(_ title: LocalizedStringResource, systemImage: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: systemImage)
+        }
+        .buttonStyle(.cl(.soft, size: .medium))
+        .accessibilityLabel(Text(title))
+        .accessibilityShowsLargeContentViewer { Label { Text(title) } icon: { Image(systemName: systemImage) } }
     }
 
     private var repeatButton: some View {

@@ -216,13 +216,17 @@ extension RelayError {
         case .unauthorized: "Your sign-in has expired. Sign in again, then try once more."
         case .quotaExceeded(_, let message): message
         case .entitlementRequired: "Inviting friends is part of the Squad plan."
-        case .badRequest(let message): message
+        case .badRequest(let message): Self.serverWords.contains(message) ? Self.couldNotDoIt : message
         case .upstream: "Something went wrong on our side. Try again in a moment."
         case .offline: "You're offline. Try again when you're connected."
         case .decoding: "Something went wrong on our side. Try again in a moment."
         case .cancelled: nil
         }
     }
+
+    /// The relay's words for a call it can't take, which mean something only to a developer (a build newer than the server, say). What's said for them instead.
+    static let serverWords: Set<String> = ["There's no such endpoint.", "That method isn't supported here.", "The request needs a JSON body.", "The request is too large."]
+    static let couldNotDoIt = "That didn't work. Try again in a while."
 
     /// Any error as the words above (a non-relay error reads as "something went wrong").
     static func message(for error: Error) -> String? {

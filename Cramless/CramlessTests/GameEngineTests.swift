@@ -374,6 +374,12 @@ final class AchievementEngineTests: XCTestCase {
         }
     }
 
+    func testASaveBadgeSaysTheRealNumber() {
+        XCTAssertEqual(String(localized: Badge.saves10.earned(saves: 10)), "You saved 10 stars that were fading.")
+        XCTAssertEqual(String(localized: Badge.saves10.earned(saves: 12)), "You've saved 12 stars that were fading.", "never 10 above \"12 saved\"")
+        XCTAssertEqual(String(localized: Badge.firstSession.earned(saves: 12)), String(localized: Badge.firstSession.blurb))
+    }
+
     func testTargetsAreWhatTheBadgesSay() {
         XCTAssertEqual(Badge.saves10.target, 10)
         XCTAssertEqual(Badge.ownWords25.target, 25)

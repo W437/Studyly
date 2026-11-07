@@ -206,8 +206,8 @@ enum SessionCopy {
 
     static func questions(_ n: Int) -> String { n == 1 ? "1 question" : "\(n) questions" }
 
-    /// "5 more questions".
-    static func moreQuestions(_ n: Int) -> String { n == 1 ? "1 more question" : "\(n) more questions" }
+    /// "Another session: 5 questions". What the button starts is a fresh short session of that size, not what's left of this one.
+    static func anotherSession(_ n: Int) -> String { String(localized: "Another session: \(questions(n))") }
 
     /// A phrase that mustn't break across lines ("Bio 101 exam", "23 days left"): spaces become non-breaking when
     /// it's short enough to fit a line.
