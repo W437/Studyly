@@ -1912,6 +1912,23 @@ for Stages 3 and 4 (none shared).
   and a test that started an account signed up 28 anonymous users on the live project (22:14 UTC, 6 Nov; no AI calls, no
   data). `AppConfig.resolve` now never reads the backend from Info.plist in a test run (55330e1).
 
+### Release 1.0: the deploy and build 6 (2026-11-07)
+
+- **Live checks before the deploy:** the first run had 3 failures. Two were the test's own: its "Looks wrong?" items named only
+  the "Anaphase" heading, so the model rightly called them unsupported (they now name the column's lines too). One was real: a
+  look-alike lesson's practice questions came back as recall with no key ideas and the relay's sanitizer dropped every one; a short
+  answer (up to six words) is now its own key idea there, generate unchanged (91262c0, with a test). Rerun of every new route:
+  47 passed, 0 failed, about 1.4 cents. Tutor bakeoff (problem and mistake groups, Terra low): a snapped problem's answer handed
+  over in hints mode 1 of 10 (bar 13%), every covered problem shown with a kept quote, mistake 3 of 3.
+- **Production, with the owner's approval:** migrations `20261107000000_cramless_rung_of` and `20261108000000_cramless_squad_activity`
+  applied through the Supabase MCP (their recorded versions set to the files' names, so `supabase db push` sees them as applied);
+  then `account` v2 and `ai` v14 deployed from 91262c0. Both answer 401 in the contract's envelope without a session.
+- **Build 1.0 (6)** at 91262c0 (the app as at 99164b0: the time zone declared in the privacy manifest and the build number):
+  full suite 2,344 run, 27 skipped, 0 failures, no test reaching the real host. IPA checked: 1.0 (6), widget 6, iPhone only,
+  Apple Distribution: Loopware LLC, get-task-allow false, no device list, the relay address set. SHA-256
+  `1d997871932787e1e597a2ae0a079e88245bdd3c7d1010653cc98bf5b2855508`. Uploaded with the owner's approval (delivery
+  a08e0307-602c-47c7-acc2-b82948a1a214).
+
 ## Left for the owner
 
 - Accounts and keys (see README "Before the App Store"):
