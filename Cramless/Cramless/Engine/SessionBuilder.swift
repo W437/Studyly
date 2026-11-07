@@ -439,7 +439,9 @@ struct SessionBuilder: Sendable {
 
         let newCost = newPicks.reduce(0) { $0 + $1.cost }
         let newReserve = min(newCost, budget * Self.newShare)
-        let weakReserve = spots.isEmpty ? 0 : budget * Self.weakShare
+        // Weak spots hold time back only from what's spare. Out of a full day it would come from new questions, and a mix-up put off with "Not now" would cost the next exam points.
+        let spoken = priority.reduce(dueSeconds) { $0 + $1.cost }
+        let weakReserve = spots.isEmpty ? 0 : min(budget * Self.weakShare, max(0, budget - spoken - newCost))
         let reviewLimit = max(budget - newReserve - weakReserve, budget * 0.5)
 
         fill(learning, .due, limit: budget)
