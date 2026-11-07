@@ -102,7 +102,7 @@ final class TeachSession {
         guard phase == .prompt else { return }
         note = nil
         phase = .gettingReady(progress: nil)
-        listen(endpoint: .teaching, terms: plan.ideas.flatMap(\.idea.terms), phase: .listening) { [weak self] heard in
+        listen(endpoint: .teaching, terms: plan.ideas.flatMap(\.hearingTerms), phase: .listening) { [weak self] heard in
             self?.heard(heard)
         } finished: { [weak self] hearing in
             self?.finishedListening(hearing)
@@ -209,7 +209,7 @@ final class TeachSession {
     func sayFollowUp() {
         guard phase == .followUp else { return }
         phase = .gettingReady(progress: nil)
-        listen(endpoint: .answer, terms: followUp?.idea.idea.terms ?? [], phase: .followUpListening) { [weak self] heard in
+        listen(endpoint: .answer, terms: followUp?.idea.hearingTerms ?? [], phase: .followUpListening) { [weak self] heard in
             self?.followUpWords = heard
         } finished: { [weak self] hearing in
             guard let self else { return }
@@ -281,8 +281,8 @@ final class TeachSession {
 
     /// The missing idea as a question. Once.
     func addMissingIdea() {
-        guard addedIdea == nil, let idea = followUp?.idea, app.addMissingIdea(idea, topicID: plan.topicID) != nil else { return }
-        addedIdea = idea.label
+        guard addedIdea == nil, let idea = followUp?.idea, let made = app.addMissingIdea(idea, topicID: plan.topicID) else { return }
+        addedIdea = made.prompt
     }
 
     // MARK: The microphone

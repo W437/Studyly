@@ -8,7 +8,9 @@ import Foundation
 /// words and stemming ("divides" meets "divide", "broke" meets "break"), with one typo forgiven in words of five
 /// letters or more (two from nine). A term preceded by a negation in the same clause ("doesn't help it grow")
 /// does not count. Marks are the exact character ranges of the matched words in the person's answer, so the
-/// highlighter only ever marks what they wrote.
+/// highlighter only ever marks what they wrote. An idea that is a whole statement (`GradeSubject.wholeIdeas`) has no
+/// chosen terms: it counts when enough of its own words are there (`statementWordsNeeded`), never on one shared word
+/// when it has more to say.
 ///
 /// Fill-ins, choices and diagram labels are checked exactly, with the item's alternates, word forms and one typo.
 enum LocalGrader {
@@ -67,7 +69,13 @@ enum LocalGrader {
             var ranges: [Range<Int>] = []
             var negated = false
             var exactSeen = false
-            for term in idea.terms {
+            if subject.wholeIdeas.contains(idea.id) {
+                let found = statementMatch(idea.label, promptStems: promptStems, in: tokens)
+                ranges = found.ranges
+                negated = found.negated
+                exactSeen = found.exact
+            }
+            for term in subject.wholeIdeas.contains(idea.id) ? [] : idea.terms {
                 let termTokens = Lexicon.tokens(term)
                 let termStems = termTokens.filter(\.isContent).map(\.stem)
                 // A term that only repeats the question ("mitosis" for "Why does mitosis matter?") proves nothing.
@@ -123,6 +131,39 @@ enum LocalGrader {
                                 modelAnswer: subject.modelAnswer, negatedOnly: negatedOnly)
         return outcome(score: score, verdict: verdict, confidence: confidence, marks: marks, hit: hit, missing: missing,
                        feedback: copy.feedback, fix: copy.fix)
+    }
+
+    /// Words too general to show which statement was said: "the first phase" and "the last phase" share one.
+    private static let generalStems = Set(["part", "phase", "stage", "step", "type", "kind", "form", "way", "time", "thing", "process", "called", "known", "example"].map(Lexicon.stem))
+
+    /// How many of a statement's own words an answer needs: all of one or two; of more, half, at least two and at most four (nobody repeats a long sentence, and a paraphrase keeps its
+    /// main words).
+    static func statementWordsNeeded(of count: Int) -> Int {
+        count <= 2 ? count : min(4, max(2, (count + 1) / 2))
+    }
+
+    /// The answer's words that say this statement, when there are enough of them. The words that only repeat the question don't count, and neither do general ones.
+    private static func statementMatch(_ label: String, promptStems: Set<String>, in tokens: [Lexicon.Token]) -> (ranges: [Range<Int>], negated: Bool, exact: Bool) {
+        var seen = Set<String>()
+        let own = Lexicon.tokens(label).filter { $0.isContent && !promptStems.contains($0.stem) && !generalStems.contains($0.stem) && seen.insert($0.stem).inserted }
+        guard !own.isEmpty else { return ([], false, false) }
+        var ranges: [Range<Int>] = []
+        var shared = 0
+        var negated = false
+        var exact = true
+        for word in own {
+            let found = tokens.indices.filter { tokens[$0].isContent && Lexicon.match(word, tokens[$0]) != nil }
+            let said = found.filter { !Lexicon.isNegated(at: $0, in: tokens) }
+            if said.isEmpty {
+                if !found.isEmpty { negated = true }
+                continue
+            }
+            shared += 1
+            ranges += said.map { tokens[$0].range }
+            if !said.contains(where: { Lexicon.match(word, tokens[$0]) == .exact }) { exact = false }
+        }
+        guard shared >= statementWordsNeeded(of: own.count) else { return ([], negated && shared == 0, false) }
+        return (ranges, false, exact)
     }
 
     /// The words for an own-words grade, from which ideas were hit and which are missing. Every grader (these rules,

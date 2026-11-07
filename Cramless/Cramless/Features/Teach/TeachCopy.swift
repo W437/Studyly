@@ -37,7 +37,10 @@ enum TeachCopy {
     /// "4 of 6 ideas".
     static func ideasCount(_ covered: Int, of total: Int) -> LocalizedStringResource { "\(covered) of \(total) ideas" }
 
-    static func added(_ idea: String) -> LocalizedStringResource { "Question added: \(idea)" }
+    static let added: LocalizedStringResource = "Question added"
+
+    /// What Cap asks about a term: "Explain S phase in your own words."
+    static func explainTerm(_ term: String) -> String { String(localized: "Explain \(SessionCopy.lowerFirst(term)) in your own words.") }
 
     /// The question a missing idea becomes.
     static func questionFor(idea: String) -> String { String(localized: "Explain in your own words: \(idea).") }
