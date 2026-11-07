@@ -135,14 +135,15 @@ struct ReadinessEngine: Sendable {
         return scope(of: exam, in: items).filter { !$0.isStudied && $0.addedAt > since }
     }
 
-    /// How many new questions there are, while they hold the ring down by a point as the student reads it; 0 otherwise.
+    /// How many questions they haven't met yet, while the ones just added hold the ring down by a point as the student reads it; 0 otherwise. All of them: the line is about what
+    /// counts once studied, and one added two weeks ago and never seen doesn't count either.
     func newQuestionsShown(of exam: ExamSnapshot, in items: [ItemSnapshot]) -> Int {
         let new = newQuestions(of: exam, in: items)
         guard !new.isEmpty else { return 0 }
         let ids = Set(new.map(\.id))
         let without = value(of: exam, items: items.filter { !ids.contains($0.id) })
         let moved = Int((without * 100).rounded()) - Int((value(of: exam, items: items) * 100).rounded())
-        return moved >= 1 ? new.count : 0
+        return moved >= 1 ? scope(of: exam, in: items).count { !$0.isStudied } : 0
     }
 
     /// Mean predicted recall on exam day over the exam's active items (0 with no items).
