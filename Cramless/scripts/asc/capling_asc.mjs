@@ -286,10 +286,10 @@ const EULA = 'https://www.apple.com/legal/internet-services/itunes/dev/stdeula/'
 const COPYRIGHT = '2026 Loopware LLC';
 const CATEGORIES = { primary: 'EDUCATION', secondary: 'PRODUCTIVITY' };
 // Apple's age-rating questionnaire, answered for what Capling is: an AI study assistant a student chats with (never with other people),
-// no browser (web research is the server reading a fixed list of study sites), no ads, Squad shares a plan and shows display names only.
-// ageAssurance is false: the app has Apple's Declared Age Range entitlement and code for it (Services/AgeRange.swift), but nothing calls
-// it yet (found 2026-11-01), so no age check happens; set it to true when that is wired in. Every answer is the developer's to confirm in
-// App Store Connect.
+// no browser (web research is the server reading a fixed list of study sites), no ads, Squad shares a plan and shows first names and, for those who opt in, whether they studied today.
+// ageAssurance is false: the age check is wired in (Services/AgeRange.swift, called from onboarding and once for existing users) but has
+// never run on a phone, and the simulator has no answer; set it to true once a phone has shown it works. Every answer is the developer's
+// to confirm in App Store Connect.
 const AGE = {
   advertising: false, alcoholTobaccoOrDrugUseOrReferences: 'NONE', contests: 'NONE', gambling: false, gamblingSimulated: 'NONE',
   gunsOrOtherWeapons: 'NONE', healthOrWellnessTopics: false, lootBox: false, medicalOrTreatmentInformation: 'NONE',

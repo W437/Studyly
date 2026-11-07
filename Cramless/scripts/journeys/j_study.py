@@ -17,7 +17,7 @@ def quiz(p: Phone) -> None:
     p.mark("The ring: how ready Maya is for this exam, 42%, and how it moved this week")
     p.dwell(2.6)
     p.scroll(380)
-    p.mark("A projected grade, labelled a projection, and the path to the target")
+    p.mark("A projection, labelled as one, and what it would take to reach the goal")
     p.dwell(3.0)
     p.scroll_to("Practice", type="Button")
     p.mark("Topic by topic: where the weak spots are")
