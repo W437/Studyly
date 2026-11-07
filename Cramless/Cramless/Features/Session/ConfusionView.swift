@@ -65,7 +65,7 @@ private struct ConfusionDetail: View {
         }
         .clScreenBackground()
         .safeAreaBar(edge: .bottom) {
-            Button(confusion.status == .fixed ? String(localized: "Practice it again") : SessionCopy.fixNowTitle(questions: confusion.itemIDs.count), action: fix)
+            Button(confusion.status == .fixed ? String(localized: "Practice it again") : SessionCopy.fixTitle(questions: confusion.itemIDs.count), action: fix)
                 .buttonStyle(.cl(confusion.status == .fixed ? .soft : .primary))
                 .padding(.horizontal, CLSpace.gutter)
                 .padding(.top, 8)
@@ -171,6 +171,8 @@ private struct ConfusionDetail: View {
 
     private func fix() {
         CLHaptics.commit()
-        if let request = app.prepareFix(confusion.id) { app.router.present(.session(request)) }
+        guard var request = app.prepareFix(confusion.id) else { return }
+        request.lessonSeen = confusion.fix?.lesson.isEmpty == false && !app.fixWillBeWritten(confusion.id)
+        app.router.present(.session(request))
     }
 }

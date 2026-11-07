@@ -627,7 +627,7 @@ final class TodayTests: XCTestCase {
     func testMixUpLines() {
         XCTAssertEqual(SessionCopy.mixUpLine("Anaphase vs telophase"), "You keep mixing up anaphase and telophase.")
         XCTAssertEqual(SessionCopy.mixUpLine("DNA vs mRNA"), "You keep mixing up DNA and mRNA.")
-        XCTAssertEqual(SessionCopy.mixUpLine("Mendelian genetics"), "Mendelian genetics keeps tripping you up.")
+        XCTAssertEqual(SessionCopy.mixUpLine("Mendelian genetics"), "Mendelian genetics: still tripping you up.")
         XCTAssertEqual(SessionCopy.mixUpPair("Anaphase vs telophase"), "anaphase and telophase")
         let recent = ConfusionNote(id: UUID(), name: "x", missCount: 5, recentMisses: 3, recentAnswers: 4)
         XCTAssertEqual(SessionCopy.missLine(recent), "Missed 3 of the last 4 times. Want a 2-minute fix?")

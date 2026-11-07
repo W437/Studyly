@@ -455,6 +455,50 @@ final class SessionTests: XCTestCase {
                                          lastMissAt: clock.now, mistakes: [.init(itemID: item.id, prompt: item.prompt, expected: item.answer, given: "Centrioles", misses: 3)]))
     }
 
+    func testEveryWayIntoAFixGetsTheSameLessonAndAsksOnce() async throws {
+        let app = AITestSupport.makeApp(mode: .mock, consent: true)
+        defer { withExtendedLifetime(app) {} }
+        let relay = RecordingTransport()
+        app.ai.transportOverride = relay
+        let course = Course(name: "Bio 101", now: app.now)
+        app.context.insert(course)
+        let items = [("What does anaphase I separate?", "Homologous pairs"), ("What does anaphase II separate?", "Sister chromatids")].map { row in
+            let item = StudyItem(course: course, kind: .recall, status: .active, origin: .cloud, prompt: row.0, answer: row.1, now: app.now)
+            app.context.insert(item)
+            course.items.append(item)
+            return item
+        }
+        app.save()
+        // As "Not now" leaves it, or as Cap's card finds it: named, with no lesson from Cloud AI yet.
+        let candidate = ConfusionCandidate(id: "pair", courseID: course.id, topicID: nil, name: "Pairs vs chromatids", reason: .swappedAnswers, itemIDs: items.map(\.id), missCount: 3, lastMissAt: app.now,
+                                           mistakes: items.map { .init(itemID: $0.id, prompt: $0.prompt, expected: $0.answer, given: "", misses: 2) })
+        let confusion = app.adoptConfusion(candidate, explained: nil, withFixQuestions: false)
+        XCTAssertTrue(app.fixWillBeWritten(confusion.id), "its screen says Cap is writing")
+        let lesson = await app.readyFix(confusion.id)
+        XCTAssertEqual(relay.calls.filter { $0 == "confusions" }.count, 1)
+        XCTAssertEqual(confusion.fix?.asked, true)
+        XCTAssertEqual(confusion.fix?.lesson, lesson ?? "")
+        XCTAssertFalse(app.fixWillBeWritten(confusion.id))
+
+        let again = await app.readyFix(confusion.id)
+        XCTAssertEqual(again, lesson, "kept")
+        XCTAssertEqual(relay.calls.filter { $0 == "confusions" }.count, 1, "one call for a mix-up, however often it's opened")
+        let request = try XCTUnwrap(app.prepareFix(confusion.id))
+        XCTAssertEqual(request.kind, .fix)
+        XCTAssertEqual(request.confusionID, confusion.id)
+    }
+
+    func testWithoutCloudAIAFixStillHasTheRulesLessonAndNoWait() async throws {
+        let relay = RecordingTransport()
+        app.ai.transportOverride = relay
+        let (_, _, sessionID) = swappedPair()
+        let candidate = try XCTUnwrap(app.confusionCandidate(forSession: sessionID))
+        let confusion = app.adoptConfusion(candidate, explained: nil, withFixQuestions: false)
+        XCTAssertFalse(app.fixWillBeWritten(confusion.id))
+        _ = await app.readyFix(confusion.id)
+        XCTAssertFalse(relay.calls.contains("confusions"))
+    }
+
     func testOneQuestionSpendsNoRelayCallAndGivesARecapAndAQuestion() async throws {
         let relay = RecordingTransport()
         app.ai.transportOverride = relay
@@ -469,7 +513,7 @@ final class SessionTests: XCTestCase {
         XCTAssertEqual(confusion.fix?.itemIDs.count, 1)
         XCTAssertEqual(app.item(confusion.fix!.itemIDs[0])?.choices.count, 2)
         XCTAssertEqual(app.confusionNote(confusion).questions, 1)
-        XCTAssertEqual(SessionCopy.fixNowTitle(questions: 1), "Go over it · 1 min")
+        XCTAssertEqual(SessionCopy.fixTitle(questions: 1), "Go over it · 1 min")
         XCTAssertEqual(SessionCopy.missLine(app.confusionNote(confusion)), "Missed 3 of the last 3 times. Want to go over it?")
         XCTAssertNotEqual(item.id, confusion.fix!.itemIDs[0])
     }

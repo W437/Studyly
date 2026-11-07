@@ -67,6 +67,8 @@ struct SessionRequest: Hashable, Sendable, Identifiable {
     var questionCount: Int? = nil
     /// Study out loud: only questions that can be asked and answered with the voice (`OutLoudPolicy`).
     var spokenOnly = false
+    /// A fix: its lesson was on the screen the student came from, so the questions start at once.
+    var lessonSeen = false
 }
 
 struct CaptureRequest: Hashable, Sendable, Identifiable {

@@ -337,7 +337,8 @@ extension AppModel {
     @discardableResult
     func tryLookAlike(_ draft: LookAlikeDraft, lesson: ConfusionOut, origin: ItemOrigin) -> SessionRequest? {
         let confusion = adoptConfusion(lookAlikeCandidate(draft, name: lesson.name), explained: lesson, origin: origin, withFixQuestions: true)
-        guard let request = prepareFix(confusion.id) else { return nil }
+        guard var request = prepareFix(confusion.id) else { return nil }
+        request.lessonSeen = true
         router.present(.session(request))
         return request
     }

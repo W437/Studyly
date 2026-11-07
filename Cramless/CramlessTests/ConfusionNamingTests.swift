@@ -138,7 +138,7 @@ final class ConfusionNamingTests: XCTestCase {
         XCTAssertEqual(SessionCopy.mixUpPair(ConfusionCandidate.unnamed), "them")
         // A mix-up with a name reads as it always did, Cloud AI's or the rules'.
         XCTAssertEqual(SessionCopy.mixUpLine("Anaphase vs telophase"), "You keep mixing up anaphase and telophase.")
-        XCTAssertEqual(SessionCopy.mixUpLine("Mendelian genetics"), "Mendelian genetics keeps tripping you up.")
+        XCTAssertEqual(SessionCopy.mixUpLine("Mendelian genetics"), "Mendelian genetics: still tripping you up.")
         XCTAssertEqual(SessionCopy.mixUpPair("Anaphase vs telophase"), "anaphase and telophase")
     }
 }

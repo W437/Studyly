@@ -194,10 +194,10 @@ enum LadderCopy {
     static var couldNotWrite: String { String(localized: "Cap couldn't write a harder one from these lines.") }
     static var needsConnection: String { String(localized: "Cap needs a connection for this. It can wait.") }
 
-    /// "Limiting reagents is too easy now".
+    /// "Limiting reagents: too easy now".
     static func noticeTitle(topic: String?) -> String {
         guard let topic, !topic.isEmpty else { return String(localized: "This one is too easy now") }
-        return String(localized: "\(topic) is too easy now")
+        return String(localized: "\(topic): too easy now")
     }
 
     /// "Next time, the same idea in a real problem?".

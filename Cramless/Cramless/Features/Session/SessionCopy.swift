@@ -160,15 +160,21 @@ enum SessionCopy {
     // MARK: Mix-ups
 
     /// Cap's line about a confusion: "You keep mixing up anaphase and telophase." A topic-shaped one ("Mendelian
-    /// genetics") reads "Mendelian genetics keeps tripping you up."
+    /// genetics") reads "Mendelian genetics: still tripping you up." A topic's name can be singular or plural, and the line reads either way.
     static func mixUpLine(_ name: String, questions: Int = 2) -> String {
         // A mix-up the rules couldn't name says what it is, with no made-up name in front of the verb.
         if name == ConfusionCandidate.unnamed {
             return questions == 1 ? String(localized: "This question keeps tripping you up.") : String(localized: "These questions keep tripping you up.")
         }
         let parts = name.components(separatedBy: " vs ")
-        guard parts.count == 2 else { return "\(name) keeps tripping you up." }
-        return "You keep mixing up \(lowerFirst(parts[0])) and \(lowerFirst(parts[1]))."
+        guard parts.count == 2 else { return String(localized: "\(name): still tripping you up.") }
+        let pair = casedPair(parts[0], parts[1])
+        return "You keep mixing up \(pair.0) and \(pair.1)."
+    }
+
+    /// Two terms inside a sentence, lower case unless they're names: a second term that starts with a capital ("Darcy vs Bingley", "PTR vs A") says the first keeps its capital too.
+    private static func casedPair(_ first: String, _ second: String) -> (String, String) {
+        second.first?.isUppercase == true ? (first, second) : (lowerFirst(first), second)
     }
 
     /// The same mix-up when its last answer came right: it isn't tripping them up just now.
@@ -177,8 +183,9 @@ enum SessionCopy {
             return questions == 1 ? String(localized: "This question is coming along.") : String(localized: "These questions are coming along.")
         }
         let parts = name.components(separatedBy: " vs ")
-        guard parts.count == 2 else { return String(localized: "\(name) is coming along.") }
-        return String(localized: "\(Lexicon.capitalizedFirst(lowerFirst(parts[0]))) and \(lowerFirst(parts[1])) are coming along.")
+        guard parts.count == 2 else { return String(localized: "\(name): coming along.") }
+        let pair = casedPair(parts[0], parts[1])
+        return String(localized: "\(Lexicon.capitalizedFirst(pair.0)) and \(pair.1) are coming along.")
     }
 
     /// "anaphase and telophase" for a summary or a fix ("You told anaphase and telophase apart").
@@ -186,17 +193,13 @@ enum SessionCopy {
         if name == ConfusionCandidate.unnamed { return String(localized: "them") }
         let parts = name.components(separatedBy: " vs ")
         guard parts.count == 2 else { return lowerFirst(name) }
-        return "\(lowerFirst(parts[0])) and \(lowerFirst(parts[1]))"
+        let pair = casedPair(parts[0], parts[1])
+        return "\(pair.0) and \(pair.1)"
     }
 
-    /// What the button says and how long it takes: a slip on one question is a look back, not a fix of two ideas.
+    /// What the button says and how long it takes, wherever it is: a slip on one question is a look back, not a fix of two ideas. Either way, what comes is a short lesson and the questions.
     static func fixTitle(questions: Int) -> String {
         questions == 1 ? String(localized: "Go over it · 1 min") : String(localized: "Fix it · 2 min")
-    }
-
-    /// The same on a session's summary.
-    static func fixNowTitle(questions: Int) -> String {
-        questions == 1 ? String(localized: "Go over it · 1 min") : String(localized: "Fix it now · 2 min")
     }
 
     /// The context line's name for a fix drill: a short one isn't two minutes.
