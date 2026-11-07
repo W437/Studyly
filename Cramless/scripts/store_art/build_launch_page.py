@@ -48,12 +48,14 @@ CHANGES = [
     ("Corrected", "“Nothing to lose”: a streak can break. Now “your best streak is kept”."),
     ("Corrected", "“An exam on your calendar”: Cap adds it to the app, not to the phone's calendar. Now “an exam date”."),
     ("Corrected", "“Unlimited scans”: there's a fair-use ceiling. Now “no weekly limit”, as the paywall says."),
+    ("Corrected", "Pro and the free AI allowance do nothing until Cloud AI is on, so both now start “With Cloud AI on”. Multiple choice and fill-ins aren't graded by Cloud AI, so it says “own-words answers”, and web research says “18 and over”."),
     ("Left alone", "Subtitle, keywords and promotional text: nothing stale. One thought: the subtitle says “10 minutes a day” while the screens say 15. Both are real settings."),
 ]
 UPLOAD = [
     "Screenshots, English: the chosen images as 01 to 10, replacing what's there.",
     "Words: the description in all 39 languages (only the description changes).",
     "Video: replace the old one (it still says 42% to 91%), or take it off the preview slot.",
+    "App Review notes: the new draft is in the words file, with a list of what to check on your phone first.",
     "Then check what's still missing. You submit; I never do.",
 ]
 
