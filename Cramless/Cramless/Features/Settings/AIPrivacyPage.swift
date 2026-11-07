@@ -23,7 +23,7 @@ struct AIPrivacyPage: View {
                     title: "Use Cloud AI",
                     subtitle: "Better questions from your pages, careful grading of answers in your own words, and Cap explaining in its own words.",
                     isOn: Binding(get: { consent }, set: setCloud),
-                    hintOn: "Asks first. Then your questions to Cap go to \(AIConsent.processor) through Capling's server, with the notes of the course (the text of your pages and lectures, the cards of decks you imported and the names of what you added), the passages it finds in any of your courses when you ask it to look through your notes, answers you type or say and the names of your courses, topics and exams.",
+                    hintOn: "Asks first. Then what you add, your questions to Cap with the notes of the course (the text of your pages and lectures, the cards of decks you imported and the names of what you added), the passages it finds in any of your courses when you ask it to look through your notes, answers you type or say and the names of your courses, topics and exams go to \(AIConsent.processor) through Capling's server.",
                     hintOff: "Stops sending anything to Cloud AI. Capling keeps working on this iPhone.",
                     disabledReason: cloudDisabledReason)
                 SettingsToggleRow(
@@ -63,10 +63,13 @@ struct AIPrivacyPage: View {
 
             QuotaCard(status: quota ?? ai.quotaStatus)
 
-            CLSectionHeader(title: "What's sent, and to whom")
+            CLSectionHeader(title: "With Cloud AI on: what's sent, and to whom")
             VStack(spacing: 0) {
-                SettingsInfoCard(icon: "doc.text", title: "Only with Cloud AI on",
-                                 text: "Your questions to Cap, and with each one the notes of the course Cap is answering from (every course, if you chose All courses): the text of your pages and lectures, the cards of decks you imported and the names of what you added. All of it when it's short, otherwise the parts that fit your question. When you ask Cap to look through your notes, the passages it finds in any of your courses go too. Also answers you type or say when they're graded (the words, never your voice). For Cap's tools it also sees the names of your courses, topics and exams, your exam dates, how ready you are, which topics are fading and how many cards are due; if you ask it to research online, that topic is searched on trusted study sites. Page photos only with their own switch.")
+                SettingsInfoCard(icon: "doc.text", title: AIConsent.Words.addedTitle, text: AIConsent.Words.added)
+                divider
+                SettingsInfoCard(icon: "bubble.left.and.text.bubble.right", title: AIConsent.Words.askedTitle, text: AIConsent.Words.asked)
+                divider
+                SettingsInfoCard(icon: "checkmark.bubble", title: AIConsent.Words.answeredTitle, text: AIConsent.Words.answered)
                 divider
                 SettingsInfoCard(icon: "server.rack", title: "\(AIConsent.processor), through Capling's server",
                                  text: "Requests go to \(AIConsent.processor) through our own server, never straight from your phone to an AI company. Our server doesn't keep what you send.")
@@ -75,13 +78,13 @@ struct AIPrivacyPage: View {
                                  text: "Your notes and answers are never used to train AI models.")
                 divider
                 SettingsInfoCard(icon: "list.bullet.rectangle", tint: .sun, title: "What our server keeps",
-                                 text: "A log of your AI requests, to count the free limits. Not your notes, answers or chats; your chats stay on this iPhone.")
+                                 text: "A short record of each AI request and a count of them, for your limits. Never what a request said, and your chats stay on this iPhone. If you sign in, sync keeps a copy of your study in your account.")
             }
             .background(CLColor.surface, in: RoundedRectangle(cornerRadius: CLRadius.list, style: .continuous))
             .shadow(color: CLColor.night.opacity(0.05), radius: 1, y: 1)
             .shadow(color: CLColor.night.opacity(0.06), radius: 12, y: 8)
 
-            SettingsGroup(title: nil, footer: "Your courses, cards and progress aren't touched.") {
+            SettingsGroup(title: nil, footer: "Your courses, questions and progress aren't touched.") {
                 SettingsActionRow(icon: "trash", title: "Delete AI data", subtitle: "What our server keeps about your AI use",
                                   destructive: true, busy: deleting) {
                     confirmingDelete = true
@@ -93,7 +96,7 @@ struct AIPrivacyPage: View {
         .confirmationDialog("Delete AI data?", isPresented: $confirmingDelete, titleVisibility: .visible) {
             Button("Delete AI data", role: .destructive, action: deleteAIData)
         } message: {
-            Text("Deletes the log Capling's server keeps of your AI requests. It never stored your notes or answers. Your courses, cards and progress stay.")
+            Text("Deletes the log Capling's server keeps of your AI requests. It never stored your notes or answers. Your courses, questions and progress stay.")
         }
         #if DEBUG
         .onAppear { AskDemo.applyLaunchState(app) }
@@ -115,8 +118,8 @@ struct AIPrivacyPage: View {
     private func footer(consent: Bool) -> LocalizedStringResource {
         if !ai.cloudAvailableInThisBuild || isChild { return "Capling still writes questions, grades answers and lets Cap explain, on this iPhone." }
         return consent
-            ? "Turn it off any time; nothing more is sent from then on, and Capling keeps working on this iPhone."
-            : "Off: everything happens on this iPhone, in less detail. You'll be asked before anything is sent."
+            ? "Turn it off any time; nothing more goes to it from then on, and Capling keeps working on this iPhone."
+            : "Off: nothing goes to Cloud AI, and Capling does the work on this iPhone, in less detail. You'll be asked first."
     }
 
     private var deviceReady: Bool { ai.onDeviceCapability.availability.isAvailable }
@@ -140,7 +143,7 @@ struct AIPrivacyPage: View {
         } else {
             app.withdrawCloudAI()
             CLHaptics.commit()
-            app.router.toast("Cloud AI is off. Nothing more is sent.", systemImage: "lock.fill", tone: .neutral)
+            app.router.toast("Cloud AI is off. Nothing more goes to it.", systemImage: "lock.fill", tone: .neutral)
         }
     }
 

@@ -81,7 +81,7 @@ struct PurchasedView: View {
                 if showsInvite, let onInvite {
                     VStack(alignment: .leading, spacing: 6) {
                         Text("Invite your squad").clFont(.title3).foregroundStyle(CLColor.ink)
-                        Text("Three friends get Pro free. You'll see when they study.")
+                        Text("Three friends get Pro free. Each can choose to show when they've studied.")
                             .clFont(.subheadline)
                             .foregroundStyle(CLColor.ink2)
                             .fixedSize(horizontal: false, vertical: true)

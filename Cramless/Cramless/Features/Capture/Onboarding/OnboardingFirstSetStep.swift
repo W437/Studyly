@@ -160,7 +160,7 @@ struct OnboardingFirstSetStep: View {
                         .fixedSize(horizontal: false, vertical: true)
                         .padding(.top, 14)
                 }
-                Label("Your page stays on this iPhone unless you turn on Cloud AI.", systemImage: "lock")
+                Label("Your page stays on this iPhone unless you turn on Cloud AI or sign in.", systemImage: "lock")
                     .clFont(.footnote)
                     .foregroundStyle(CLColor.ink3)
                     .fixedSize(horizontal: false, vertical: true)

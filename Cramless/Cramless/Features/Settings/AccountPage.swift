@@ -30,7 +30,7 @@ struct AccountPage: View {
             } else {
                 CLSectionHeader(title: "Sign in")
                 VStack(alignment: .leading, spacing: 14) {
-                    Text("Sign in to keep a copy of your courses, cards and progress in your account. Sync turns on when you do.")
+                    Text("Sign in to keep a copy of your courses, notes, questions and progress in your account. Sync turns on when you do.")
                         .clFont(.subheadline)
                         .foregroundStyle(CLColor.ink2)
                         .fixedSize(horizontal: false, vertical: true)
