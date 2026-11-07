@@ -151,6 +151,11 @@ const RELAY_AHEAD: Record<string, string[]> = {
 };
 const ahead = (type: string, fields: string[]) => fields.filter((f) => !(RELAY_AHEAD[type] ?? []).includes(f)).sort();
 
+/** Fields only the phone's own rules fill in; the relay never sends them, so its contract doesn't name them. */
+const APP_ONLY: Record<string, string[]> = {
+  SyllabusFormat: ["multipleChoiceCount", "shortAnswerCount", "essayCount"],
+};
+
 const SWIFT_TO_SCHEMA: Record<string, string> = {
   LineInput: "LineInput",
   GeneratedItem: "GeneratedItem",
@@ -222,7 +227,7 @@ Deno.test("contract.json has the Swift reply types' fields, and their optionalit
     const def = CONTRACT_SCHEMA.$defs[schemaName];
     assertEquals(
       ahead(schemaName, Object.keys(def.properties)),
-      ahead(schemaName, fields.map((f) => f.name)),
+      ahead(schemaName, fields.map((f) => f.name).filter((f) => !(APP_ONLY[schemaName] ?? []).includes(f))),
       `${schemaName} fields`,
     );
     const required = new Set<string>(def.required);
