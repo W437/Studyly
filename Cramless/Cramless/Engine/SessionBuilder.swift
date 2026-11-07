@@ -439,7 +439,7 @@ struct SessionBuilder: Sendable {
 
         let newCost = newPicks.reduce(0) { $0 + $1.cost }
         let newReserve = min(newCost, budget * Self.newShare)
-        // Weak spots hold time back only from what's spare. Out of a full day it would come from new questions, and a mix-up put off with "Not now" would cost the next exam points.
+        // Weak spots hold time back only from what's spare. Out of a full day it would come from new questions and reviews, and a mix-up put off with "Not now" would cost the next exam points.
         let spoken = priority.reduce(dueSeconds) { $0 + $1.cost }
         let weakReserve = spots.isEmpty ? 0 : min(budget * Self.weakShare, max(0, budget - spoken - newCost))
         let reviewLimit = max(budget - newReserve - weakReserve, budget * 0.5)
@@ -449,6 +449,9 @@ struct SessionBuilder: Sendable {
         fill(due, .due, limit: reviewLimit)
         fill(priority, .examPriority, limit: reviewLimit)
         fill(newPicks, .new, limit: budget - weakReserve)
+        // What's still in reach for the exams comes before weak spots, so a spot only ever gets time nothing else needs.
+        fill(due, .due, limit: budget)
+        fill(priority, .examPriority, limit: budget)
         var chosenSpots: [WeakSpot] = []
         for spot in spots where chosenSpots.count < Self.weakSpotsPerSession {
             var inSession = spot.members.filter { ids.contains($0.item.id) }.map(\.item.id)
@@ -464,9 +467,7 @@ struct SessionBuilder: Sendable {
                                             courseID: spot.courseID, itemIDs: inSession))
             }
         }
-        // Time left over: more due reviews, then more exam priority, then more of the chosen weak spots.
-        fill(due, .due, limit: budget)
-        fill(priority, .examPriority, limit: budget)
+        // Time left over: more of the chosen weak spots.
         if !catchUp {
             for (i, spot) in chosenSpots.enumerated() {
                 guard let source = spots.first(where: { $0.id == spot.id }) else { continue }
