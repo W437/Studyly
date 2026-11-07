@@ -6,8 +6,11 @@
 > video taken out of the preview slot), 25 (App Privacy's Other Data published; the Pro Yearly review note updated; the four
 > purchases are Ready to Submit and go in with "Add for Review"), and 28 (loopware.app/privacy, site commit fa7fc1a). The test
 > users on production are deleted. `capling_asc.mjs ready` reads all ok. Left, the owner's: 18 and 19 (install build 6 from
-> TestFlight, the device checks, then trim the review notes to what the phone confirmed), 24 (age rating with `ageAssurance`),
-> 26 and 27 (release option, nomination), 29 (Add for Review with the four purchases, then Submit).
+> TestFlight, the device checks, then trim the review notes to what the phone confirmed), 24 (age rating with `ageAssurance`, after the phone),
+> 29 (Add for Review with the four purchases, then Submit). Since: 26 set to "Manually release this version", and 27 the
+> featuring nomination submitted through the API (App Launch, publish date 3 Dec 2026, iPhone, the six English-speaking
+> storefronts, four English localizations; "with the screen off" cut from the description until a phone shows it). Release
+> the version by hand on 3 Dec. Age rating stays 4+ until the age sheet is seen working in build 6.
 
 Every step from main at 3105a20 (2026-11-07) to the owner pressing Submit for Review, in order. Each says who does it and the
 exact command or website step. Nothing here has been run: it was read from the code, the scripts and `docs/BUILD.md`. The

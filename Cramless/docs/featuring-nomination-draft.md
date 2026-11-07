@@ -1,6 +1,6 @@
 # Featuring nomination: a draft for version 1.0's launch
 
-For the owner to approve and submit. Nothing was sent: App Store Connect was neither read nor written. Every claim below was
+**Submitted 2026-11-07** through the App Store Connect API (nomination a9cc2ada-4f6f-450f-91bf-3fc239a7b149, state SUBMITTED): App Launch, publish date 2026-12-03, iPhone, the US, UK, Canada, Australia, Ireland and New Zealand, English (U.S., U.K., Canada, Australia); no supplemental material; "with the screen off" cut from the description. Below is the draft as written before that. Originally: for the owner to approve and submit. Nothing was sent: App Store Connect was neither read nor written. Every claim below was
 checked against the code at commit 3105a20 (2026-11-07) and `docs/BUILD.md`, and the file is named where it matters. The
 publish date is the owner's.
 
