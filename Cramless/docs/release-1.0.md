@@ -1,5 +1,13 @@
 # Release 1.0: from here to Submit
 
+> **Status (2026-11-07, afternoon):** done with the owner's approval: steps 6 to 9 (live checks 47 passed after two fixes, the
+> two migrations, `account` v2 and `ai` v14), 10 to 17 (time zone in the manifest, build 1.0 (6) through the full suite,
+> uploaded and attached), 18's part for Claude (TestFlight group "Internal", the owner its tester), App Privacy in 25 (Other
+> Data published), and 28 (loopware.app/privacy updated, site commit fa7fc1a). The test users on production are deleted.
+> Left: 18 and 19 (the owner installs build 6 from TestFlight and does the device checks), the rest of 25 (purchases on the
+> version, the products' review notes), 20 to 24 (the store page: the owner said not yet), 26 and 27 (release option,
+> nomination), 29 (Submit). `docs/BUILD.md` ▸ "Release 1.0: the deploy and build 6" has the details.
+
 Every step from main at 3105a20 (2026-11-07) to the owner pressing Submit for Review, in order. Each says who does it and the
 exact command or website step. Nothing here has been run: it was read from the code, the scripts and `docs/BUILD.md`. The
 places I couldn't make certain are under "Not certain" at the end.
