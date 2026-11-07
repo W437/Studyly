@@ -123,7 +123,8 @@ enum PlanMath {
 }
 
 /// Builds an exam's day-by-day plan and its projected readiness curve by simulating FSRS forward:
-/// - new material is introduced by ~3 days before the exam, spread over the days left (none on easy days);
+/// - new material is introduced by ~3 days before the exam, spread over the days left (none on easy days), and never slower than a daily session takes it
+///   (`SessionBuilder.newFloor`, shared between exams through `newElsewhere`): the plan's days are what sessions will build;
 /// - reviews happen on their due days; an item whose next due would miss the exam while its exam-day recall is
 ///   under target is pulled to 1–3 days before (the scheduler's exam capping);
 /// - the last evening is the exam eve: weak spots only, at most 10 minutes;
@@ -166,6 +167,8 @@ struct PlanBuilder: Sendable {
     /// Questions "Fix my week" gave a day, by day offset from today: they are reviewed that day, first, instead of being spread with the
     /// other overdue ones.
     var pinned: [UUID: Int] = [:]
+    /// New questions sooner exams' plans take each day, by day offset from today: the session's floor is for the whole session.
+    var newElsewhere: [Int: Int] = [:]
 
     /// Simulated reviews happen at this local hour.
     static let reviewHour = 18.0
@@ -359,12 +362,22 @@ struct PlanBuilder: Sendable {
             let ownReviews = buckets[day] ?? []
             needed += freshToday.reduce(0) { $0 + $1.kind.typicalSeconds * 2 }
                 + ownReviews.reduce(0) { $0 + sims[$1].item.kind.typicalSeconds }
-            let newOffered = (isEve ? [] : carriedNew) + freshToday
-            if !isEve { carriedNew = [] }
             var reviewOffered: [Int] = []
             var offered = Set<Int>()
             for i in carriedReviews + ownReviews where offered.insert(i).inserted { reviewOffered.append(i) }
             carriedReviews = []
+            // A session takes its floor of new questions while any are left, unless the day is a catch-up (reviews over twice its minutes). Not what the exam needs,
+            // so it isn't in `needed`: only what the day will really hold.
+            if !isEve, !isSkipped(day), cap > 0 {
+                let minutes = dailyMinutes + (boosts[day - today] ?? 0)
+                let backlog = reviewOffered.reduce(0.0) { $0 + sims[$1].item.kind.typicalSeconds }
+                if !isEasyDay(day), backlog <= SessionBuilder.catchUpFactor * Double(minutes * 60) {
+                    let floor = SessionBuilder.newFloor(minutes: minutes, easyDay: false) - (newElsewhere[day - today] ?? 0)
+                    while freshToday.count + carriedNew.count < floor, let item = queue.popFirst() { freshToday.append(item) }
+                }
+            }
+            let newOffered = (isEve ? [] : carriedNew) + freshToday
+            if !isEve { carriedNew = [] }
 
             // What fits: reviews first (new material keeps up to 40% of the day, as in the daily session), then new material,
             // then more reviews. With no limit, everything.

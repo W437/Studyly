@@ -192,7 +192,7 @@ final class TodayTests: XCTestCase {
         XCTAssertEqual(values, values.sorted(), "weakest first, like the day's title")
         XCTAssertEqual(snapshot.eveOthers, ["Bio 101"])
         XCTAssertEqual(TodayCopy.quietLine(examTitle: quiz.title, others: snapshot.eveOthers),
-                       "Cap is quiet tonight. Bio 101 can wait until after Chem 110 Quiz.")
+                       "Cap is quiet today. Bio 101 can wait until after Chem 110 Quiz.")
         let content = TodayHeroContent.make(snapshot)
         XCTAssertEqual(content.title, "Tonight: weak spots only")
         // The button, the reason and the week all say tonight's session's own minutes.
@@ -272,7 +272,7 @@ final class TodayTests: XCTestCase {
         XCTAssertEqual(snapshot.eveTitle, "Chem 110 Quiz and Bio 101 Midterm")
         XCTAssertEqual(snapshot.eveOthers, ["AP Psychology"], "Bio isn't waiting for anything")
         XCTAssertEqual(TodayCopy.quietLine(examTitle: try XCTUnwrap(snapshot.eveTitle), others: snapshot.eveOthers),
-                       "Cap is quiet tonight. AP Psychology can wait until after Chem 110 Quiz and Bio 101 Midterm.")
+                       "Cap is quiet today. AP Psychology can wait until after Chem 110 Quiz and Bio 101 Midterm.")
         let content = TodayHeroContent.make(snapshot)
         XCTAssertEqual(content.chip?.text, "Chem 110 Quiz and Bio 101 Midterm")
 
@@ -667,7 +667,7 @@ final class TodayTests: XCTestCase {
         XCTAssertEqual(String(localized: SessionCopy.headline(.right)), "Nice!")
         XCTAssertEqual(String(localized: SessionCopy.headline(.right, saved: true)), "Saved it.")
         XCTAssertEqual(String(localized: SessionCopy.headline(.wrong, saved: true)), "Not yet.", "only a right answer saves")
-        XCTAssertEqual(SessionCopy.moreQuestions(5), "5 more questions")
+        XCTAssertEqual(SessionCopy.anotherSession(5), "Another session: 5 questions")
         XCTAssertEqual(SessionCopy.unbroken("Bio 101 exam"), "Bio\u{00A0}101\u{00A0}exam")
     }
 

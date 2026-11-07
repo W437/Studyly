@@ -4,6 +4,10 @@
     "one": "%lld day in a row",
     "other": "%lld days in a row"
   },
+  "You've saved %lld stars that were fading.": {
+    "one": "You've saved %lld star that was fading.",
+    "other": "You've saved %lld stars that were fading."
+  },
   "%lld freezes saved": {
     "one": "%lld freeze saved",
     "other": "%lld freezes saved"
@@ -57,10 +61,6 @@
         "other": "the %arg minutes are for this exam"
       }
     }
-  },
-  "%lld topics have no material yet. Add some and they join your sessions.": {
-    "one": "%lld topic has no material yet. Add some and it joins your sessions.",
-    "other": "%lld topics have no material yet. Add some and they join your sessions."
   },
   "Example reminder: %lld minutes tonight and you're done.": {
     "one": "Example reminder: %lld minute tonight and you're done.",
@@ -510,9 +510,9 @@
     "one": "%lld new question for this exam.",
     "other": "%lld new questions for this exam."
   },
-  "About %lld questions in all today.": {
-    "one": "About %lld question in all today.",
-    "other": "About %lld questions in all today."
+  "About %lld questions fit in today's session.": {
+    "one": "About %lld question fits in today's session.",
+    "other": "About %lld questions fit in today's session."
   },
   "About %lld questions today": {
     "one": "About %lld question today",
@@ -539,10 +539,6 @@
   "%lld ideas": {
     "one": "%lld idea",
     "other": "%lld ideas"
-  },
-  "about %lld minutes": {
-    "one": "about %lld minute",
-    "other": "about %lld minutes"
   },
   "Your last look: %lld ideas, no quiz": {
     "one": "Your last look: %lld idea, no quiz",
@@ -571,5 +567,21 @@
         "other": "%arg minutes"
       }
     }
+  },
+  "%lld topics have no notes yet. Add some and they join your sessions.": {
+    "one": "%lld topic has no notes yet. Add some and it joins your sessions.",
+    "other": "%lld topics have no notes yet. Add some and they join your sessions."
+  },
+  "%lld topics have none yet": {
+    "one": "%lld topic has none yet",
+    "other": "%lld topics have none yet"
+  },
+  "%lld new questions count once you've studied them. They're in your plan now.": {
+    "one": "%lld new question counts once you've studied it. It's in your plan now.",
+    "other": "%lld new questions count once you've studied them. They're in your plan now."
+  },
+  "%lld new questions count once you've studied them.": {
+    "one": "%lld new question counts once you've studied it.",
+    "other": "%lld new questions count once you've studied them."
   }
 }

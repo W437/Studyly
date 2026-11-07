@@ -336,7 +336,8 @@ struct SessionBuilder: Sendable {
                     notDue.append(c)
                 }
             }
-            if let t = item.topicID, item.isStudied, !done { byTopic[t, default: []].append(c) }
+            // A question that started today (a harder one just added, seeded and due tomorrow) isn't extra practice today: it would push out several shorter ones.
+            if let t = item.topicID, item.isStudied, !done, !startedToday(item) { byTopic[t, default: []].append(c) }
         }
 
         let dueSeconds = (learning + due).reduce(0) { $0 + $1.cost }
@@ -382,8 +383,7 @@ struct SessionBuilder: Sendable {
             return a.item.difficultyHint < b.item.difficultyHint
         }
         // At least budget / 3 min new items (5 for 15 minutes); half that on an easy day; none in catch-up.
-        let baseNew = max(3, Int(budget / 180))
-        let defaultNew = catchUp ? 0 : (isEasyDay(today) ? max(1, baseNew / 2) : baseNew)
+        let defaultNew = catchUp ? 0 : Self.newFloor(minutes: Int(budget / 60), easyDay: isEasyDay(today))
         var planned: [UUID: Int] = [:]
         var unseenByExam: [UUID: Int] = [:]
         for c in fresh { if let e = c.exam { unseenByExam[e.id, default: 0] += 1 } }
@@ -542,6 +542,19 @@ struct SessionBuilder: Sendable {
 
     private func isEasyDay(_ day: Int) -> Bool {
         !settings.easyDays.isEmpty && settings.easyDays.contains(Calendar.weekday(dayNumber: day))
+    }
+
+    /// Its one review so far is today's.
+    private func startedToday(_ item: ItemSnapshot) -> Bool {
+        guard item.memory.reps == 1, let last = item.memory.lastReview else { return false }
+        return calendar.dayNumber(for: last) == today
+    }
+
+    /// New questions a session of this many minutes takes while there are any, whatever an exam's plan spreads: at least a question for every three minutes;
+    /// half on an easy day. A plan of the days ahead counts on them too (`PlanBuilder`).
+    static func newFloor(minutes: Int, easyDay: Bool) -> Int {
+        let base = max(3, minutes * 60 / 180)
+        return easyDay ? max(1, base / 2) : base
     }
 
     // MARK: Exam eve

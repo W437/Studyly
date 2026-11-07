@@ -74,7 +74,7 @@ enum TodayCopy {
     /// holds questions for other exams, and this many in all: the counts then say they are this exam's, and a second sentence gives the whole.
     static func reason(weak: Bool, due: Int, new: Int, forExam: Bool, sessionTotal: Int? = nil) -> String {
         if forExam, let sessionTotal {
-            let whole = String(localized: "About \(sessionTotal) questions in all today.")
+            let whole = String(localized: "About \(sessionTotal) questions fit in today's session.")
             switch (weak, due > 0, new > 0) {
             case (false, true, true): return "\(String(localized: "\(due) questions you're about to forget and \(new) new ones for this exam.")) \(whole)"
             case (false, true, false): return "\(String(localized: "\(due) questions you're about to forget for this exam.")) \(whole)"
@@ -223,7 +223,7 @@ enum TodayCopy {
     /// The eve's quiet line in Cap's place: the other exams wait. `examTitle` names tonight's exams, all of them; `others` are the other
     /// courses, soonest first.
     static func quietLine(examTitle: String, others: [String]) -> String {
-        let quiet = String(localized: "Cap is quiet tonight.")
+        let quiet = String(localized: "Cap is quiet today.")
         switch others.count {
         case 0: return quiet
         case 1, 2: return "\(quiet) \(String(localized: "\(others.formatted(.list(type: .and))) can wait until after \(examTitle)."))"

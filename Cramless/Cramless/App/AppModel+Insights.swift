@@ -114,6 +114,13 @@ extension AppModel {
     /// the later exams wait that day, as Today does on the eve. Cached per revision, hour and settings.
     func examPlans() -> [StudyPlan] { sharedPlans().plans }
 
+    /// The seconds other exams' plans give each day, by day offset from today: with this exam's own, what that day's session holds.
+    func otherExamsSeconds(besides plan: StudyPlan) -> [Int: Double] {
+        var others = sharedPlans().sessionSeconds
+        for day in plan.days where day.kind != .exam { others[day.offset] = max(0, (others[day.offset] ?? 0) - day.seconds) }
+        return others
+    }
+
     /// The shared plans and the seconds each exam was given per day offset.
     func sharedPlans() -> ExamPlanCache.Plans {
         let exams = examSnapshots(upcomingOnly: true)
@@ -132,6 +139,7 @@ extension AppModel {
             return max(0, offset == 0 ? base - doneToday : base)
         }
         var left: [Int: Double] = [:]
+        var newTaken: [Int: Int] = [:]
         var eves = Set<Int>()
         var value = ExamPlanCache.Plans()
         var itemsByCourse: [UUID: [ItemSnapshot]] = [:]
@@ -148,6 +156,7 @@ extension AppModel {
             }
             var b = builder
             b.capacity = capacity
+            b.newElsewhere = newTaken
             let items: [ItemSnapshot]
             if let c = exam.courseID {
                 if let cached = itemsByCourse[c] { items = cached } else {
@@ -160,6 +169,8 @@ extension AppModel {
             let plan = b.plan(for: exam, items: items)
             for day in plan.days where day.kind != .exam {
                 left[day.offset] = max(0, (left[day.offset] ?? dayGoal(day.offset)) - day.seconds)
+                newTaken[day.offset, default: 0] += day.newItems
+                value.sessionSeconds[day.offset, default: 0] += day.seconds
             }
             if days > 0 { eves.insert(days - 1) }
             value.plans.append(plan)
@@ -328,6 +339,8 @@ final class ExamPlanCache {
         var plans: [StudyPlan] = []
         /// The seconds each exam was given, by day offset from today (`PlanBuilder.capacity`).
         var capacity: [UUID: [Int: Double]] = [:]
+        /// Every exam's planned seconds, by day offset from today: what that day's session holds.
+        var sessionSeconds: [Int: Double] = [:]
     }
 
     var plans: (key: Key, value: Plans)?
@@ -426,7 +439,8 @@ extension AppModel {
 extension ItemSnapshot {
     init(_ item: StudyItem, courseID: UUID?) {
         self.init(id: item.id, kind: item.kind, topicID: item.topicID, courseID: courseID, memory: item.memory,
-                  status: item.status, createdAt: item.createdAt, difficultyHint: item.difficultyHint, reported: item.reported)
+                  status: item.status, createdAt: item.createdAt, addedAt: item.updatedAt, difficultyHint: item.difficultyHint,
+                  reported: item.reported)
     }
 }
 
