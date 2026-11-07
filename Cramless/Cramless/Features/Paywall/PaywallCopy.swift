@@ -3,7 +3,7 @@ import Foundation
 /// The paywall's words, as pure functions of the option, its price and the trial, so they stay honest and are
 /// tested in one place.
 enum PaywallCopy {
-    static let headline = "Sleep the night before. You'll be ready."
+    static let headline = "Sleep the night before. You'll know where you stand."
 
     /// One row of a list on the paywall: a symbol and its words.
     struct Row: Identifiable {
