@@ -315,12 +315,59 @@ final class MockExamTests: XCTestCase {
         XCTAssertEqual(MockScorer.verdict(score: 0.64, expected: 0.70), .below)
     }
 
+    // MARK: An essay exam
+
+    private var essays: ExamFormat {
+        var format = ExamFormat()
+        format.multipleChoice = false
+        format.shortAnswer = false
+        format.essay = true
+        return format
+    }
+
+    func testAnEssayExamNeedsOnlyAFewEssaysAndGivesThemTime() throws {
+        let builder = MockExamBuilder(fsrs: FSRS(), calendar: cal, now: now)
+        XCTAssertNil(builder.build(exam: exam(format: essays), items: items(1, .apply), seed: 1), "one essay is no mock")
+        let two = try XCTUnwrap(builder.build(exam: exam(format: essays), items: items(2, .apply), seed: 1))
+        XCTAssertEqual(two.entries.count, 2)
+        XCTAssertEqual(two.minutes, 30, "fifteen minutes each")
+        let many = try XCTUnwrap(builder.build(exam: exam(format: essays), items: items(9, .apply) + items(40, .mcq), seed: 1))
+        XCTAssertEqual(many.entries.count, MockExamBuilder.defaultEssays, "a real essay exam is a few long answers")
+        XCTAssertTrue(many.entries.allSatisfy { $0.kind == .apply })
+        XCTAssertEqual(many.minutes, 45)
+    }
+
+    func testAnEssayMockKeepsTheRealOnesPaceAndCount() throws {
+        var format = essays
+        format.essayCount = 4
+        format.minutes = 120
+        let builder = MockExamBuilder(fsrs: FSRS(), calendar: cal, now: now)
+        let plan = try XCTUnwrap(builder.build(exam: exam(format: format), items: items(9, .apply), seed: 1))
+        XCTAssertEqual(plan.entries.count, 4)
+        XCTAssertEqual(plan.minutes, 120)
+        let short = try XCTUnwrap(builder.build(exam: exam(format: format), items: items(2, .apply), seed: 1))
+        XCTAssertEqual(short.minutes, 60, "the same pace for the two there are")
+    }
+
+    func testTheMinimumFollowsTheFormatInItsWordsAndItsOffer() {
+        XCTAssertEqual(MockExamBuilder.minimum(for: essays), 2)
+        XCTAssertEqual(MockExamBuilder.minimum(for: ExamFormat()), MockExamBuilder.minimumQuestions)
+        var both = essays
+        both.multipleChoice = true
+        XCTAssertEqual(MockExamBuilder.minimum(for: both), MockExamBuilder.minimumQuestions, "a mixed exam isn't essay-only")
+        XCTAssertEqual(MockCopy.tooFew(have: 1, format: essays), "This exam is essay questions. A mock needs 2 of those, and you have 1.")
+        XCTAssertTrue(MockSuggestion.isDue(daysLeft: 5, eligible: 2, studied: 1, minimum: MockExamBuilder.minimum(for: essays), lastMockAt: nil, now: now, calendar: cal))
+    }
+
     // MARK: Today's offer
 
     func testTodayOffersAMockTwoToSevenDaysOutWithEnoughQuestionsAndNoneLately() {
-        func due(_ days: Int, eligible: Int = 12, last: Int? = nil) -> Bool {
-            MockSuggestion.isDue(daysLeft: days, eligible: eligible, lastMockAt: last.map { cal.adding(days: -$0, to: now) }, now: now, calendar: cal)
+        func due(_ days: Int, eligible: Int = 12, studied: Int = 6, last: Int? = nil) -> Bool {
+            MockSuggestion.isDue(daysLeft: days, eligible: eligible, studied: studied, lastMockAt: last.map { cal.adding(days: -$0, to: now) }, now: now, calendar: cal)
         }
+        XCTAssertFalse(due(5, studied: 0), "nothing studied yet: a mock would only show that")
+        XCTAssertFalse(due(5, studied: 2), "too little of it")
+        XCTAssertTrue(due(5, studied: 3), "a quarter of it")
         XCTAssertTrue(due(2))
         XCTAssertTrue(due(7))
         XCTAssertFalse(due(1), "not on the eve")
@@ -340,7 +387,7 @@ final class MockExamTests: XCTestCase {
         XCTAssertEqual(MockCopy.tooFew(have: 3, format: ExamFormat(multipleChoice: false, shortAnswer: true)),
                        "This exam is short answer. A mock needs 8 of those, and you have 3.")
         XCTAssertEqual(MockCopy.tooFew(have: 0, format: ExamFormat(multipleChoice: false, shortAnswer: false, essay: true)),
-                       "This exam is essay questions. A mock needs 8 of those, and you have 0.")
+                       "This exam is essay questions. A mock needs 2 of those, and you have 0.")
         XCTAssertEqual(MockCopy.tooFew(have: 5, format: ExamFormat(multipleChoice: true, shortAnswer: true)),
                        "This exam is multiple choice and short answer. A mock needs 8 of those, and you have 5.")
         XCTAssertEqual(MockCopy.tooFew(have: 1, format: ExamFormat(multipleChoice: false, shortAnswer: false)),

@@ -90,6 +90,29 @@ final class MockRunnerTests: XCTestCase {
         XCTAssertEqual(app.mockOffer(for: exam), .tooFew(have: 5))
     }
 
+    func testTheCardsMinutesAreTheSittings() throws {
+        exam.format.multipleChoice = true
+        exam.format.shortAnswer = true
+        addMCQ(14)
+        addRecall(14)
+        app.save()
+        for _ in 0..<6 {
+            guard case .ready(let card) = app.mockOffer(for: exam) else { return XCTFail("enough questions") }
+            XCTAssertEqual(card.minutes, app.mockPlan(for: exam)?.minutes)
+            XCTAssertEqual(card.entries.map(\.itemID), app.mockPlan(for: exam)?.entries.map(\.itemID))
+            clock.advance(24 * 3600)
+        }
+    }
+
+    func testTodayDoesNotOfferAMockOfWhatHasNeverBeenStudied() throws {
+        let items = addMCQ(12)
+        exam.date = cal.adding(days: 5, to: clock.now)
+        XCTAssertFalse(app.mockIsDue(for: exam), "nothing studied")
+        let (session, _) = app.startSession(SessionRequest(kind: .daily))
+        for item in items.prefix(3) { app.recordReview(itemID: item.id, rating: .good, score: 1, answer: "Right", gradedBy: "rules", sessionID: session.id) }
+        XCTAssertTrue(app.mockIsDue(for: exam), "a quarter of it")
+    }
+
     func testTheOfferIsHiddenOnTheEveAndTheDay() throws {
         addMCQ(10)
         if case .ready = app.mockOffer(for: exam) {} else { XCTFail("ten days out, ten questions") }

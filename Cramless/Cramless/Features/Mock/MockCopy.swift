@@ -66,7 +66,7 @@ enum MockCopy {
         if format.multipleChoice { kinds.append(String(localized: "multiple choice")) }
         if format.shortAnswer { kinds.append(String(localized: "short answer")) }
         if format.essay { kinds.append(String(localized: "essay questions")) }
-        let need = MockExamBuilder.minimumQuestions
+        let need = MockExamBuilder.minimum(for: format)
         guard !kinds.isEmpty else {
             return String(localized: "A mock needs \(need) multiple-choice or written questions, and you have \(have).")
         }

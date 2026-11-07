@@ -149,7 +149,7 @@ struct ExamDetailModel {
         let last = offer == .hidden ? nil : app.lastMock(for: exam.id)
         // Only a card that asks for more questions needs to know whether a reading has more to give.
         var canWrite = false
-        if case .tooFew = offer { canWrite = app.restRequest(for: exam) != nil }
+        if case .tooFew = offer { canWrite = app.mockRestRequest(for: exam) != nil }
         mock = ExamPresentation.mockCard(offer: offer, format: exam.format, lastScore: last?.score, lastDate: last?.date, canWrite: canWrite, calendar: app.calendar)
         if case .ahead = phase, !app.gapIsPutOff(exam.id), let found = app.examGap(for: exam, topics: readiness.topics) {
             gap = found
@@ -322,6 +322,12 @@ private struct ExamDetailContent: View {
     /// The same flow as importing a source, for the parts of the exam's material no question reaches. The part is decided now.
     private func addForTheRest() {
         guard let exam = app.exam(model.id), let request = app.restRequest(for: exam) else { return }
+        app.router.present(.captureFlow(request))
+    }
+
+    /// The same, asking only for the kinds of question the exam has: what its mock is short of.
+    private func writeForTheMock() {
+        guard let exam = app.exam(model.id), let request = app.mockRestRequest(for: exam) else { return }
         app.router.present(.captureFlow(request))
     }
 
@@ -528,7 +534,7 @@ private struct ExamDetailContent: View {
                 case .tooFew(_, let canWrite):
                     CLFlow(spacing: 8, lineSpacing: 8) {
                         if canWrite {
-                            Button("Write more questions", action: addForTheRest)
+                            Button("Write more questions", action: writeForTheMock)
                                 .buttonStyle(.cl(.dark, size: .medium, fullWidth: false))
                         }
                         Button("Add material") { app.router.present(.capture(courseID: model.courseID)) }

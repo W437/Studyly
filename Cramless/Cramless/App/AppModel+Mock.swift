@@ -43,9 +43,9 @@ extension AppModel {
 
     func mockOffer(for exam: Exam) -> MockOffer {
         guard case .ahead = ExamPresentation.phase(examDate: exam.date, now: now, calendar: calendar) else { return .hidden }
-        // A plan with a pinned seed and no guesses worked out: the page reads only its size and mix, and the sitting deals its own.
+        // With no guesses worked out, since the page reads only its size, mix and time. The sitting's own seed, so a card's minutes are the sitting's.
         let items = mockEligibleItems(for: exam)
-        if let plan = mockBuilder().build(exam: ExamSnapshot(exam), items: items, seed: 0) { return .ready(plan) }
+        if let plan = mockBuilder().build(exam: ExamSnapshot(exam), items: items, seed: mockSeed(for: exam)) { return .ready(plan) }
         return .tooFew(have: items.count)
     }
 
@@ -69,8 +69,9 @@ extension AppModel {
 
     /// Today's card asks this: the exam is 2 to 7 days out, there are enough questions and no mock in the last few days.
     func mockIsDue(for exam: Exam) -> Bool {
-        MockSuggestion.isDue(daysLeft: calendar.dayDistance(from: now, to: exam.date), eligible: mockEligibleItems(for: exam).count,
-                             lastMockAt: lastMock(for: exam.id)?.date, now: now, calendar: calendar)
+        let items = mockEligibleItems(for: exam)
+        return MockSuggestion.isDue(daysLeft: calendar.dayDistance(from: now, to: exam.date), eligible: items.count, studied: items.filter(\.isStudied).count,
+                                    minimum: MockExamBuilder.minimum(for: exam.format), lastMockAt: lastMock(for: exam.id)?.date, now: now, calendar: calendar)
     }
 
     // MARK: Recording

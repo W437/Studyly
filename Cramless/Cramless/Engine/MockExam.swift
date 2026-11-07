@@ -44,6 +44,12 @@ struct MockPlan: Sendable, Equatable {
 struct MockExamBuilder: Sendable {
     /// Below this a mock wouldn't be worth the name.
     static let minimumQuestions = 8
+    /// A real essay exam is a few long answers, so a mock of one needs only this many...
+    static let minimumEssays = 2
+    /// ...holds this many when nothing says how many...
+    static let defaultEssays = 3
+    /// ...and gives each this long, when the exam's own pace isn't known.
+    static let essaySeconds = 15.0 * 60
     static let defaultSize = 20
     static let maximumSize = 40
     /// Multiple choice's share of a mock whose format also has written answers.
@@ -133,16 +139,22 @@ struct MockExamBuilder: Sendable {
 
     /// The mock's size: what the exam says, kept to what a sitting can take.
     static func size(format: ExamFormat, requested: Int?) -> Int {
-        let wanted = requested ?? format.questionCount ?? defaultSize
-        return min(maximumSize, max(minimumQuestions, wanted))
+        let wanted = requested ?? format.questionCount ?? (isEssayOnly(format) ? format.essayCount ?? defaultEssays : defaultSize)
+        return min(maximumSize, max(minimum(for: format), wanted))
     }
+
+    /// Essays are all it asks.
+    static func isEssayOnly(_ format: ExamFormat) -> Bool { format.essay && !format.multipleChoice && !format.shortAnswer }
+
+    /// The fewest questions a mock of this format can be.
+    static func minimum(for format: ExamFormat) -> Int { isEssayOnly(format) ? minimumEssays : minimumQuestions }
 
     /// The time limit: the real exam's pace for this many questions when both its length and its size are known, else the kinds' own
     /// time (never past the real exam's length, when only that is known); rounded up to 5 minutes.
     static func minutes(for entries: [SessionEntry], format: ExamFormat) -> Int {
-        var raw = entries.reduce(0) { $0 + seconds(for: $1.kind) } / 60
+        var raw = entries.reduce(0) { $0 + (isEssayOnly(format) ? essaySeconds : seconds(for: $1.kind)) } / 60
         if let minutes = format.minutes, minutes > 0 {
-            if let count = format.questionCount, count > 0 {
+            if let count = format.questionCount ?? (isEssayOnly(format) ? format.essayCount : nil), count > 0 {
                 raw = Double(minutes) * Double(entries.count) / Double(count)
             } else {
                 raw = min(raw, Double(minutes))
@@ -152,10 +164,10 @@ struct MockExamBuilder: Sendable {
     }
 
     /// `choices`: how many options each multiple-choice question has (a blind guess's chance), by item. `items` are what may be asked
-    /// beyond the format's rules (the app leaves out what the student reported). Nil below `minimumQuestions`.
+    /// beyond the format's rules (the app leaves out what the student reported). Nil below the format's `minimum`.
     func build(exam: ExamSnapshot, items: [ItemSnapshot], choices: [UUID: Int] = [:], seed: UInt64, size: Int? = nil) -> MockPlan? {
         let pool = Self.eligible(items, exam: exam)
-        guard pool.count >= Self.minimumQuestions else { return nil }
+        guard pool.count >= Self.minimum(for: exam.format) else { return nil }
         let wanted = min(Self.size(format: exam.format, requested: size), pool.count)
         let picked = pick(pool, count: wanted, format: exam.format, seed: seed)
 
@@ -292,14 +304,16 @@ enum MockOffer: Sendable, Equatable {
     case ready(MockPlan)
 }
 
-/// When Today offers a mock (through Cap's cards): the exam is 2 to 7 days away, there are enough questions, and there hasn't been a mock
-/// in the last 4 days.
+/// When Today offers a mock (through Cap's cards): the exam is 2 to 7 days away, there are enough questions and a fair share of them has been studied,
+/// and there hasn't been a mock in the last 4 days. (A mock of questions never seen only says what the student already knows.)
 enum MockSuggestion {
     static let days = 2...7
     static let restDays = 4
+    /// The share of a mock's questions that must have been studied, as a fraction.
+    static let studiedShare = 0.25
 
-    static func isDue(daysLeft: Int, eligible: Int, lastMockAt: Date?, now: Date, calendar: Calendar) -> Bool {
-        guard days.contains(daysLeft), eligible >= MockExamBuilder.minimumQuestions else { return false }
+    static func isDue(daysLeft: Int, eligible: Int, studied: Int, minimum: Int = MockExamBuilder.minimumQuestions, lastMockAt: Date?, now: Date, calendar: Calendar) -> Bool {
+        guard days.contains(daysLeft), eligible >= minimum, studied > 0, Double(studied) >= Double(eligible) * studiedShare else { return false }
         guard let lastMockAt else { return true }
         return calendar.dayDistance(from: lastMockAt, to: now) >= restDays
     }
