@@ -375,12 +375,70 @@ final class AILectureTests: XCTestCase {
                                                                           anchorTexts: GroundingCheck.texts(of: [AITestSupport.samplePage]))
         XCTAssertEqual(mock.origin, .cloud)
         XCTAssertEqual(mock.confusions.first?.name, "Anaphase vs telophase")
-        XCTAssertEqual(mock.confusions.first?.questions.count, 3)
+        XCTAssertEqual(mock.confusions.first?.questions.count, 3, "questions with no anchors, as the relay sends them, survive when the page backs them")
+        XCTAssertEqual(Set(mock.confusions.first?.itemIds ?? []), ["i4", "i11"], "about the questions asked about")
 
-        // A cloud confusion about items it wasn't given is not believed: the rules answer instead.
-        let strangers = [MistakeInput(itemId: "x1", topic: "T", prompt: "P", expected: "A", given: "B", misses: 3)]
-        let unrelated = await mockApp.ai.confusions(course: "Bio 101", mistakes: strangers)
-        XCTAssertEqual(unrelated.origin, .rules)
+        // One slip: the real relay writes nothing for it, and neither does the mock.
+        let one = [MistakeInput(itemId: "x1", topic: "T", prompt: "P", expected: "A", given: "B", misses: 3)]
+        let slip = await mockApp.ai.confusions(course: "Bio 101", mistakes: one)
+        XCTAssertEqual(slip.origin, .rules)
+    }
+
+    func testTheRelaysFixQuestionsHaveNoAnchors() throws {
+        let response = try RelayFixtures.load(ConfusionsResponse.self, "confusions")
+        XCTAssertTrue(response.confusions.allSatisfy { $0.questions.allSatisfy(\.anchors.isEmpty) }, "the relay strips them, so its fixture must too")
+    }
+
+    /// A cloud confusion about items it wasn't given is not believed: the rules answer instead.
+    func testACloudConfusionAboutOtherQuestionsIsNotBelieved() async throws {
+        let app = AITestSupport.makeApp(mode: .mock)
+        defer { withExtendedLifetime(app) {} }
+        app.ai.transportOverride = ForeignConfusions()
+        let outcome = await app.ai.confusions(course: "Bio 101", mistakes: mistakes)
+        XCTAssertEqual(outcome.origin, .rules)
+    }
+
+    func testFixQuestionsAreHeldToThePageAndTheAnswersByTheirWords() {
+        let texts = GroundingCheck.texts(of: [AITestSupport.samplePage])
+        func question(_ answer: String, kind: ItemKind = .recall) -> GeneratedItem {
+            GeneratedItem(id: "q", kind: kind, topic: "T", prompt: "Which?", answer: answer, explanation: "",
+                          choices: kind == .mcq ? [Choice(text: answer, correct: true), Choice(text: "Prophase", correct: false)] : [],
+                          anchors: [], difficulty: 0.4)
+        }
+        let onThePage = GroundingCheck.groundedByWords([question("Anaphase", kind: .mcq)], texts: texts, facts: [])
+        XCTAssertEqual(onThePage.count, 1)
+        XCTAssertFalse(onThePage[0].anchors.isEmpty, "and it now points at the lines that hold it")
+        XCTAssertTrue(onThePage[0].anchors.allSatisfy { texts[$0] != nil })
+        XCTAssertTrue(GroundingCheck.groundedByWords([question("Quantum chromodynamics gluons", kind: .mcq)], texts: texts, facts: []).isEmpty, "not on the page, not in the answers")
+        let inTheAnswers = GroundingCheck.groundedByWords([question("Quantum chromodynamics gluons", kind: .mcq)], texts: texts, facts: ["Quantum chromodynamics gluons"])
+        XCTAssertEqual(inTheAnswers.count, 1, "written from the expected answers, as it's asked to")
+        XCTAssertTrue(inTheAnswers[0].anchors.isEmpty, "no line holds it, and none is made up")
+    }
+
+    func testOneQuestionIsARecapAndATwoChoiceQuestion() throws {
+        let term = LocalConfusions.recap(MistakeInput(itemId: "x", topic: "T", prompt: "What pulls chromatids apart?", expected: "Spindle fibres", given: "Centrioles", misses: 3),
+                                         name: "Spindle fibres", explanation: "e")
+        XCTAssertEqual(term.lesson, "For “What pulls chromatids apart?”, the answer is spindle fibres, not centrioles.")
+        let question = try XCTUnwrap(term.questions.first)
+        XCTAssertEqual(term.questions.count, 1)
+        XCTAssertEqual(question.choices.map(\.text), ["Spindle fibres", "Centrioles"])
+        XCTAssertEqual(question.choices.filter(\.correct).map(\.text), ["Spindle fibres"])
+        XCTAssertEqual(term.itemIds, ["x"])
+
+        let blank = LocalConfusions.recap(MistakeInput(itemId: "x", topic: "T", prompt: "What pulls chromatids apart?", expected: "Spindle fibres", given: "", misses: 3),
+                                          name: "n", explanation: "e")
+        XCTAssertEqual(blank.lesson, "For “What pulls chromatids apart?”, the answer is spindle fibres.")
+        XCTAssertTrue(blank.questions.isEmpty, "nothing to set beside it: the fix drills the question itself")
+
+        let sentence = "The sister chromatids are pulled to opposite poles of the cell"
+        let long = LocalConfusions.recap(MistakeInput(itemId: "x", topic: "T", prompt: "What happens in anaphase?", expected: sentence, given: "They line up", misses: 3),
+                                         name: "n", explanation: "e")
+        XCTAssertEqual(long.lesson, "For “What happens in anaphase?”, the answer: \(sentence).")
+        XCTAssertEqual(long.questions.count, 1)
+
+        let same = LocalConfusions.recap(MistakeInput(itemId: "x", topic: "T", prompt: "P?", expected: "Spindle fibres", given: "spindle fibres", misses: 3),
+                                         name: "n", explanation: "e")
+        XCTAssertTrue(same.questions.isEmpty, "two options that say the same aren't a question")
     }
 
     // MARK: Cards from a chat
@@ -444,5 +502,23 @@ final class AILectureTests: XCTestCase {
         XCTAssertFalse(app.settings.sendPhotos, "photos go off with Cloud AI")
         // The harness grants the current version; a change to what is sent or who processes it is a new version, so everyone is asked again.
         XCTAssertEqual(AIConsent.currentVersion, 3)
+    }
+}
+
+/// A relay that names questions it wasn't asked about.
+private final class ForeignConfusions: RelayTransport, @unchecked Sendable {
+    let base = MockRelayTransport(latencyScale: 0)
+    func generate(_ request: GenerateRequest) async throws -> GenerateResponse { try await base.generate(request) }
+    func check(_ request: CheckRequest) async throws -> CheckResponse { try await base.check(request) }
+    func grade(_ request: GradeRequest) async throws -> GradeResponse { try await base.grade(request) }
+    func tutor(_ request: TutorRequest) -> AsyncThrowingStream<TutorEvent, Error> { base.tutor(request) }
+    func lecture(_ request: LectureRequest) async throws -> LectureResponse { try await base.lecture(request) }
+    func cardsFromChat(_ request: CardsFromChatRequest) async throws -> CardsFromChatResponse { try await base.cardsFromChat(request) }
+    func transcribeImage(_ request: TranscribeImageRequest) async throws -> TranscribeImageResponse { try await base.transcribeImage(request) }
+    func quota() async throws -> QuotaStatus { try await base.quota() }
+    func confusions(_ request: ConfusionsRequest) async throws -> ConfusionsResponse {
+        var response = try await base.confusions(request)
+        for index in response.confusions.indices { response.confusions[index].itemIds = ["somebody-else"] }
+        return response
     }
 }

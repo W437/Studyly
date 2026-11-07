@@ -32,10 +32,7 @@
               "correct": false
             }
           ],
-          "anchors": [
-            "p0.l14",
-            "p0.l18"
-          ],
+          "anchors": [],
           "difficulty": 0.4
         },
         {
@@ -60,10 +57,7 @@
               "correct": false
             }
           ],
-          "anchors": [
-            "p0.l15",
-            "p0.l19"
-          ],
+          "anchors": [],
           "difficulty": 0.4
         },
         {
@@ -96,12 +90,7 @@
               ]
             }
           ],
-          "anchors": [
-            "p0.l14",
-            "p0.l15",
-            "p0.l18",
-            "p0.l19"
-          ],
+          "anchors": [],
           "difficulty": 0.55
         }
       ]

@@ -67,6 +67,36 @@ enum GroundingCheck {
         return nil
     }
 
+    /// The relay's fix questions come with no anchors: they're written from the expected answers, not from lines of a page. Each is held to the same rules as any
+    /// other, against the page and those answers together, and then points at the page's lines that hold its answer, when any do.
+    static func groundedByWords(_ items: [GeneratedItem], texts: [String: String], facts: [String], minimumOverlap: Double = defaultOverlap) -> [GeneratedItem] {
+        var everything = texts
+        for (index, fact) in facts.enumerated() { everything["fact\(index)"] = fact }
+        let allIDs = everything.keys.sorted()
+        return items.compactMap { item in
+            var whole = item
+            whole.anchors = allIDs
+            guard problem(with: whole, texts: everything, minimumOverlap: minimumOverlap) == nil else { return nil }
+            var grounded = item
+            grounded.anchors = lines(holdingAnswerOf: item, in: texts)
+            return grounded
+        }
+    }
+
+    /// The lines most of the item's right answer is on, the best two.
+    private static func lines(holdingAnswerOf item: GeneratedItem, in texts: [String: String]) -> [String] {
+        let answer = item.kind == .cloze ? (item.cloze?.answers ?? []).joined(separator: " ")
+            : item.kind == .mcq ? (item.choices.first(where: \.correct)?.text ?? item.answer) : item.answer
+        guard !Lexicon.contentStems(answer).isEmpty else { return [] }
+        var found: [(id: String, overlap: Double)] = []
+        for (id, line) in texts {
+            let overlap = Lexicon.overlap(of: answer, with: line)
+            if overlap > 0 { found.append((id, overlap)) }
+        }
+        found.sort { $0.overlap != $1.overlap ? $0.overlap > $1.overlap : $0.id < $1.id }
+        return found.prefix(2).map(\.id)
+    }
+
     /// Every anchor id of a set of pages, with its text.
     static func texts(of pages: [PageText]) -> [String: String] {
         var out: [String: String] = [:]

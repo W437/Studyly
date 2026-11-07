@@ -191,9 +191,9 @@ struct MockRelayTransport: RelayTransport {
     func confusions(_ request: ConfusionsRequest) async throws -> ConfusionsResponse {
         try await pause(Latency.confusions)
         try magic(request.mistakes.map(\.given) + [request.course])
-        guard request.lookAlike == true else { return try load(ConfusionsResponse.self, "confusions") }
-        // The look-alike's lesson, about the two questions it was asked about.
-        var response = try load(ConfusionsResponse.self, "confusions-lookalike")
+        // As the real relay: one slip is no pattern, so nothing comes back. Else the fixture about the questions asked about, and its questions have no anchors.
+        guard request.lookAlike == true || request.mistakes.count >= 2 else { return ConfusionsResponse(model: "mock", confusions: []) }
+        var response = try load(ConfusionsResponse.self, request.lookAlike == true ? "confusions-lookalike" : "confusions")
         for index in response.confusions.indices { response.confusions[index].itemIds = request.mistakes.map(\.itemId) }
         return response
     }

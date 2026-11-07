@@ -56,6 +56,29 @@ enum LocalConfusions {
         return out
     }
 
+    /// One question missed: there's no pattern to explain and the relay would write nothing, so the rules say what the answer is. When the wrong answer is short
+    /// enough to set beside the right one, a two-choice question between them; otherwise the fix drills the question itself.
+    static func recap(_ mistake: MistakeInput, name: String, explanation: String) -> ConfusionOut {
+        let prompt = Lexicon.trimmedSentence(mistake.prompt), answer = Lexicon.trimmedSentence(mistake.expected)
+        let given = Lexicon.trimmedSentence(mistake.given)
+        let beside = !given.isEmpty && !same(mistake.given, mistake.expected) && given.count <= recapChoiceLength
+        let lesson: String
+        if !ConfusionFinder.isTerm(answer) {
+            lesson = String(localized: "For “\(prompt)”, the answer: \(answer).")
+        } else if beside, ConfusionFinder.isTerm(given) {
+            lesson = String(localized: "For “\(prompt)”, the answer is \(LocalGrader.lowerFirst(answer)), not \(LocalGrader.lowerFirst(given)).")
+        } else {
+            lesson = String(localized: "For “\(prompt)”, the answer is \(LocalGrader.lowerFirst(answer)).")
+        }
+        let question = GeneratedItem(id: "r1", kind: .mcq, topic: mistake.topic, prompt: mistake.prompt, answer: mistake.expected, explanation: "",
+                                     choices: [Choice(text: mistake.expected, correct: true), Choice(text: mistake.given, correct: false)],
+                                     anchors: [], difficulty: 0.4)
+        return ConfusionOut(name: name, explanation: explanation, itemIds: [mistake.itemId], lesson: lesson, questions: beside ? [question] : [])
+    }
+
+    /// The longest wrong answer a two-choice question sets beside the right one.
+    private static let recapChoiceLength = 80
+
     /// Two look-alikes side by side, before any mistake: each one with what tells it apart, and a two-choice question for each. What the
     /// sheet shows when Cloud AI isn't asked.
     static func sideBySide(_ a: LookAlikeSide, _ b: LookAlikeSide) -> ConfusionOut {
