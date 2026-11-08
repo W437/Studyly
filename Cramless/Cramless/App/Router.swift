@@ -12,6 +12,8 @@ enum AppTab: String, Hashable, CaseIterable, Sendable {
 
 enum Route: Hashable, Sendable {
     case course(UUID)
+    /// A course's questions, filtered by topic when one is given (the course page's last row, "All 36 questions").
+    case courseQuestions(courseID: UUID, topicID: UUID?)
     case exam(UUID)
     case source(UUID)
     case sourcePage(sourceID: UUID, pageIndex: Int, highlight: [String])
@@ -110,7 +112,8 @@ enum AppSheet: Identifiable, Hashable, Sendable {
     case importDeck(courseID: UUID?)
     case newCourse
     case editCourse(UUID)
-    case newExam(courseID: UUID?)
+    /// `fromCourse`: opened from that course (its page, its Library card), so the editor doesn't ask for the course.
+    case newExam(courseID: UUID?, fromCourse: Bool = false)
     case editExam(UUID)
     /// The editor of this exam, opening straight on "Snap the syllabus" ("Set from your syllabus" on the exam page).
     case syllabus(examID: UUID)

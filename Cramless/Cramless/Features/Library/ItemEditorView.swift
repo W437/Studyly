@@ -1,8 +1,9 @@
 import SwiftUI
 
-/// Write a new question or edit one: its format, question and answer, key ideas with the phrasings that count,
-/// choices with the right one marked, fill-in text with {{blanks}}, the explanation, topic, suspend and delete. The
-/// source chip opens the page it came from. Questions the person writes are free and unlimited: no AI involved.
+/// Write a question, or edit one, in one layout: the question first, its format as one row, then its answer in the form the format needs
+/// (key ideas with the other ways to say each folded under them, choices with the right one marked, a fill-in's sentence with the
+/// blanks in [brackets], as in the review's editor), the explanation, course and topic; an existing question adds suspend, its source
+/// and delete. The source chip opens the page it came from. No AI involved.
 struct ItemEditorView: View {
     let itemID: UUID?
     let courseID: UUID?
@@ -18,6 +19,8 @@ struct ItemEditorView: View {
     @State private var confirmDelete = false
     @State private var loaded = false
     @State private var path: [Route] = []
+    /// Key ideas whose other ways of saying them are open.
+    @State private var openIdeas: Set<String> = []
 
     var body: some View {
         let item = app.item(itemID)
@@ -32,8 +35,8 @@ struct ItemEditorView: View {
                 if gone {
                     Text("This question was deleted.").clFont(.body).foregroundStyle(CLColor.ink2)
                 } else {
-                    formatSection(isDiagram: isDiagram)
                     questionSection
+                    formatSection(isDiagram: isDiagram)
                     switch draft.kind {
                     case .flashcard: answerSection(title: "Back", placeholder: "Definition or answer")
                     case .recall, .apply:
@@ -46,7 +49,7 @@ struct ItemEditorView: View {
                     explanationSection
                     if itemID == nil && courseID == nil { courseSection(courses) }
                     topicSection(topics, course: course)
-                    suspendSection
+                    if item != nil { suspendSection }
                     if let ref = item?.sourceRef { sourceSection(ref) }
                     if item != nil { deleteSection }
                 }
@@ -54,7 +57,7 @@ struct ItemEditorView: View {
             .scrollContentBackground(.hidden)
             .clScreenBackground()
             .scrollDismissesKeyboard(.interactively)
-            .navigationTitle(itemID == nil ? "New question" : "Edit question")
+            .navigationTitle(itemID == nil ? "Write a question" : "Edit question")
             .navigationBarTitleDisplayMode(.inline)
             .navigationDestination(for: Route.self) { route in RouteDestination(route: route) }
             .toolbar {
@@ -114,23 +117,30 @@ struct ItemEditorView: View {
 
     // MARK: Sections
 
+    /// The format, as one row (a diagram's is fixed: its labels come from a page).
     private func formatSection(isDiagram: Bool) -> some View {
         Section {
             if isDiagram {
-                Label("Diagram: labels on a page", systemImage: ItemKind.diagram.libraryIcon)
-                    .clFont(.subheadlineEmphasis)
-                    .foregroundStyle(CLColor.ink)
+                LabeledContent("Format") {
+                    Text(ItemKind.diagram.displayName).foregroundStyle(CLColor.ink2)
+                }
+                .clFont(.body)
             } else {
-                FormatPicker(selection: Binding(get: { draft.kind }, set: { kind in
+                Picker("Format", selection: Binding(get: { draft.kind }, set: { kind in
+                    CLHaptics.select()
                     draft.kind = kind
                     draft.prepareRows()
-                }))
-                .listRowInsets(EdgeInsets(top: 10, leading: 12, bottom: 10, trailing: 12))
+                })) {
+                    ForEach(ItemDraft.writableKinds) { kind in
+                        Text(kind.displayName).tag(kind)
+                    }
+                }
+                .pickerStyle(.menu)
+                .clFont(.body)
+                .tint(CLColor.tangerineInk)
             }
-        } header: {
-            Text("Format")
         } footer: {
-            Text(isDiagram ? ItemKind.diagram.editorHint : "\(draft.kind.editorHint) Questions you write are free and unlimited.")
+            Text(draft.kind.editorHint)
         }
         .listRowBackground(CLColor.surface)
     }
@@ -180,10 +190,7 @@ struct ItemEditorView: View {
                             RemoveButton(label: "Remove key idea") { remove(idea: idea.id) }
                         }
                     }
-                    TextField("Also accept, separated by commas", text: $idea.phrasings, axis: .vertical)
-                        .clFont(.footnote)
-                        .foregroundStyle(CLColor.ink2)
-                        .lineLimit(1...4)
+                    otherWays(of: $idea)
                         .padding(.leading, 21)
                 }
                 .padding(.vertical, 4)
@@ -202,9 +209,29 @@ struct ItemEditorView: View {
         } header: {
             Text("Key ideas")
         } footer: {
-            Text("A good answer hits each key idea. List other ways of saying it and they count too.")
+            Text("A good answer hits each key idea. Other ways to say it count too.")
         }
         .listRowBackground(CLColor.surface)
+    }
+
+    /// A key idea's accepted phrasings, folded: "Other ways to say it (6)" opens the list to edit.
+    private func otherWays(of idea: Binding<ItemDraft.Idea>) -> some View {
+        let id = idea.wrappedValue.id
+        let count = ItemDraft.split(idea.wrappedValue.phrasings).count
+        return DisclosureGroup(isExpanded: Binding(get: { openIdeas.contains(id) }, set: { open in
+            withAnimation(CLMotion.settle) { if open { openIdeas.insert(id) } else { openIdeas.remove(id) } }
+        })) {
+            TextField("Other ways to say it, separated by commas", text: idea.phrasings, axis: .vertical)
+                .clFont(.footnote)
+                .foregroundStyle(CLColor.ink2)
+                .lineLimit(1...6)
+                .padding(.top, 4)
+        } label: {
+            Text(count > 0 ? "Other ways to say it (\(count))" : "Other ways to say it")
+                .clFont(.footnoteEmphasis)
+                .foregroundStyle(CLColor.ink2)
+        }
+        .tint(CLColor.ink3)
     }
 
     private var choicesSection: some View {
@@ -262,21 +289,22 @@ struct ItemEditorView: View {
     private var clozeSection: some View {
         let blanks = draft.blanks
         return Section {
-            TextField("During {{telophase}}, the chromatids reach opposite poles.", text: $draft.clozeText, axis: .vertical)
+            TextField("During [telophase], the chromatids reach opposite poles.", text: $draft.clozeText, axis: .vertical)
                 .clFont(.body)
                 .lineLimit(2...8)
                 .autocorrectionDisabled()
             if !blanks.isEmpty {
-                Text(LibraryFormat.clozeDisplay(draft.clozeText.clTrimmed))
+                let preview = LibraryFormat.clozeDisplay(ItemDraft.braced(draft.clozeText.clTrimmed))
+                Text(preview)
                     .clFont(.callout)
                     .foregroundStyle(CLColor.ink2)
-                    .accessibilityLabel(Text("Preview: \(LibraryFormat.clozeDisplay(draft.clozeText.clTrimmed))"))
+                    .accessibilityLabel(Text("Preview: \(preview)"))
                 ForEach(Array(blanks.enumerated()), id: \.offset) { index, blank in
                     VStack(alignment: .leading, spacing: 4) {
                         Text(blank.isEmpty ? "Empty blank" : blank)
                             .clFont(.subheadlineEmphasis)
                             .foregroundStyle(blank.isEmpty ? CLColor.roseInk : CLColor.ink)
-                        TextField("Also accept, separated by commas", text: alternateBinding(index))
+                        TextField("Other ways to say it, separated by commas", text: alternateBinding(index))
                             .clFont(.footnote)
                             .foregroundStyle(CLColor.ink2)
                             .autocorrectionDisabled()
@@ -286,7 +314,7 @@ struct ItemEditorView: View {
         } header: {
             Text("Sentence")
         } footer: {
-            Text("Put {{double braces}} around each word to hide. Example: During {{telophase}}, the nuclear envelopes re-form.")
+            Text("Put [brackets] around each word to hide, like: During [telophase], the nuclear envelopes re-form.")
         }
         .listRowBackground(CLColor.surface)
     }
@@ -486,43 +514,6 @@ struct ItemEditorView: View {
             CLHaptics.land()
             dismiss()
             app.router.toast("Added to \(target.name)")
-        }
-    }
-}
-
-/// The five formats a person can write, as tiles.
-private struct FormatPicker: View {
-    @Binding var selection: ItemKind
-    @Environment(\.dynamicTypeSize) private var typeSize
-
-    var body: some View {
-        let columns = Array(repeating: GridItem(.flexible(), spacing: 8), count: typeSize.isAccessibilitySize ? 2 : 3)
-        LazyVGrid(columns: columns, spacing: 8) {
-            ForEach(ItemDraft.writableKinds) { kind in
-                Button {
-                    CLHaptics.select()
-                    withAnimation(CLMotion.snap) { selection = kind }
-                } label: {
-                    VStack(spacing: 6) {
-                        Image(systemName: kind.libraryIcon)
-                            .font(.system(size: 18, weight: .semibold))
-                        Text(kind.shortName)
-                            .clFont(.footnoteEmphasis)
-                            .multilineTextAlignment(.center)
-                            .lineLimit(2)
-                            .minimumScaleFactor(0.85)
-                    }
-                    .foregroundStyle(selection == kind ? CLColor.background : CLColor.ink)
-                    .frame(maxWidth: .infinity, minHeight: 64)
-                    .padding(.vertical, 4)
-                    .background(selection == kind ? CLColor.ink : CLColor.surface2,
-                                in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(Text(kind.displayName))
-                .accessibilityAddTraits(selection == kind ? [.isSelected] : [])
-            }
         }
     }
 }

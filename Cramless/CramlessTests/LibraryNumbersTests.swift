@@ -152,9 +152,12 @@ final class LibraryNumbersTests: XCTestCase {
         XCTAssertEqual(lines.map(\.name), [verbs.name, food.name])
     }
 
-    func testTheTopicsFootnoteNamesTheExam() {
+    /// The course page's head names the next exam once, with its day; the ring beside it is the number.
+    func testTheCourseHeadNamesTheNextExamAndItsDay() {
         let date = day(23)
-        XCTAssertEqual(LibraryFormat.topicsFootnote(examTitle: "Bio 101 Midterm", courseName: "Bio 101", date: date, calendar: cal),
-                       "Ready for the Midterm, \(LibraryFormat.shortDate(date, calendar: cal)).")
+        let line = LibraryFormat.headerExamLine(title: "Bio 101 Midterm", courseName: "Bio 101", date: date, calendar: cal)
+        XCTAssertTrue(line.hasPrefix("Midterm · "), line)
+        XCTAssertTrue(line.contains(date.formatted(LibraryFormat.dateStyle(cal).weekday(.abbreviated))), "the weekday is in it: \(line)")
+        XCTAssertFalse(line.contains("%"), "no readiness in the words")
     }
 }

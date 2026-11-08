@@ -1,9 +1,9 @@
 import SwiftUI
 
-/// After the exam: the grade the person got, then beside it how ready they were on the day ("You got 81%, at 74% ready on the
-/// day."). Saving it (`AppModel.logGrade`) is what lets Capling learn how readiness turns into grades: from two such exams it projects
-/// a letter. The field starts empty (a logged grade must be the person's own number, never a projection nudged into place); a grade
-/// logged before shows for changing.
+/// After the exam: the grade the person got, typed on the number pad (the field is focused as the sheet opens), then beside it how ready
+/// they were on the day ("You got 81%, at 74% ready on the day."). Saving it (`AppModel.logGrade`) is what lets Capling learn how readiness
+/// turns into grades: from two such exams it projects a letter. The field starts empty (a logged grade must be the person's own number,
+/// never a projection nudged into place, so there is no slider sitting at some value); a grade logged before shows for changing.
 ///
 /// Harness: `CRAMLESS_SCENARIO=past` first moves the exam three days back; `CRAMLESS_GRADE=<percent>` logs that grade
 /// on appear and shows the result.
@@ -64,6 +64,11 @@ struct LogGradeView: View {
             loaded = true
             if let score = exam.resultScore { percent = Int((score * 100).rounded()) }
         }
+        .task {
+            // The number pad comes up with the sheet (focus set while it slides in is dropped).
+            try? await Task.sleep(for: .milliseconds(350))
+            if saved == nil { fieldFocused = true }
+        }
         #if DEBUG
         .task {
             app.applyHarnessScenarioOnce(examID: examID)
@@ -109,26 +114,22 @@ struct LogGradeView: View {
                         .foregroundStyle(CLColor.ink2)
                         .accessibilityHidden(true)
                 }
-                if let percent {
-                    CLPill(text: .verbatim(GradeModel.letter(Double(percent) / 100)), tone: .neutral)
-                        .accessibilityLabel(Text("Letter grade \(GradeModel.letter(Double(percent) / 100))"))
-                } else {
-                    Text("Type it, or slide").clFont(.footnoteEmphasis).foregroundStyle(CLColor.ink3)
-                }
-                Slider(value: Binding(get: { Double(percent ?? 75) }, set: { percent = Int($0.rounded()) }), in: 0...100, step: 1) {
-                    Text("Your grade")
-                }
-                .tint(percent == nil ? CLColor.ink4 : CLColor.tangerine)
-                .accessibilityValue(Text(percent.map { "\($0) percent" } ?? "Not set"))
-                .padding(.horizontal, 4)
+                // The letter's place is kept while the field is empty, so nothing moves as the first digit lands.
+                CLPill(text: .verbatim(GradeModel.letter(Double(percent ?? 0) / 100)), tone: .neutral)
+                    .opacity(percent == nil ? 0 : 1)
+                    .accessibilityHidden(percent == nil)
+                    .accessibilityLabel(Text("Letter grade \(GradeModel.letter(Double(percent ?? 0) / 100))"))
             }
+            .frame(maxWidth: .infinity)
             .clCard(padding: 20)
+            .contentShape(Rectangle())
+            .onTapGesture { fieldFocused = true }
 
             Button("Save grade") { save(exam) }
                 .buttonStyle(.cl(.primary))
                 .disabled(percent == nil)
 
-            Text("Capling puts it beside how ready you were on the day, to learn how your readiness turns into grades.")
+            Text("This teaches Capling how your readiness turns into grades.")
                 .clFont(.footnote)
                 .foregroundStyle(CLColor.ink2)
                 .multilineTextAlignment(.center)

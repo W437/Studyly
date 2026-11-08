@@ -11,7 +11,7 @@ struct ExamDraft: Equatable, Sendable {
     var format = ExamFormat()
     /// The readiness the plan aims for, kept within `targetRange`.
     var target = 0.9
-    /// With no course yet, the name of the course to make for it (the editor asks for it, so "Add an exam" never dead-ends).
+    /// With no course yet, the name of the course to make for it (the editor asks for it, so "Add exam" never dead-ends).
     var newCourseName = ""
     /// Topics the syllabus names that the course doesn't have yet. `createExam` and `updateExam` make them first, in the same save, and put them
     /// in scope; with nothing added for them yet, they are the gaps the exam page shows.

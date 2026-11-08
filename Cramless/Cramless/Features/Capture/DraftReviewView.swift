@@ -1,15 +1,17 @@
 import SwiftUI
 
-/// The draft review: the generated questions grouped by topic, each with its format, answer and source chip, all
-/// ticked; what the check left out and why; an honest line about who wrote and checked them; a better-AI suggestion
-/// when there is one; the course (or, in onboarding, which class it's for); and "Add 14 questions".
+/// The draft review: "15 questions · p. 87", one line on who wrote and checked them, then the questions grouped by topic, each with its
+/// format, answer and source chip, all ticked; under the last one, a row for what the check left out (it opens the list) and a better-AI
+/// suggestion when there is one; the course (or, in onboarding, which class it's for); and "Add 15 questions". The one decision is
+/// whether to add them, so there are no filters or counts to manage. In onboarding the line is "Checked against your page." and there is
+/// no "Left out" row.
 ///
 /// Nothing is added until the person approves. Closing asks whether to keep the drafts for later or throw them away.
 ///
 /// DEBUG hooks (with a route that shows a review, e.g. `CRAMLESS_ROUTE=review`):
 /// - `CRAMLESS_REVIEW_EDIT=1` opens the editor on the first question.
 /// - `CRAMLESS_REVIEW_UNTICK=<n>` unticks the first n questions.
-/// - `CRAMLESS_REVIEW_SCROLL=leftout` scrolls to the "Left out" section.
+/// - `CRAMLESS_REVIEW_SCROLL=leftout` scrolls to the "Left out" row and opens its list; `=offer` scrolls to the better-questions offer.
 /// - `CRAMLESS_REVIEW_PEEK=1` opens the first question's source page.
 /// - `CRAMLESS_REVIEW_APPROVE=1` presses "Add" after a moment (the toast, then the screen closes).
 /// - `CRAMLESS_REVIEW_ALLOW=1` allows Cloud AI after a moment, as the consent sheet would (the set is written again).
@@ -33,7 +35,7 @@ struct DraftReviewView: View {
     @State private var rows: [DraftRow] = []
     @State private var report: DraftReport?
     @State private var excluded: Set<UUID> = []
-    @State private var filter: ItemKind?
+    @State private var showsLeftOut = false
     @State private var courseID: UUID?
     /// The class picked from the suggestions, and one typed in (which wins when there is one).
     @State private var pickedClass: String?
@@ -68,13 +70,12 @@ struct DraftReviewView: View {
                         CaptureOriginNote(systemImage: "info.circle", text: extraNote, tone: .sun).padding(.top, 8)
                     }
                     if formulaPages > 0 { formulasCard.padding(.top, 8) }
-                    if let suggestion = visibleSuggestion { suggestionCard(suggestion).padding(.top, 12) }
                     if isOnboarding && fixedCourseName == nil { classCard.padding(.top, 16) }
-                    if kindsPresent.count > 1 { filterChips.padding(.top, 18) }
                     ForEach(groups, id: \.topic) { group in
                         section(group.topic, rows: group.rows)
                     }
-                    if !(report?.leftOut ?? []).isEmpty { leftOutSection.id("leftout") }
+                    if !isOnboarding, !(report?.leftOut ?? []).isEmpty { leftOutRow.id("leftout").padding(.top, 16) }
+                    if let suggestion = visibleSuggestion { suggestionCard(suggestion).id("offer").padding(.top, 16) }
                     if loaded && rows.isEmpty && !finished { emptyState }
                 }
                 .padding(.horizontal, CLSpace.gutter)
@@ -98,6 +99,9 @@ struct DraftReviewView: View {
         .safeAreaBar(edge: .bottom) { bottomBar }
         .sheet(item: $editing, onDismiss: load) { target in
             DraftItemEditor(itemID: target.id)
+        }
+        .sheet(isPresented: $showsLeftOut) {
+            DraftLeftOutSheet(items: report?.leftOut ?? [], checkPlace: context.checkPlace)
         }
         .sheet(item: $peek) { peek in
             NavigationStack {
@@ -168,11 +172,10 @@ struct DraftReviewView: View {
         return context.sourceTitle.isEmpty ? "Your questions" : context.sourceTitle
     }
 
+    /// "15 questions · p. 87": how many, and where from (the title already names the source).
     private var subtitle: String {
         let count = CLFormat.count(rows.count, "question")
-        if context.isLecture { return "\(count) from \(context.sourceTitle)" }
-        let place = context.pagePhrase.isEmpty ? "" : ", \(context.pagePhrase)"
-        return "\(count) from \(context.sourceTitle)\(place)"
+        return context.pagePhrase.isEmpty ? count : "\(count) · \(context.pagePhrase)"
     }
 
     @ViewBuilder private var topButton: some View {
@@ -201,23 +204,31 @@ struct DraftReviewView: View {
         }
     }
 
-    /// Who wrote the set, who checked it and against what, in plain words.
+    /// Who wrote the set and what it was checked against, in one sentence, then the one thing to do. Offline, a set that fell back says
+    /// why (a free limit, Cloud AI not reachable) instead. In onboarding, only the check.
     private var originText: String {
         let place = context.checkPlace
+        if isOnboarding { return String(localized: "Checked against your page.") }
         let lead: String
         switch report?.origin {
         case .cloud:
             lead = report?.checkedBy == .cloud
-                ? "Written by Cloud AI and checked against \(place)."
-                : "Written by Cloud AI and checked against \(place) on your iPhone."
+                ? String(localized: "Written by Cloud AI, checked against \(place).")
+                : String(localized: "Written by Cloud AI, checked against \(place) on your iPhone.")
         case .onDevice:
-            lead = "Written on this iPhone and checked against \(place)."
+            lead = String(localized: "Written on this iPhone, checked against \(place).")
         case .rules:
-            lead = report?.note ?? "Basic questions from the offline rules, checked against \(place)."
+            // The plain offline note ("Basic questions from the offline rules", with the Cloud AI offer the card under the questions makes)
+            // becomes this sentence; a note that says why the rules wrote them stays.
+            if let note = report?.note, !note.hasPrefix("Basic questions from the offline rules") {
+                lead = note
+            } else {
+                lead = String(localized: "Basic questions from the offline rules, checked against \(place).")
+            }
         default:
-            lead = "Checked against \(place)."
+            lead = String(localized: "Checked against \(place).")
         }
-        return "\(lead) Each one shows where it came from. Untick anything you don't want."
+        return "\(lead) \(String(localized: "Untick any you don't want."))"
     }
 
     /// The better-AI suggestion, while it still applies (consent not yet given, photos still off, still on free).
@@ -234,7 +245,7 @@ struct DraftReviewView: View {
         let words: (title: String, body: String, action: String) = switch suggestion {
         case .allowCloud:
             ("Want better questions?",
-             "Cloud AI writes richer questions from this page, in your own words and multiple choice, and checks each one against it. It stays off until you say so.",
+             "Cloud AI writes richer questions from this page and checks each one against it. It stays off until you say so.",
              "Use Cloud AI")
         case .allowPhotos:
             ("Let Cloud AI see the page",
@@ -383,10 +394,6 @@ struct DraftReviewView: View {
                 .clFont(.headline)
                 .foregroundStyle(CLColor.ink)
                 .accessibilityAddTraits(.isHeader)
-            Text("Your set goes there, and your plan is built for it.")
-                .clFont(.footnote)
-                .foregroundStyle(CLColor.ink2)
-                .fixedSize(horizontal: false, vertical: true)
             if !suggestions.isEmpty {
                 CaptureChips(spacing: 8) {
                     ForEach(suggestions, id: \.self) { name in
@@ -416,65 +423,28 @@ struct DraftReviewView: View {
         .clCard(padding: 16)
     }
 
-    // MARK: Filter
-
-    private var kindsPresent: [ItemKind] {
-        ItemKind.allCases.filter { kind in rows.contains { $0.kind == kind } }
-    }
-
-    private var filterChips: some View {
-        ScrollView(.horizontal) {
-            HStack(spacing: 8) {
-                filterChip(nil, title: "All \(rows.count)")
-                ForEach(kindsPresent) { kind in
-                    filterChip(kind, title: "\(kind.displayName) \(rows.filter { $0.kind == kind }.count)")
-                }
-            }
-            .padding(.horizontal, CLSpace.gutter)
-        }
-        .scrollIndicators(.hidden)
-        .padding(.horizontal, -CLSpace.gutter)
-    }
-
-    private func filterChip(_ kind: ItemKind?, title: String) -> some View {
-        Button {
-            CLHaptics.select()
-            withAnimation(CLMotion.settle) { filter = kind }
-        } label: {
-            CLChip(title: .verbatim(title), selected: filter == kind)
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(Text(kind == nil ? "All questions" : "\(kind!.displayName) questions"))
-    }
-
     // MARK: Questions
 
     private var groups: [(topic: String, rows: [DraftRow])] {
-        let visible = rows.filter { filter == nil || $0.kind == filter }
         var order = report?.topics ?? []
-        for row in visible where !order.contains(row.topic) { order.append(row.topic) }
+        for row in rows where !order.contains(row.topic) { order.append(row.topic) }
         return order.compactMap { topic in
-            let inTopic = visible.filter { $0.topic == topic }
+            let inTopic = rows.filter { $0.topic == topic }
             return inTopic.isEmpty ? nil : (topic.isEmpty ? "More questions" : topic, inTopic)
         }
     }
 
     private func section(_ topic: String, rows: [DraftRow]) -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack(alignment: .firstTextBaseline) {
-                Text(topic)
-                    .clFont(.title3)
-                    .foregroundStyle(CLColor.ink)
-                    .accessibilityAddTraits(.isHeader)
-                Spacer(minLength: 8)
-                Text("\(rows.filter { !excluded.contains($0.id) }.count) of \(rows.count)")
-                    .clFont(.footnoteEmphasis)
-                    .foregroundStyle(CLColor.ink3)
-                    .accessibilityLabel(Text("\(rows.filter { !excluded.contains($0.id) }.count) of \(rows.count) included"))
-            }
-            .padding(.top, 24)
-            .padding(.bottom, 10)
-            .padding(.horizontal, 2)
+            Text(topic)
+                .clFont(.title3)
+                .foregroundStyle(CLColor.ink)
+                .accessibilityAddTraits(.isHeader)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.top, 24)
+                .padding(.bottom, 10)
+                .padding(.horizontal, 2)
             CLList {
                 ForEach(rows) { row in
                     DraftRowView(row: row, included: !excluded.contains(row.id),
@@ -500,52 +470,38 @@ struct DraftReviewView: View {
 
     // MARK: Left out
 
-    private var leftOutSection: some View {
-        let leftOut = report?.leftOut ?? []
-        return VStack(alignment: .leading, spacing: 0) {
-            Text("Left out")
-                .clFont(.title3)
-                .foregroundStyle(CLColor.ink)
-                .accessibilityAddTraits(.isHeader)
-                .padding(.top, 28)
-                .padding(.horizontal, 2)
-            Text(leftOut.count == 1
-                 ? "The check took this one out, because \(context.checkPlace) doesn't back it up."
-                 : "The check took these out, because \(context.checkPlace) doesn't back them up.")
-                .clFont(.footnote)
-                .foregroundStyle(CLColor.ink2)
-                .fixedSize(horizontal: false, vertical: true)
-                .padding(.top, 4)
-                .padding(.bottom, 10)
-                .padding(.horizontal, 2)
-            CLList {
-                ForEach(leftOut) { item in
-                    HStack(alignment: .top, spacing: 10) {
-                        Image(systemName: "minus.circle")
-                            .font(.system(size: 18, weight: .regular))
-                            .foregroundStyle(CLColor.ink3)
-                            .frame(width: 44, height: 24)
-                            .accessibilityHidden(true)
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(item.prompt)
-                                .clFont(.subheadlineEmphasis)
-                                .foregroundStyle(CLColor.ink2)
-                                .fixedSize(horizontal: false, vertical: true)
-                            Text(item.reason)
-                                .clFont(.footnote)
-                                .foregroundStyle(CLColor.ink3)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                    .padding(.leading, 8)
-                    .padding(.trailing, 16)
-                    .padding(.vertical, 12)
-                    .accessibilityElement(children: .combine)
-                    .accessibilityLabel(Text("Left out: \(item.prompt). \(item.reason)"))
-                }
+    /// What the check took out, as one row that opens the list: the decision on screen is the set that passed.
+    private var leftOutRow: some View {
+        let count = report?.leftOut.count ?? 0
+        return Button {
+            CLHaptics.tap()
+            showsLeftOut = true
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "minus.circle")
+                    .font(.system(size: 17, weight: .regular))
+                    .foregroundStyle(CLColor.ink3)
+                    .accessibilityHidden(true)
+                Text("Left out by the check")
+                    .clFont(.subheadlineEmphasis)
+                    .foregroundStyle(CLColor.ink2)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                Text(verbatim: "\(count)")
+                    .clFont(.subheadline)
+                    .foregroundStyle(CLColor.ink3)
+                CLChevron()
             }
+            .padding(.horizontal, 16)
+            .frame(minHeight: CLMetrics.minHitTarget + 6)
+            .background(CLColor.surface, in: RoundedRectangle(cornerRadius: CLRadius.list, style: .continuous))
+            .contentShape(Rectangle())
         }
+        .buttonStyle(.pressable)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text("Left out by the check"))
+        .accessibilityValue(Text(CLFormat.count(count, "question")))
+        .accessibilityHint(Text("Shows what the check took out, and why"))
+        .accessibilityAddTraits(.isButton)
     }
 
     private var emptyState: some View {
@@ -673,8 +629,17 @@ struct DraftReviewView: View {
         if TestHarness.once("CRAMLESS_REVIEW_PEEK") == "1", let first = rows.first {
             Task { try? await nap(900); openSource(first) }
         }
-        if TestHarness.once("CRAMLESS_REVIEW_SCROLL") == "leftout" {
-            Task { try? await nap(700); scrollTarget = "leftout" }
+        let scroll = TestHarness.once("CRAMLESS_REVIEW_SCROLL")
+        if scroll == "offer" {
+            Task { try? await nap(700); scrollTarget = "offer" }
+        }
+        if scroll == "leftout" {
+            Task {
+                try? await nap(700)
+                scrollTarget = "leftout"
+                try? await nap(700)
+                if !(report?.leftOut ?? []).isEmpty { showsLeftOut = true }
+            }
         }
         if TestHarness.once("CRAMLESS_REVIEW_APPROVE") == "1" {
             Task { try? await nap(1500); approve() }
@@ -830,6 +795,69 @@ private struct DraftAnswerLabelStyle: LabelStyle {
             configuration.icon
             configuration.title
         }
+    }
+}
+
+/// The questions the check took out, and why: opened from the review's "Left out by the check" row.
+private struct DraftLeftOutSheet: View {
+    let items: [DraftReport.LeftOut]
+    let checkPlace: String
+
+    @Environment(\.dismiss) private var dismiss
+    /// The sheet hugs its list; a long one is a large sheet that scrolls.
+    @State private var contentHeight: CGFloat = 320
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text(items.count == 1
+                         ? "The check took this one out, because \(checkPlace) doesn't back it up."
+                         : "The check took these out, because \(checkPlace) doesn't back them up.")
+                        .clFont(.subheadline)
+                        .foregroundStyle(CLColor.ink2)
+                        .fixedSize(horizontal: false, vertical: true)
+                    CLList {
+                        ForEach(items) { item in
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(item.prompt)
+                                    .clFont(.subheadlineEmphasis)
+                                    .foregroundStyle(CLColor.ink)
+                                    .fixedSize(horizontal: false, vertical: true)
+                                Text(item.reason)
+                                    .clFont(.footnote)
+                                    .foregroundStyle(CLColor.ink2)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 12)
+                            .accessibilityElement(children: .combine)
+                        }
+                    }
+                }
+                .padding(.horizontal, CLSpace.gutter)
+                .padding(.top, 8)
+                .padding(.bottom, 24)
+                .frame(maxWidth: CLMetrics.readableWidth)
+                .frame(maxWidth: .infinity)
+                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height in
+                    if abs(height - contentHeight) > 1 { contentHeight = height }
+                }
+            }
+            .scrollBounceBehavior(.basedOnSize)
+            .clScreenBackground()
+            .navigationTitle("Left out")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }
+                }
+            }
+        }
+        // The list, plus the bar's height.
+        .presentationDetents([.height(contentHeight + 76), .large])
+        .presentationDragIndicator(.visible)
     }
 }
 

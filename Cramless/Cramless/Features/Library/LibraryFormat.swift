@@ -107,12 +107,11 @@ enum LibraryFormat {
 
     // MARK: Exam chips
 
-    /// What a chip needs of an exam. `readiness`: for one still to come.
+    /// What a chip needs of an exam.
     struct ChipExam: Equatable, Sendable {
         var id: UUID
         var title: String
         var date: Date
-        var readiness: Double?
         var result: Double?
     }
 
@@ -127,14 +126,12 @@ enum LibraryFormat {
     /// How many past exams with a grade keep a chip.
     static let gradedChips = 2
 
-    /// The course's exams as chips: those to come, soonest first ("Midterm · Nov 29 · 53% ready"); those waiting for a grade, the newest first
-    /// ("Quiz · log your grade"); the latest grades ("Quiz · you got 91%").
+    /// The course's exams as chips: those to come, soonest first ("Final · Dec 14"; the readiness is the header's ring, for the next one only);
+    /// those waiting for a grade, the newest first ("Quiz · log your grade"); the latest grades ("Quiz · you got 91%").
     static func examChips(_ exams: [ChipExam], courseName: String, now: Date, calendar: Calendar) -> [ExamChip] {
         func short(_ exam: ChipExam) -> String { shortExamTitle(exam.title, courseName: courseName) }
         let upcoming = exams.filter { $0.date > now }.sorted { $0.date < $1.date }.map { exam -> ExamChip in
-            let ready = exam.readiness.map { String(localized: "\(CLFormat.percent($0)) ready") }
-            let text = [short(exam), shortDate(exam.date, calendar: calendar), ready].compactMap { $0 }.joined(separator: " · ")
-            return ExamChip(id: exam.id, text: text, state: .upcoming)
+            ExamChip(id: exam.id, text: "\(short(exam)) · \(shortDate(exam.date, calendar: calendar))", state: .upcoming)
         }
         let past = exams.filter { $0.date <= now }.sorted { $0.date > $1.date }
         let waiting = past.filter { $0.result == nil }.map {
@@ -146,9 +143,10 @@ enum LibraryFormat {
         return upcoming + waiting + graded
     }
 
-    /// The topic list's note under a course's ring: "Ready for the Midterm, Nov 29."
-    static func topicsFootnote(examTitle: String, courseName: String, date: Date, calendar: Calendar) -> String {
-        String(localized: "Ready for the \(shortExamTitle(examTitle, courseName: courseName)), \(shortDate(date, calendar: calendar)).")
+    /// The course page's head, beside its ring: "Midterm · Tue 1 Dec" (the next exam, with its weekday).
+    static func headerExamLine(title: String, courseName: String, date: Date, calendar: Calendar) -> String {
+        let day = date.formatted(LibraryFormat.dateStyle(calendar).weekday(.abbreviated).day().month(.abbreviated))
+        return "\(shortExamTitle(title, courseName: courseName)) · \(day)"
     }
 
     /// The source screen's line about its questions: "Questions cover 17% of this reading".
@@ -243,18 +241,6 @@ extension ItemKind {
         case .cloze: "text.cursor"
         case .diagram: "photo"
         case .flashcard: "rectangle.on.rectangle"
-        }
-    }
-
-    /// A short name for filter chips ("Own words", "Choice").
-    var shortName: String {
-        switch self {
-        case .recall: "Own words"
-        case .apply: "Apply it"
-        case .mcq: "Choice"
-        case .cloze: "Fill in"
-        case .diagram: "Diagram"
-        case .flashcard: "Flashcard"
         }
     }
 

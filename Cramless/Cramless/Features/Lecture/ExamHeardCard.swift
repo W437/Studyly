@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// "Cap heard an exam date": at the top of a lecture's notes when the lecturer said one, with the words as they were transcribed, so a misheard date is easy to catch. "Add the exam" runs one AI check
+/// "Cap heard an exam date": at the top of a lecture's notes when the lecturer said one, with the words as they were transcribed, so a misheard date is easy to catch. "Add exam" runs one AI check
 /// when it's allowed (it can only choose among the dates read, and it can only ask, not stop the student), then adds the exam on the whole course, with Undo. A date the plan has under another day offers
 /// to move it. Harness: `CRAMLESS_EXAM_HEARD=new|known|moved|added` (`AppModel+Lecture`).
 struct ExamHeardCard: View {

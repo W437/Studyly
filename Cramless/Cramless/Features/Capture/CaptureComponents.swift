@@ -157,14 +157,28 @@ struct CaptureCoursePicker<Label: View>: View {
     }
 }
 
-/// "For  Bio 101 ⌄": the picker as a compact capsule.
+/// "For  Bio 101 ⌄": the picker as a compact capsule. When the words don't fit on one line (the largest text sizes) the prefix goes and
+/// the course's name stays whole; VoiceOver still hears both.
 struct CaptureCourseLabel: View {
     let course: Course?
     var prefix = "For"
 
     var body: some View {
+        ViewThatFits(in: .horizontal) {
+            capsule(showsPrefix: true)
+            capsule(showsPrefix: false)
+        }
+        .contentShape(Capsule())
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text(course.map { "\(prefix) \($0.name)" } ?? "Choose a course"))
+        .accessibilityHint(Text("Changes the course"))
+    }
+
+    private func capsule(showsPrefix: Bool) -> some View {
         HStack(spacing: 6) {
-            Text(prefix).clFont(.subheadline).foregroundStyle(CLColor.ink2)
+            if showsPrefix {
+                Text(prefix).clFont(.subheadline).foregroundStyle(CLColor.ink2).lineLimit(1).fixedSize()
+            }
             if let course {
                 Image(systemName: course.symbol)
                     .font(.system(size: 12, weight: .semibold))
@@ -180,10 +194,6 @@ struct CaptureCourseLabel: View {
         .padding(.horizontal, 14)
         .frame(minHeight: 40)
         .background(CLColor.surface2, in: Capsule())
-        .contentShape(Capsule())
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(Text(course.map { "\(prefix) \($0.name)" } ?? "Choose a course"))
-        .accessibilityHint(Text("Changes the course"))
     }
 }
 

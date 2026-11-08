@@ -1,7 +1,8 @@
 import SwiftUI
 
 /// Edits one draft question before it's approved: the question, and its answer in the form its format needs (the
-/// options of a multiple choice with the right one marked, a fill-in's sentence with the blanks in [brackets]).
+/// choices of a multiple choice with the right one marked, a fill-in's sentence with the blanks in [brackets]), in the words the
+/// question editor uses (`ItemEditorView`).
 /// A diagram's labels come from the page's own text, so only its question can change.
 struct DraftItemEditor: View {
     let itemID: UUID
@@ -65,14 +66,14 @@ struct DraftItemEditor: View {
                         }
                         .buttonStyle(.plain)
                         .accessibilityLabel(Text(choices[index].correct ? "Right answer" : "Mark as the right answer"))
-                        TextField("Option \(index + 1)", text: $choices[index].text, axis: .vertical)
+                        TextField("Choice \(index + 1)", text: $choices[index].text, axis: .vertical)
                             .clFont(.body)
                     }
                 }
             } header: {
-                Text("Options")
+                Text("Choices")
             } footer: {
-                Text("Tap a circle to mark the right answer.")
+                Text("Tap a circle to mark the one right answer.")
             }
         case .cloze:
             Section {
@@ -121,16 +122,14 @@ struct DraftItemEditor: View {
         prompt = item.prompt
         answer = item.answer
         choices = item.choices
-        sentence = (item.cloze?.text ?? "").replacingOccurrences(of: "{{", with: "[").replacingOccurrences(of: "}}", with: "]")
+        sentence = ItemDraft.bracketed(item.cloze?.text ?? "")
         sourceLabel = item.sourceRef?.label
     }
 
     private func save() {
         CLHaptics.tap()
         let cleanChoices = choices.map { Choice(text: $0.text.trimmingCharacters(in: .whitespacesAndNewlines), correct: $0.correct, why: $0.why) }
-        let cloze = kind == .cloze
-            ? sentence.replacingOccurrences(of: "[", with: "{{").replacingOccurrences(of: "]", with: "}}")
-            : nil
+        let cloze = kind == .cloze ? ItemDraft.braced(sentence) : nil
         app.updateDraft(itemID, prompt: prompt, answer: answer, choices: kind == .mcq ? cleanChoices : nil, clozeText: cloze)
         dismiss()
     }

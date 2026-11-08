@@ -134,7 +134,7 @@ enum ExamHeardMatch: Equatable, Sendable {
 /// The words of a heard date.
 enum ExamHeardCopy {
     static let title: LocalizedStringResource = "Cap heard an exam date"
-    static let add: LocalizedStringResource = "Add the exam"
+    static let add: LocalizedStringResource = "Add exam"
     /// Refusing it, on the card and on the lecture's page: it doesn't come back.
     static let wrong = String(localized: "That's wrong")
     static let refused = String(localized: "Cap won't bring it up again")

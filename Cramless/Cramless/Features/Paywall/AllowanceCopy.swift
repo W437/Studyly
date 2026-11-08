@@ -23,15 +23,14 @@ enum AllowanceCopy {
         return needed > 1 ? "This is \(pages) pages, so it takes \(needed) of your free AI scans." : nil
     }
 
-    /// "AI notes for 1 lecture left this week", or that they're used and the transcript still works.
-    static func lectures(left: Int?) -> LocalizedStringResource? {
-        guard let left else { return nil }
-        return left > 0 ? "AI notes for \(left) lecture left this week"
-            : "This week's AI lecture notes are used. Transcripts still work."
+    /// The + sheet's one line under its list, on the free plan: "This week: 3 free AI scans, 1 lecture." With the scans used up, that and what
+    /// still works (a lecture's own line is the recorder's). Nil with nothing to say (a paid plan, Cloud AI off, a child's account).
+    static func week(scans: Int?, lectures: Int?) -> LocalizedStringResource? {
+        guard let scans else { return nil }
+        guard scans > 0 else { return self.scans(left: 0) }
+        if let lectures, lectures > 0 { return "This week: \(scans) free AI scans, \(lectures) lectures." }
+        return "This week: \(scans) free AI scans."
     }
-
-    /// The + sheet's footer, on the free plan.
-    static let alwaysFree: LocalizedStringResource = "Reviews, cards you make and imports are always free."
 
     /// The recorder's line while it makes notes. `cloud`: Cloud AI may write them (consent, a relay in this build, not a child);
     /// `lecturesLeft`: the free lecture notes left when the person pressed stop (nil on a paid plan).

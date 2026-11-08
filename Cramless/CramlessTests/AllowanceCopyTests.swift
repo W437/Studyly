@@ -44,11 +44,14 @@ final class AllowanceCopyTests: XCTestCase {
         XCTAssertNil(app.ai.readingAllowance(pageWords: pages(21)), "a child's account has no allowance to talk about")
     }
 
-    func testLectureNotesLeftThisWeek() {
-        XCTAssertEqual(text(AllowanceCopy.lectures(left: 1)), "AI notes for 1 lecture left this week")
-        XCTAssertEqual(text(AllowanceCopy.lectures(left: 2)), "AI notes for 2 lectures left this week")
-        XCTAssertEqual(text(AllowanceCopy.lectures(left: 0)), "This week's AI lecture notes are used. Transcripts still work.")
-        XCTAssertNil(AllowanceCopy.lectures(left: nil))
+    /// The + sheet says the week's allowance once, under its list.
+    func testThePlusSheetSaysTheWeekInOneLine() {
+        XCTAssertEqual(text(AllowanceCopy.week(scans: 3, lectures: 1)), "This week: 3 free AI scans, 1 lecture.")
+        XCTAssertEqual(text(AllowanceCopy.week(scans: 1, lectures: 2)), "This week: 1 free AI scan, 2 lectures.")
+        XCTAssertEqual(text(AllowanceCopy.week(scans: 2, lectures: 0)), "This week: 2 free AI scans.")
+        XCTAssertEqual(text(AllowanceCopy.week(scans: 0, lectures: 1)),
+                       "Free AI scans are used up until Monday. Cap still writes questions on your iPhone.")
+        XCTAssertNil(AllowanceCopy.week(scans: nil, lectures: nil), "nothing to say on a paid plan, without consent, or for a child")
     }
 
     func testTheRecordersMakingNotesLineSaysWhoWritesThem() {
@@ -60,10 +63,6 @@ final class AllowanceCopyTests: XCTestCase {
         XCTAssertTrue(text(AllowanceCopy.makingNotes(cloud: false, lecturesLeft: nil))!.hasSuffix("on your iPhone."))
         XCTAssertFalse(text(AllowanceCopy.makingNotes(cloud: false, lecturesLeft: 0))!.contains("used"),
                        "without Cloud AI there is no allowance to talk about")
-    }
-
-    func testTheFooterSaysWhatIsAlwaysFree() {
-        XCTAssertEqual(String(localized: AllowanceCopy.alwaysFree), "Reviews, cards you make and imports are always free.")
     }
 
     /// The counts the lines are made from: nil on a paid plan, without consent, for a child; the meter's count otherwise.

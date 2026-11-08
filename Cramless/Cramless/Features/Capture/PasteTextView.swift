@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// Paste text: a title, the course, and the text itself. "Make questions" runs the capture flow on it, the same
-/// processing and review as a scanned page.
+/// Paste text: the text first, its box focused, and its name under it (optional). "Make questions" runs the capture flow on it, the same
+/// processing and review as a scanned page; the review asks which course it's for ("Adding to"), so this sheet doesn't.
 ///
 /// DEBUG hook: `CRAMLESS_PASTE_TEXT=sample` fills in sample notes; `=long` about 21 pages of them, for the line on what a long reading takes.
 struct PasteTextView: View {
@@ -10,7 +10,6 @@ struct PasteTextView: View {
     @Environment(AppModel.self) private var app
     @State private var title = ""
     @State private var text = ""
-    @State private var selectedCourseID: UUID?
     /// What this text will take of the free scans, when it is long (worked out a moment after the typing stops).
     @State private var allowance: LocalizedStringResource?
     @FocusState private var focused: Field?
@@ -21,41 +20,16 @@ struct PasteTextView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
-                    TextField("Title, like Chapter 3 notes", text: $title)
-                        .clFont(.headline)
+                    editor
+                    TextField("Name (optional)", text: $title)
+                        .clFont(.body)
                         .textInputAutocapitalization(.sentences)
-                        .submitLabel(.next)
+                        .submitLabel(.done)
                         .focused($focused, equals: .title)
-                        .onSubmit { focused = .text }
                         .padding(.horizontal, 14)
                         .frame(minHeight: 50)
                         .background(CLColor.surface, in: RoundedRectangle(cornerRadius: CLRadius.field, style: .continuous))
-                        .accessibilityLabel("Title")
-                    CaptureCoursePicker(courseID: $selectedCourseID) { course in
-                        CaptureCourseLabel(course: course, prefix: "For")
-                    }
-                    editor
-                    HStack(alignment: .center, spacing: 12) {
-                        PasteButton(payloadType: String.self) { strings in
-                            let pasted = strings.joined(separator: "\n")
-                            Task { @MainActor in
-                                text = text.isEmpty ? pasted : text + "\n" + pasted
-                                CLHaptics.select()
-                            }
-                        }
-                        .buttonBorderShape(.capsule)
-                        .labelStyle(.titleAndIcon)
-                        Spacer(minLength: 8)
-                        Text(countLine)
-                            .clFont(.footnote)
-                            .foregroundStyle(CLColor.ink3)
-                            .contentTransition(.numericText())
-                    }
-                    Label("Questions come from this text only, and each one links back to the sentence it came from.",
-                          systemImage: "link")
-                        .clFont(.footnote)
-                        .foregroundStyle(CLColor.ink2)
-                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityLabel("Name, optional")
                 }
                 .padding(.horizontal, CLSpace.gutter)
                 .padding(.top, 8)
@@ -100,10 +74,14 @@ struct PasteTextView: View {
                 }
                 allowance = app.ai.readingAllowance(pageWords: pageWords)
             }
+            .task {
+                // The box takes the keyboard once the sheet is up (focus set while it slides in is dropped).
+                try? await Task.sleep(for: .milliseconds(350))
+                if text.isEmpty { focused = .text }
+            }
         }
         .presentationDragIndicator(.visible)
         .onAppear {
-            if selectedCourseID == nil { selectedCourseID = app.defaultCourseID(preferring: courseID) }
             #if DEBUG
             let debugText = TestHarness.once("CRAMLESS_PASTE_TEXT")
             if debugText == "sample" || debugText == "long" {
@@ -118,23 +96,42 @@ struct PasteTextView: View {
         }
     }
 
+    /// The text box, with the paste button and the word count along its foot.
     private var editor: some View {
-        ZStack(alignment: .topLeading) {
-            TextEditor(text: $text)
-                .clFont(.body)
-                .foregroundStyle(CLColor.ink)
-                .scrollContentBackground(.hidden)
-                .focused($focused, equals: .text)
-                .frame(minHeight: 260)
-                .accessibilityLabel("Text")
-            if text.isEmpty {
-                Text("Paste or type your notes here. A page or two works best.")
+        VStack(alignment: .leading, spacing: 8) {
+            ZStack(alignment: .topLeading) {
+                TextEditor(text: $text)
                     .clFont(.body)
-                    .foregroundStyle(CLColor.ink4)
-                    .padding(.top, 8)
-                    .padding(.leading, 5)
-                    .allowsHitTesting(false)
-                    .accessibilityHidden(true)
+                    .foregroundStyle(CLColor.ink)
+                    .scrollContentBackground(.hidden)
+                    .focused($focused, equals: .text)
+                    .frame(minHeight: 170)
+                    .accessibilityLabel("Text")
+                if text.isEmpty {
+                    Text("Paste or type your notes here. A page or two works best.")
+                        .clFont(.body)
+                        .foregroundStyle(CLColor.ink4)
+                        .padding(.top, 8)
+                        .padding(.leading, 5)
+                        .allowsHitTesting(false)
+                        .accessibilityHidden(true)
+                }
+            }
+            HStack(alignment: .center, spacing: 12) {
+                PasteButton(payloadType: String.self) { strings in
+                    let pasted = strings.joined(separator: "\n")
+                    Task { @MainActor in
+                        text = text.isEmpty ? pasted : text + "\n" + pasted
+                        CLHaptics.select()
+                    }
+                }
+                .buttonBorderShape(.capsule)
+                .labelStyle(.titleAndIcon)
+                Spacer(minLength: 8)
+                Text(countLine)
+                    .clFont(.footnote)
+                    .foregroundStyle(CLColor.ink3)
+                    .contentTransition(.numericText())
             }
         }
         .padding(10)
@@ -150,6 +147,6 @@ struct PasteTextView: View {
     private func go() {
         CLHaptics.tap()
         let clean = title.trimmingCharacters(in: .whitespacesAndNewlines)
-        app.router.present(.captureFlow(CaptureRequest(input: .text(title: clean, body: text), courseID: selectedCourseID)))
+        app.router.present(.captureFlow(CaptureRequest(input: .text(title: clean, body: text), courseID: courseID)))
     }
 }

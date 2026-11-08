@@ -158,7 +158,11 @@ enum TestHarness {
             let courses = app.courses
             let index = Int(arg ?? "") ?? 0
             if courses.indices.contains(index) { r.push(.course(courses[index].id), on: .library) }
-        case "source": if let s = firstSource { r.push(.source(s.id), on: .library) }
+        // `source:<n>`: the nth source with pages, oldest first (`source:1` is a PDF of two pages; a one-page source opens on its page).
+        case "source":
+            let withPages = (firstCourse?.liveSources ?? []).sorted { $0.createdAt < $1.createdAt }.filter { !$0.pages.isEmpty }
+            let index = Int(arg ?? "") ?? 0
+            if withPages.indices.contains(index) { r.push(.source(withPages[index].id), on: .library) }
         case "sourcePage":
             // `sourcePage:<n>`: page n of the first source; `sourcePage:text`: a typed page a question comes from.
             if arg == "text" {
@@ -248,7 +252,8 @@ enum TestHarness {
         case "paste": r.present(.paste(courseID: firstCourse?.id))
         case "importDeck": r.present(.importDeck(courseID: firstCourse?.id))
         case "newCourse": r.present(.newCourse)
-        case "newExam": r.present(.newExam(courseID: firstCourse?.id))
+        // `newExam`: from the first course's page (no Course row); `newExam:today`: from Today, the course a guess to change.
+        case "newExam": r.present(.newExam(courseID: firstCourse?.id, fromCourse: arg != "today"))
         case "editExam": if let e = firstExam { r.present(.editExam(e.id)) }
         // `syllabus:new`: a new exam for the first course; `syllabus` or `syllabus:edit`: the Bio midterm. `CRAMLESS_SYLLABUS` sets the state (see
         // `ExamEditorView`).
@@ -259,7 +264,11 @@ enum TestHarness {
                 r.present(.syllabus(examID: exam.id))
             }
         case "logGrade": if let e = firstExam { r.present(.logGrade(examID: e.id)) }
-        case "editItem": if let i = firstCourse?.activeItems.first { r.present(.editItem(i.id)) }
+        // `editItem:<kind>`: the first question of that format by prompt (`editItem:recall` has key ideas), else the first question.
+        case "editItem":
+            let items = (firstCourse?.activeItems ?? []).sorted { $0.prompt < $1.prompt }
+            let kind = arg.flatMap(ItemKind.init(rawValue:))
+            if let i = kind.flatMap({ k in items.first { $0.kind == k } }) ?? firstCourse?.activeItems.first { r.present(.editItem(i.id)) }
         case "newItem": r.present(.newItem(courseID: firstCourse?.id))
         case "explain":
             // The question this wrong answer is wrong about, which is what the mock's three steps explain; another own-words one without it.

@@ -2064,6 +2064,25 @@ and Cap's card.
 - Tests: the Today classes, `NoticeEngineTests`, `NotificationPlannerTests` and the game copy tests, updated for the words;
   `TodayPlanStripTests` deleted with the strip.
 
+## Clarity pass: Library and adding notes (2026-11-08, lane `c-library`)
+
+Every screen of adding notes and the Library now has one job and says it once.
+- The course page is one page, no tabs: the head names the next exam once ("Midterm · Tue 1 Dec") beside its ring, the other exams are
+  chips with "Add exam" (the one label for making an exam everywhere), a topic's row practices it (a small grey play, so Study is the one
+  orange button), Sources has "Add material", and "All 36 questions" opens the list (`CourseQuestionsView`, `Route.courseQuestions`). The
+  round + went: the tab bar's + adds to the course on screen (`AppModel.courseOnScreen`, read by `AddTabAction`).
+- Adding notes asks for the course once, at "Adding to": the + sheet and Paste text lost their pickers. The + sheet and an empty Library
+  share their rows (`AddMaterialList`) and one allowance line (`AllowanceCopy.week`). Import opens on Quizlet.
+- Processing: "Making questions", "With Cloud AI" once, live details only, empty rings for steps not started, 0.6 s before the review.
+  The review: "15 questions · p. 87", one line, no filter chips or "8 of 8", "Left out" as one row with its list in a sheet, the offer
+  under the questions; in onboarding "Checked against your page." and no footnote on the class card. An unreadable page offers "Read it
+  with Cloud AI" first (it asks for page photos, then reads).
+- The exam editor puts the date first, hides the course when opened from one, and keeps format and target behind one row on a new exam;
+  the syllabus's found page saves the exam itself. Log grade is a focused number field. Both question editors put the question first,
+  the format in one row, blanks in [brackets] (`ItemDraft.braced`/`bracketed`), and fold the other ways to say a key idea.
+- A one-page source opens on its page (`SourcePageView(asSource:)`, with the source's notes and menu); a source's title is its large
+  bar title; a lecture's flag says "On the midterm" once.
+
 ## Left for the owner
 
 - Accounts and keys (see README "Before the App Store"):
