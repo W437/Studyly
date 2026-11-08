@@ -28,7 +28,7 @@ FREE MOCK EXAM
 Free, no purchase. A mock needs 8 questions of the exam's kinds, and the sample page gives 6. So: + > Paste text, paste the passage below, Make questions, Add. Then Progress > your exam > Mock exam > Take it.
 
 SQUAD
-One plan for up to four people. Needs a sandbox purchase and a sign-in: Settings > Subscription > See Pro and Squad; Settings > Account; Settings > Squad > Invite a friend gives a code. Members see only first names, join dates and, for those who turn on "Show when I've studied" (off by default), a mark on days they finished a session. No messages, no shared notes. Joining takes a code from the owner, who can remove anyone.
+One plan for up to four people. Needs a sandbox purchase and a sign-in: Settings > Subscription > Squad; Settings > Account; Settings > Subscription > Squad > Invite a friend gives a code. Members see only first names, join dates and, for those who turn on "Show when I've studied" (off by default), a mark on days they finished a session. No messages, no shared notes. Joining takes a code from the owner, who can remove anyone.
 
 CLOUD AI
 Off until allowed. Settings > AI and privacy > Use Cloud AI shows the consent sheet: what is sent, and that OpenAI processes it through our server. Off, rules on the iPhone answer. Cap's work is a draft the student approves, unless they turn on "Let Cap do it". Web research is Pro only, off under 18, on a fixed list of sites. With Cloud AI on, the app prepares a last look by itself in the two days before an exam, and answers a question kept for later once online (fetch background mode).

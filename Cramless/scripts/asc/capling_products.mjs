@@ -29,13 +29,13 @@ const GROUP = 'Capling Pro';
 const SUBS = [
   { key: 'squad', productId: 'com.loopware.Capling.squad.yearly', reference: 'Squad Yearly', name: 'Squad', description: 'Capling Pro for you and 3 friends, yearly.',
     period: 'ONE_YEAR', level: 1, usd: '99.99', trial: 'ONE_WEEK',
-    note: 'Squad shares Capling Pro with up to three friends, billed once a year to the owner. Settings (your initial at the top of Today) > Squad, or the plans at Settings > Subscription > See Pro and Squad.' },
+    note: 'Squad shares Capling Pro with up to three friends, billed once a year to the owner. Settings (your initial at the top of Today) > Subscription > Squad.' },
   { key: 'yearly', productId: 'com.loopware.Capling.pro.yearly', reference: 'Pro Yearly', name: 'Pro Yearly', description: 'Every Capling Pro feature, billed yearly.',
     period: 'ONE_YEAR', level: 2, usd: '49.99', trial: 'ONE_WEEK',
-    note: 'Capling Pro is the AI work: no weekly limit on AI scans, PDFs and lecture notes, answers in your own words graded by Cloud AI, no daily limit on Cap\'s answers and drafts, and web research from trusted sites. Reviews, flashcards, a plan and readiness for every exam, mock exams and imports are free for everyone. The plans appear at the end of the welcome and later at Settings (your initial at the top of Today) > Subscription > See Pro and Squad. "Continue free" always closes them.' },
+    note: 'Capling Pro is the AI work: no weekly limit on AI scans, PDFs and lecture notes, answers in your own words graded by Cloud AI, no daily limit on Cap\'s answers and drafts, and web research from trusted sites. Reviews, flashcards, a plan and readiness for every exam, mock exams and imports are free for everyone. The plans appear at the end of the welcome and later at Settings (your initial at the top of Today) > Subscription > See Pro. "Continue free" always closes them.' },
   { key: 'monthly', productId: 'com.loopware.Capling.pro.monthly', reference: 'Pro Monthly', name: 'Pro Monthly', description: 'Every Capling Pro feature, billed monthly.',
     period: 'ONE_MONTH', level: 3, usd: '9.99',
-    note: 'The same Capling Pro features, billed monthly. The plans appear at the end of the welcome and later at Settings (your initial at the top of Today) > Subscription > See Pro and Squad.' },
+    note: 'The same Capling Pro features, billed monthly. The plans appear at the end of the welcome and later at Settings (your initial at the top of Today) > Subscription > See Pro.' },
 ];
 const PASS = { key: 'pass', productId: 'com.loopware.Capling.exampass', reference: 'Exam Pass (30 days)', name: 'Exam Pass', description: "30 days of Capling Pro. Doesn't renew.", usd: '14.99',
   note: 'Exam Pass is 30 days of Capling Pro, bought once, with no renewal and nothing to cancel. Settings (your initial at the top of Today) > Subscription > Exam Pass.' };

@@ -32,7 +32,7 @@ def send(p: Phone) -> None:
 
 
 def ask_for(p: Phone, chip: str, topic: str) -> None:
-    """A chip puts the first words in the composer ("Make flashcards on "); Maya finishes the sentence and sends it."""
+    """A chip puts the first words in the composer ("Make cards on "); Maya finishes the sentence and sends it."""
     p.tap(chip, type="Button", after=1.0)
     p.type(topic)
     p.dwell(0.6)
@@ -55,8 +55,8 @@ def assist_cards(p: Phone) -> None:
     p.mark("Ask Cap to make something: cards, a quiz, a note, an exam")
     p.tab("Ask", after=2.6)
     p.dwell(2.4)
-    p.mark("Maya taps Make flashcards, finishes the sentence, sends it")
-    ask_for(p, "Make flashcards", "mitosis")
+    p.mark("Maya taps Make cards, finishes the sentence, sends it")
+    ask_for(p, "Make cards", "mitosis")
     p.mark("Cap writes the cards, then checks each against Maya's notes")
     watch(p, 5.6, every=0.6)
     p.mark("Maya's call: one card isn't from the notes, so Cap marked it")
@@ -126,11 +126,11 @@ def assist_research(p: Phone) -> None:
          "Cap asks before it adds anything, unless Maya switches on \"Let Cap do it\" for a kind of thing. Then it adds it at once, says "
          "why, and Undo is one tap. Settings lists everything Cap has added.", env=SCRIPTED)
 def assist_control(p: Phone) -> None:
-    p.mark("Cap asks first. The switches are in Settings, under What Cap can do")
+    p.mark("Cap asks first. The switches are in Settings, under AI and privacy")
     p.dwell(1.2)
     p.tap("Profile and settings", after=2.4)
-    p.scroll_to("What Cap can do", top=150, bottom=700)
-    p.tap("What Cap can do", after=2.6)
+    p.scroll_to("AI and privacy", top=150, bottom=700)
+    p.tap("AI and privacy", after=2.6)
     p.dwell(2.4)
     row = p.wait("Flashcards and questions", type="Switch")
     p.mark("Let Cap do it: Maya switches it on for flashcards and questions")
@@ -140,7 +140,7 @@ def assist_control(p: Phone) -> None:
     p.back(after=1.4)
     p.tab("Ask", after=2.6)
     p.dwell(1.2)
-    ask_for(p, "Make flashcards", "mitosis")
+    ask_for(p, "Make cards", "mitosis")
     p.mark("The same request now adds the cards at once")
     watch(p, 8.0, every=0.8)
     p.mark("Cap says why, and Undo is still there")

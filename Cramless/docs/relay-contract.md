@@ -247,7 +247,7 @@ such a chat. Meter: one `tutor` message a turn, as any other. A photo is never p
 **`context` ("Explain my mistake").** The last turn also asks for three short parts separated by a blank line, with no labels: what their answer
 got right and the one thing off; why, cited (on hints first and for a minor, a nudge toward why that points at the passage); one question
 starting "Quick check:". It goes in the last turn, so the instructions and the material stay the same bytes for the prompt cache. The app
-pages through the parts (`MistakeSteps`), and copes with other shapes.
+shows the first two parts as the explanation and the last as the quick check, on one page (`MistakeReply`), and copes with other shapes.
 
 What the model reads, in this order: the instructions (the same for a whole chat), then the student's material (the passages as
 tagged text, then a short "The student has added:" block when `materials` came), then the earlier turns as plain messages, then
