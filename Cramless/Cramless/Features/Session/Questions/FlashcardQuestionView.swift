@@ -1,15 +1,16 @@
 import SwiftUI
 
-/// A flashcard: say it to yourself, then flip (a 3D turn; a cross-fade under Reduce Motion) and rate how well you
-/// knew it. Each rating shows when the card comes back, from the scheduler itself.
+/// A flashcard: say it to yourself, then flip (a 3D turn; a cross-fade under Reduce Motion) and say whether you had it. Two choices,
+/// "← Again" and "Got it →", with no intervals on them: the Undo pill that follows says when the question comes back.
 ///
-/// Once it is flipped, a swipe rates it: right is "got it" (Good), left is Again (`SwipeRule`; the ← → keys and the two chips do the same).
-/// Hard and Easy stay as tiles. With VoiceOver or Switch Control, or at the accessibility text sizes, the footer is the four-tile grid,
-/// and VoiceOver has the four as actions on the answer. A tally of got it and again sits above the card once there is one.
+/// Once it is flipped, a swipe rates it: right is "got it" (Good), left is Again (`SwipeRule`; the ← → keys and the two buttons do the same).
+/// Hard and Easy stay for whoever wants them: the 2 and 4 keys (1 and 3 are Again and Got it), and VoiceOver's actions on the answer. With
+/// VoiceOver or Switch Control, or at the accessibility text sizes, there is no swipe: the two buttons are the way. "Swipe right if you got
+/// it, left if not" shows on a student's first few flashcards ever (`FlashcardSwipeHint`), then never.
 ///
 /// DEBUG (`SessionDebug`): `CRAMLESS_SESSION_STATE=flashcard-drag` holds the flipped card 60% of the way right; `flashcard-swiped`
-/// swipes it: the next one is up, the tally says 1 and 0, and the Undo pill stays; `CRAMLESS_SESSION_SWIPE=rrlhe` plays a session of
-/// flashcards by that pattern (`r` swipe right, `l` swipe left, `h` the Hard tile, `e` the Easy tile).
+/// swipes it: the next one is up and the Undo pill stays; `CRAMLESS_SESSION_SWIPE=rrlhe` plays a session of flashcards by that pattern
+/// (`r` swipe right, `l` swipe left, `h` Hard, `e` Easy).
 struct FlashcardQuestionView: View {
     let runner: SessionRunner
     let entry: SessionEntry
@@ -31,42 +32,21 @@ struct FlashcardQuestionView: View {
     @Environment(\.accessibilitySwitchControlEnabled) private var switchControl
 
     @State private var swipeState = FlashcardSwipeState()
-    /// The session's tally as this card came up: its own rating shows on the card after it.
-    @State private var tally = SessionRunner.FlashcardTally()
     @State private var flipped = false
-    @State private var intervals: [Rating: Double] = [:]
+    /// This card shows the swipe's hint: decided as it turns, so it doesn't vanish under the person once counted.
+    @State private var showsHint = false
     @State private var flippedAtMs = 0
     /// Back from an Undo: flipped as it was, and nothing plays again.
     @State private var restored = false
 
     var body: some View {
         QuestionScroll {
-            if !tally.isEmpty {
-                FlashcardTallyView(tally: tally)
-                    .padding(.horizontal, 4)
-            }
-            HStack(alignment: .center, spacing: 8) {
-                HStack(alignment: .firstTextBaseline, spacing: 6) {
-                    Image(systemName: item.kind.studySymbol)
-                    Text([item.kind.displayName, runner.topicName(entry.topicID)].compactMap { $0 }.joined(separator: " · "))
-                }
-                .clFont(.eyebrow)
-                .foregroundStyle(CLColor.ink3)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .dynamicTypeSize(...DynamicTypeSize.accessibility1)
-                .accessibilityElement(children: .combine)
-                ReadAloudButton(item: item)
-            }
-            .padding(.horizontal, 4)
-            if entry.attempt > 0 {
-                CLPill(text: "Back again", tone: .sky, systemImage: "arrow.uturn.backward")
-                    .padding(.horizontal, 4)
-            }
-            // With the four tiles there is no swipe: no gesture on the card, so a long answer scrolls freely.
-            if usesGrid {
+            QuestionHeader(item: item, entry: entry, topic: runner.topicName(entry.topicID))
+            // Without the swipe there is no gesture on the card, so a long answer scrolls freely.
+            if noSwipe {
                 card
             } else {
-                FlashcardSwipeLayer(state: swipeState, enabled: flipped, intervals: intervals, onSwipe: swipe) { card }
+                FlashcardSwipeLayer(state: swipeState, enabled: flipped, onSwipe: swipe) { card }
             }
             if flipped, runner.offersLooksWrong {
                 LooksWrongButton(item: item)
@@ -76,17 +56,9 @@ struct FlashcardQuestionView: View {
         }
         .scrollDisabled(swipeState.isDragging)
         .sessionFooter { footer }
-        .onAppear {
-            tally = runner.flashcardTally
-            pickUpRestore()
-        }
-        // The rating held for Undo moved the session's due load when it was recorded: a label can be a day off until then.
-        .onChange(of: runner.pending == nil) { _, recorded in
-            if recorded, runner.current?.id == entry.id { intervals = app.intervalPreview(itemID: item.id, sessionID: runner.sessionID) }
-        }
+        .onAppear { pickUpRestore() }
         .task {
             pickUpRestore()
-            intervals = app.intervalPreview(itemID: item.id, sessionID: runner.sessionID)
             guard !restored else { return }
             app.readAloud(question: item)
             if autoFlip {
@@ -168,77 +140,47 @@ struct FlashcardQuestionView: View {
 
     // MARK: Rating
 
-    /// The four tiles stay where a swipe isn't how the person gets around, or where the chips' words wouldn't fit.
-    private var usesGrid: Bool { typeSize.isAccessibilitySize || voiceOver || switchControl }
+    /// No swipe where a swipe isn't how the person gets around, or at the accessibility text sizes, where the card scrolls under a finger.
+    private var noSwipe: Bool { typeSize.isAccessibilitySize || voiceOver || switchControl }
 
     @ViewBuilder private var footer: some View {
         if flipped {
-            Group {
-                if usesGrid { gridFooter } else { swipeFooter }
+            VStack(spacing: 8) {
+                if showsHint {
+                    Text(SessionCopy.swipeHint)
+                        .clFont(.footnoteEmphasis)
+                        .foregroundStyle(CLColor.ink3)
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                let layout = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(spacing: 8)) : AnyLayout(HStackLayout(spacing: 8))
+                layout {
+                    choice(.again, systemImage: "arrow.left", leading: true)
+                    choice(.good, systemImage: "arrow.right", leading: false)
+                }
             }
-            .background { arrowKeys }
+            .background { keys }
+            .transition(.opacity.combined(with: .offset(y: 12)))
         } else {
             Button("Show answer", action: flip)
                 .buttonStyle(.cl(.primary))
         }
     }
 
-    private var gridFooter: some View {
-        VStack(spacing: 8) {
-            if !typeSize.isAccessibilitySize {
-                Text("How well did you know it?")
-                    .clFont(.footnoteEmphasis)
-                    .foregroundStyle(CLColor.ink3)
-            }
-            let columns = Array(repeating: GridItem(.flexible(), spacing: 8), count: typeSize.isAccessibilitySize ? 2 : 4)
-            LazyVGrid(columns: columns, spacing: 8) {
-                ForEach(Rating.allCases) { rating in
-                    ratingButton(rating, minHeight: 62)
-                }
-            }
-        }
-        .transition(.opacity.combined(with: .offset(y: 12)))
-    }
-
-    /// Again and Got it, on the side a swipe goes; Hard and Easy below them.
-    private var swipeFooter: some View {
-        VStack(spacing: 8) {
-            Text("Swipe right if you got it, left if not")
-                .clFont(.footnoteEmphasis)
-                .foregroundStyle(CLColor.ink3)
-                .multilineTextAlignment(.center)
-            HStack(spacing: 8) {
-                swipeChip(.again, systemImage: "arrow.left", leading: true)
-                swipeChip(.good, systemImage: "arrow.right", leading: false)
-            }
-            HStack(spacing: 8) {
-                ratingButton(.hard, minHeight: 44, inline: true)
-                ratingButton(.easy, minHeight: 44, inline: true)
-            }
-        }
-        .transition(.opacity.combined(with: .offset(y: 12)))
-    }
-
-    /// "← Again · 10 min" and "Got it → · 4 days": a tap does what the swipe does.
-    private func swipeChip(_ rating: Rating, systemImage: String, leading: Bool) -> some View {
+    /// "← Again" and "Got it →", on the side a swipe goes: a tap does what the swipe does.
+    private func choice(_ rating: Rating, systemImage: String, leading: Bool) -> some View {
         let tone = Self.tone(rating)
-        let interval = intervals[rating]
-        return Button { swipe(rating) } label: {
+        return Button { noSwipe ? rate(rating) : swipe(rating) } label: {
             HStack(spacing: 6) {
-                if leading { Image(systemName: systemImage).font(.system(size: 13, weight: .bold)).accessibilityHidden(true) }
+                if leading { Image(systemName: systemImage).font(.system(size: 14, weight: .bold)).accessibilityHidden(true) }
                 Text(SessionCopy.swipeWord(rating))
                     .clFont(.bodyEmphasis)
-                if !leading { Image(systemName: systemImage).font(.system(size: 13, weight: .bold)).accessibilityHidden(true) }
-                if let interval {
-                    Text(SessionCopy.interval(days: interval))
-                        .clFont(.number(12, .semibold))
-                        .opacity(0.85)
-                }
+                if !leading { Image(systemName: systemImage).font(.system(size: 14, weight: .bold)).accessibilityHidden(true) }
             }
             .lineLimit(1)
             .minimumScaleFactor(0.8)
             .foregroundStyle(tone.ink)
-            .frame(maxWidth: .infinity, minHeight: 50)
+            .frame(maxWidth: .infinity, minHeight: 56)
             .background {
                 RoundedRectangle(cornerRadius: 18, style: .continuous).fill(CLColor.background)
                     .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(tone.fill))
@@ -247,51 +189,20 @@ struct FlashcardQuestionView: View {
         }
         .buttonStyle(.pressable(depth: 4, edge: tone.edge, cornerRadius: 18))
         .accessibilityLabel(SessionCopy.swipeWord(rating))
-        .accessibilityValue(interval.map { "Next review \(SessionCopy.inInterval(days: $0))" } ?? "")
     }
 
-    /// The hardware keyboard: ← and → as the swipe, and 1 to 4 for the ratings the chips cover (the grid's tiles carry their own).
-    private var arrowKeys: some View {
+    /// The hardware keyboard: ← and → as the swipe, and 1 to 4 for Again, Hard, Got it and Easy.
+    private var keys: some View {
         ZStack {
-            Button("") { usesGrid ? rate(.again) : swipe(.again) }.keyboardShortcut(.leftArrow, modifiers: [])
-            Button("") { usesGrid ? rate(.good) : swipe(.good) }.keyboardShortcut(.rightArrow, modifiers: [])
-            if !usesGrid {
-                Button("") { rate(.again) }.keyboardShortcut("1", modifiers: [])
-                Button("") { rate(.good) }.keyboardShortcut("3", modifiers: [])
+            Button("") { noSwipe ? rate(.again) : swipe(.again) }.keyboardShortcut(.leftArrow, modifiers: [])
+            Button("") { noSwipe ? rate(.good) : swipe(.good) }.keyboardShortcut(.rightArrow, modifiers: [])
+            ForEach(Rating.allCases) { rating in
+                Button("") { rate(rating) }.keyboardShortcut(KeyEquivalent(Character("\(rating.rawValue)")), modifiers: [])
             }
         }
         .frame(width: 0, height: 0)
         .opacity(0)
         .accessibilityHidden(true)
-    }
-
-    private func ratingButton(_ rating: Rating, minHeight: CGFloat, inline: Bool = false) -> some View {
-        let tone = Self.tone(rating)
-        let interval = intervals[rating]
-        let layout = inline ? AnyLayout(HStackLayout(spacing: 6)) : AnyLayout(VStackLayout(spacing: 4))
-        return Button { rate(rating) } label: {
-            layout {
-                Text(rating.title)
-                    .clFont(inline ? .subheadlineEmphasis : .bodyEmphasis)
-                if let interval {
-                    Text(SessionCopy.interval(days: interval))
-                        .clFont(.number(12, .semibold))
-                        .opacity(0.85)
-                }
-            }
-            .foregroundStyle(tone.ink)
-            .frame(maxWidth: .infinity, minHeight: minHeight)
-            .padding(.vertical, typeSize.isAccessibilitySize ? 8 : 0)
-            .background {
-                RoundedRectangle(cornerRadius: 18, style: .continuous).fill(CLColor.background)
-                    .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(tone.fill))
-            }
-            .contentShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-        }
-        .buttonStyle(.pressable(depth: 4, edge: tone.edge, cornerRadius: 18))
-        .keyboardShortcut(KeyEquivalent(Character("\(rating.rawValue)")), modifiers: [])
-        .accessibilityLabel(rating.title)
-        .accessibilityValue(interval.map { "Next review \(SessionCopy.inInterval(days: $0))" } ?? "")
     }
 
     /// The colours of each rating's tile (the intro's flashcard demo uses them too).
@@ -311,6 +222,11 @@ struct FlashcardQuestionView: View {
         flippedAtMs = runner.elapsedMs()
         CLFeel.play(.flip)
         app.stopReadingAloud()
+        // The hint, on the first few flashcards ever: decided now and counted, so it stays on this card.
+        if !noSwipe, app.showsSwipeHint {
+            showsHint = true
+            app.noteSwipeHintShown()
+        }
         withAnimation(reduceMotion ? CLMotion.fade : CLMotion.calm) { flipped = true }
         runner.hasUnsavedAnswer = false
         AccessibilityNotification.Announcement("Answer: \(item.answer)").post()

@@ -79,21 +79,26 @@ final class SessionTests: XCTestCase {
         XCTAssertNotNil(runner.sessionID)
         let first = try XCTUnwrap(runner.current)
         XCTAssertEqual(runner.segment(0), .current)
+        XCTAssertEqual(runner.questionsLeft, 3)
 
         runner.setProvisional(.wrong)
         XCTAssertTrue(runner.hasUnsavedAnswer)
         XCTAssertEqual(runner.segment(0), .done(.wrong), "a graded answer colours its segment before it's committed")
+        XCTAssertEqual(runner.questionsLeft, 2, "the count goes down as the answer is checked")
 
         runner.record(rating: .again, score: -1, answer: nil, gradedBy: "person", durationMs: 4000, outcome: .wrong)
         XCTAssertFalse(runner.hasUnsavedAnswer)
         runner.advance()
         XCTAssertEqual(runner.queue.count, 4, "the Again is back in the queue")
+        XCTAssertEqual(runner.questionsLeft, 3, "the missed one comes back, so it is left to do again")
         XCTAssertTrue(runner.queue.entries.dropFirst().contains { $0.itemID == first.itemID && $0.attempt == 1 })
         XCTAssertEqual(runner.segment(0), .done(.wrong))
         XCTAssertEqual(runner.segment(1), .current)
 
         answerAll(runner)
         XCTAssertEqual(runner.phase, .finished)
+        XCTAssertEqual(runner.questionsLeft, 0)
+        XCTAssertEqual(runner.progress, 1, accuracy: 0.001)
         let summary = try XCTUnwrap(runner.summary)
         XCTAssertEqual(summary.itemsReviewed, 3)
         XCTAssertEqual(summary.correctFirstTry, 2)
@@ -513,8 +518,8 @@ final class SessionTests: XCTestCase {
         XCTAssertEqual(confusion.fix?.itemIDs.count, 1)
         XCTAssertEqual(app.item(confusion.fix!.itemIDs[0])?.choices.count, 2)
         XCTAssertEqual(app.confusionNote(confusion).questions, 1)
-        XCTAssertEqual(SessionCopy.fixTitle(questions: 1), "Go over it · 1 min")
-        XCTAssertEqual(SessionCopy.missLine(app.confusionNote(confusion)), "Missed 3 of the last 3 times. Want to go over it?")
+        XCTAssertEqual(SessionCopy.fixTitle(questions: 1), "Fix it", "one name, whatever its size")
+        XCTAssertEqual(SessionCopy.missLine(app.confusionNote(confusion)), "Missed 3 of the last 3 times.")
         XCTAssertNotEqual(item.id, confusion.fix!.itemIDs[0])
     }
 
@@ -780,5 +785,33 @@ final class SessionTests: XCTestCase {
         XCTAssertNotNil(app.studySession(sessionID)?.endedAt, "the cut-off session is finished, not offered again")
         XCTAssertNil(app.resumableCheckpoint(for: SessionRequest(kind: .daily)))
     }
-}
 
+    /// The words of a session, each thing once: the count left, the summary's line, a fix's one name and its end, the night before.
+    func testTheSessionsWords() {
+        XCTAssertEqual(String(localized: SessionCopy.left(41)), "41 left")
+        XCTAssertEqual(String(localized: SessionCopy.leftSpoken(41)), "41 questions left")
+        XCTAssertEqual(SessionCopy.summaryLine(right: 6, of: 9, minutes: 3), "6 of 9 right first time · 3 min")
+        XCTAssertEqual(SessionCopy.summaryLine(right: 1, of: 1, minutes: 0), "1 of 1 right first time · 1 min")
+        XCTAssertEqual(SessionCopy.readinessChange(before: 0.41, after: 0.69), "41% → 69% ready")
+        XCTAssertEqual(SessionCopy.title(for: .fix), "Fix it")
+        XCTAssertEqual(SessionCopy.fixTitle(questions: 2), "Fix it")
+        XCTAssertEqual(SessionCopy.title(for: .examEve), "Night before")
+        XCTAssertEqual(SessionCopy.fixResult("Anaphase vs telophase", right: 5, of: 5), "Anaphase vs telophase: 5 of 5 right.")
+        XCTAssertEqual(SessionCopy.fixResult(ConfusionCandidate.unnamed, right: 3, of: 5), "3 of 5 right.", "no made-up name")
+        XCTAssertEqual(SessionCopy.fixResult(nil, right: 3, of: 5), "3 of 5 right.")
+        XCTAssertEqual(String(localized: SessionCopy.headline(.right, saved: true)), "Just in time!")
+    }
+
+    /// A graded answer's panel says one thing: what to add. Nothing for a right answer; a grader's own words only when it names nothing to add.
+    func testTheAnswerPanelSaysOneThing() {
+        func grade(_ verdict: GradeResponse.Verdict, feedback: String, fix: String) -> GradeOutcome {
+            GradeOutcome(score: verdict == .correct ? 1 : 0.5, verdict: verdict, confidence: 0.9, marks: [], hitIdeaIDs: [], missing: [],
+                         feedback: feedback, fix: fix, gradedBy: .rules, model: "rules")
+        }
+        XCTAssertEqual(OwnWordsQuestionView.panelLine(grade(.partial, feedback: "Right so far: growth.", fix: "Add this: two identical cells.")),
+                       "Add this: two identical cells.")
+        XCTAssertNil(OwnWordsQuestionView.panelLine(grade(.correct, feedback: "Every key idea is there.", fix: "")))
+        XCTAssertEqual(OwnWordsQuestionView.panelLine(grade(.incorrect, feedback: "Compare it with the answer below.", fix: "")),
+                       "Compare it with the answer below.")
+    }
+}

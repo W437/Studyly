@@ -540,13 +540,13 @@ final class NoticeEngineTests: XCTestCase {
 
     func testAMixUpSpottedBeforeAnyMissSaysSo() {
         let note = ConfusionNote(id: UUID(), name: "Metaphase vs telophase", missCount: 0, recentMisses: 0, recentAnswers: 0)
-        XCTAssertEqual(SessionCopy.missLine(note), "Spotted before any mix-up. Want a 2-minute fix?")
+        XCTAssertEqual(SessionCopy.missLine(note), "Spotted before any mix-up.")
         let card = NoticeContent.card(for: note)
         XCTAssertEqual(card.title, "Metaphase and telophase look alike")
         XCTAssertFalse(card.title.contains("keep"))
         let missed = ConfusionNote(id: UUID(), name: "Metaphase vs telophase", missCount: 1, recentMisses: 1, recentAnswers: 1)
         XCTAssertEqual(NoticeContent.card(for: missed).title, "You keep mixing up metaphase and telophase.")
-        XCTAssertEqual(SessionCopy.missLine(missed), "Missed it lately. Want a 2-minute fix?")
+        XCTAssertEqual(SessionCopy.missLine(missed), "Missed it lately.")
     }
 
     /// A course whose finished exam covers its questions, and an exam still to come in another course (or none).
@@ -979,7 +979,7 @@ final class NoticeEngineTests: XCTestCase {
         XCTAssertFalse(one.notifiable, "no notification on the strength of an answer that came right")
         let card = NoticeContent.card(one, firstName: "", now: now, calendar: cal)
         XCTAssertEqual(card.title, "Anaphase and telophase are coming along.")
-        XCTAssertEqual(card.detail, "You got the last one right. Want a 2\u{2011}minute fix?")
+        XCTAssertEqual(card.detail, "You got the last one right.")
         XCTAssertTrue(try XCTUnwrap(cards(note(right: 0, later: 0)).first).notifiable)
     }
 

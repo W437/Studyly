@@ -11,7 +11,7 @@ enum SpokenVerdict {
     static func ownWords(_ grade: GradeOutcome, ideas: [KeyIdea], modelAnswer: String, saved: Bool = false) -> String {
         switch grade.verdict {
         case .correct:
-            let opening = saved ? String(localized: "Saved it.") : String(localized: "Nice!")
+            let opening = saved ? String(localized: "Just in time!") : String(localized: "Nice!")
             if ideas.count > 1 { return String(localized: "\(opening) You got every key idea.") }
             return opening
         case .partial:
@@ -28,7 +28,7 @@ enum SpokenVerdict {
 
     /// After a question with one right answer (multiple choice, a fill-in).
     static func exact(_ grade: GradeOutcome, rightAnswer: String, saved: Bool = false) -> String {
-        if grade.verdict == .correct { return saved ? String(localized: "Saved it.") : String(localized: "Nice!") }
+        if grade.verdict == .correct { return saved ? String(localized: "Just in time!") : String(localized: "Nice!") }
         return String(localized: "Not yet. The answer is \(sentence(rightAnswer))")
     }
 
@@ -44,7 +44,7 @@ enum SpokenVerdict {
 
     /// A flashcard rating was heard.
     static func rated(_ rating: Rating, saved: Bool) -> String {
-        if saved { return String(localized: "Saved it.") }
+        if saved { return String(localized: "Just in time!") }
         switch rating {
         case .again: return String(localized: "Okay, it'll come back.")
         case .hard, .good, .easy: return String(localized: "Got it.")

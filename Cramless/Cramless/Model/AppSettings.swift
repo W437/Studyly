@@ -133,6 +133,9 @@ struct AppSettings: Codable, Equatable, Sendable {
     /// Share with the Squad that I studied today. Off until switched on; the server's word wins (`AppModel.noteSquadMembers`).
     var shareSquadDay = false
 
+    /// Flashcards that have shown "Swipe right if you got it, left if not": the hint is for the first few ever (`FlashcardSwipeHint`).
+    var swipeHintsShown = 0
+
     init() {}
 
     init(from decoder: Decoder) throws {
@@ -177,6 +180,7 @@ struct AppSettings: Codable, Equatable, Sendable {
         reviewPromptedVersion = try c.decodeIfPresent(String.self, forKey: .reviewPromptedVersion)
         quietMode = try c.decodeIfPresent(Bool.self, forKey: .quietMode) ?? d.quietMode
         shareSquadDay = try c.decodeIfPresent(Bool.self, forKey: .shareSquadDay) ?? d.shareSquadDay
+        swipeHintsShown = try c.decodeIfPresent(Int.self, forKey: .swipeHintsShown) ?? d.swipeHintsShown
     }
 
     /// Under-18 accounts keep the tutor on hints first and inside the teen-safe scope.

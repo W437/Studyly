@@ -1,8 +1,8 @@
 import SwiftUI
 
-// The pieces every question format shares: the card, its header (format, topic, read aloud), the footer bar that
-// becomes the answer panel (DesignSystem/Components/FeedbackSheet.swift), the source chip, the gentle AI prompt, the
-// rating line, and the highlighter's timing (so the haptic lands with the mark).
+// The pieces every question format shares: the card, the line above it (topic, read aloud), the footer bar that
+// becomes the answer panel (DesignSystem/Components/FeedbackSheet.swift), the source chip, the gentle AI prompt, and the
+// highlighter's timing (so the haptic lands with the mark).
 
 /// The raised card a question sits in (the prototype's `.qcard`).
 struct QuestionCard<Content: View>: View {
@@ -275,7 +275,7 @@ struct AccessibilityOnly<Content: View>: View {
 }
 
 extension ItemKind {
-    /// The format's glyph in the question header.
+    /// The format's glyph (onboarding's scenes draw it).
     var studySymbol: String {
         switch self {
         case .recall: "pencil.line"
@@ -288,33 +288,33 @@ extension ItemKind {
     }
 }
 
-/// "IN YOUR OWN WORDS · WHY MITOSIS MATTERS", the read-aloud button, and "Back again" for a repeat.
+/// The line above every question, in the same place whatever its kind: its topic on one line ("Phases of mitosis"), the read-aloud
+/// button, and "Back again" for a repeat. The kind of question is what the card itself shows, so it isn't named. A mock passes no topic: on
+/// an exam, the question doesn't say what it is about.
 struct QuestionHeader: View {
     let item: StudyItem
     let entry: SessionEntry
     let topic: String?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .center, spacing: 8) {
-                HStack(alignment: .firstTextBaseline, spacing: 6) {
-                    Image(systemName: item.kind.studySymbol)
-                    Text([item.kind.displayName, topic].compactMap { $0 }.joined(separator: " · "))
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                .clFont(.eyebrow)
-                .foregroundStyle(CLColor.ink3)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .dynamicTypeSize(...DynamicTypeSize.accessibility1)
-                .accessibilityElement(children: .combine)
+                Text(verbatim: topic ?? "")
+                    .clFont(.footnoteEmphasis)
+                    .foregroundStyle(CLColor.ink3)
+                    .lineLimit(1)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .dynamicTypeSize(...DynamicTypeSize.accessibility1)
+                    .accessibilityHidden(topic == nil)
                 ReadAloudButton(item: item)
             }
+            .padding(.vertical, -6)
             if entry.attempt > 0 {
                 CLPill(text: "Back again", tone: .sky, systemImage: "arrow.uturn.backward")
                     .accessibilityLabel("This one is back: you missed it earlier in the session")
             }
         }
-        .padding(.top, -10)
+        .padding(.horizontal, 4)
     }
 }
 
@@ -472,49 +472,6 @@ struct SuggestionBanner: View {
         case .allowPhotos: "Review"
         case .upgrade: inSession ? nil : "See Pro"
         }
-    }
-}
-
-/// "Counts as Got it · next review in 4 days", with a menu to change the rating the grade suggested.
-struct RatingAdjuster: View {
-    let auto: Rating
-    @Binding var override: Rating?
-    let intervals: [Rating: Double]
-
-    var body: some View {
-        let effective = override ?? auto
-        Menu {
-            Picker("Counts as", selection: Binding(get: { effective }, set: { picked in
-                CLHaptics.select()
-                override = picked == auto ? nil : picked
-            })) {
-                ForEach(Rating.allCases) { rating in
-                    Text(intervals[rating].map { "\(rating.title) · \(SessionCopy.interval(days: $0))" } ?? rating.title)
-                        .tag(rating)
-                }
-            }
-        } label: {
-            line(effective)
-                .frame(minHeight: CLMetrics.minHitTarget)
-                .contentShape(Rectangle())
-        }
-        .accessibilityLabel("Counts as \(effective.title)")
-        .accessibilityValue(intervals[effective].map { "Next review \(SessionCopy.inInterval(days: $0))" } ?? "")
-        .accessibilityHint("Change how this answer counts")
-    }
-
-    private func line(_ effective: Rating) -> some View {
-        let next = intervals[effective].map { " · next review \(SessionCopy.inInterval(days: $0))" } ?? ""
-        let picked = override != nil ? " (your call)" : ""
-        let lead = Text("Counts as ").foregroundStyle(CLColor.ink2)
-        let rating = Text("\(effective.title) \(Image(systemName: "chevron.up.chevron.down"))").fontWeight(.semibold)
-            .foregroundStyle(CLColor.skyInk)
-        let rest = Text("\(picked)\(next)").foregroundStyle(CLColor.ink2)
-        return Text("\(lead)\(rating)\(rest)")
-            .clFont(.footnote)
-            .multilineTextAlignment(.leading)
-            .fixedSize(horizontal: false, vertical: true)
-            .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
