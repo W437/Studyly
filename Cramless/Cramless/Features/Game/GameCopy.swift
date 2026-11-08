@@ -97,16 +97,6 @@ enum MilestoneCopy {
     /// The summary's title on a milestone: "30 days."
     static func title(_ days: Int) -> LocalizedStringResource { "\(days) days." }
 
-    /// One warm line for each milestone, about the memory, never about the number.
-    static func line(_ days: Int) -> LocalizedStringResource {
-        switch days {
-        case ..<7: "Three days in a row. A habit is starting."
-        case 7..<30: "A whole week. What you reviewed is holding."
-        case 30..<100: "A month of showing up. Your sky is brighter for it."
-        case 100..<365: "A hundred days. That is a lot of stars kept lit."
-        default: "A year. Cap would like to say thank you."
-        }
-    }
 
     /// "Next: 30 days" on the streak screen, or nothing once every milestone is behind.
     static func next(after days: Int) -> LocalizedStringResource? {

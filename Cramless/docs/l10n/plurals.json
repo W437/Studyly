@@ -36,10 +36,6 @@
     "one": "%lld point",
     "other": "%lld points"
   },
-  "Based on %lld questions so far.": {
-    "one": "Based on %lld question so far.",
-    "other": "Based on %lld questions so far."
-  },
   "No exam yet. %lld minutes today.": {
     "one": "No exam yet. %lld minute today.",
     "other": "No exam yet. %lld minutes today."

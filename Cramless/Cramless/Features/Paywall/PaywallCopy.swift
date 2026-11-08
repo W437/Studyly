@@ -62,14 +62,6 @@ enum PaywallCopy {
         }
     }
 
-    /// "Your Bio 101 plan is set: 15 minutes a day until Nov 14." The onboarding plan step's summary.
-    static func planLine(courseName: String?, minutes: Int, examDate: Date?, now: Date) -> String {
-        let subject = courseName.map { "Your \($0) plan is set" } ?? "Your plan is set"
-        guard let examDate, examDate > now else { return "\(subject): \(minutes) minutes a day." }
-        let date = examDate.formatted(.dateTime.month(.abbreviated).day())
-        return "\(subject): \(minutes) minutes a day until \(date)."
-    }
-
     /// The line under a plan's name: "7 days free" while the free week is on offer, else nothing.
     static func detail(for option: PlanOption, trialDays: Int?) -> String? {
         guard option.isAutoRenewing, let trialDays else { return nil }

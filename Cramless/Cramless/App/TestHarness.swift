@@ -280,7 +280,7 @@ enum TestHarness {
             if let t = app.fetch(FetchDescriptorFactory.latestThread).first { r.present(.makeCards(threadID: t.id)) }
         case "paywall":
             if arg == "onboarding" {
-                r.present(.paywall(.onboarding(planLine: "Your Bio 101 plan is set: 15 minutes a day until Nov 14.")))
+                r.present(.paywall(.onboarding))
             } else {
                 r.present(.paywall(.settings))
             }

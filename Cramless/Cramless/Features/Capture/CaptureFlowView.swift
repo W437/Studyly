@@ -136,9 +136,6 @@ struct CaptureFlowView: View {
     // MARK: Leaving
 
     private func finished(_ courseID: UUID?) {
-        if request.isOnboarding {
-            OnboardingCaptureBridge.onDone?(courseID)
-        }
         app.router.dismissCover()
     }
 
@@ -203,13 +200,6 @@ struct CaptureFlowView: View {
         }
     }
     #endif
-}
-
-/// Hands a capture flow's result back to onboarding when the flow ran as a cover (`CaptureRequest.isOnboarding`).
-/// `OnboardingFirstSetStep` sets it while it's on screen.
-@MainActor
-enum OnboardingCaptureBridge {
-    static var onDone: ((UUID?) -> Void)?
 }
 
 #if DEBUG

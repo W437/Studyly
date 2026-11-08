@@ -162,31 +162,6 @@ final class NoticeEngineTests: XCTestCase {
         XCTAssertTrue(NoticeEngine(i).candidates().isEmpty)
     }
 
-    func testPlaceCountsTheOnesAlreadySeenTo() throws {
-        let midterm = exam(in: 9)
-        var i = inputs {
-            $0.exams = [midterm]
-            $0.mixUps = [mixUp()]
-            $0.lookAlikes = [pair(in: 9, exam: midterm.id)]
-            $0.items = faded(8, on: midterm)
-        }
-        let round = deal(i)
-        var slot = try XCTUnwrap(round.engine.slot(round.deck, ledger: round.ledger))
-        XCTAssertEqual([slot.position, slot.count], [1, 3])
-        var ledger = round.ledger
-        ledger.snoozed.insert(slot.notice.id)
-        i.ledger = ledger
-        let next = deal(i)
-        slot = try XCTUnwrap(next.engine.slot(next.deck, ledger: next.ledger))
-        XCTAssertEqual([slot.position, slot.count], [2, 3], "after Later on the first of three")
-        ledger = next.ledger
-        ledger.acted[slot.notice.id] = cal.dayKey(for: now)
-        i.ledger = ledger
-        let last = deal(i)
-        slot = try XCTUnwrap(last.engine.slot(last.deck, ledger: last.ledger))
-        XCTAssertEqual([slot.position, slot.count], [3, 3])
-    }
-
     func testACardANotificationOpenedShowsFirst() throws {
         let midterm = exam(in: 9)
         var i = inputs {

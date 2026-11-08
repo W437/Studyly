@@ -9,21 +9,6 @@ extension AppModel {
 
     // MARK: - Rating previews
 
-    /// What each rating would schedule for an item right now, in days (fractional for a learning step: 10
-    /// minutes is 0.0069). Nothing is written. Pass the session id so the preview uses the session's due load.
-    func intervalPreview(itemID: UUID, sessionID: UUID? = nil) -> [Rating: Double] {
-        guard let item = item(itemID), item.deletedAt == nil else { return [:] }
-        let snapshot = ItemSnapshot(item, courseID: item.course?.id)
-        let load = StudyRuntime.load(for: sessionID) ?? currentDueLoad()
-        let exams = examSnapshots(upcomingOnly: true)
-        let scheduler = studyScheduler
-        var out: [Rating: Double] = [:]
-        for rating in Rating.allCases {
-            out[rating] = scheduler.schedule(snapshot, rating: rating, at: now, load: load, exams: exams).scheduledDays
-        }
-        return out
-    }
-
     // MARK: - The flashcard swipe's hint
 
     /// Whether a flashcard turned now shows "Swipe right if you got it, left if not": only on the first few ever.
@@ -120,7 +105,7 @@ extension AppModel {
         noticeLedger.snoozed.contains(NoticeEngine.mixUpID(id))
     }
 
-    /// "Not a mix-up": it isn't offered again (the finder skips dismissed groups).
+    /// "Don't bring this up again": it isn't offered again (the finder skips dismissed groups).
     func dismissConfusion(_ id: UUID) {
         guard let confusion = confusion(id), confusion.deletedAt == nil, confusion.status != .dismissed else { return }
         confusion.status = .dismissed

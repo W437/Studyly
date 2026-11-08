@@ -111,7 +111,7 @@ final class StudyDemoWorldTests: XCTestCase {
         lines.append("Bio curve: " + plan.curve.enumerated().filter { $0.offset % 4 == 0 || $0.offset == plan.curve.count - 1 }.map { pct($0.element.value) }.joined(separator: " → ") + " · suggested \(plan.suggestedMinutes.map(String.init) ?? "–")")
         lines.append("Bio history (14 d): " + app.readinessHistory(for: bio).map { pct($0.value) }.joined(separator: " "))
         let week = app.weeklyStats()
-        lines.append("Week: \(week.totalMinutes) min (last week \(week.previousWeekMinutes)) · active \(week.activeDays) · heatmap cells \(app.heatmap().count)")
+        lines.append("Week: \(week.totalMinutes) min · active \(week.activeDays) · heatmap cells \(app.heatmap().count)")
         lines.append("Due next 7 days: \(app.dueForecast().map(\.count)) · retention \(app.retentionRate().map(pct) ?? "–") · confusion candidates \(app.confusionCandidates().map(\.name))")
         let built = app.buildSession(SessionRequest(kind: .daily))
         lines.append("Session order: " + built.entries.prefix(12).map { "\($0.kind.rawValue)/\($0.reason.rawValue)" }.joined(separator: ", "))

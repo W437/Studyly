@@ -145,7 +145,7 @@ final class MockExamTests: XCTestCase {
         XCTAssertEqual(plan.shortCount, 15)
     }
 
-    func testShortOfOneKindTheOtherFillsAndTheWordsSaySo() throws {
+    func testShortOfOneKindTheOtherFills() throws {
         let format = stated(30, 10)
         let plan = try XCTUnwrap(builder.build(exam: exam(format: format), items: items(6, .mcq) + items(7, .recall), seed: 3))
         XCTAssertEqual(plan.entries.count, 13)
@@ -153,26 +153,19 @@ final class MockExamTests: XCTestCase {
         XCTAssertEqual(plan.shortCount, 7)
         XCTAssertFalse(plan.holdsMix(of: format))
         XCTAssertEqual(plan.minutes, 30, "the real exam's pace: 13 of 40 at 90 minutes")
-        let words = MockCopy.offer(plan, format: format)
-        XCTAssertEqual(words.line, "13 of the real 40 questions · 30 min")
-        XCTAssertEqual(words.mix, "That's every question you have for it so far, with the time scaled to match. 6 multiple choice and 7 short answers: the real one's mix, as far as your questions go. Only this exam's topics.")
     }
 
-    func testFillInsOnlyStandInForShortAnswersAndSaySo() throws {
+    func testFillInsOnlyStandInForShortAnswers() throws {
         let format = stated(30, 10)
         // Enough short answers: no fill-in, though there are plenty.
         let plenty = try XCTUnwrap(builder.build(exam: exam(format: format), items: items(30, .mcq) + items(10, .recall) + items(10, .cloze), seed: 1))
         XCTAssertEqual(plenty.fillInCount, 0)
         XCTAssertEqual(plenty.shortCount, 10)
-        XCTAssertFalse(MockCopy.offer(plenty, format: format).mix.contains("fill-in"))
-        XCTAssertTrue(MockCopy.offer(plenty, format: format).mix.hasPrefix("Matches your exam: 30 multiple choice and 10 short answers."))
         // Too few: fill-ins take the short answers' places, before more multiple choice does.
         let few = try XCTUnwrap(builder.build(exam: exam(format: format), items: items(40, .mcq) + items(2, .recall) + items(5, .cloze), seed: 1))
         XCTAssertEqual(few.multipleChoiceCount, 33)
         XCTAssertEqual(few.shortCount, 2)
         XCTAssertEqual(few.fillInCount, 5)
-        XCTAssertEqual(MockCopy.offer(few, format: format).mix,
-                       "33 multiple choice and 2 short answers, with 5 fill-ins standing in for short answers you don't have yet. Only this exam's topics.")
     }
 
     /// The page's numbers are only a mix for the kinds still ticked, and a kind with no number takes what the exam's size leaves.
@@ -200,13 +193,10 @@ final class MockExamTests: XCTestCase {
         XCTAssertNil(StatedCounts("Multiple choice and short answer").multipleChoice)
     }
 
-    func testAMockShorterThanTheRealOneSaysWhy() {
+    func testAMockShorterThanTheRealOneSaysSo() {
         XCTAssertEqual(MockCopy.cardLine(questions: 13, minutes: 30, realQuestions: 40), "13 of the real 40 questions · 30 min")
         XCTAssertEqual(MockCopy.cardLine(questions: 40, minutes: 90, realQuestions: 40), "40 questions like the real one · 90 min")
         XCTAssertEqual(MockCopy.cardLine(questions: 8, minutes: 15, realQuestions: 3), "8 questions · 15 min", "a real one smaller than a mock can be")
-        XCTAssertEqual(MockCopy.whyShorter(questions: 40, format: stated(70, 30, questions: 100)), "A mock stops at 40 questions, with the time scaled to match.")
-        XCTAssertEqual(MockCopy.whyShorter(questions: 13, format: stated(30, 10, minutes: nil)), "That's every question you have for it so far.")
-        XCTAssertNil(MockCopy.whyShorter(questions: 40, format: stated(30, 10)))
     }
 
     func testAShortKindIsToppedUpFromTheOther() throws {
@@ -409,24 +399,17 @@ final class MockExamTests: XCTestCase {
         XCTAssertEqual(MockCopy.scopeLine(counted: 17, total: 20, inTime: 17), "You answered 17 of 20 in time.")
         XCTAssertEqual(MockCopy.scopeLine(counted: 12, total: 20, inTime: nil), "Scored on the 12 of 20 you answered.")
         XCTAssertNil(MockCopy.scopeLine(counted: 20, total: 20, inTime: nil))
-        XCTAssertTrue(MockCopy.mixLine(multiple: 15, short: 5, essay: 0).contains("15 multiple choice"))
-        XCTAssertTrue(MockCopy.mixLine(multiple: 15, short: 5, essay: 0).contains("5 short answers"))
-        XCTAssertFalse(MockCopy.mixLine(multiple: 15, short: 0, essay: 0).contains("short"))
     }
 
-    /// The intro's short answers are what marking counts: fill-ins are marked at once and have their own word.
-    func testTheMixAndTheMarkingCountTheSameAnswers() throws {
+    /// Marking counts the short answers: fill-ins are marked at once.
+    func testMarkingCountsTheShortAnswers() throws {
         let pool = items(4, .cloze, topic: UUID()) + items(8, .recall, topic: UUID())
         let plan = try XCTUnwrap(builder.build(exam: exam(format: ExamFormat(multipleChoice: false, shortAnswer: true)), items: pool, seed: 5, size: 12))
         XCTAssertEqual(plan.fillInCount, 4)
         XCTAssertEqual(plan.shortCount, 8)
-        XCTAssertEqual(MockCopy.mixLine(multiple: plan.multipleChoiceCount, fillIns: plan.fillInCount, short: plan.shortCount, essay: plan.essayCount),
-                       "Matches your exam: 4 fill-ins and 8 short answers. Only this exam's topics.")
         XCTAssertEqual(MockCopy.markingLine(done: 8, total: plan.shortCount), "8 of 8 short answers marked")
         XCTAssertEqual(MockCopy.markingLine(done: 1, total: 1), "1 of 1 short answer marked")
         XCTAssertEqual(MockCopy.markingLine(done: 2, total: 3, hasEssays: true), "2 of 3 written answers marked")
-        XCTAssertEqual(MockCopy.mixLine(multiple: 1, fillIns: 1, short: 1, essay: 1),
-                       "Matches your exam: 1 multiple choice, 1 fill-in, 1 short answer, and 1 essay question. Only this exam's topics.")
     }
 
     func testPluralsReadInTheSingular() {

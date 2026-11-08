@@ -113,7 +113,7 @@ struct LookAlikePair: Identifiable, Equatable, Sendable, Hashable {
 /// first or a last word, since only what differs is left to compare). Both questions must
 /// be on the same exam, at least one studied and not both already solid; terms with numbers in them, of one or two letters or that name
 /// nothing are left out, and so are one question's answer given as the other's, the same word in another form, questions already in an
-/// open mix-up and any pair the person has seen before (any mix-up over the two, "Not a look-alike" included). `NoticeEngineTests` holds
+/// open mix-up and any pair the person has seen before (any mix-up over the two, "Don't bring this up again" included). `NoticeEngineTests` holds
 /// this to 90% precision on a labelled corpus (`Fixtures/lookalike-corpus.json`).
 ///
 /// Terms are compared only inside buckets (a topic and how the term ends or begins), so it stays cheap over thousands of questions.
@@ -271,7 +271,7 @@ struct LookAlikeFinder: Sendable {
                              linked: candidate.linked)
     }
 
-    /// The same two names are one pair, however many questions carry them, and "Not a look-alike" on two questions covers them all.
+    /// The same two names are one pair, however many questions carry them, and "Don't bring this up again" on two questions covers them all.
     private static func refusedNames(items: [LookAlikeItem], knownPairs: Set<ConfusionFinder.Pair>) -> Set<UInt64> {
         guard !knownPairs.isEmpty else { return [] }
         var tags: [UUID: UInt64] = [:]

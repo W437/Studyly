@@ -51,16 +51,6 @@
       }
     },
     "%lld percent" : {},
-    "%lld percent, goal %lld percent" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$lld percent, goal %2$lld percent"
-          }
-        }
-      }
-    },
     "%lld%%" : {},
     "%lld-day streak" : {},
     "%lld-day streak%@" : {
@@ -83,7 +73,7 @@
         }
       }
     },
-    "Add an exam" : {},
+    "Add exam" : {},
     "Add one and Capling tracks how ready you are, day by day." : {},
     "All caught up" : {},
     "Cap asks the question again." : {},

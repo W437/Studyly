@@ -331,8 +331,8 @@ extension AppModel {
         let course = session.index.course(call.arguments["course_id"]?.string).flatMap { liveCourse($0) }
         let topic = course.flatMap { c in session.index.topic(call.arguments["topic_id"]?.string).flatMap { id in c.liveTopics.first { $0.id == id } } }
         if let course, course.activeItems.isEmpty {
-            return failure(call, course: course.name, String(localized: "There is nothing to practise in \(course.name) yet."),
-                           tell: "There is nothing to practise in \(course.name) yet. Offer to make flashcards first.")
+            return failure(call, course: course.name, String(localized: "There is nothing to practice in \(course.name) yet."),
+                           tell: "There is nothing to practice in \(course.name) yet. Offer to make flashcards first.")
         }
         let minutes = min(30, max(5, call.arguments["minutes"]?.int ?? settings.dailyMinutes))
         let label = [CLFormat.count(minutes, "minute"), topic?.name ?? course?.name].compactMap { $0 }.joined(separator: " · ")

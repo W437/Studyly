@@ -31,7 +31,6 @@ struct WeeklyStats: Sendable, Equatable {
     /// The week's days, in the calendar's week order.
     var days: [Day]
     var totalMinutes: Int
-    var previousWeekMinutes: Int
     var activeDays: Int
     var itemsReviewed: Int
     /// The daily goal times seven.
@@ -235,9 +234,7 @@ struct StreakEngine: Sendable {
             WeeklyStats.Day(date: grid.start(ofDay: day), minutes: Int(((byDay[day]?.studySeconds ?? 0) / 60).rounded()),
                             itemsReviewed: byDay[day]?.itemsReviewed ?? 0, isToday: day == today, isFuture: day > today)
         }
-        let previous = ((start - 7)..<start).reduce(0.0) { $0 + (byDay[$1]?.studySeconds ?? 0) }
         return WeeklyStats(days: days, totalMinutes: days.reduce(0) { $0 + $1.minutes },
-                           previousWeekMinutes: Int((previous / 60).rounded()),
                            activeDays: (start..<(start + 7)).filter { byDay[$0]?.studied == true }.count,
                            itemsReviewed: days.reduce(0) { $0 + $1.itemsReviewed }, goalMinutes: dailyMinutes * 7)
     }

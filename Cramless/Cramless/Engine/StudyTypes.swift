@@ -22,7 +22,7 @@ struct ReviewOutcome: Sendable, Equatable {
     /// saves it.
     static let fadingRecall = 0.7
 
-    /// "Saved it": a right answer (Good or Easy; a "Hard" is "Almost.", not a save) on an item studied before whose
+    /// "Just in time!": a right answer (Good or Easy; a "Hard" is "Almost.", not a save) on an item studied before whose
     /// recall had fallen below `fadingRecall`. A first look is never a save. The one definition behind the feedback
     /// headline, the sky's flare and "saved" count, the rescue quest and the badges.
     var isSave: Bool {

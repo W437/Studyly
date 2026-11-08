@@ -659,8 +659,6 @@ final class GameCopyTests: XCTestCase {
     }
 
     func testEachMilestoneHasItsOwnLine() {
-        let lines = StreakStage.milestones.map { String(localized: MilestoneCopy.line($0)) }
-        XCTAssertEqual(Set(lines).count, StreakStage.milestones.count)
         XCTAssertEqual(String(localized: MilestoneCopy.title(30)), "30 days.")
         XCTAssertEqual(String(localized: MilestoneCopy.next(after: 12) ?? "none"), "Next: 30 days")
         XCTAssertNil(MilestoneCopy.next(after: 400))

@@ -373,8 +373,6 @@ final class LastLookAppModelTests: AskTestCase {
         XCTAssertNil(LastLookCopy.written(LastLook(examID: id, ideas: [theirs, fill])))
         XCTAssertEqual(LastLookCopy.written(LastLook(examID: id, ideas: [his])), "Cap wrote these from your questions and notes.")
         XCTAssertEqual(LastLookCopy.written(LastLook(examID: id, ideas: [his, theirs])), "Cap wrote the sentences from your questions and notes. The rest are your own questions.")
-        XCTAssertTrue(LastLook(examID: id, ideas: [his, fill]).isAllSentences)
-        XCTAssertFalse(LastLook(examID: id, ideas: [his, theirs]).isAllSentences)
     }
 
     func testABareAnswerReadsWithItsQuestion() {

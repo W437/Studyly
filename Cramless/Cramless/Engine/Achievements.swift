@@ -5,7 +5,7 @@ import Foundation
 enum Badge: String, CaseIterable, Sendable, Identifiable {
     /// The first session finished.
     case firstSession
-    /// 10 stars saved ("Saved it.").
+    /// 10 stars saved ("Just in time!").
     case saves10
     /// 25 answers written in your own words.
     case ownWords25

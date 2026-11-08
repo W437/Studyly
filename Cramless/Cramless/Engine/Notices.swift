@@ -344,13 +344,6 @@ struct Notice: Identifiable, Equatable, Sendable {
     func matches(link: String) -> Bool { id == link || linkID == link }
 }
 
-/// The card on Today and its place: "2 of 3".
-struct NoticeSlot: Equatable, Sendable {
-    var notice: Notice
-    var position: Int
-    var count: Int
-}
-
 /// A notification Cap would send, on which day (0 today, 1 tomorrow).
 struct NoticePing: Equatable, Sendable {
     var linkID: String
@@ -460,14 +453,6 @@ struct NoticeEngine: Sendable {
             cards.insert(cards.remove(at: at), at: 0)
         }
         return cards
-    }
-
-    /// The card on screen and its place among today's: the ones already dealt with count, so after "Later" on the first of three the
-    /// next one says "2 of 3".
-    func slot(_ deck: [Notice], ledger: NoticeLedger) -> NoticeSlot? {
-        guard let first = deck.first else { return nil }
-        let handled = ledger.dealt.filter { ledger.snoozed.contains($0.id) || ledger.acted[$0.id] == dayKey }.count
-        return NoticeSlot(notice: first, position: handled + 1, count: handled + deck.count)
     }
 
     /// The notifications Cap may send, with the day each is for (0 today, 1 tomorrow): the best notifiable card for each, in its

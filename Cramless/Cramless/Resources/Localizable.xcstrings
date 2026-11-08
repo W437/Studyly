@@ -142,6 +142,7 @@
     },
     "%@ looks busy" : {},
     "%@ questions are in too" : {},
+    "%@ ready" : {},
     "%@ saved." : {},
     "%@ saved.%@" : {
       "localizations" : {
@@ -333,16 +334,6 @@
     "%@, projected" : {},
     "%@, then sleep." : {},
     "%@, through Capling's own server, never straight from your phone to an AI company. Our server doesn't keep what you send." : {},
-    "%@, with %@ standing in for short answers you don't have yet." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$@, with %2$@ standing in for short answers you don't have yet."
-          }
-        }
-      }
-    },
     "%@. %@" : {
       "localizations" : {
         "en" : {
@@ -380,7 +371,6 @@
     "%@: ready for a harder one?" : {},
     "%@: still mixing them up?" : {},
     "%@: still tripping you up." : {},
-    "%@: the real one's mix, as far as your questions go. Only this exam's topics." : {},
     "%@: they look alike, and both are on your %@. Cap can show you the difference." : {
       "localizations" : {
         "en" : {
@@ -621,6 +611,7 @@
       }
     },
     "%lld essay questions" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "variations" : {
@@ -643,6 +634,7 @@
       }
     },
     "%lld fill-ins" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "variations" : {
@@ -664,7 +656,6 @@
         }
       }
     },
-    "%lld fill-ins, standing in for short answers you don't have yet." : {},
     "%lld for this exam are due" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -1317,7 +1308,6 @@
       }
     },
     "%lld more to review before exam day" : {},
-    "%lld multiple choice" : {},
     "%lld new questions" : {
       "localizations" : {
         "en" : {
@@ -2010,16 +2000,6 @@
         }
       }
     },
-    "%lld percent, goal %lld percent" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$lld percent, goal %2$lld percent"
-          }
-        }
-      }
-    },
     "%lld points" : {
       "localizations" : {
         "en" : {
@@ -2400,6 +2380,7 @@
     "%lld right in a row" : {},
     "%lld saved" : {},
     "%lld short answers" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "variations" : {
@@ -2661,7 +2642,6 @@
     "A good answer hits each key idea. Other ways to say it count too." : {},
     "A hundred" : {},
     "A hundred days" : {},
-    "A hundred days. That is a lot of stars kept lit." : {},
     "A late-night brain is a sleepy one." : {},
     "A light tap when you answer, turn a page or finish a session." : {},
     "A little every day." : {},
@@ -2678,10 +2658,7 @@
         }
       }
     },
-    "A mock stops at %lld questions, with the time scaled to match." : {},
-    "A mock stops at %lld questions." : {},
     "A month" : {},
-    "A month of showing up. Your sky is brighter for it." : {},
     "A new sky is lit" : {},
     "A new sky is lit. A week of 12 quests did it." : {},
     "A night sky with a constellation shaped like Cap's graduation cap" : {},
@@ -2704,11 +2681,9 @@
     "A week" : {},
     "A week before an exam, and the night before" : {},
     "A week of 12 quests" : {},
-    "A whole week. What you reviewed is holding." : {},
     "A wind-down review, anyone?" : {},
     "A yawn is a good stretch." : {},
     "A year" : {},
-    "A year. Cap would like to say thank you." : {},
     "AI and privacy" : {},
     "AI data deleted" : {},
     "AI notes for %lld lecture left this week" : {
@@ -2926,7 +2901,6 @@
     "Add a topic" : {},
     "Add after all" : {},
     "Add again" : {},
-    "Add an exam" : {},
     "Add class material, and every question you study becomes a star." : {},
     "Add exam" : {},
     "Add exam for %@" : {},
@@ -4257,16 +4231,6 @@
     "Key ideas" : {},
     "Key terms" : {},
     "Labels" : {},
-    "Last mock: %@ on %@" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "Last mock: %1$@ on %2$@"
-          }
-        }
-      }
-    },
     "Last two weeks" : {},
     "Later" : {},
     "Learn a little, rest a little." : {},
@@ -4361,7 +4325,6 @@
     "Marked by you" : {},
     "Marking your answers…" : {},
     "Marks its lines on the page" : {},
-    "Matches your exam: %@. Only this exam's topics." : {},
     "Matching your iPhone follows its Light and Dark setting, including on a schedule." : {},
     "Materials" : {},
     "Math is hard to read from a photo. Check the numbers and symbols." : {},
@@ -4685,7 +4648,6 @@
     "One tiny tweak." : {},
     "Only Cloud AI counts. The offline rules are free and never do. Days reset at midnight, weeks on Monday." : {},
     "Only Cloud AI counts. Your iPhone's own AI and the offline rules are free and never do. Days reset at midnight, weeks on Monday." : {},
-    "Only this exam's topics." : {},
     "Only when you ask, and only from trusted study sites. Part of Pro." : {},
     "Ooh! Ooh! I have a question." : {},
     "Ooh, I almost have it." : {},
@@ -5447,8 +5409,6 @@
     "That's enough for today. You're about %@ ready for tomorrow morning." : {},
     "That's enough for today. You're about %@ ready for tomorrow." : {},
     "That's enough." : {},
-    "That's every question you have for it so far, with the time scaled to match." : {},
-    "That's every question you have for it so far." : {},
     "That's how it's done." : {},
     "That's it, with a hint." : {},
     "That's it. %lld of %lld right the first time." : {
@@ -5601,7 +5561,7 @@
     },
     "Then sleep. That's the whole plan tonight." : {},
     "There are no silly questions." : {},
-    "There is nothing to practise in %@ yet." : {},
+    "There is nothing to practice in %@ yet." : {},
     "There is nothing to save yet." : {},
     "There. Everything's current." : {},
     "There. That's one memory." : {},
@@ -5781,7 +5741,6 @@
         }
       }
     },
-    "Three days in a row. A habit is starting." : {},
     "Three friends get Pro free. Each can choose to show when they've studied." : {},
     "Tick what you had" : {},
     "Tick what you had, or choose None of these, first." : {},

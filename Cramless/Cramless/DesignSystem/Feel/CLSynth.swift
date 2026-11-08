@@ -18,7 +18,7 @@ enum CLCue: Hashable, Sendable {
     case flip
     /// A flashcard rated.
     case rated
-    /// "Saved it": a fading memory answered right.
+    /// "Just in time!": a fading memory answered right.
     case saved
     /// 5, 10 and 15 in a row.
     case flourish

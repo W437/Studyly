@@ -24,17 +24,3 @@ enum CountUp {
     }
 }
 
-/// A number that counts up with `CountUp`: `value` at `step` of `steps`, its digits rolling as they change.
-struct CLCountingText: View {
-    let value: Int
-    let step: Int
-    let steps: Int
-    var format: (Int) -> String = { "\($0)" }
-
-    var body: some View {
-        let shown = CountUp.value(value, step: step, of: steps)
-        Text(verbatim: format(shown))
-            .monospacedDigit()
-            .contentTransition(.numericText(value: Double(shown)))
-    }
-}

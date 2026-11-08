@@ -1,7 +1,7 @@
 import SwiftUI
 
 // The answer panel: after a question is checked, the footer's buttons give way to a panel that rises from the bottom
-// edge in the verdict's colour, with Cap reacting, a big headline ("Nice!", "Almost.", "Not yet.", "Saved it."), the
+// edge in the verdict's colour, with Cap reacting, a big headline ("Nice!", "Almost.", "Not yet.", "Just in time!"), the
 // run of right answers, why, the fix, the source, and Continue. The question views build an `AnswerFeedback`;
 // `sessionFooter(feedback:…)` swaps it in (SessionParts.swift). At the accessibility sizes the panel keeps only the
 // headline and Continue, and the view shows the details in its card (`FeedbackDetails`).

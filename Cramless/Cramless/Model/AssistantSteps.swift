@@ -223,30 +223,6 @@ struct AssistantStep: Codable, Hashable, Identifiable, Sendable {
 enum AssistantAutoKind: String, Codable, CaseIterable, Sendable {
     case cards, notes, exams
 
-    var title: String {
-        switch self {
-        case .cards: "Flashcards and questions"
-        case .notes: "Notes"
-        case .exams: "Exams"
-        }
-    }
-
-    var subtitle: String {
-        switch self {
-        case .cards: "Cap adds them to the course straight away, marked “by Cap”, and you can undo."
-        case .notes: "Cap adds the note to your library straight away, and you can undo."
-        case .exams: "Cap puts the exam on your calendar straight away. You can undo."
-        }
-    }
-
-    var systemImage: String {
-        switch self {
-        case .cards: "rectangle.stack"
-        case .notes: "doc.text"
-        case .exams: "calendar"
-        }
-    }
-
     init?(tool: AssistantToolName) {
         switch tool {
         case .createFlashcards, .createQuizQuestions: self = .cards

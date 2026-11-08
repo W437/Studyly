@@ -134,7 +134,7 @@ struct OnboardingFlow: View {
             OnboardingPlanStep(courseID: coordinator.firstCourseID, isSample: coordinator.firstSetIsSample) { coordinator.advance() }
         case .paywall:
             // The plan was the screen just before: the paywall says what Pro adds, not the plan again.
-            PaywallView(context: .onboarding(planLine: ""))
+            PaywallView(context: .onboarding)
                 .environment(\.paywallFinish, PaywallFinishAction { coordinator.paywallFinished($0) })
                 .toolbar(.hidden, for: .navigationBar)
                 .navigationBarBackButtonHidden()

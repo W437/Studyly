@@ -98,20 +98,9 @@ final class PaywallCopyTests: XCTestCase {
             .contains("remind you \(StoreCatalog.trialReminderLeadDays) days before the first charge"))
     }
 
-    func testPlanLineNamesThePlan() {
-        let now = ISO8601DateFormatter().date(from: "2026-10-22T14:00:00Z")!
-        let exam = ISO8601DateFormatter().date(from: "2026-11-14T14:00:00Z")!
-        let line = PaywallCopy.planLine(courseName: "Bio 101", minutes: 15, examDate: exam, now: now)
-        XCTAssertTrue(line.hasPrefix("Your Bio 101 plan is set: 15 minutes a day until "), line)
-        XCTAssertEqual(PaywallCopy.planLine(courseName: nil, minutes: 10, examDate: nil, now: now),
-                       "Your plan is set: 10 minutes a day.")
-        XCTAssertEqual(PaywallCopy.planLine(courseName: "Chem 110", minutes: 20, examDate: now.addingTimeInterval(-86_400), now: now),
-                       "Your Chem 110 plan is set: 20 minutes a day.", "a past exam isn't named")
-    }
-
     /// Onboarding and Settings say what Pro adds (the plan was said on the screen before); a gate keeps its own line.
     func testSublineByContext() {
-        XCTAssertEqual(PaywallCopy.subline(for: .onboarding(planLine: "Your Bio 101 plan is set.")), "Pro lifts the AI limits.")
+        XCTAssertEqual(PaywallCopy.subline(for: .onboarding), "Pro lifts the AI limits.")
         XCTAssertEqual(PaywallCopy.subline(for: .settings), "Pro lifts the AI limits.")
         XCTAssertEqual(PaywallCopy.subline(for: .feature("Web research is part of Capling Pro.")), "Web research is part of Capling Pro.")
     }

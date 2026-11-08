@@ -75,7 +75,6 @@ struct OnboardingFirstSetStep: View {
             Task { await stage(items) }
         }
         .onAppear {
-            OnboardingCaptureBridge.onDone = { onDone(OnboardingFirstSet(courseID: $0, isSample: false)) }
             #if DEBUG
             guard !debugStarted, let debugStage, debugStage != "choose" else { return }
             debugStarted = true
@@ -84,7 +83,6 @@ struct OnboardingFirstSetStep: View {
                   ? .text(title: "Cell division notes", body: DebugCapture.notes) : .sample)
             #endif
         }
-        .onDisappear { OnboardingCaptureBridge.onDone = nil }
     }
 
     /// The sample page's set goes to a course of this name (its subject would be a made-up class).

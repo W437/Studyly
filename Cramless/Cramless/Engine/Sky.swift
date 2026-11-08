@@ -491,7 +491,7 @@ enum SkyEngine {
 
     /// The stars a session relit (the last answer for the item was right), lit for the first time and saved. An item
     /// answered more than once counts once: its first answer says where it started, its last whether it shines.
-    /// Saves are counted as they happened, so they match the "Saved it." the person saw.
+    /// Saves are counted as they happened, so they match the "Just in time!" the person saw.
     static func relights(_ reviews: [SkyReview]) -> SkyRelight {
         var first: [UUID: SkyReview] = [:]
         var last: [UUID: Bool] = [:]

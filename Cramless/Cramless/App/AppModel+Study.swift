@@ -253,7 +253,7 @@ extension AppModel {
 
         // What the session did to the sky. The recall at each answer is worked out again from the log (whole days
         // since the previous review and the stability then), which is what the scheduler used, so "saved" here is
-        // the "Saved it." the person saw.
+        // the "Just in time!" the person saw.
         let fsrs = self.fsrs
         let relight = SkyEngine.relights(logs.map { log in
             let wasNew = log.stateBeforeRaw == CardState.new.rawValue

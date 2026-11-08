@@ -15,7 +15,7 @@ enum ReviewPromptPolicy {
         /// Distinct questions answered in the session, and how many were right the first time.
         var answered = 0
         var rightFirstTime = 0
-        /// Stars the session saved ("Saved it.").
+        /// Stars the session saved ("Just in time!").
         var saves = 0
         /// The streak milestone the session reached, if it reached one.
         var streakMilestone: Int?

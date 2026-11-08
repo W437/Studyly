@@ -143,7 +143,6 @@ final class EngineStreakTests: XCTestCase {
         XCTAssertEqual(stats.days.filter(\.isToday).count, 1)
         XCTAssertEqual(stats.totalMinutes, 30, "Mon–Wed this week (Sunday missed)")
         XCTAssertEqual(stats.activeDays, 3)
-        XCTAssertEqual(stats.previousWeekMinutes, 70)
         XCTAssertEqual(stats.goalMinutes, 105)
     }
 }

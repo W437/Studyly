@@ -255,25 +255,6 @@ final class SessionTests: XCTestCase {
         XCTAssertFalse(stale.wasCorrect, "the old log said Good and counted a miss (it is here, a second entry for the next question)")
     }
 
-    // MARK: Rating previews
-
-    func testIntervalPreviewOrdersTheRatingsAndWritesNothing() throws {
-        let course = makeCourse()
-        let item = makeItem(in: course)
-        app.save()
-        let before = item.memory
-        let preview = app.intervalPreview(itemID: item.id)
-        let again = try XCTUnwrap(preview[.again]), hard = try XCTUnwrap(preview[.hard])
-        let good = try XCTUnwrap(preview[.good]), easy = try XCTUnwrap(preview[.easy])
-        XCTAssertLessThanOrEqual(again, hard)
-        XCTAssertLessThanOrEqual(hard, good)
-        XCTAssertLessThan(good, easy)
-        XCTAssertLessThan(again, 1.0 / 24, "a new card's Again is minutes away")
-        XCTAssertEqual(item.memory, before)
-        XCTAssertTrue(app.fetch(FetchDescriptor<ReviewLog>()).isEmpty)
-        XCTAssertTrue(app.intervalPreview(itemID: UUID()).isEmpty)
-    }
-
     // MARK: Onboarding
 
     func testOnboardingMakesTheExamFromTheQuizDateOnce() throws {

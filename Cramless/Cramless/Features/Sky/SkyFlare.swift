@@ -10,7 +10,7 @@ struct SaveFlare: Equatable, Identifiable {
     var at = Date()
 }
 
-/// The flare over a session when an answer is a save ("Saved it."): a four-point star blooms, a ring opens round it
+/// The flare over a session when an answer is a save ("Just in time!"): a four-point star blooms, a ring opens round it
 /// and a few motes drift off, about a second in all. It's the memory sky coming into the session, and it has no
 /// sound of its own (the save's cue plays with the verdict). Under Reduce Motion the star only fades in and out.
 struct SkyFlareView: View {

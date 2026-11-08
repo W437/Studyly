@@ -309,7 +309,7 @@ struct TodayLargeView: View {
                             HStack(spacing: 6) {
                                 Image(systemName: "plus")
                                     .font(.system(size: 12, weight: .bold))
-                                Text("Add an exam")
+                                Text("Add exam")
                                     .font(.system(.subheadline, weight: .semibold))
                             }
                             .foregroundStyle(CLColor.ink)

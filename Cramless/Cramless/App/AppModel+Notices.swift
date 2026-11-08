@@ -335,7 +335,7 @@ extension AppModel {
         return request
     }
 
-    /// "Not a look-alike": remembered as a dismissed mix-up, which syncs, and neither finder offers it again.
+    /// "Don't bring this up again": remembered as a dismissed mix-up, which syncs, and neither finder offers it again.
     func rejectLookAlike(_ draft: LookAlikeDraft) {
         let course = course(draft.courseID)
         let confusion = Confusion(course: course, name: draft.rules.name, explanation: "", itemIDs: [draft.a.itemID, draft.b.itemID],

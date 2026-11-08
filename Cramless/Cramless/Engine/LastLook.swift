@@ -150,8 +150,6 @@ struct LastLook: Equatable, Sendable {
     var minutes: Int { LastLookEngine.minutes(ideas: ideas.count) }
     /// Any of it is Cap's own wording.
     var isWritten: Bool { ideas.contains { $0.sentence != nil } }
-    /// Every idea is a sentence by itself: Cap's, or a fill-in's. Otherwise some are the student's own question and answer.
-    var isAllSentences: Bool { ideas.allSatisfy { $0.sentence != nil || $0.question.isEmpty } }
 }
 
 /// The last look's words. The night says good night once: on the eve's summary, which holds the ideas itself, or on this screen when it

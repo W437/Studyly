@@ -43,8 +43,8 @@ enum SettingsPage: String, Hashable, CaseIterable, Sendable, Identifiable {
 }
 
 enum PaywallContext: Hashable, Sendable {
-    /// The end of onboarding, naming the plan just built ("Your Bio 101 plan is set").
-    case onboarding(planLine: String)
+    /// The end of onboarding.
+    case onboarding
     /// A free limit was reached or a paid feature was tapped.
     case feature(String)
     case settings
