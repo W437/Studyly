@@ -4,7 +4,7 @@ import XCTest
 @testable import Cramless
 
 /// Settings ▸ Your data: the cards as CSV and everything as JSON, from a real store. Plus the words Settings shows
-/// for a backend error, a name's initials and the retention target.
+/// for a backend error, a name's initials and the retention target, and the root's rows, the pages' trails and Hidden tips.
 @MainActor
 final class SettingsExportTests: AskTestCase {
 
@@ -142,10 +142,74 @@ final class SettingsExportTests: AskTestCase {
         XCTAssertEqual(InitialsAvatar.initials("Maya"), "M")
         XCTAssertEqual(InitialsAvatar.initials("maya rivera lopez"), "MR")
         XCTAssertEqual(InitialsAvatar.initials("  "), "")
-        XCTAssertTrue(StudyPage.retentionText(0.85).contains("Fewer reviews"))
-        XCTAssertTrue(StudyPage.retentionText(0.90).contains("sweet spot"))
-        XCTAssertTrue(StudyPage.retentionText(0.95).contains("More reviews"))
-        XCTAssertTrue(StudyPage.retentionText(0.93).hasPrefix("Each card comes back when you're about 93% likely"))
+        XCTAssertTrue(RetentionPage.retentionText(0.85).contains("Fewer reviews"))
+        XCTAssertTrue(RetentionPage.retentionText(0.90).contains("sweet spot"))
+        XCTAssertTrue(RetentionPage.retentionText(0.95).contains("More reviews"))
+        XCTAssertTrue(RetentionPage.retentionText(0.93).hasPrefix("Each question comes back when you're about 93% likely"))
+        // Its row on More names the band in words: readiness keeps the only percentage outside the slider's own page.
+        XCTAssertEqual(String(localized: RetentionPage.bandName(0.9)), "The sweet spot for most people")
+        XCTAssertFalse(String(localized: RetentionPage.bandName(0.86)).contains("%"))
+    }
+
+    // MARK: The Settings root and its pages
+
+    func testTheRootIsEightRowsWithNoPlanOrSaleAtTheTop() {
+        XCTAssertEqual(SettingsView.rows.flatMap { $0 },
+                       [.account, .subscription, .study, .notifications, .aiPrivacy, .accessibility, .appearance, .more])
+        XCTAssertEqual(SettingsView.rows.flatMap { $0 }.map { String(localized: $0.title) },
+                       ["Account", "Subscription", "Study", "Notifications", "AI and privacy", "Accessibility", "Appearance", "More"])
+        XCTAssertFalse(SettingsView.rows.joined().contains(.assistant), "What Cap can do is inside AI and privacy")
+    }
+
+    func testAPageDeeperDownIsReachedThroughItsParents() {
+        XCTAssertEqual(SettingsPage.help.trail, [.more, .help])
+        XCTAssertEqual(SettingsPage.data.trail, [.more, .data])
+        XCTAssertEqual(SettingsPage.retention.trail, [.more, .retention])
+        XCTAssertEqual(SettingsPage.fontLicences.trail, [.more, .about, .fontLicences])
+        XCTAssertEqual(SettingsPage.hiddenTips.trail, [.study, .hiddenTips])
+        XCTAssertEqual(SettingsPage.notifications.trail, [.notifications])
+        XCTAssertEqual(SettingsPage.assistant.trail, [.assistant], "its own route still opens it directly")
+        let app = makeApp()
+        app.settings.onboardingCompleted = true
+        DeepLinks.handle(CramlessLink.settings(page: "about"), app: app)
+        XCTAssertEqual(app.router.paths[.today], [.settings, .settingsPage(.more), .settingsPage(.about)])
+    }
+
+    func testEachRowSaysWhereItsPageStands() {
+        let app = makeApp()
+        app.settings.dailyMinutes = 15
+        app.settings.reminderMinutes = 19 * 60
+        app.settings.easyDays = []
+        app.settings.quietMode = false
+        XCTAssertEqual(SettingsSummary.line(.study, app: app), "15 min a day")
+        XCTAssertEqual(SettingsSummary.line(.notifications, app: app),
+                       "Reminder at \(QuizContent.timeString(minutes: 19 * 60)), exam countdowns")
+        app.settings.reminderMinutes = nil
+        XCTAssertEqual(SettingsSummary.line(.notifications, app: app), "Exam countdowns only")
+        app.settings.quietMode = true
+        XCTAssertEqual(SettingsSummary.line(.study, app: app), "15 min a day, Quiet mode on")
+        XCTAssertEqual(SettingsSummary.line(.more, app: app), "Help, your data and About")
+        XCTAssertFalse(SettingsSummary.line(.about, app: app)?.contains(AboutInfo.version) ?? true, "the version is only on About")
+    }
+
+    func testHiddenTipsListOnlyTheKindsSwitchedOff() {
+        let app = makeApp()
+        app.settings.notices.off = []
+        XCTAssertTrue(HiddenTipsPage.hidden(app.settings).isEmpty, "nothing hidden: Study shows no row for it")
+        XCTAssertNil(SettingsSummary.line(.hiddenTips, app: app))
+        app.setNoticeKind(.busyDay, on: false)
+        app.setNoticeKind(.mixUp, on: false)
+        XCTAssertEqual(HiddenTipsPage.hidden(app.settings), [.mixUp, .busyDay], "in the order Cap deals them")
+        XCTAssertEqual(SettingsSummary.line(.hiddenTips, app: app),
+                       [NoticeContent.switchTitle(.mixUp), NoticeContent.switchTitle(.busyDay)].map { String(localized: $0) }
+                           .formatted(.list(type: .and)))
+        app.setNoticeKind(.mixUp, on: true)
+        XCTAssertEqual(HiddenTipsPage.hidden(app.settings), [.busyDay], "Show again brings a kind back")
+    }
+
+    func testHelpIsOneLineAndAWayToWrite() {
+        XCTAssertEqual(String(localized: HelpCopy.intro), "Questions, a bug or a surprise charge? A real person reads every message.")
+        XCTAssertEqual(String(localized: HelpCopy.writeTitle), "Write to us")
     }
 
     func testDeletingAllDataEmptiesTheStoreAndRestartsOnboarding() {

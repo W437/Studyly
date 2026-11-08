@@ -34,6 +34,9 @@ enum SettingsPage: String, Hashable, CaseIterable, Sendable, Identifiable {
     case account, subscription, study, notifications, aiPrivacy, assistant, accessibility, appearance, help, data, about, debug
     /// DEBUG builds: every sound and haptic, for auditioning and filming.
     case feelLab
+    /// Settings ▸ More (Help, Your data, About, how sure you'll be); the target retention; the kinds of Cap's cards switched off; the
+    /// fonts' licences (under About).
+    case more, retention, hiddenTips, fontLicences
     var id: String { rawValue }
 }
 

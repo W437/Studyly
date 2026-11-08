@@ -72,45 +72,62 @@ struct DataPage: View {
     }
 }
 
-/// Settings ▸ About: the version, the fonts and their licences (both under the SIL Open Font License), and the
-/// Terms and Privacy pages once they exist (never an invented address).
+/// Settings ▸ More ▸ About: Cap and the wordmark, the version, the Terms and Privacy pages once they exist (never an invented address),
+/// and the fonts' licences last.
+///
+/// Harness: `CRAMLESS_ROUTE=settings:about`.
 struct AboutPage: View {
-    @State private var openLicence: String?
-
     var body: some View {
         SettingsScroll(title: "About") {
             VStack(spacing: 8) {
                 CapView(pose: .wave, size: 120, decorative: false)
                 CaplingWordmark(size: 40, color: CLColor.ink)
-                Text("A little every day. Ready on exam day.").clFont(.callout).foregroundStyle(CLColor.ink2)
-                Text("Version \(AboutInfo.version)").clFont(.footnote).foregroundStyle(CLColor.ink3)
+                Text("Version \(AboutInfo.version)").clFont(.footnote).foregroundStyle(CLColor.ink2)
             }
             .frame(maxWidth: .infinity)
             .padding(.top, 16)
+            .padding(.bottom, 24)
             .accessibilityElement(children: .combine)
 
-            SettingsGroup(title: "Fonts", footer: "Both fonts are used under the SIL Open Font License 1.1. OpenDyslexic is unmodified.") {
+            CLList {
+                if let terms = StoreCatalog.termsURL {
+                    Link(destination: terms) { CLRow(icon: "doc.text", title: "Terms of Use") { OutLink() } }
+                        .buttonStyle(.pressable)
+                }
+                if let privacy = StoreCatalog.privacyURL {
+                    Link(destination: privacy) { CLRow(icon: "hand.raised", title: "Privacy Policy") { OutLink() } }
+                        .buttonStyle(.pressable)
+                }
+                NavigationLink(value: Route.settingsPage(.fontLicences)) {
+                    CLRow(icon: SettingsPage.fontLicences.icon, tint: SettingsPage.fontLicences.tint, title: SettingsPage.fontLicences.title)
+                }
+                .buttonStyle(.pressable)
+            }
+        }
+    }
+
+    /// The mark of a row that opens a web page.
+    private struct OutLink: View {
+        var body: some View {
+            Image(systemName: "arrow.up.right")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(CLColor.ink4)
+                .accessibilityHidden(true)
+        }
+    }
+}
+
+/// Settings ▸ More ▸ About ▸ Font licences: both fonts, each opening its licence in place (both under the SIL Open Font License).
+struct FontLicencesPage: View {
+    @State private var openLicence: String?
+
+    var body: some View {
+        SettingsScroll(title: "Font licences") {
+            SettingsGroup(footer: "Both fonts are used under the SIL Open Font License 1.1. OpenDyslexic is unmodified.") {
                 licenceRow(name: "Bricolage Grotesque", detail: "Headlines and the wordmark", file: "BricolageGrotesque-OFL")
                 licenceRow(name: "OpenDyslexic", detail: "The dyslexia-friendly reading font", file: "OpenDyslexic-OFL")
             }
-
-            if StoreCatalog.termsURL != nil || StoreCatalog.privacyURL != nil {
-                SettingsGroup(title: "Legal") {
-                    if let terms = StoreCatalog.termsURL {
-                        Link(destination: terms) { CLRow(icon: "doc.text", title: "Terms of Use") }.buttonStyle(.pressable)
-                    }
-                    if let privacy = StoreCatalog.privacyURL {
-                        Link(destination: privacy) { CLRow(icon: "hand.raised", title: "Privacy Policy") }.buttonStyle(.pressable)
-                    }
-                }
-            }
-
-            Text("Made for students 13 and up. Your notes are never used to train AI models.")
-                .clFont(.footnote)
-                .foregroundStyle(CLColor.ink2)
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: .infinity)
-                .padding(.top, 26)
+            .padding(.top, 14)
         }
     }
 
