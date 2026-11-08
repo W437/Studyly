@@ -6,11 +6,12 @@ from phone import Phone
 from registry import journey
 
 @journey("quiz", "Two days before a quiz",
-         "Maya has a Chem quiz in two days. Today's exams row shows it; the exam page says how ready Maya is and why; a seven-question practice "
+         "Maya has a Chem quiz in two days. Today's card names it; the exam page says how ready Maya is and why; a seven-question practice "
          "run uses every kind of question; the summary shows what moved.")
 def quiz(p: Phone) -> None:
-    p.mark("Today: the day's plan, and the exams as a row with a quiz in two days")
+    p.mark("Today: the day's card, for a quiz on Tuesday")
     p.dwell(2.6)
+    # The day card's chip ("Chem 110 Quiz · Tue ›") opens the exam.
     p.scroll_to("Chem 110 Quiz,", type="Button", top=120, bottom=700, points=300)
     p.dwell(0.8)
     p.tap("Chem 110 Quiz,", type="Button")

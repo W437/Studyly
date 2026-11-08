@@ -1932,6 +1932,30 @@ for Stages 3 and 4 (none shared).
 - **App Privacy**, with the owner's approval: Other Data ▸ Other Data Types added (App Functionality, linked to the user, not
   tracking), matching the manifest; published on the website, 10 data types.
 
+## Clarity pass: Today (2026-11-08, lane `c-today`)
+
+Today said too much before its one button, and said the streak and the exams twice. Now it is the band, one day card, one quests row
+and Cap's card.
+- **The day card** (`TodayHeroContent`, `TodayDayCard`): the chip "Chem 110 Quiz · Tue ›" (no "For"; a tap opens the exam), one ring
+  with "41% ready" beside it, the title, at most one short line only where it adds something, the button and its two links. The reason
+  paragraph, the projection ring and "Based on 7 questions so far." are gone. When the session's exam has less than half of today's
+  questions, the title names the session's courses, soonest exam first (`TodayHeroContent.title`, `TodaySnapshot.sessionCourses`); the
+  session itself is unchanged. With no exam at all the chip is "Add exam". The done card is the exam today counted toward, "Done for
+  today" and "Back tomorrow. Your streak is safe." A catch-up day says "Catching up: about 4 days at 15 minutes a day." with no count,
+  since the band's pill already says how many are to review (the two counts measure different things and disagreed on screen).
+- **Removed**: "Your plan" (the week strip, `TodayPlanStrip`, `TodayPlanCard`, "Calendar") and the exams row (`TodayExamsRow`,
+  `TodayAddExamCard`). The streak pill opens the streak page; Progress lists every exam. The quests line is now its own row
+  (`TodayQuestsRow`, "0 of 3 quests ›"), with the Squad's line under it for a Squad member.
+- **"Why these?"** (`TodayReasons`): three rows at most, in order of what they tell, none the card already says (the exam's own row is
+  gone). "Study something else" is a soft button and "Got it" the quiet one; the sky list it opens is titled "Study something else"
+  and leads with the courses and their Practice buttons (`SkyListView(coursesFirst:)`).
+- **Cap's cards** (`NoticeContent`): no "1 of 3", no "No AI" ("Uses Cloud AI" stays), no question over a button that answers it; pairs
+  are named as pairs ("Metaphase vs telophase"); "to review" for what is due or fading; the fix's button is "Fix it · 2 min".
+- **Words** (the clarity word table): the band's pill "17 to review", the reminder "18 to review today.", quests "0 of 12 quests this
+  week" and "12 this week unlocks a new sky: Dusk", "Practice for Chem 110", "Get 3 right just in time".
+- Tests: the Today classes, `NoticeEngineTests`, `NotificationPlannerTests` and the game copy tests, updated for the words;
+  `TodayPlanStripTests` deleted with the strip.
+
 ## Left for the owner
 
 - Accounts and keys (see README "Before the App Store"):
