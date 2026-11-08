@@ -148,6 +148,11 @@ private struct TeachPromptPage: View {
                         .multilineTextAlignment(.center)
                         .fixedSize(horizontal: false, vertical: true)
                 }
+                Text(TeachCopy.how)
+                    .clFont(.callout)
+                    .foregroundStyle(CLColor.ink2)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
                 Text(TeachCopy.privacy)
                     .clFont(.footnote)
                     .foregroundStyle(CLColor.ink3)
@@ -361,16 +366,17 @@ private struct TeachCheckPage: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         } footer: {
             VStack(spacing: 8) {
+                // Done is the way out; one more question is there for whoever wants it.
                 if session.firstMissing != nil, !session.isRefining {
+                    Button(action: onDone) { Text(TeachCopy.done) }
+                        .buttonStyle(.cl(.primary))
                     Button {
                         CLHaptics.tap()
                         session.askFollowUp()
                     } label: {
                         Text(TeachCopy.answerOneMore)
                     }
-                    .buttonStyle(.cl(.primary))
-                    Button(action: onDone) { Text(TeachCopy.done) }
-                        .buttonStyle(.cl(.soft))
+                    .buttonStyle(.cl(.soft))
                 } else {
                     Button(action: onDone) { Text(TeachCopy.done) }
                         .buttonStyle(.cl(.primary))

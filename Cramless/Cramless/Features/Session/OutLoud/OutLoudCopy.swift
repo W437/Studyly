@@ -3,25 +3,25 @@ import Foundation
 /// Study out loud's words, in one place. Pure, so the tests read what a person reads.
 enum OutLoudCopy {
     static let title: LocalizedStringResource = "Study out loud"
-    static let pitch: LocalizedStringResource = "Cap asks, you answer out loud. For the bus, a walk or the gym."
-    static let screenOff: LocalizedStringResource = "Works with the screen off"
+    static let screenOff: LocalizedStringResource = "Works with the screen off."
+    /// How to steer it with no hands, on the intro: a mode made for the screen off says how to stop.
+    static let commands: LocalizedStringResource = "Say “repeat”, “skip” or “stop” any time."
     static let start: LocalizedStringResource = "Start"
     static let asking: LocalizedStringResource = "Cap is asking"
     static let yourTurn: LocalizedStringResource = "Your turn"
     static let checking: LocalizedStringResource = "Cap is checking"
     static let howItWent: LocalizedStringResource = "How it went"
     static let theAnswer: LocalizedStringResource = "The answer"
-    /// Why the same minutes hold fewer questions than on screen.
-    static let whyFewer: LocalizedStringResource = "Spoken answers take longer, so the same minutes hold fewer questions."
     static let hint: LocalizedStringResource = "Say “repeat”, “skip” or “I don't know”."
     static let replyHint: LocalizedStringResource = "Say “got it” or “again”."
     static let nothingToAsk: LocalizedStringResource = "Nothing to ask out loud right now."
-    /// What stays private, on the intro. Audio is never kept; the words go only as far as this says (`docs/privacy-wording.md`).
-    static let privacy: LocalizedStringResource = "Your voice isn't recorded. Your iPhone turns it into words, and they're gone after the answer. An answer in your own words goes to Cloud AI to be graded, if you've turned it on."
+    /// What stays private, on the intro. Audio is never kept (`docs/privacy-wording.md`); where the words of an answer go is Settings ▸ AI
+    /// and privacy's to say.
+    static let privacy: LocalizedStringResource = "Your voice isn't recorded."
 
-    /// "12 questions · about 9 minutes".
+    /// "23 questions · about 15 min".
     static func size(questions: Int, minutes: Int) -> String {
-        [SessionCopy.questions(questions), String(localized: "about \(minutes) minutes")].joined(separator: " · ")
+        [SessionCopy.questions(questions), String(localized: "about \(minutes) min")].joined(separator: " · ")
     }
 
     static func needsModel(_ language: String) -> LocalizedStringResource { "Out loud needs Apple's speech model for \(language)." }

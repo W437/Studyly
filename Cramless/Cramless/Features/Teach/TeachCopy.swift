@@ -21,13 +21,16 @@ enum TeachCopy {
     static let notYet: LocalizedStringResource = "Not yet"
     static let tooFew: LocalizedStringResource = "Cap needs a few more questions on this topic first."
     static let heardNothing: LocalizedStringResource = "Cap didn't hear anything. Try again, or type it."
-    static let privacy: LocalizedStringResource = "Your voice isn't recorded, and nothing you say is kept. If Cloud AI is on, your words go to it to be checked."
+    /// What the task is, under Cap's question: what to do and what he listens for.
+    static let how: LocalizedStringResource = "Say it in your own words. Cap ticks off each idea he hears."
+    /// What stays private (`docs/privacy-wording.md`); where the words go is Settings ▸ AI and privacy's to say.
+    static let privacy: LocalizedStringResource = "Your voice isn't recorded."
     static let micOff: LocalizedStringResource = "Microphone access is off, so you can type it to Cap."
     static let micBusy: LocalizedStringResource = "Cap can't use the microphone right now, so you can type it to him."
     static let noSpeech: LocalizedStringResource = "This iPhone doesn't have the speech model, so you can type it to Cap."
 
-    /// What Cap asks.
-    static func ask(_ topic: String) -> LocalizedStringResource { "Explain \(SessionCopy.lowerFirst(topic)) to me like I missed the class." }
+    /// What Cap asks, the topic by its own name: "Teach me “Cell cycle”, like I missed the class."
+    static func ask(_ topic: String) -> LocalizedStringResource { "Teach me “\(topic)”, like I missed the class." }
 
     /// The card on Today.
     static func noticeTitle(_ topic: String) -> String { String(localized: "You know \(SessionCopy.lowerFirst(topic)). Can you teach it?") }
