@@ -92,21 +92,21 @@ final class LibraryCourseTests: XCTestCase {
     // MARK: Exam chips
 
     func testExamChipWords() {
-        func exam(_ title: String, _ offset: Int, readiness: Double? = nil, result: Double? = nil) -> LibraryFormat.ChipExam {
-            LibraryFormat.ChipExam(id: UUID(), title: title, date: day(offset), readiness: readiness, result: result)
+        func exam(_ title: String, _ offset: Int, result: Double? = nil) -> LibraryFormat.ChipExam {
+            LibraryFormat.ChipExam(id: UUID(), title: title, date: day(offset), result: result)
         }
-        let chips = LibraryFormat.examChips([exam("Bio 101 Quiz 1", -40, result: 0.91), exam("Bio 101 Final", 40, readiness: 0.2),
-                                             exam("Bio 101 Midterm", 23, readiness: 0.53), exam("Bio 101 Quiz 2", -3)],
+        let chips = LibraryFormat.examChips([exam("Bio 101 Quiz 1", -40, result: 0.91), exam("Bio 101 Final", 40),
+                                             exam("Bio 101 Midterm", 23), exam("Bio 101 Quiz 2", -3)],
                                             courseName: "Bio 101", now: now, calendar: cal)
         XCTAssertEqual(chips.map(\.state), [.upcoming, .upcoming, .logGrade, .graded], "to come, soonest first; then what waits for a grade; then grades")
-        XCTAssertTrue(chips[0].text.hasPrefix("Midterm · "))
-        XCTAssertTrue(chips[0].text.hasSuffix(" · 53% ready"), chips[0].text)
+        XCTAssertEqual(chips[0].text, "Midterm · \(LibraryFormat.shortDate(day(23), calendar: cal))",
+                       "no readiness on a chip: the course's one number is its ring")
         XCTAssertEqual(chips[2].text, "Quiz 2 · log your grade")
         XCTAssertEqual(chips[3].text, "Quiz 1 · you got 91%")
     }
 
     func testOnlyTheLatestGradesKeepAChip() {
-        let graded = (1...4).map { LibraryFormat.ChipExam(id: UUID(), title: "Quiz \($0)", date: day(-$0 * 10), readiness: nil, result: 0.8) }
+        let graded = (1...4).map { LibraryFormat.ChipExam(id: UUID(), title: "Quiz \($0)", date: day(-$0 * 10), result: 0.8) }
         let chips = LibraryFormat.examChips(graded, courseName: "Bio", now: now, calendar: cal)
         XCTAssertEqual(chips.map { String($0.text.prefix(6)) }, ["Quiz 1", "Quiz 2"])
     }

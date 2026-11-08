@@ -1,8 +1,8 @@
 import SwiftUI
 
 /// The Library tab: what was recent (questions to review, sources opened or added lately), every course with its next exam, that exam's
-/// readiness (or "Add a date") and counts; search across questions, sources and lectures. With no courses yet, Cap invites a sample page
-/// and shows the ways to bring material in (with courses, the tab bar's + is that way in).
+/// readiness (or "Add exam") and counts; search across questions, sources and lectures. With no courses yet, Cap invites a sample page
+/// and shows the ways to bring material in, the + sheet's own rows (with courses, the tab bar's + is that way in).
 ///
 /// Harness: `CRAMLESS_ROUTE=library` (Spanish II has no exam); `CRAMLESS_SCENARIO=past` first moves the soonest exam three days back,
 /// so its course has only a past exam. `CRAMLESS_SCROLL=recent`.
@@ -26,7 +26,7 @@ struct LibraryView: View {
                 } else if courses.isEmpty {
                     LibraryEmptyState()
                         .padding(.top, 8)
-                    BringYourStuff()
+                    EmptyLibraryAddMaterial()
                 } else {
                     if !recent.isEmpty { LibraryRecentSection(rows: recent) }
                     CLSectionHeader(title: "Courses", actionTitle: "New") { app.router.present(.newCourse) }
@@ -36,7 +36,7 @@ struct LibraryView: View {
                                 LibraryCourseCard(model: course)
                             }
                             .buttonStyle(.pressable)
-                            .addDateOverlay(courseName: course.name) { app.router.present(.newExam(courseID: course.id)) }
+                            .addExamOverlay(courseName: course.name) { app.router.present(.newExam(courseID: course.id, fromCourse: true)) }
                             .contextMenu { menu(for: course) }
                         }
                     }
@@ -105,39 +105,19 @@ struct LibraryView: View {
     @ViewBuilder
     private func menu(for course: LibraryCourseModel) -> some View {
         Button("Edit course", systemImage: "pencil") { app.router.present(.editCourse(course.id)) }
-        Button("New exam", systemImage: "calendar.badge.plus") { app.router.present(.newExam(courseID: course.id)) }
+        Button("Add exam", systemImage: "calendar.badge.plus") { app.router.present(.newExam(courseID: course.id, fromCourse: true)) }
         Button("Add material", systemImage: "doc.viewfinder") { app.router.present(.capture(courseID: course.id)) }
         Divider()
         Button("Delete course", systemImage: "trash", role: .destructive) { courseToDelete = course }
     }
 }
 
-/// The ways to bring material in: imports, uploads, and cards the person writes.
-private struct BringYourStuff: View {
-    @Environment(AppModel.self) private var app
-
+/// The ways to bring material in: the + sheet's own rows (`AddMaterialList`), under the same title.
+private struct EmptyLibraryAddMaterial: View {
     var body: some View {
-        CLSectionHeader(title: "Bring your stuff")
+        CLSectionHeader(title: "Add material")
             .id("bring")
-        CLList {
-            Button { app.router.present(.importDeck(courseID: nil)) } label: {
-                CLRow(icon: "rectangle.stack", tint: .mint, title: "Import from Quizlet",
-                      subtitle: "Paste the set you exported")
-            }
-            Button { app.router.present(.importDeck(courseID: nil)) } label: {
-                CLRow(icon: "square.and.arrow.down", tint: .sky, title: "Import from Anki",
-                      subtitle: ".apkg decks, scheduling kept")
-            }
-            Button { app.router.present(.capture(courseID: nil)) } label: {
-                CLRow(icon: "doc.richtext", tint: .tangerine, title: "Upload a PDF",
-                      subtitle: "Slides too, saved as a PDF")
-            }
-            Button { app.router.present(.newItem(courseID: nil)) } label: {
-                CLRow(icon: "square.and.pencil", tint: .sun, title: "Make cards yourself",
-                      subtitle: "Always free, no limits")
-            }
-        }
-        .buttonStyle(LibraryRowButtonStyle())
+        AddMaterialList(courseID: nil)
     }
 }
 

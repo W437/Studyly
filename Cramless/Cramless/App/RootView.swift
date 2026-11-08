@@ -192,7 +192,8 @@ private struct ToastHost: View {
 }
 
 /// The four tabs and the + button. The + is a tab of its own role, which iOS draws apart from the others, but it is a button:
-/// `AddTabAction` (in each tab's content) stops UIKit selecting it and opens the capture sheet, so the page behind stays put.
+/// `AddTabAction` (in each tab's content) stops UIKit selecting it and opens the capture sheet for the course on screen
+/// (`AppModel.courseOnScreen`), so the page behind stays put.
 /// The binding's own `.add` branch is the fallback if a selection ever gets through.
 struct MainTabView: View {
     @Environment(AppModel.self) private var app
@@ -202,7 +203,7 @@ struct MainTabView: View {
         TabView(selection: Binding(get: { router.tab }, set: { newValue in
             if newValue == .add {
                 CLHaptics.tap()
-                router.present(.capture(courseID: nil))
+                router.present(.capture(courseID: app.courseOnScreen))
             } else {
                 if newValue == router.tab { router.popToRoot(newValue) }
                 router.tab = newValue
@@ -252,7 +253,7 @@ private struct TabRoot<Content: View>: View {
         }
         .background(AddTabAction {
             CLHaptics.tap()
-            app.router.present(.capture(courseID: nil))
+            app.router.present(.capture(courseID: app.courseOnScreen))
         })
     }
 }
@@ -288,6 +289,7 @@ struct RouteDestination: View {
     var body: some View {
         switch route {
         case .course(let id): CourseView(courseID: id)
+        case .courseQuestions(let id, let topic): CourseQuestionsView(courseID: id, topicID: topic)
         case .exam(let id): ExamDetailView(examID: id)
         case .source(let id): SourceView(sourceID: id)
         case .sourcePage(let id, let index, let highlight): SourcePageView(sourceID: id, pageIndex: index, highlight: highlight)
@@ -316,7 +318,7 @@ struct SheetDestination: View {
         case .importDeck(let courseID): ImportDeckView(courseID: courseID)
         case .newCourse: CourseEditorView(courseID: nil)
         case .editCourse(let id): CourseEditorView(courseID: id)
-        case .newExam(let courseID): ExamEditorView(courseID: courseID, examID: nil)
+        case .newExam(let courseID, let fromCourse): ExamEditorView(courseID: courseID, examID: nil, courseIsFixed: fromCourse)
         case .editExam(let id): ExamEditorView(courseID: nil, examID: id)
         case .syllabus(let id): ExamEditorView(courseID: nil, examID: id, opensSyllabus: true)
         case .logGrade(let id): LogGradeView(examID: id)

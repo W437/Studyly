@@ -10,6 +10,9 @@ struct LibraryCourseModel: Identifiable, Equatable {
     var color: CourseColor
     var symbol: String
     var examLine: String
+    /// The next exam, for the course page's head: its id and "Midterm · Tue 1 Dec". Nil with no exam to come.
+    var examID: UUID?
+    var headerLine: String?
     /// Readiness for the course's next exam (`AppModel.courseReadiness`), 0…1: the course's one number. Nil with no exam to come.
     var readiness: Double?
     /// That exam's title, for VoiceOver ("53 percent ready for the Midterm").
@@ -28,6 +31,8 @@ struct LibraryCourseModel: Identifiable, Equatable {
                                           calendar: app.calendar)
         readiness = next?.value
         examTitle = next?.exam.title
+        examID = next?.exam.id
+        headerLine = next.map { LibraryFormat.headerExamLine(title: $0.exam.title, courseName: course.name, date: $0.exam.date, calendar: app.calendar) }
         sources = course.liveSources.count
         questions = course.activeItems.count
     }
@@ -40,7 +45,7 @@ struct LibraryCourseModel: Identifiable, Equatable {
 }
 
 /// A course on the Library: its badge, name, next exam and counts, with that exam's readiness ring. A course with no exam to come
-/// keeps the ring's place for "Add a date": the card reserves it (`LibraryAddDateSlot`) and the Library lays the real button over
+/// keeps the ring's place for "Add exam": the card reserves it (`LibraryAddExamSlot`) and the Library lays the real button over
 /// it, outside the card's link, so the two taps stay apart.
 struct LibraryCourseCard: View {
     let model: LibraryCourseModel
@@ -88,7 +93,7 @@ struct LibraryCourseCard: View {
             ReadinessRing(value: readiness, size: typeSize.isAccessibilitySize ? 80 : 52, lineWidth: typeSize.isAccessibilitySize ? 8 : 6)
                 .accessibilityHidden(true)
         } else {
-            LibraryAddDateSlot()
+            LibraryAddExamSlot()
         }
     }
 
@@ -98,8 +103,9 @@ struct LibraryCourseCard: View {
     }
 }
 
-/// "Add a date": the button a course with no exam to come shows where its ring would be. It opens the exam editor for that course.
-struct LibraryAddDateButton: View {
+/// "Add exam": the one label for making an exam. A course with no exam to come shows it where its ring would be; the course page shows it
+/// beside its exams. It opens the exam editor for that course.
+struct LibraryAddExamButton: View {
     let courseName: String
     var action: () -> Void
 
@@ -108,19 +114,19 @@ struct LibraryAddDateButton: View {
             CLHaptics.tap()
             action()
         } label: {
-            LibraryAddDateLabel()
+            LibraryAddExamLabel()
         }
         .buttonStyle(.pressable)
-        .accessibilityLabel(Text("Add an exam date for \(courseName)"))
+        .accessibilityLabel(Text("Add exam for \(courseName)"))
     }
 }
 
-private struct LibraryAddDateLabel: View {
+private struct LibraryAddExamLabel: View {
     var body: some View {
         // An HStack rather than a Label: inside a List row a Label can lose its title to the row's label style.
         HStack(spacing: 6) {
             Image(systemName: "calendar.badge.plus").accessibilityHidden(true)
-            Text("Add a date")
+            Text("Add exam")
         }
             .clFont(.footnoteEmphasis)
             .foregroundStyle(CLColor.skyInk)
@@ -131,30 +137,30 @@ private struct LibraryAddDateLabel: View {
     }
 }
 
-/// The place an "Add a date" button takes in a card: the label, hidden, with its bounds handed up (`LibraryAddDateAnchor`) so the
+/// The place an "Add exam" button takes in a card: the label, hidden, with its bounds handed up (`LibraryAddExamAnchor`) so the
 /// screen can put the real button exactly there, outside the card's own tap.
-struct LibraryAddDateSlot: View {
+struct LibraryAddExamSlot: View {
     var body: some View {
-        LibraryAddDateLabel()
+        LibraryAddExamLabel()
             .hidden()
             .accessibilityHidden(true)
-            .anchorPreference(key: LibraryAddDateAnchor.self, value: .bounds) { $0 }
+            .anchorPreference(key: LibraryAddExamAnchor.self, value: .bounds) { $0 }
     }
 }
 
-struct LibraryAddDateAnchor: PreferenceKey {
+struct LibraryAddExamAnchor: PreferenceKey {
     static let defaultValue: Anchor<CGRect>? = nil
     static func reduce(value: inout Anchor<CGRect>?, nextValue: () -> Anchor<CGRect>?) { value = value ?? nextValue() }
 }
 
 extension View {
-    /// Lays the "Add a date" button over the slot a card reserved for it (`LibraryAddDateSlot`), when it reserved one.
-    func addDateOverlay(courseName: String, action: @escaping () -> Void) -> some View {
-        overlayPreferenceValue(LibraryAddDateAnchor.self) { anchor in
+    /// Lays the "Add exam" button over the slot a card reserved for it (`LibraryAddExamSlot`), when it reserved one.
+    func addExamOverlay(courseName: String, action: @escaping () -> Void) -> some View {
+        overlayPreferenceValue(LibraryAddExamAnchor.self) { anchor in
             GeometryReader { proxy in
                 if let anchor {
                     let rect = proxy[anchor]
-                    LibraryAddDateButton(courseName: courseName, action: action)
+                    LibraryAddExamButton(courseName: courseName, action: action)
                         .frame(width: rect.width, height: rect.height)
                         .offset(x: rect.minX, y: rect.minY)
                 }

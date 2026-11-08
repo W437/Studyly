@@ -106,3 +106,19 @@ final class AddTabProxy: NSObject, UITabBarControllerDelegate {
         return super.forwardingTarget(for: selector)
     }
 }
+
+extension AppModel {
+    /// The course of the page in front on the current tab, for the tab bar's +: a course page or its questions, an exam, a source, a page of
+    /// one or a lecture's notes. Nil anywhere else (Today, Ask, Progress, Settings), where the + sheet's flows pick the usual course.
+    var courseOnScreen: UUID? {
+        guard let route = router.paths[router.tab]?.last else { return nil }
+        let found: Course? = switch route {
+        case .course(let id), .courseQuestions(let id, _): course(id)
+        case .exam(let id): exam(id)?.course
+        case .source(let id), .lectureNotes(let id), .sourcePage(let id, _, _): source(id)?.course
+        default: nil
+        }
+        guard let found, found.deletedAt == nil else { return nil }
+        return found.id
+    }
+}
