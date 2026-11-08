@@ -14,7 +14,7 @@ enum NoticeContent {
         case .lookAlike(let pair):
             return CapNotice(id: notice.id, kind: .lookAlike, title: pairTitle(pair.termA, pair.termB),
                              detail: lookAlikeDetail(pair, now: now, calendar: calendar),
-                             action: .init(title: String(localized: "See the difference"), systemImage: "rectangle.split.2x1",
+                             action: .init(title: String(localized: "Show me"), systemImage: "rectangle.split.2x1",
                                            run: .showLookAlike(pair)),
                              link: nil, cost: costLine(notice.cost))
         case .fading(let rescue):

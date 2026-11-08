@@ -1132,7 +1132,7 @@ final class NoticeEngineTests: XCTestCase {
         XCTAssertEqual(NoticeContent.lookAlikeDetail(pair(in: 12), now: now, calendar: cal), "They look alike, and both are on your Bio 101 Midterm.")
         let card = NoticeContent.card(Notice(id: "p", kind: .lookAlike, rank: 0, evidence: .lookAlike(soon), cost: .cloud), firstName: "", now: now, calendar: cal)
         XCTAssertEqual(card.title, "Metaphase vs telophase")
-        XCTAssertEqual(card.action?.title, "See the difference")
+        XCTAssertEqual(card.action?.title, "Show me")
         XCTAssertEqual(card.cost, "Uses Cloud AI")
     }
 
