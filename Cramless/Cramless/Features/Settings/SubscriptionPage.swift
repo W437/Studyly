@@ -1,8 +1,9 @@
 import SwiftUI
 
 /// Settings ▸ Subscription: the plan and when it renews or ends, the App Store's own manage sheet (cancel in two
-/// taps), restore, the plans, Exam Pass (listed here at any time: a catalogue the person opened, unlike the offer elsewhere,
-/// which waits for 8 to 21 days before an exam), and what is always free.
+/// taps), the plans: Pro, Squad (its own page), Exam Pass (listed here at any time: a catalogue the person opened, unlike the offer
+/// elsewhere, which waits for 8 to 21 days before an exam), and restore. An account under 13 is sold nothing; one already on a Squad keeps
+/// its way to it.
 struct SubscriptionPage: View {
     @Environment(AppModel.self) private var app
 
@@ -27,21 +28,25 @@ struct SubscriptionPage: View {
             }
             SettingsGroup(title: app.settings.canBuyPro ? "Plans" : nil) {
                 if app.settings.canBuyPro {
-                    NavigationLinkRow(icon: "sparkles", tint: .tangerine, title: e.plan == .free ? "See Pro and Squad" : "See the plans",
+                    NavigationLinkRow(icon: "sparkles", tint: .tangerine, title: e.plan == .free ? "See Pro" : "See the plans",
                                       subtitle: e.plan == .free ? .verbatim(yearlyLine) : nil) {
                         app.router.present(.paywall(.settings))
                     }
-                    if e.plan == .free || e.plan == .pass {
-                        NavigationLinkRow(icon: "graduationcap", tint: .sun, title: "Exam Pass",
-                                          subtitle: "\(store.price(for: .examPass).display) for 30 days of Pro. Doesn't renew.") {
-                            app.router.present(.examPass(examID: app.upcomingExams().first?.id))
-                        }
+                }
+                if app.settings.canBuyPro || e.plan != .free {
+                    NavigationLink(value: Route.squad) {
+                        CLRow(icon: "person.3.fill", tint: .mint, title: "Squad", subtitle: .verbatim(SettingsSummary.squadLine(app: app)))
+                    }
+                    .buttonStyle(.pressable)
+                }
+                if app.settings.canBuyPro, e.plan == .free || e.plan == .pass {
+                    NavigationLinkRow(icon: "graduationcap", tint: .sun, title: "Exam Pass",
+                                      subtitle: "\(store.price(for: .examPass).display) for 30 days of Pro. Doesn't renew.") {
+                        app.router.present(.examPass(examID: app.upcomingExams().first?.id))
                     }
                 }
                 RestorePurchasesRow()
             }
-            AlwaysFreeCard()
-                .padding(.top, 24)
             HelpLink()
                 .padding(.top, 6)
                 .padding(.horizontal, 6)

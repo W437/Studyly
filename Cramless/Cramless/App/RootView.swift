@@ -169,7 +169,9 @@ private struct ToastHost: View {
             if let toast = app.router.toast {
                 ToastView(toast: toast, onAction: toast.action == nil ? nil : {
                     CLHaptics.tap()
+                    let action = toast.action
                     withAnimation(CLMotion.exit) { app.router.runToastAction() }
+                    if case .undoRung(let id)? = action { app.undoRung(id) }
                 })
                     .transition(.move(edge: .top).combined(with: .opacity))
                     .padding(.top, 6)
@@ -323,7 +325,7 @@ struct SheetDestination: View {
         case .editItem(let id): ItemEditorView(itemID: id, courseID: nil)
         case .newItem(let courseID): ItemEditorView(itemID: nil, courseID: courseID)
         case .explain(let id, let given): ExplainMistakeView(itemID: id, given: given)
-        case .makeCards(let id, let maxItems): MakeCardsView(threadID: id, maxItems: maxItems)
+        case .makeCards(let id): MakeCardsView(threadID: id)
         case .reviewDraft(let id): DraftReviewView(sourceID: id, isOnboarding: false)
         case .sourcePage(let id, let index, let highlight):
             NavigationStack { SourcePageView(sourceID: id, pageIndex: index, highlight: highlight) }
@@ -340,7 +342,6 @@ struct SheetDestination: View {
         case .quests: TodayQuestsSheet()
         case .help: HelpSheet()
         case .lookAlike(let a, let b, _): LookAlikeView(a: a, b: b)
-        case .streakMonth: StreakMonthSheet()
         case .skyMemory: SkyMemorySheet()
         case .fillGap(let examID, let topicID): FillGapSheet(examID: examID, topicID: topicID)
         case .looksWrong(let id, let given): LooksWrongSheet(itemID: id, given: given)
@@ -364,6 +365,9 @@ struct CoverDestination: View {
         case .onboarding(let page): OnboardingFlow(startPage: page)
         case .outLoud(let request, let startsAtOnce): OutLoudView(request: request, startsAtOnce: startsAtOnce)
         case .teach(let topicID): TeachCapView(topicID: topicID)
+        #if DEBUG
+        case .introScene(let number): IntroScenePage(number: number)
+        #endif
         }
     }
 }

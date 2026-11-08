@@ -20,10 +20,6 @@
     "one": "%lld minute a day",
     "other": "%lld minutes a day"
   },
-  "%lld minutes tonight and you're done.": {
-    "one": "%lld minute tonight and you're done.",
-    "other": "%lld minutes tonight and you're done."
-  },
   "%lld pages": {
     "one": "%lld page",
     "other": "%lld pages"
@@ -36,10 +32,6 @@
     "one": "%lld question",
     "other": "%lld questions"
   },
-  "%lld questions fading": {
-    "one": "%lld question fading",
-    "other": "%lld questions fading"
-  },
   "%lld points": {
     "one": "%lld point",
     "other": "%lld points"
@@ -47,24 +39,6 @@
   "Based on %lld questions so far.": {
     "one": "Based on %lld question so far.",
     "other": "Based on %lld questions so far."
-  },
-  "About %lld minutes on what you're shakiest on. Then stop: sleep does the rest.": {
-    "one": "About %lld minute on what you're shakiest on. Then stop: sleep does the rest.",
-    "other": "About %lld minutes on what you're shakiest on. Then stop: sleep does the rest."
-  },
-  "About %lld of the %lld minutes are for this exam.": {
-    "value": "About %1$lld of %#@minutes@.",
-    "substitutions": {
-      "minutes": {
-        "argNum": 2,
-        "one": "the %arg minute is for this exam",
-        "other": "the %arg minutes are for this exam"
-      }
-    }
-  },
-  "Example reminder: %lld minutes tonight and you're done.": {
-    "one": "Example reminder: %lld minute tonight and you're done.",
-    "other": "Example reminder: %lld minutes tonight and you're done."
   },
   "No exam yet. %lld minutes today.": {
     "one": "No exam yet. %lld minute today.",
@@ -493,5 +467,67 @@
         "other": "%arg minutes"
       }
     }
+  },
+  "In %lld days": {
+    "one": "In %lld day",
+    "other": "In %lld days"
+  },
+  "%lld days ago": {
+    "one": "%lld day ago",
+    "other": "%lld days ago"
+  },
+  "Needs %lld more questions": {
+    "one": "Needs %lld more question",
+    "other": "Needs %lld more questions"
+  },
+  "Missed %lld times": {
+    "one": "Missed %lld time",
+    "other": "Missed %lld times"
+  },
+  "%lld minutes a day gets you to %@ by %@.": {
+    "value": "%#@minutes@ gets you to %2$@ by %3$@.",
+    "substitutions": {
+      "minutes": {
+        "argNum": 1,
+        "one": "%arg minute a day",
+        "other": "%arg minutes a day"
+      }
+    }
+  },
+  "%lld minutes a day gets you to %@ by exam day.": {
+    "value": "%#@minutes@ gets you to %2$@ by exam day.",
+    "substitutions": {
+      "minutes": {
+        "argNum": 1,
+        "one": "%arg minute a day",
+        "other": "%arg minutes a day"
+      }
+    }
+  },
+  "%lld minutes a day keeps your questions fresh until you add an exam.": {
+    "one": "%lld minute a day keeps your questions fresh until you add an exam.",
+    "other": "%lld minutes a day keeps your questions fresh until you add an exam."
+  },
+  "%@ · %lld days": {
+    "value": "%1$@ · %#@days@",
+    "substitutions": {
+      "days": {
+        "argNum": 2,
+        "one": "%arg day",
+        "other": "%arg days"
+      }
+    }
+  },
+  "%lld questions left": {
+    "one": "%lld question left",
+    "other": "%lld questions left"
+  },
+  "%lld days left": {
+    "one": "%lld day left",
+    "other": "%lld days left"
+  },
+  "Your %lld shakiest ideas": {
+    "one": "Your %lld shakiest idea",
+    "other": "Your %lld shakiest ideas"
   }
 }

@@ -17,8 +17,9 @@ CHOICES = [("36 g of water", "2"), ("4 moles of h", "4"), ("anaphase i", "Homolo
            ("cell membrane made of", "A phospholipid bilayer with proteins"), ("which phase", "Prophase"),
            ("chore after good grades", "Negative reinforcement"), ("first and last items", "Serial position effect")]
 CLOZE = [("unit", "grams per mole"), ("osmosis", "osmosis")]
-# Under a flipped card: the chips (a tap does what a swipe does) and the tiles below them.
-RATINGS = {"Again": (108, 741), "Good": (294, 741), "Hard": (108, 801), "Easy": (294, 801)}
+# Under a flipped card: the two choices, by their labels (a tap does what a swipe does). Hard and Easy are keys and VoiceOver actions
+# now, not buttons, so a journey that names them taps "Got it", which is the side they count on.
+RATINGS = {"Again": "Again", "Good": "Got it", "Hard": "Got it", "Easy": "Got it"}
 
 
 def prompt_text(els) -> str:

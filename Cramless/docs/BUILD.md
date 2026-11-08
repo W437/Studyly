@@ -1932,6 +1932,114 @@ for Stages 3 and 4 (none shared).
 - **App Privacy**, with the owner's approval: Other Data ▸ Other Data Types added (App Functionality, linked to the user, not
   tracking), matching the manifest; published on the website, 10 data types.
 
+## Clarity pass: money and trust (2026-11-08, lane `c-money`)
+
+Fewer words and one decision per screen where people pay or say yes to Cloud AI; every guard stays (`NoPurchaseView` under 13,
+prices from StoreKit, the reminder before a charge, consent never assumed).
+
+- **Paywall** (`Features/Paywall/`): the headline, "Pro lifts the AI limits." (a gate keeps its own line), Pro's four rows, one line
+  "Reviews, plans, readiness and mock exams stay free.", then two plans: Yearly (picked, "7 days free") and Monthly. No weekly price,
+  no flags, no Squad card, no "Always free" card (still `NoPurchaseView`'s), no three-step timeline: the terms say "We'll remind you
+  2 days before the first charge" (`PaywallCopy.terms`). While Exam Pass is offered (8 to 21 days before the next exam) a link under
+  the plans, "Just one exam? Exam Pass, $14.99", opens it over the paywall; a pass bought there is celebrated by the paywall, and its
+  "Continue free" closes both. "Continue free" never opens another offer: in onboarding it goes straight to Today (the coordinator's
+  Exam Pass sheet is gone). Exam Pass itself is shorter: the exam on the chip, "Exam Pass", one price card, fair use under the button.
+- **Squad page**: no eyebrow and no repeated "every Pro feature" row; "You + 3 friends, $99.99 a year" (the billed amount leads, the
+  share per person is in the line under it), and the button buys Squad there ("Try 7 days free", or "Get Squad"), with the paywall's
+  terms; `PurchasedView` follows a purchase (it asks for the reminder's notifications). Under 13: `NoPurchaseView`.
+  `PaidFeature.paywallLine` and `PlanPrice.perWeek` went with their last uses.
+- **Cloud AI consent**: a fitted sheet with two lines, OpenAI named in the first ("Your notes, questions and answers go to OpenAI,
+  through Capling's server, so Cap can write and grade questions." / "Our server keeps none of it, and nothing trains AI. Turn it off
+  any time in Settings."), then "Exactly what's sent", which opens the full text (`WhatsSentSheet`) unchanged, and Allow / Not now.
+  The second line doesn't say "nothing is kept": the provider may keep requests for a while to detect abuse. The photos sheet the same
+  way. The "Also send page photos" switch and the under-18 hints note left the sheet (photos keep their own sheet and switch). Consent
+  stays version 3: what is sent didn't change.
+- **AI and privacy** now holds "What Cap can do" (`settings:assistant` opens it): Use Cloud AI · Send page photos · "Let Cap add cards,
+  notes and exams without asking" (one switch, `setAssistantAutoAll`; locked under 18) · Research online (not under 18) · Free limits ·
+  "What's sent" (the same full text) · Added by Cap · Delete AI data. Gone: the consent repeated in six blocks, the offline-rules card,
+  the "Hints first" switch (each chat has its own), `AssistantPage.swift`.
+- Tests: `PaywallCopyTests`, `StoreEntitlementTests`, `StoreReminderAndOfferTests`, `SquadTests`, `TutorPrivacyCopyTests`,
+  `AssistantTests`, `LocalizationTests`. Screens: `build/review/c-money/` in the main checkout.
+
+## Clarity pass: the exam page, mix-ups, look-alikes, Progress and the streak (2026-11-08, lane `c-exam`)
+
+Each of these screens did one job behind several others; the pass removes, merges and renames.
+- **The exam page.** The main button studies this exam alone: "Study this exam · 4 min", its share of today (the number the plan's first
+  stop says) or 5 minutes with none today, as a practice round that `SessionBuilder.buildPractice` now scopes to the exam (its questions
+  only, the weakest on exam day first). The day's mixed session stays on Today, and the line under the button is gone. The ring holds
+  readiness only (no goal dot, no plan arc); beside it "Tue 10 Nov · 10:00" and "In 2 days · Multiple choice"; one sentence with the goal
+  in it ("Study today and Monday to be about 78% ready by Tuesday. Your goal is 80%."), so no nudge, "Based on…" or footnote. "+14% this
+  week" moved into "How it's gone"; "Adjust" is "Daily goal". The mock is one row under the plan ("Mock exam · 19 questions · 30 min",
+  Take it, or "Needs 6 more questions" with a way to add them, hidden in the last three days); its mix and last score are for its own
+  start screen. The unused `ExamWeekStrip` view is gone.
+- **The pair's page and the look-alike sheet** are titled for the pair ("Metaphase vs telophase"), under the course's name; the page's
+  header counts the misses now ("Missed 3 times · last on Sat 7 Nov") and no longer shows the stored explanation, whose counts went
+  stale; the lesson is "The difference". Both ways out say "Don't bring this up again". The sheet's spinner sits in its button.
+- **Progress** opens on the exams, then "Review soon" ("2 to review") and "Often confused", then one row, "12-day streak · 3 h 5 min this
+  week", which opens the streak page. The week's chart and the comparison with last week are gone: a week in progress against a whole
+  one read as a loss every Sunday.
+- **The streak page** is its header, the month and one fold, "How freezes work" (with the repair). The month sheet (`StreakMonthSheet`,
+  `AppSheet.streakMonth`, the `month` route), "Last 12 weeks" (`StudyHeatmap` and its presentation) and "Milestones" (four of them are
+  badges) are gone. The calendar's key says "Night before".
+
+## Clarity pass: Settings and Ask Cap (2026-11-08, lane `c-settings-ask`)
+
+- **Settings** is the name card (no plan pill, no "Go Pro") and eight rows: Account, Subscription, Study, Notifications, AI and privacy, Accessibility,
+  Appearance, More (`SettingsView.rows`). Squad moved inside Subscription; What Cap can do lives in AI and privacy; Help, Your data, About and the retention
+  slider ("How sure you'll be") sit under More (`MorePages.swift`). `SettingsPage.trail` makes deep links and `settings:<page>` push the pages a tap passes.
+- **Study** keeps the daily goal, lighter days and Quiet mode. The reminder and quiet hours moved to Notifications, beside "Cap noticed". The per-kind switches
+  went (every card on Today has "Don't show these"); "Hidden tips" shows only while a kind is off, each with "Show again" (`HiddenTipsPage`).
+- **Help** is one line and "Write to us"; the Always free card left Help and Subscription, Restore is only on Subscription (and the paywall), the version only on
+  About. About is Cap, the wordmark, the version, Terms, Privacy and "Font licences" last (`FontLicencesPage`).
+- **Explain my mistake** is one scrolling page, "Cap explains": the two answers, Cap's explanation streaming under them, then the quick check and "Make this a
+  card" as they arrive, and "Back to my session". `MistakeReply` (was `MistakeSteps`) splits the reply into the explanation and the check; no steps, dots or Next.
+- **Ask:** while Cap's question waits (`ChatPane.waitingCheck`), the composer says "Your answer…" and sends the answer, and the chips are one, "Just tell me";
+  the quick check card has no field of its own there. "Make cards" is the one name, and the chip and the chat menu always open the same sheet
+  (`AppSheet.makeCards`, six at most); the empty chat's starter is "Make cards" too, and it still starts a request for the assistant.
+
+## Clarity pass: onboarding (2026-11-08, lane `c-onb`)
+
+- **About 21 screens became 6, and the student's own questions come at the third tap.** Welcome → "Snap a page. Get questions."
+  (`OnboardingFirstSetStep`) → "Two quick questions" / "From your page." → "When's your Bio 101 exam?" (`OnboardingExamDateStep`)
+  → "Your plan" (`OnboardingPlanStep`) → paywall → Today. `OnboardingMachine` has the steps; the harness numbering is welcome 0,
+  first set 1, first session 2, exam date 3, plan 4, paywall 5. Why: two minutes of slides and forms came before the one thing that
+  sells the app.
+- The six intro demos left the flow (each showed what the student does for real a minute later). They stay DEBUG-only for films
+  and store art (`IntroScenePage`, `CRAMLESS_ROUTE=introScene:1…6`); the paper, its lines and the brackets still ship (capture).
+- The goal and "where do your notes live" questions are gone with `AppSettings.goal`, `.notesLocations` and their enums (nothing
+  read them; old settings still decode). The year question was not added.
+- The sample page files under a course named "Sample" with no class card (`DraftReviewView.fixedCourseName`), makes no exam and
+  skips the date: it had turned the student's real exam date into a "Biology exam".
+- Readiness and the plan are one screen: the ring, "Bio 101 exam · 23 days", one line from the plan engine ("15 minutes a day gets
+  you to 90% by Nov 28."), the week, "15 min a day" (a plain picker) and "Remind me at 7:00 PM" (a switch). No "Building your plan"
+  checklist, no path chart, no reminder sheet, no mood words on the minutes. "Continue" asks iOS for notifications when the reminder
+  is on, then opens the paywall; "Continue free" there goes straight to Today (no Exam Pass sheet after it in onboarding). The plan
+  is no longer repeated to the paywall (`OnboardingCoordinator.planLine` is gone).
+- No progress bar anywhere in onboarding; the date waits for Continue in every case, and today is a ring, not a fill.
+
+## Clarity pass: inside a session (2026-11-08, lane `c-study`)
+
+Every study screen says each thing once, with its one action and its length in it.
+
+- **Top bar:** one solid bar like the mock's and "41 left" (counting down as answers are checked, up when a missed one comes back) in
+  place of 42 hairline ticks and a timer that counted up; the ⚡ run pill is gone (the panel's "3 in a row" says it).
+- **Over a question:** the topic only, one line, above the card for every kind (the kind label and its glyph are gone).
+- **A graded own-words answer:** the highlight, then "Almost." and "Add this: …". No ✓/✗ rows, no "Right so far", no "Counts as …"
+  (the rating is the grade's) and no "Grade again" ("Looks wrong?" disputes; a self-check grades again by itself once Cloud AI is
+  allowed). Secondary buttons only once the verdict is in.
+- **A flipped flashcard:** "← Again" and "Got it →" with no intervals (Undo says when it's back); Hard and Easy are the 2 and 4 keys and
+  VoiceOver actions; the swipe hint shows on the first three flashcards ever (`AppSettings.swipeHintsShown`); no tally.
+- **Summaries:** "6 of 9 right first time · 3 min" with a streak pill, one readiness card, the quests the session moved, Cap at 120 pt;
+  no tiles, topic rows or "Next session". A fix ends "Fixed" / "Anaphase vs telophase: 5 of 5 right."; "Fix it" is its one name. The
+  night before holds the five ideas itself ("Read these once · 2 min", "Good night" pinned); the last look opened alone is "Your 5
+  shakiest ideas" / "2 min · no quiz".
+- **Mock:** start "19 questions like the real one · 30 min" / "From this exam's topics. Marked at the end."; score "You scored 76%." /
+  "Cap expected 79%." and the topics to practice (no bars card, no verdict line).
+- **Out loud:** "23 questions · about 15 min", "Works with the screen off.", "Say “repeat”, “skip” or “stop” any time.", "Your voice
+  isn't recorded."; the ✕ does what "stop" does. **Teach Cap:** "Teach me “Cell cycle”, like I missed the class.", what Cap listens
+  for, and Done as the main button. **Harder question:** "Add it" closes the sheet with "Added. It replaces the easier one." and Undo
+  (`ToastAction.undoRung`). A save's verdict is "Just in time!" (on screen and spoken).
+
 ## Clarity pass: Today (2026-11-08, lane `c-today`)
 
 Today said too much before its one button, and said the streak and the exams twice. Now it is the band, one day card, one quests row
@@ -1950,7 +2058,7 @@ and Cap's card.
   gone). "Study something else" is a soft button and "Got it" the quiet one; the sky list it opens is titled "Study something else"
   and leads with the courses and their Practice buttons (`SkyListView(coursesFirst:)`).
 - **Cap's cards** (`NoticeContent`): no "1 of 3", no "No AI" ("Uses Cloud AI" stays), no question over a button that answers it; pairs
-  are named as pairs ("Metaphase vs telophase"); "to review" for what is due or fading; the fix's button is "Fix it · 2 min".
+  are named as pairs ("Metaphase vs telophase"); "to review" for what is due or fading; the fix's button is "Fix it", as everywhere.
 - **Words** (the clarity word table): the band's pill "17 to review", the reminder "18 to review today.", quests "0 of 12 quests this
   week" and "12 this week unlocks a new sky: Dusk", "Practice for Chem 110", "Get 3 right just in time".
 - Tests: the Today classes, `NoticeEngineTests`, `NotificationPlannerTests` and the game copy tests, updated for the words;

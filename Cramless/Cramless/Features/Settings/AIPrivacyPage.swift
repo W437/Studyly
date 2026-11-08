@@ -1,51 +1,64 @@
 import DeclaredAgeRange
 import SwiftUI
 
-/// Settings ▸ AI and privacy: the switches (Cloud AI, through the consent sheet; page photos, its own switch; hints
-/// first), what this iPhone can do by itself, the free limits, what is sent and to whom (notes never train models),
-/// and deleting the AI data the server keeps.
+/// Settings ▸ AI and privacy, which is also "What Cap can do" (`SettingsPage.assistant` opens it). One page, in this order: the Cloud AI
+/// switch (through the consent sheet) and the page-photos switch; one switch that lets Cap add cards, notes and exams without asking
+/// (locked on ask-first under 18) and web research (absent under 18); the free limits; "What's sent" (the consent sheet's full text,
+/// `WhatsSentSheet`); everything Cap has added, with Undo; and deleting the AI data the server keeps. Hints first is chosen in each chat.
 ///
-/// Harness: `CRAMLESS_CONSENT=0` shows Cloud AI off; `CRAMLESS_AGE=teen|under13|notShared` an account under 18, under 13, or one iOS gave no range for.
+/// Harness: `CRAMLESS_CONSENT=0` shows Cloud AI off; `CRAMLESS_AGE=teen|under13|notShared` an account under 18, under 13, or one iOS
+/// gave no range for (with the row that asks again); `CRAMLESS_SCROLL=added` scrolls to "Added by Cap" (`CRAMLESS_ASSISTANT_SEED=1`
+/// fills it); `CRAMLESS_CONSENT_DETAILS=1` opens "What's sent".
 struct AIPrivacyPage: View {
     @Environment(AppModel.self) private var app
     @State private var quota: QuotaStatus?
     @State private var confirmingDelete = false
     @State private var deleting = false
     @State private var sharingAge = false
+    @State private var showsWhatsSent = false
     @Environment(\.requestAgeRange) private var requestAgeRange
 
     private var ai: AIRouter { app.ai }
     private var isChild: Bool { app.settings.ageBand == .under13 }
 
     var body: some View {
+        let _ = app.revision
         let s = app.settings
         let consent = app.hasCloudConsent
         SettingsScroll(title: "AI and privacy") {
             SettingsGroup(title: "Cloud AI", footer: footer(consent: consent)) {
                 SettingsToggleRow(
                     title: "Use Cloud AI",
-                    subtitle: "Better questions from your pages, careful grading of answers in your own words, and Cap explaining in its own words.",
+                    subtitle: "Better questions from your pages, and careful grading of answers in your own words.",
                     isOn: Binding(get: { consent }, set: setCloud),
                     hintOn: "Asks first. Then what you add, your questions to Cap with the notes of the course (the text of your pages and lectures, the cards of decks you imported and the names of what you added), the passages it finds in any of your courses when you ask it to look through your notes, answers you type or say and the names of your courses, topics and exams go to \(AIConsent.processor) through Capling's server.",
                     hintOff: "Stops sending anything to Cloud AI. Capling keeps working on this iPhone.",
                     disabledReason: cloudDisabledReason)
                 SettingsToggleRow(
                     title: "Send page photos",
-                    subtitle: "For handwriting, math and diagrams. Photos of the pages you scan go with their text. Needs Cloud AI.",
+                    subtitle: "For handwriting, math and diagrams. Needs Cloud AI.",
                     isOn: Binding(get: { consent && s.sendPhotos }, set: setPhotos),
                     hintOn: "Asks first. Then photos of the pages you scan, made smaller, go to Cloud AI with their text.",
                     hintOff: "Stops sending page photos. Their text still goes while Cloud AI is on.",
                     disabledReason: cloudDisabledReason)
             }
 
-            SettingsGroup(title: "Cap, your tutor") {
+            SettingsGroup(title: "What Cap can do", footer: s.isMinor ? nil : "Anything that changes or deletes what you already have always asks.") {
                 SettingsToggleRow(
-                    title: "Hints first",
-                    subtitle: "Cap asks a guiding question before it explains. Just explain is one tap away in any chat.",
-                    isOn: Binding(get: { s.effectiveTutorMode == .hints }, set: { app.setTutorMode($0 ? .hints : .explain) }),
-                    hintOn: "Cap asks a question before it explains.",
-                    hintOff: "Cap explains straight away.",
-                    disabledReason: s.isMinor ? "Always on for accounts under 18, so Cap helps you work it out." : nil)
+                    title: "Let Cap add cards, notes and exams without asking",
+                    subtitle: s.isMinor ? nil : "Each one shows in the chat with Undo.",
+                    isOn: Binding(get: { !s.assistantAuto.isEmpty }, set: { app.setAssistantAutoAll($0) }),
+                    hintOn: "Cap adds cards, notes and exams without asking, and you can undo each one.",
+                    hintOff: "Cap shows each one and waits for you.",
+                    disabledReason: s.isMinor ? "Cap always asks first for accounts under 18." : nil)
+                if !s.isMinor {
+                    SettingsToggleRow(
+                        title: "Research online",
+                        subtitle: "Only when you ask, and only from trusted study sites. Part of Pro.",
+                        isOn: Binding(get: { s.assistantWeb }, set: { app.setAssistantWeb($0) }),
+                        hintOn: "Cap may look things up on trusted study sites when you ask.",
+                        hintOff: "Cap won't look anything up online.")
+                }
                 // iOS gave no range and the person gave no level that vouches for an adult. They may be one: this is their way to say so.
                 if s.ageBand == .notShared {
                     SettingsActionRow(icon: "person.crop.circle.badge.checkmark", tint: .sky, title: "Share your age range",
@@ -59,44 +72,20 @@ struct AIPrivacyPage: View {
                 }
             }
 
-            CLSectionHeader(title: "On this iPhone")
-            VStack(spacing: 0) {
-                // While the build keeps Apple's model off there is nothing to report about it.
-                if deviceTierShown {
-                    SettingsInfoCard(icon: "iphone", tint: deviceReady ? .mint : .sky,
-                                     title: deviceReady ? "Apple Intelligence is ready" : "This iPhone's own AI",
-                                     text: deviceText)
-                    Rectangle().fill(CLColor.hairline).frame(height: 0.5).padding(.leading, 62)
-                }
-                SettingsInfoCard(icon: "text.book.closed", tint: .sky, title: "Offline rules, always",
-                                 text: "Questions, checks of fill-ins and choices, and Cap's answers from your notes, with no network and no AI. They never count against a limit. Answers in your own words you mark yourself, unless an AI is there to check them.")
-            }
-            .background(CLColor.surface, in: RoundedRectangle(cornerRadius: CLRadius.list, style: .continuous))
-            .shadow(color: CLColor.night.opacity(0.05), radius: 1, y: 1)
-            .shadow(color: CLColor.night.opacity(0.06), radius: 12, y: 8)
-
             QuotaCard(status: quota ?? ai.quotaStatus)
 
-            CLSectionHeader(title: "With Cloud AI on: what's sent, and to whom")
-            VStack(spacing: 0) {
-                SettingsInfoCard(icon: "doc.text", title: AIConsent.Words.addedTitle, text: AIConsent.Words.added)
-                divider
-                SettingsInfoCard(icon: "bubble.left.and.text.bubble.right", title: AIConsent.Words.askedTitle, text: AIConsent.Words.asked)
-                divider
-                SettingsInfoCard(icon: "checkmark.bubble", title: AIConsent.Words.answeredTitle, text: AIConsent.Words.answered)
-                divider
-                SettingsInfoCard(icon: "server.rack", title: "\(AIConsent.processor), through Capling's server",
-                                 text: "Requests go to \(AIConsent.processor) through our own server, never straight from your phone to an AI company. Our server doesn't keep what you send.")
-                divider
-                SettingsInfoCard(icon: "hand.raised.fill", tint: .mint, title: "Never used for training",
-                                 text: "Your notes and answers are never used to train AI models.")
-                divider
-                SettingsInfoCard(icon: "list.bullet.rectangle", tint: .sun, title: "What our server keeps",
-                                 text: "A short record of each AI request and a count of them, for your limits. Never what a request said, and your chats stay on this iPhone. If you sign in, sync keeps a copy of your study in your account.")
+            CLList {
+                Button {
+                    CLHaptics.tap()
+                    showsWhatsSent = true
+                } label: {
+                    CLRow(icon: "doc.text.magnifyingglass", title: "What's sent", subtitle: "To whom, and what our server keeps")
+                }
+                .buttonStyle(.pressable)
             }
-            .background(CLColor.surface, in: RoundedRectangle(cornerRadius: CLRadius.list, style: .continuous))
-            .shadow(color: CLColor.night.opacity(0.05), radius: 1, y: 1)
-            .shadow(color: CLColor.night.opacity(0.06), radius: 12, y: 8)
+            .padding(.top, 26)
+
+            additions
 
             SettingsGroup(title: nil, footer: "Your courses, questions and progress aren't touched.") {
                 SettingsActionRow(icon: "trash", title: "Delete AI data", subtitle: "What our server keeps about your AI use",
@@ -107,6 +96,10 @@ struct AIPrivacyPage: View {
             .padding(.top, 26)
         }
         .task { quota = await ai.refreshQuota() }
+        .sheet(isPresented: $showsWhatsSent) {
+            WhatsSentSheet(focus: .cloudAI)
+                .environment(\.clDyslexicFont, app.settings.dyslexicFont)
+        }
         .confirmationDialog("Delete AI data?", isPresented: $confirmingDelete, titleVisibility: .visible) {
             Button("Delete AI data", role: .destructive, action: deleteAIData)
         } message: {
@@ -114,11 +107,56 @@ struct AIPrivacyPage: View {
         }
         #if DEBUG
         .onAppear { AskDemo.applyLaunchState(app) }
+        .task {
+            guard TestHarness.once("CRAMLESS_CONSENT_DETAILS") == "1" else { return }
+            try? await nap(900)
+            showsWhatsSent = true
+        }
         #endif
     }
 
-    private var divider: some View {
-        Rectangle().fill(CLColor.hairline).frame(height: 0.5).padding(.leading, 62)
+    // MARK: What Cap has added
+
+    @ViewBuilder private var additions: some View {
+        let list = app.assistantAdditions()
+        CLSectionHeader(title: "Added by Cap").id("added")
+        if list.isEmpty {
+            Text("Nothing yet. When Cap adds something, it shows up here with Undo.")
+                .clFont(.subheadline)
+                .foregroundStyle(CLColor.ink2)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, 6)
+        } else {
+            CLList {
+                ForEach(Array(list.prefix(12))) { entry in
+                    HStack(spacing: 12) {
+                        CLIconBadge(systemImage: entry.step.icon, tint: entry.step.accent)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(verbatim: entry.step.title).clFont(.bodyEmphasis).foregroundStyle(CLColor.ink).lineLimit(2)
+                            Text(verbatim: line(entry.step)).clFont(.footnote).foregroundStyle(CLColor.ink2)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        Button("Undo") {
+                            CLHaptics.commit()
+                            app.undoAssistantStep(messageID: entry.messageID, stepID: entry.step.id)
+                            app.router.toast("Taken back", systemImage: "arrow.uturn.backward", tone: .neutral)
+                        }
+                        .buttonStyle(.cl(.ghost, size: .small, fullWidth: false))
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                    .frame(minHeight: CLMetrics.rowMinHeight)
+                    .accessibilityElement(children: .combine)
+                }
+            }
+        }
+    }
+
+    private func line(_ step: AssistantStep) -> String {
+        var parts = [step.courseName.clNonEmpty].compactMap { $0 }
+        if let when = step.appliedAt { parts.append(when.formatted(.dateTime.month(.abbreviated).day().hour().minute())) }
+        if step.auto { parts.append(String(localized: "added without asking")) }
+        return parts.joined(separator: " · ")
     }
 
     // MARK: Words
@@ -129,24 +167,9 @@ struct AIPrivacyPage: View {
         return nil
     }
 
-    private func footer(consent: Bool) -> LocalizedStringResource {
+    private func footer(consent: Bool) -> LocalizedStringResource? {
         if !ai.cloudAvailableInThisBuild || isChild { return "Capling still writes questions, grades answers and lets Cap explain, on this iPhone." }
-        return consent
-            ? "Turn it off any time; nothing more goes to it from then on, and Capling keeps working on this iPhone."
-            : "Off: nothing goes to Cloud AI, and Capling does the work on this iPhone, in less detail. You'll be asked first."
-    }
-
-    private var deviceReady: Bool { ai.onDeviceCapability.availability.isAvailable }
-
-    private var deviceTierShown: Bool { ai.onDeviceCapability.availability != .unavailable(.disabledByBuild) }
-
-    private var deviceText: LocalizedStringResource {
-        switch ai.onDeviceCapability.availability {
-        case .available:
-            "Short questions, quick grades and Cap's short answers can run on this iPhone: private, free and offline."
-        case .unavailable(let reason):
-            .verbatim(reason.message)
-        }
+        return consent ? nil : "Off: nothing goes to Cloud AI, and Capling does the work on this iPhone, in less detail."
     }
 
     // MARK: Actions
@@ -253,5 +276,29 @@ struct QuotaCard: View {
         let period = meter.period == .day ? "today" : "this week"
         guard let limit = meter.limit else { return meter.used == 0 ? "Unlimited" : "\(meter.used) \(period), unlimited" }
         return "\(min(meter.used, limit)) of \(limit) \(period)"
+    }
+}
+
+// MARK: - The choices
+
+extension AppModel {
+    /// "Let Cap add cards, notes and exams without asking": one switch for every kind. Locked on ask-first under 18.
+    func setAssistantAutoAll(_ on: Bool) {
+        guard !settings.isMinor else { return }
+        settings.assistant.auto = on ? Set(AssistantAutoKind.allCases) : []
+        CLHaptics.select()
+    }
+
+    func setAssistantWeb(_ on: Bool) {
+        guard !settings.isMinor else { return }
+        settings.assistant.webResearch = on
+        CLHaptics.select()
+    }
+
+    /// A skipped or taken-back draft, asked for again.
+    func reopenAssistantStep(messageID: UUID, stepID: String) {
+        updateAssistantStep(messageID: messageID, stepID: stepID) { step in
+            if step.status == .skipped || step.status == .undone { step.status = .proposed }
+        }
     }
 }

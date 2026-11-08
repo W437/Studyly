@@ -385,6 +385,33 @@ final class EngineSessionBuilderTests: XCTestCase {
         XCTAssertTrue(built.entries.contains { $0.reason == .practice }, "not-due items as extra practice")
     }
 
+    /// "Study this exam": a practice round on one exam takes only what it covers, the questions weakest on the day first.
+    func testPracticeOneExamTakesOnlyItsQuestionsWeakestFirst() {
+        let items = world()
+        // The exam covers topics 0 and 2 (topic 2 is the weak one); topic 1 and the new questions of topic 3 are another exam's.
+        let exam = ExamSnapshot(courseID: course, title: "Quiz", date: cal.adding(days: 2, to: now), scope: [topics[0], topics[2]])
+        let other = ExamSnapshot(courseID: course, title: "Final", date: cal.adding(days: 30, to: now))
+        let built = builder().build(SessionSpec(kind: .practice, minutes: 4, courseID: course, examID: exam.id), items: items,
+                                    exams: [exam, other], topicNames: names)
+        XCTAssertFalse(built.entries.isEmpty)
+        XCTAssertTrue(built.entries.allSatisfy { $0.topicID == topics[0] || $0.topicID == topics[2] }, "only the exam's topics")
+        XCTAssertEqual(built.examID, exam.id)
+        XCTAssertLessThanOrEqual(built.plannedSeconds, 4 * 60 + 0.5)
+        // Two minutes hold only the weak topic's five questions (115 s): they come first.
+        let short = builder().build(SessionSpec(kind: .practice, minutes: 2, courseID: course, examID: exam.id), items: items,
+                                    exams: [exam, other], topicNames: names)
+        let weak = Set(items.filter { $0.topicID == topics[2] && $0.isStudied }.map(\.id))
+        XCTAssertEqual(Set(short.entries.map(\.itemID)), weak, "the weakest topic's questions, and nothing else fits")
+
+        // With a topic of its own, the exam doesn't narrow it further than the topic does; without an exam, the whole course.
+        let topic = builder().build(SessionSpec(kind: .practice, courseID: course, topicID: topics[1], examID: exam.id), items: items,
+                                    exams: [exam, other], topicNames: names)
+        XCTAssertTrue(topic.entries.allSatisfy { $0.topicID == topics[1] })
+        XCTAssertFalse(topic.entries.isEmpty)
+        let whole = builder().build(SessionSpec(kind: .practice, courseID: course), items: items, exams: [exam, other], topicNames: names)
+        XCTAssertTrue(whole.entries.contains { $0.topicID == topics[1] || $0.topicID == topics[3] })
+    }
+
     func testExamPriorityPullsInItemsTheExamNeeds() {
         // Not due until after the exam, but under target on exam day.
         let item = EngineTest.studied(topic: topics[0], course: course, recall: 0.95, daysAgo: 1, now: now, cal: cal)

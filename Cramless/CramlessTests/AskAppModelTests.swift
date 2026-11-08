@@ -453,8 +453,10 @@ final class AskAppModelTests: AskTestCase {
             let request = try XCTUnwrap(transport.tutorRequests.first)
             XCTAssertEqual(request.mode, mode)
             XCTAssertEqual(request.context, context)
-            // The mock's reply comes in the three parts.
-            XCTAssertEqual(MistakeSteps.split(thread.sortedMessages.last?.text ?? "").pages, [.what, .why, .check])
+            // The mock's reply comes in the three parts: two that explain, then the check.
+            let reply = MistakeReply.split(thread.sortedMessages.last?.text ?? "")
+            XCTAssertEqual(MistakeReply.paragraphs(reply.explanation).count, 2)
+            XCTAssertNotNil(reply.check)
         }
     }
 

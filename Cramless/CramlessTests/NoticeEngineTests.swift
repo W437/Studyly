@@ -540,16 +540,17 @@ final class NoticeEngineTests: XCTestCase {
 
     func testAMixUpSpottedBeforeAnyMissSaysSo() {
         let note = ConfusionNote(id: UUID(), name: "Metaphase vs telophase", missCount: 0, recentMisses: 0, recentAnswers: 0)
+        XCTAssertEqual(SessionCopy.missLine(note), "Spotted before any mix-up.")
         let card = NoticeContent.card(for: note)
         XCTAssertEqual(card.title, "Metaphase vs telophase", "named by its pair")
         XCTAssertEqual(card.detail, "Spotted before any mix-up.")
-        XCTAssertEqual(card.action?.title, "Fix it · 2 min")
+        XCTAssertEqual(card.action?.title, "Fix it")
         let missed = ConfusionNote(id: UUID(), name: "Metaphase vs telophase", missCount: 1, recentMisses: 1, recentAnswers: 1)
         XCTAssertEqual(NoticeContent.card(for: missed).title, "Metaphase vs telophase")
         XCTAssertEqual(NoticeContent.card(for: missed).detail, "Missed it lately.", "no question over \"Fix it\"")
         var one = missed
         one.questions = 1
-        XCTAssertEqual(NoticeContent.card(for: one).action?.title, "Fix it · 1 min")
+        XCTAssertEqual(NoticeContent.card(for: one).action?.title, "Fix it", "one name for a fix, whatever its size")
         // A pair's names keep their capitals; a topic-shaped one, or one with no name, says its own line.
         XCTAssertEqual(NoticeContent.card(for: ConfusionNote(id: UUID(), name: "Darcy vs Bingley", missCount: 2, recentMisses: 0, recentAnswers: 0)).title,
                        "Darcy vs Bingley")
@@ -1521,10 +1522,8 @@ extension NoticeEngineTests {
         XCTAssertEqual(dealt.deck.map(\.kind), [.mixUp, .busyDay])
     }
 
-    func testTheCalendarSwitchSaysWhatItReads() {
+    func testTheCalendarSwitchIsNamedForWhatItDoes() {
         XCTAssertEqual(NoticeContent.switchTitle(.busyDay).key, "Busy days")
-        XCTAssertNotNil(NoticeContent.switchNote(.busyDay))
-        XCTAssertNil(NoticeContent.switchNote(.mixUp))
     }
 }
 

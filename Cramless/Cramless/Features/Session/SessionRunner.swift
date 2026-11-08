@@ -81,11 +81,9 @@ final class SessionRunner: Identifiable {
         var submitted: String
         var grade: GradeOutcome
         var durationMs: Int
-        var intervals: [Rating: Double]
         var ticked: Set<String>
         var marked: Bool
         var rulesFound: Bool
-        var override: Rating?
         var secondLook: String?
         var run: Int
         var saved: Bool
@@ -120,13 +118,6 @@ final class SessionRunner: Identifiable {
         case rise
     }
 
-    /// Got it and Again for the flashcards so far, a held rating included. Hard and Easy count as got it.
-    struct FlashcardTally: Sendable, Equatable {
-        var gotIt = 0
-        var again = 0
-        var isEmpty: Bool { gotIt == 0 && again == 0 }
-    }
-
     let id = UUID()
     let request: SessionRequest
     let options: Options
@@ -148,6 +139,8 @@ final class SessionRunner: Identifiable {
     private(set) var arrival: Arrival = .forward
     /// The streak as it was when the session started (the summary shows what changed).
     private(set) var streakBefore: StreakState
+    /// Today's quests' progress as the session started, by kind: the summary shows only the quests the session moved.
+    @ObservationIgnored private(set) var questsBefore: [QuestKind: Int] = [:]
     /// Wall clock, for the timer and answer durations (the app clock may be frozen by the harness). A session picked up after a close
     /// counts from the time already spent, so the clock goes on from there; the gap while the app was closed isn't in it.
     private(set) var startedAt = Date()
@@ -156,7 +149,7 @@ final class SessionRunner: Identifiable {
     var hasUnsavedAnswer = false
     /// Words are being typed on the current question (kept as a draft if the person leaves).
     @ObservationIgnored var isTypingAnswer = false
-    /// The latest save ("Saved it."), for the sky's flare over the session.
+    /// The latest save ("Just in time!"), for the sky's flare over the session.
     private(set) var saveFlare: SaveFlare?
     @ObservationIgnored private var saveCount = 0
     /// What an undone rating leaves for its question view to pick up as it comes back.
@@ -239,15 +232,6 @@ final class SessionRunner: Identifiable {
     /// Right answers so far for VoiceOver, the ones from before a close included.
     var rightSoFar: Int { rightFirstTime + earlier.filter { $0 == .right }.count }
 
-    /// The tally of the flashcards rated so far (ratings, not distinct cards: a card that came back counts again).
-    var flashcardTally: FlashcardTally {
-        var tally = FlashcardTally()
-        for answer in answers where answer.entry.kind == .flashcard {
-            if answer.review.rating == .again { tally.again += 1 } else { tally.gotIt += 1 }
-        }
-        return tally
-    }
-
     func item(for entry: SessionEntry) -> StudyItem? {
         if let cached = items[entry.itemID], cached.modelContext != nil, cached.deletedAt == nil { return cached }
         guard let item = app.item(entry.itemID), item.deletedAt == nil else { return nil }
@@ -263,6 +247,22 @@ final class SessionRunner: Identifiable {
     /// The progress bar's length and where it stands: the answers from before a close, then this runner's queue.
     var segmentCount: Int { earlier.count + queue.count }
     var segmentPosition: Int { earlier.count + queue.position }
+
+    /// The questions still to answer ("41 left"): the queue from the one on screen on, less that one once it's checked. A missed question
+    /// queued to come back adds one; none are left once the last is answered.
+    var questionsLeft: Int {
+        let remaining = max(0, queue.count - queue.position)
+        guard phase == .question || phase == .ready, let entry = queue.current else { return phase == .empty ? 0 : remaining }
+        let checked = provisional != nil || outcomes[entry.id] != nil
+        return max(0, remaining - (checked ? 1 : 0))
+    }
+
+    /// How much of the session is answered, 0…1: the solid bar's fill (the answers from before a close count as answered).
+    var progress: Double {
+        let total = segmentCount
+        guard total > 0 else { return 1 }
+        return Double(total - questionsLeft) / Double(total)
+    }
 
     /// The colour of the bar's segment `index`.
     func segment(_ index: Int) -> SegmentState {
@@ -316,7 +316,7 @@ final class SessionRunner: Identifiable {
         return app.fsrs.retrievability(of: memory, at: app.now) < ReviewOutcome.fadingRecall
     }
 
-    /// "Saved it." has just come up for `item`: the sky's flare plays over the question, with the save's sound. The
+    /// "Just in time!" has just come up for `item`: the sky's flare plays over the question, with the save's sound. The
     /// views call this where they play the verdict's cues (a flashcard when it is rated), once per question.
     func flareSave(of item: StudyItem) {
         saveCount += 1
@@ -355,6 +355,9 @@ final class SessionRunner: Identifiable {
             session = app.startSession(built)
         }
         clockStart = app.now
+        if options.liveActivity {
+            questsBefore = Dictionary(app.questsToday().rows.map { ($0.kind, $0.progress.done) }, uniquingKeysWith: { a, _ in a })
+        }
         startedAt = Date().addingTimeInterval(-priorWallSeconds)
         questionShownAt = Date()
         phase = .question
@@ -445,7 +448,7 @@ final class SessionRunner: Identifiable {
 
     // MARK: Undo
 
-    /// Holds a rating for the Undo window. The answer joins the session at once (segments, tally, Live Activity); nothing is written
+    /// Holds a rating for the Undo window. The answer joins the session at once (the bar, the count left, Live Activity); nothing is written
     /// until it is committed.
     private func hold(_ entry: SessionEntry, rating: Rating, score: Double, answer: String?, gradedBy: String, durationMs: Int,
                       outcome: Outcome, restore: AnswerRestore) -> ReviewOutcome? {

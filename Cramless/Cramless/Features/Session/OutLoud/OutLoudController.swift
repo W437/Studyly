@@ -162,6 +162,9 @@ final class OutLoudController: Identifiable {
         }
     }
 
+    /// The questions are going: a "stop" (said, or the ✕) ends them with Cap's last word and the summary.
+    var isRunning: Bool { loop != nil && !closed && phase != .finished }
+
     /// The person left the screen: what was answered stays recorded, and the microphone goes off at once.
     func close() {
         guard !closed else { return }

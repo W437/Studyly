@@ -1,8 +1,8 @@
 import SwiftUI
 import UserNotifications
 
-/// Settings ▸ Notifications: whether Capling may notify, a button to ask (or to open the iPhone's settings when
-/// it was turned off there), and what it sends. DEBUG builds list what's planned for the coming days.
+/// Settings ▸ Notifications: whether Capling may notify (with a button to ask, or to open the iPhone's settings when it was turned off
+/// there), the daily reminder and its time, quiet hours, and what else it sends. DEBUG builds list what's planned for the coming days.
 ///
 /// Harness: `CRAMLESS_NOTIFY=on|off|ask` shows that permission state (an unsigned simulator build gets no answer
 /// from the notification center, and the page then says it couldn't check).
@@ -14,27 +14,38 @@ struct NotificationsPage: View {
     @State private var asking = false
 
     var body: some View {
+        @Bindable var app = app
         let s = app.settings
         SettingsScroll(title: "Notifications") {
             permission
                 .padding(.top, 14)
-            SettingsGroup(title: "What Capling sends",
-                          footer: "Two a day at most, an hour apart, and never between \(QuizContent.timeString(minutes: s.quietHoursStart)) and \(QuizContent.timeString(minutes: s.quietHoursEnd)). If you stop opening Capling, it stops after a week.") {
-                kind("calendar.badge.clock", .tangerine, "Daily reminder",
-                     s.reminderMinutes.map { "At \(QuizContent.timeString(minutes: $0)), when there's something to study" } ?? "Off. Turn it on in Study.")
-                kind("graduationcap", .sky, "Exam countdowns", "A week before an exam, and the evening before")
-                kind("flame", .rose, "Streak", "At \(QuizContent.timeString(minutes: NotificationPlanner.streakMinutes)) when a streak of 3 days or more isn't done yet")
+
+            SettingsGroup {
+                SettingsToggleRow(title: "Daily reminder", subtitle: "When there's something to study",
+                                  isOn: Binding(get: { app.settings.reminderMinutes != nil },
+                                                set: { app.settings.reminderMinutes = $0 ? 19 * 60 : nil }),
+                                  hintOn: "Turns on a daily reminder at 7 PM; you can change the time.",
+                                  hintOff: "Turns the daily reminder off. Exam countdowns still come.")
+                if let minutes = s.reminderMinutes {
+                    TimeRow(title: "Remind me at", minutes: minutes) { app.settings.reminderMinutes = $0 }
+                }
+            }
+            .padding(.top, 18)
+
+            SettingsGroup(title: "Quiet hours", footer: "Nothing arrives between these times. A reminder due then moves just outside them.") {
+                TimeRow(title: "From", minutes: s.quietHoursStart) { app.settings.quietHoursStart = $0 }
+                TimeRow(title: "Until", minutes: s.quietHoursEnd) { app.settings.quietHoursEnd = $0 }
+            }
+
+            SettingsGroup(title: "Also sent",
+                          footer: "Two a day at most, an hour apart. If you stop opening Capling, it stops after a week.") {
+                kind("graduationcap", .sky, "Exam countdowns", "A week before an exam, and the night before")
+                kind("flame", .rose, "Streak", s.quietMode ? "Off while Quiet mode is on"
+                     : "At \(QuizContent.timeString(minutes: NotificationPlanner.streakMinutes)) when a streak of 3 days or more isn't done yet")
                 kind("bell", .sun, "Free trial", "Two days before a free week ends, so you're never charged by surprise")
                 SettingsToggleRow(title: "Cap noticed", subtitle: "In the week before an exam, one a day at most, instead of that day's reminder.",
-                                  isOn: Binding(get: { app.settings.notices.notify }, set: { app.settings.notices.notify = $0 }))
+                                  isOn: $app.settings.notices.notify)
             }
-            CLList {
-                NavigationLink(value: Route.settingsPage(.study)) {
-                    CLRow(icon: "clock", tint: .mint, title: "Reminder time and quiet hours", subtitle: "In Study")
-                }
-                .buttonStyle(.pressable)
-            }
-            .padding(.top, 16)
             #if DEBUG
             plannedList
             #endif
@@ -156,5 +167,31 @@ struct NotificationsPage: View {
             asking = false
             if granted { CLHaptics.success() }
         }
+    }
+}
+
+/// A time of day, edited with the system's compact picker.
+private struct TimeRow: View {
+    let title: LocalizedStringResource
+    let minutes: Int
+    let onChange: (Int) -> Void
+
+    @Environment(AppModel.self) private var app
+
+    var body: some View {
+        DatePicker(selection: Binding(get: { date }, set: { newValue in
+            let parts = app.calendar.dateComponents([.hour, .minute], from: newValue)
+            onChange((parts.hour ?? 0) * 60 + (parts.minute ?? 0))
+        }), displayedComponents: .hourAndMinute) {
+            Text(title).clFont(.bodyEmphasis).foregroundStyle(CLColor.ink)
+        }
+        .tint(CLColor.tangerine)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+        .frame(minHeight: CLMetrics.rowMinHeight)
+    }
+
+    private var date: Date {
+        app.calendar.date(bySettingHour: minutes / 60, minute: minutes % 60, second: 0, of: app.now) ?? app.now
     }
 }

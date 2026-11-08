@@ -402,10 +402,9 @@ final class MockExamTests: XCTestCase {
                        "This exam is multiple choice and short answer. A mock needs 8 of those, and you have 5. Add a page or paste your notes, and Cap writes more.")
         XCTAssertEqual(MockCopy.tooFew(have: 1, format: ExamFormat(multipleChoice: false, shortAnswer: false)),
                        "A mock needs 8 multiple-choice or written questions, and you have 1. Add a page or paste your notes, and Cap writes more.")
-        XCTAssertEqual(MockCopy.verdictLine(.asExpected), "Right where Cap expected.")
-        XCTAssertEqual(MockCopy.verdictLine(.better), "Better than Cap expected.")
         XCTAssertEqual(MockCopy.scored(0.72), "You scored 72%.")
-        XCTAssertEqual(MockCopy.predicted(0.68), "Cap predicted 68%.")
+        XCTAssertEqual(MockCopy.expected(0.68), "Cap expected 68%.")
+        XCTAssertEqual(MockCopy.startLine, "From this exam's topics. Marked at the end.")
         XCTAssertEqual(MockCopy.timeUpLine(answered: 17, total: 20), "You answered 17 of 20. Finish the rest without the clock, or see your score now.")
         XCTAssertEqual(MockCopy.scopeLine(counted: 17, total: 20, inTime: 17), "You answered 17 of 20 in time.")
         XCTAssertEqual(MockCopy.scopeLine(counted: 12, total: 20, inTime: nil), "Scored on the 12 of 20 you answered.")
@@ -428,12 +427,6 @@ final class MockExamTests: XCTestCase {
         XCTAssertEqual(MockCopy.markingLine(done: 2, total: 3, hasEssays: true), "2 of 3 written answers marked")
         XCTAssertEqual(MockCopy.mixLine(multiple: 1, fillIns: 1, short: 1, essay: 1),
                        "Matches your exam: 1 multiple choice, 1 fill-in, 1 short answer, and 1 essay question. Only this exam's topics.")
-    }
-
-    /// The prediction sits beside the exam page's readiness, a different number on purpose: the summary says why, with no number of its own.
-    func testThePredictionExplainsItselfWithoutANewPercentage() {
-        XCTAssertEqual(MockCopy.predictionNote, "Cap's prediction is for this mock, today. Readiness is what you'd remember on exam day.")
-        XCTAssertFalse(MockCopy.predictionNote.contains("%"))
     }
 
     func testPluralsReadInTheSingular() {

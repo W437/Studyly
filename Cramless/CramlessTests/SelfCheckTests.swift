@@ -151,10 +151,6 @@ final class SelfCheckTests: XCTestCase {
         XCTAssertEqual(SessionCopy.markedByYou, "Marked by you")
         XCTAssertEqual(SessionCopy.selfCheckPill, "Check it yourself")
         XCTAssertEqual(String(localized: SessionCopy.selfCheckHeadline), "Compare with the answer.")
-        // The rules matched the key ideas; they did not check anything "on your iPhone" as a model does.
-        XCTAssertEqual(SessionCopy.gradedBy(.cloud), "Checked with Cloud AI")
-        XCTAssertEqual(SessionCopy.gradedBy(.onDevice), "Checked on your iPhone")
-        XCTAssertFalse(SessionCopy.gradedBy(.rules).contains("Checked"), SessionCopy.gradedBy(.rules))
         for reason in [SelfCheckReason.cloudOff, .freeLimit, .offline, .unreachable, .deviceUnavailable] {
             let line = SessionCopy.selfCheckLine(reason)
             XCTAssertTrue(line.hasSuffix("so you mark this one."), line)

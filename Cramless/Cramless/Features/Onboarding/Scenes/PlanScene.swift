@@ -1,3 +1,4 @@
+#if DEBUG
 import SwiftUI
 
 /// Scene 4, "A plan that bends": Wednesday is missed, Thursday and Friday absorb its minutes, the plan says so
@@ -166,3 +167,4 @@ struct PlanScene: View {
         try await nap(2800)
     }
 }
+#endif

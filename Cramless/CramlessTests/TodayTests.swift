@@ -353,7 +353,7 @@ final class TodayTests: XCTestCase {
         XCTAssertEqual(notices.map(\.kind), [.mixUp], "one card per kind a day")
         XCTAssertEqual(notices.first?.title, "Moles vs molar mass", "the most missed first, named by its pair")
         XCTAssertEqual(notices.first?.detail, "Missed 4 times lately.", "no question over the button")
-        XCTAssertEqual(notices.first?.action?.title, "Fix it · 2 min")
+        XCTAssertEqual(notices.first?.action?.title, "Fix it")
         XCTAssertEqual(notices.first?.link, .confusion(first.id))
         XCTAssertNil(notices.first?.cost, "no AI: no cost word")
         if case .fixMixUp(let id)? = notices.first?.action?.run { XCTAssertEqual(id, first.id) } else { XCTFail("the fix") }
@@ -616,11 +616,11 @@ final class TodayTests: XCTestCase {
         XCTAssertEqual(SessionCopy.mixUpLine("Mendelian genetics"), "Mendelian genetics: still tripping you up.")
         XCTAssertEqual(SessionCopy.mixUpPair("Anaphase vs telophase"), "anaphase and telophase")
         let recent = ConfusionNote(id: UUID(), name: "x", missCount: 5, recentMisses: 3, recentAnswers: 4)
-        XCTAssertEqual(SessionCopy.missLine(recent), "Missed 3 of the last 4 times. Want a 2-minute fix?")
+        XCTAssertEqual(SessionCopy.missLine(recent), "Missed 3 of the last 4 times.")
         let thin = ConfusionNote(id: UUID(), name: "x", missCount: 3, recentMisses: 1, recentAnswers: 1)
-        XCTAssertEqual(SessionCopy.missLine(thin), "Missed 3 times lately. Want a 2-minute fix?")
+        XCTAssertEqual(SessionCopy.missLine(thin), "Missed 3 times lately.")
         let spotted = ConfusionNote(id: UUID(), name: "x", missCount: 0, recentMisses: 0, recentAnswers: 0)
-        XCTAssertEqual(SessionCopy.missLine(spotted), "Spotted before any mix-up. Want a 2-minute fix?")
+        XCTAssertEqual(SessionCopy.missLine(spotted), "Spotted before any mix-up.")
     }
 
     func testIntervalsReadLikeTheButtons() {
@@ -631,9 +631,6 @@ final class TodayTests: XCTestCase {
         XCTAssertEqual(SessionCopy.interval(days: 28), "4 weeks")
         XCTAssertEqual(SessionCopy.interval(days: 91), "3 months")
         XCTAssertEqual(SessionCopy.interval(days: 400), "1 year")
-        XCTAssertEqual(SessionCopy.inInterval(days: 10.0 / 1440), "in 10 minutes")
-        XCTAssertEqual(SessionCopy.inInterval(days: 1), "tomorrow")
-        XCTAssertEqual(SessionCopy.inInterval(days: 4), "in 4 days")
     }
 
     func testTheSessionMixNeverBreaksAPart() {
@@ -651,7 +648,7 @@ final class TodayTests: XCTestCase {
         XCTAssertEqual(String(localized: SessionCopy.headline(.partial)), "Almost.")
         XCTAssertEqual(String(localized: SessionCopy.headline(.wrong, answered: false)), "Here's the answer.")
         XCTAssertEqual(String(localized: SessionCopy.headline(.right)), "Nice!")
-        XCTAssertEqual(String(localized: SessionCopy.headline(.right, saved: true)), "Saved it.")
+        XCTAssertEqual(String(localized: SessionCopy.headline(.right, saved: true)), "Just in time!")
         XCTAssertEqual(String(localized: SessionCopy.headline(.wrong, saved: true)), "Not yet.", "only a right answer saves")
         XCTAssertEqual(SessionCopy.anotherSession(5), "Another session: 5 questions")
         XCTAssertEqual(SessionCopy.unbroken("Bio 101 exam"), "Bio\u{00A0}101\u{00A0}exam")

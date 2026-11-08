@@ -118,17 +118,6 @@ enum PaidFeature: String, CaseIterable, Sendable {
     case lectureNotes
     /// Inviting three friends: Squad owners only.
     case squadSeats
-
-    /// For a paywall opened by a gate: "Unlimited scans are part of Pro."
-    var paywallLine: String {
-        switch self {
-        case .unlimitedCapture: "Unlimited scans, PDFs and lectures are part of Pro."
-        case .unlimitedGrading: "Unlimited graded answers are part of Pro."
-        case .unlimitedTutor: "Unlimited questions for Cap are part of Pro."
-        case .lectureNotes: "AI notes for every lecture are part of Pro."
-        case .squadSeats: "Studying with three friends is part of Squad."
-        }
-    }
 }
 
 extension Entitlement {

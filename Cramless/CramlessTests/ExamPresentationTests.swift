@@ -2,8 +2,8 @@ import Foundation
 import XCTest
 @testable import Cramless
 
-/// How the exam screen arranges the engine's values: the path chart, the week strip, the exam's phase, the Exam
-/// Pass offer and the grade comparison.
+/// How the exam screen arranges the engine's values: the path chart, the week strip, the exam's phase, beside the ring, the projection,
+/// the button, the mock row, the Exam Pass offer and the grade comparison.
 final class ExamPresentationTests: XCTestCase {
     let cal: Calendar = {
         var c = Calendar(identifier: .gregorian)
@@ -201,26 +201,24 @@ final class ExamPresentationTests: XCTestCase {
     }
 
     private func projection(_ plan: StudyPlan, phase: ExamPresentation.Phase = .ahead(days: 3), examDate: Date? = nil,
-                            questions: Int = 20, weakest: String? = "Limiting reagents", grade: ProjectedGrade? = nil,
+                            questions: Int = 20, grade: ProjectedGrade? = nil,
                             skipping: ExamPresentation.SkipOption? = nil) -> ExamPresentation.Projection? {
-        ExamPresentation.projection(phase: phase, plan: plan, questionCount: questions, weakestTopic: weakest, grade: grade,
+        ExamPresentation.projection(phase: phase, plan: plan, questionCount: questions, grade: grade,
                                     examDate: examDate ?? day(3, hour: 10), now: now, calendar: cal, skipping: skipping)
     }
 
-    func testProjectionSaysWhatItTakes() throws {
-        // Short of the goal, near: the days to study, then what else gets closer.
+    /// One sentence: where the plan takes readiness, what that takes, and the goal. Nothing else under it.
+    func testProjectionSaysWhatItTakesInOneSentence() throws {
+        // Short of the goal, near: the days to study (the eve by its day's name), then the goal.
         let short = try XCTUnwrap(projection(sundayQuiz(projected: 0.74)))
-        XCTAssertEqual(short.sentence, "Study today and Saturday evening, and you'll be about 74% ready by Sunday.")
-        XCTAssertEqual(short.nudge, "Practice Limiting reagents as well to get closer to 80%.")
-        XCTAssertEqual(short.footnote, "A projection from your recall so far, not a promise.")
+        XCTAssertEqual(short.sentence, "Study today and Saturday to be about 74% ready by Sunday. Your goal is 80%.")
         XCTAssertNil(short.letter)
-        XCTAssertNil(short.basedOn)
+        XCTAssertNil(short.newQuestions)
         XCTAssertFalse(short.reachesGoal)
 
-        // On track, near.
+        // On track, near: the same shape.
         let onTrack = try XCTUnwrap(projection(sundayQuiz(projected: 0.86)))
-        XCTAssertEqual(onTrack.sentence, "Study today and Saturday evening, and you'll be about 86% ready by Sunday. That's past your 80% goal.")
-        XCTAssertNil(onTrack.nudge)
+        XCTAssertEqual(onTrack.sentence, "Study today and Saturday to be about 86% ready by Sunday. Your goal is 80%.")
         XCTAssertTrue(onTrack.reachesGoal)
 
         // Far: the daily goal carries it, or more minutes would.
@@ -228,10 +226,10 @@ final class ExamPresentationTests: XCTestCase {
         let farDays = (0..<23).map { pday($0, $0 == 22 ? .examEve : .study, seconds: 300) } + [pday(23, .exam)]
         let farOnTrack = try XCTUnwrap(projection(examPlan(farDays, projected: 0.86), phase: .ahead(days: 23), examDate: far))
         XCTAssertEqual(farOnTrack.sentence,
-                       "Keep up your 15 minutes a day, and you'll be about 86% ready by \(LibraryFormat.shortDate(far, calendar: cal)). That's past your 80% goal.")
+                       "Keep up 15 minutes a day to be about 86% ready by \(LibraryFormat.shortDate(far, calendar: cal)). Your goal is 80%.")
         let farShort = try XCTUnwrap(projection(examPlan(farDays, projected: 0.62, suggested: 25), phase: .ahead(days: 23), examDate: far))
-        XCTAssertEqual(farShort.sentence, "At 15 minutes a day you'll be about 62% ready by \(LibraryFormat.shortDate(far, calendar: cal)).")
-        XCTAssertEqual(farShort.nudge, "About 25 minutes a day gets you closer to 80%.")
+        XCTAssertEqual(farShort.sentence, "At 15 minutes a day you'll be about 62% ready by \(LibraryFormat.shortDate(far, calendar: cal)). "
+                       + "About 25 minutes a day gets you closer to your 80% goal.")
 
         // The eve: tonight's weak spots.
         let eve = try XCTUnwrap(projection(examPlan([pday(0, .examEve, seconds: 300), pday(1, .exam)], projected: 0.78),
@@ -242,15 +240,27 @@ final class ExamPresentationTests: XCTestCase {
         let empty = try XCTUnwrap(projection(sundayQuiz(projected: 0), questions: 0))
         XCTAssertEqual(empty.sentence, "Nothing to study for this exam yet. Add material and Capling plans the way there.")
         XCTAssertTrue(empty.addsMaterial)
-        XCTAssertNil(empty.footnote)
 
-        // Few questions: it says how few.
-        XCTAssertEqual(projection(sundayQuiz(projected: 0.74), questions: 7)?.basedOn, "Based on 7 questions so far.")
-        XCTAssertEqual(projection(sundayQuiz(projected: 0.74), questions: 1)?.basedOn, "Based on 1 question so far.")
+        // A few questions read the same: "about" already says it's a projection.
+        XCTAssertEqual(projection(sundayQuiz(projected: 0.74), questions: 7)?.sentence, short.sentence)
 
         // On the day and after there is nothing to project.
         XCTAssertNil(projection(sundayQuiz(projected: 0.74), phase: .today))
         XCTAssertNil(projection(sundayQuiz(projected: 0.74), phase: .past(days: 2)))
+    }
+
+    /// Beside the ring: the day and time, then how far off and the format. Nothing else.
+    func testBesideTheRing() {
+        var gb = cal
+        gb.locale = Locale(identifier: "en_GB")
+        let tuesday = cal.date(from: DateComponents(year: 2026, month: 11, day: 10, hour: 10))!
+        XCTAssertEqual(ExamPresentation.whenParts(tuesday, calendar: gb), ["Tue 10 Nov", "10:00"])
+        XCTAssertEqual(ExamPresentation.countdownParts(.ahead(days: 2), formatLine: "Multiple choice"), ["In 2 days", "Multiple choice"])
+        XCTAssertEqual(ExamPresentation.countdownParts(.eve, formatLine: ""), ["Tomorrow"])
+        XCTAssertEqual(ExamPresentation.countdownParts(.today, formatLine: "Essay · open book"), ["Today", "Essay", "open book"])
+        XCTAssertEqual(ExamPresentation.countdownParts(.past(days: 0), formatLine: ""), ["Earlier today"])
+        XCTAssertEqual(ExamPresentation.countdownParts(.past(days: 1), formatLine: ""), ["Yesterday"])
+        XCTAssertEqual(ExamPresentation.countdownParts(.past(days: 3), formatLine: ""), ["3 days ago"])
     }
 
     func testTheLetterWaitsForCalibration() throws {
@@ -337,13 +347,9 @@ final class ExamPresentationTests: XCTestCase {
         func work(_ exam: Double, total: Double, minutes: Int) -> ExamPresentation.TodayWork {
             ExamPresentation.TodayWork(sessionMinutes: minutes, examSeconds: exam, topics: [], studiedToday: false, missedYesterday: false, sessionSeconds: total)
         }
-        func subline(_ w: ExamPresentation.TodayWork) -> String? {
-            ExamPresentation.studyAction(phase: .ahead(days: 5), today: w, weakest: nil, courseName: "Chem")?.subline
-        }
-        XCTAssertEqual(subline(work(660, total: 660, minutes: 12)), "The whole session is for this exam.")
-        XCTAssertEqual(subline(work(620, total: 680, minutes: 12)), "The whole session is for this exam.", "91%")
-        XCTAssertEqual(subline(work(600, total: 720, minutes: 12)), "About 10 of the 12 minutes are for this exam.", "83%")
-        XCTAssertEqual(work(620, total: 680, minutes: 12).examMinutes, 12, "the plan's stop says the same")
+        XCTAssertEqual(work(660, total: 660, minutes: 12).examMinutes, 12)
+        XCTAssertEqual(work(620, total: 680, minutes: 12).examMinutes, 12, "91%: the plan's stop and the button say the whole session")
+        XCTAssertEqual(work(600, total: 720, minutes: 12).examMinutes, 10, "83%")
         // Built from a session: the seconds decide, not two rounded minutes.
         let exam = ExamSnapshot(courseID: UUID(), date: day(5))
         let entry = SessionEntry(itemID: UUID(), reason: .due, kind: .mcq, topicID: nil, courseID: exam.courseID, estimatedSeconds: 650, examID: exam.id)
@@ -354,10 +360,10 @@ final class ExamPresentationTests: XCTestCase {
     /// Once tonight's session is done the page says so: no button, and not what tonight "will" add.
     func testTheEveAfterItsSession() throws {
         let plan = examPlan([pday(0, .examEve, seconds: 300), pday(1, .exam)], projected: 0.83)
-        let done = try XCTUnwrap(ExamPresentation.projection(phase: .eve, plan: plan, questionCount: 20, weakestTopic: nil, grade: nil,
+        let done = try XCTUnwrap(ExamPresentation.projection(phase: .eve, plan: plan, questionCount: 20, grade: nil,
                                                              examDate: day(1, hour: 10), now: now, calendar: cal, eveDone: true))
         XCTAssertEqual(done.sentence, "That's enough for today. You're about 42% ready for tomorrow morning.")
-        XCTAssertNil(ExamPresentation.studyAction(phase: .eve, today: chemToday, weakest: nil, courseName: "Chem", eveDone: true))
+        XCTAssertNil(ExamPresentation.studyAction(phase: .eve, budget: 4, plannedMinutes: 4, eveDone: true))
         let stops = ExamPresentation.stops(plan: plan, phase: .eve, examTitle: "Quiz", examDate: day(1, hour: 10), today: chemToday, skipped: nil,
                                            tonightMinutes: 4, eveDone: true, now: now, calendar: cal)
         XCTAssertEqual(stops.first?.title, "Tonight · done")
@@ -459,31 +465,30 @@ final class ExamPresentationTests: XCTestCase {
         XCTAssertEqual(stops[1].detail, "About 6 min a day for this exam")
     }
 
-    func testTheButtonIsTheDaysSession() {
-        let weakest = ExamPresentation.TopicRow(id: UUID(), name: "Moles", value: 0.4, questionCount: 3, practiceMinutes: 3, isWeakest: true)
-        let study = ExamPresentation.studyAction(phase: .ahead(days: 3), today: chemToday, weakest: weakest, courseName: "Chem 110")
-        XCTAssertEqual(study?.kind, .daily)
-        XCTAssertEqual(study?.title, "Study · 15 min")
-        XCTAssertEqual(study?.subline, "About 4 of the 15 minutes are for this exam.")
-
-        var whole = chemToday
-        whole.examSeconds = 900
-        XCTAssertEqual(ExamPresentation.studyAction(phase: .ahead(days: 3), today: whole, weakest: weakest, courseName: "Chem 110")?.subline,
-                       "The whole session is for this exam.")
+    /// The button studies this exam alone, for its share of today (what the plan's first stop says), or five minutes with none today.
+    func testTheButtonIsThisExamAlone() {
+        XCTAssertEqual(ExamPresentation.ownSessionMinutes(chemToday), 4, "about 4 of today's 15 minutes")
+        var other = chemToday
+        other.examSeconds = 0
+        XCTAssertEqual(ExamPresentation.ownSessionMinutes(other), 5, "today's session is for other exams")
         let done = ExamPresentation.TodayWork(sessionMinutes: 0, examSeconds: 0, topics: [], studiedToday: true, missedYesterday: false)
-        let practice = ExamPresentation.studyAction(phase: .ahead(days: 3), today: done, weakest: weakest, courseName: "Chem 110")
-        XCTAssertEqual(practice?.kind, .practice(topicID: weakest.id, minutes: 3))
-        XCTAssertEqual(practice?.title, "Practice Moles · 3 min")
-        XCTAssertEqual(ExamPresentation.studyAction(phase: .eve, today: chemToday, weakest: weakest, courseName: "Chem 110")?.title,
-                       "Tonight · 10 min")
-        let tonight = ExamPresentation.studyAction(phase: .eve, today: chemToday, weakest: weakest, courseName: "Chem 110", eveMinutes: 4)
+        XCTAssertEqual(ExamPresentation.ownSessionMinutes(done), 5, "today's session is done")
+
+        let study = ExamPresentation.studyAction(phase: .ahead(days: 3), budget: 4, plannedMinutes: 4)
+        XCTAssertEqual(study?.kind, .exam(minutes: 4))
+        XCTAssertEqual(study?.title, "Study this exam · 4 min")
+        XCTAssertEqual(study?.shortTitle, "Study · 4 min")
+        XCTAssertEqual(ExamPresentation.studyAction(phase: .ahead(days: 3), budget: 5, plannedMinutes: 3)?.title, "Study this exam · 3 min",
+                       "what the round holds, when it's shorter than asked")
+        XCTAssertNil(ExamPresentation.studyAction(phase: .ahead(days: 3), budget: 5, plannedMinutes: 0), "nothing of its own to study: no button")
+
+        XCTAssertEqual(ExamPresentation.studyAction(phase: .eve, budget: 0, plannedMinutes: 0)?.title, "Tonight · 10 min")
+        let tonight = ExamPresentation.studyAction(phase: .eve, budget: 0, plannedMinutes: 0, eveMinutes: 4)
+        XCTAssertEqual(tonight?.kind, .examEve)
         XCTAssertEqual(tonight?.title, "Tonight · 4 min")
-        XCTAssertEqual(tonight?.subline, "About 4 minutes on what you're shakiest on. Then stop: sleep does the rest.")
-        XCTAssertEqual(ExamPresentation.studyAction(phase: .eve, today: chemToday, weakest: weakest, courseName: "Chem 110", eveMinutes: 1)?.subline,
-                       "About 1 minute on what you're shakiest on. Then stop: sleep does the rest.")
-        XCTAssertNil(ExamPresentation.studyAction(phase: .eve, today: chemToday, weakest: weakest, courseName: "Chem 110", eveMinutes: 0),
-                     "nothing to review tonight: no button")
-        XCTAssertNil(ExamPresentation.studyAction(phase: .today, today: chemToday, weakest: weakest, courseName: "Chem 110"))
+        XCTAssertNil(ExamPresentation.studyAction(phase: .eve, budget: 0, plannedMinutes: 0, eveMinutes: 0), "nothing to review tonight: no button")
+        XCTAssertNil(ExamPresentation.studyAction(phase: .today, budget: 5, plannedMinutes: 5))
+        XCTAssertNil(ExamPresentation.studyAction(phase: .past(days: 1), budget: 5, plannedMinutes: 5))
     }
 
     func testTodaysWorkIsTheSessionsQuestionsTheExamCovers() {
@@ -503,22 +508,23 @@ final class ExamPresentationTests: XCTestCase {
 
     // MARK: The mock exam's card
 
-    func testTheMockCardsStates() {
-        XCTAssertNil(ExamPresentation.mockCard(offer: .hidden, format: ExamFormat(), lastScore: nil, lastDate: nil, canWrite: true, calendar: cal), "the eve, the day, after")
+    /// One row under the plan: its size and time, or what it still needs; nothing it can't be when there's no time to add questions.
+    func testTheMockRowsStates() {
+        let mcq = ExamFormat(multipleChoice: true, shortAnswer: false)
+        XCTAssertNil(ExamPresentation.mockCard(offer: .hidden, format: ExamFormat(), phase: .eve, canWrite: true), "the eve, the day, after")
 
-        let few = ExamPresentation.mockCard(offer: .tooFew(have: 3), format: ExamFormat(multipleChoice: true, shortAnswer: false), lastScore: nil, lastDate: nil, canWrite: true, calendar: cal)
-        XCTAssertEqual(few?.kind, .tooFew(line: "This exam is multiple choice. A mock needs 8 of those, and you have 3. Add a page or paste your notes, and Cap writes more.", canWrite: true))
-        let cantWrite = ExamPresentation.mockCard(offer: .tooFew(have: 0), format: ExamFormat(multipleChoice: true, shortAnswer: false), lastScore: nil, lastDate: nil, canWrite: false, calendar: cal)
-        XCTAssertEqual(cantWrite?.kind, .tooFew(line: "This exam is multiple choice. A mock needs 8 of those, and you have 0. Add a page or paste your notes, and Cap writes more.", canWrite: false))
+        let few = ExamPresentation.mockCard(offer: .tooFew(have: 2), format: mcq, phase: .ahead(days: 9), canWrite: true)
+        XCTAssertEqual(few?.kind, .needsMore(line: "Needs 6 more questions", canWrite: true))
+        XCTAssertEqual(few?.line, "Needs 6 more questions")
+        XCTAssertEqual(ExamPresentation.mockCard(offer: .tooFew(have: 7), format: mcq, phase: .ahead(days: 9), canWrite: false)?.line,
+                       "Needs 1 more question")
+        XCTAssertNil(ExamPresentation.mockCard(offer: .tooFew(have: 2), format: mcq, phase: .ahead(days: 3), canWrite: true),
+                     "in the last three days a mock that can't be taken isn't offered")
 
-        let entries = (0..<8).map { i in SessionEntry(itemID: UUID(), reason: .new, kind: i < 6 ? .mcq : .recall, estimatedSeconds: 60) }
-        let plan = MockPlan(examID: UUID(), courseID: nil, entries: entries, minutes: 15, expectedByItem: [:])
-        let ready = ExamPresentation.mockCard(offer: .ready(plan), format: ExamFormat(), lastScore: 0.72, lastDate: day(-3), canWrite: false, calendar: cal)
-        guard case .offer(let line, let mix)? = ready?.kind else { return XCTFail("an offer") }
-        XCTAssertEqual(line, "8 questions like the real one · 15 min")
-        XCTAssertTrue(mix.hasPrefix("Matches your exam: 6 multiple choice"), mix)
-        XCTAssertTrue(mix.hasSuffix("Only this exam's topics."), mix)
-        XCTAssertTrue(ready?.last?.hasPrefix("Last mock: 72% on ") == true)
+        let entries = (0..<19).map { i in SessionEntry(itemID: UUID(), reason: .new, kind: i < 7 ? .mcq : .recall, estimatedSeconds: 60) }
+        let plan = MockPlan(examID: UUID(), courseID: nil, entries: entries, minutes: 30, expectedByItem: [:])
+        let ready = ExamPresentation.mockCard(offer: .ready(plan), format: ExamFormat(), phase: .ahead(days: 2), canWrite: false)
+        XCTAssertEqual(ready?.kind, .ready(line: "19 questions · 30 min"), "a mock ready to take shows to the end")
     }
 
     func testAnExamFormatStoredBeforeItsCountsStillDecodes() throws {

@@ -1,3 +1,4 @@
+#if DEBUG
 import SwiftUI
 
 /// Scene 2, "Your own words": an answer types itself, the highlighter marks the key ideas it hit (the same
@@ -112,3 +113,4 @@ struct OwnWordsScene: View {
         try await nap(2600)
     }
 }
+#endif

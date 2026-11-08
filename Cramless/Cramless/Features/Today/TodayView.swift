@@ -14,7 +14,7 @@ import SwiftUI
 /// Today at that text size; `CRAMLESS_HERO_PULL=2500:96:500`
 /// pulls the page down 96 points at 2.5 s, holds it 0.5 s and lets go (the readings a finger gives it; the page itself doesn't
 /// move), to film the refresh; `CRAMLESS_CANVAS=375x667` draws the page at an iPhone SE's size; and
-/// `CRAMLESS_STEP=firstSession|readiness|plan` opens an onboarding step of this lane over Today (with `CRAMLESS_SEED=0` it first
+/// `CRAMLESS_STEP=firstSession|examDate|plan` opens an onboarding step of this lane over Today (with `CRAMLESS_SEED=0` it first
 /// makes the world onboarding would have made).
 ///
 /// The band is pinned: pulled down past its top, the page moves under it and the band stays put. The pull is a pull to refresh, and

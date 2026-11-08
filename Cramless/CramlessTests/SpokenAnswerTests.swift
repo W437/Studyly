@@ -158,9 +158,9 @@ final class SpokenVerdictTests: XCTestCase {
     }
 
     func testSaved() {
-        XCTAssertEqual(SpokenVerdict.exact(grade(.correct), rightAnswer: "Anaphase", saved: true), "Saved it.")
-        XCTAssertEqual(SpokenVerdict.ownWords(grade(.correct, hit: ["k1"]), ideas: Array(ideas.prefix(1)), modelAnswer: "x", saved: true), "Saved it.")
-        XCTAssertEqual(SpokenVerdict.rated(.good, saved: true), "Saved it.")
+        XCTAssertEqual(SpokenVerdict.exact(grade(.correct), rightAnswer: "Anaphase", saved: true), "Just in time!")
+        XCTAssertEqual(SpokenVerdict.ownWords(grade(.correct, hit: ["k1"]), ideas: Array(ideas.prefix(1)), modelAnswer: "x", saved: true), "Just in time!")
+        XCTAssertEqual(SpokenVerdict.rated(.good, saved: true), "Just in time!")
     }
 
     func testPartlyNamesWhatWasHitAndMissedJoinedWithAnd() {

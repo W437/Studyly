@@ -1,8 +1,11 @@
 import SwiftUI
 
-/// The Exam Pass downsell: offered to a free person who declines the paywall 8 to 21 days before the next exam (`ExamPassOffer`).
-/// Every Pro feature for 30 days, one payment, nothing to cancel. `examID` names the exam (nil: the soonest
-/// upcoming one, or onboarding's answer to "When's your next big exam?").
+/// Exam Pass: every Pro feature for 30 days, one payment, nothing to cancel. Opened from the paywall's link while it is offered (8 to 21
+/// days before the next exam, `ExamPassOffer`), from Settings ▸ Subscription and from an exam's page; never after "Continue free".
+/// `examID` names the exam (nil: the soonest upcoming one, else the date onboarding was given).
+///
+/// Opened from the paywall (a `paywallFinish` action is set), it hands a purchase straight back and the paywall celebrates it; on its
+/// own it shows `PurchasedView` itself.
 struct ExamPassView: View {
     let examID: UUID?
 
@@ -21,11 +24,10 @@ struct ExamPassView: View {
     var body: some View {
         ZStack {
             if purchased {
-                PurchasedView(mode: .purchased(.examPass), primaryTitle: finish == nil ? "Done" : "Start studying",
-                              onPrimary: { close(.purchased(.examPass)) })
+                PurchasedView(mode: .purchased(.examPass), primaryTitle: "Done", onPrimary: { close(.purchased(.examPass)) })
                     .transition(.opacity)
             } else if !app.settings.canBuyPro {
-                NoPurchaseView(primaryTitle: finish == nil ? "Done" : "Continue", onPrimary: { close(.declined) })
+                NoPurchaseView(primaryTitle: "Done", onPrimary: { close(.declined) })
             } else {
                 offer
             }
@@ -39,14 +41,12 @@ struct ExamPassView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
                 hero
-                CLEyebrow(text: "Exam Pass", color: CLColor.tangerineInk)
-                    .padding(.top, 22)
-                Text(title)
+                Text("Exam Pass")
                     .clFont(.brandTitle(28))
                     .foregroundStyle(CLColor.ink)
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityAddTraits(.isHeader)
-                    .padding(.top, 6)
+                    .padding(.top, 22)
                 Text(subtitle)
                     .clFont(.callout)
                     .foregroundStyle(CLColor.ink2)
@@ -57,7 +57,7 @@ struct ExamPassView: View {
                     Text(price.display)
                         .clFont(.number(40, .heavy))
                         .foregroundStyle(CLColor.ink)
-                    Text("for \(StoreCatalog.examPassDays) days, one time. Doesn't renew.")
+                    Text("One time. Doesn't renew, so there's nothing to cancel.")
                         .clFont(.subheadlineEmphasis)
                         .foregroundStyle(CLColor.ink2)
                         .fixedSize(horizontal: false, vertical: true)
@@ -79,12 +79,6 @@ struct ExamPassView: View {
                     }
                 }
                 .padding(.top, 22)
-
-                Text("Not a subscription, so there's nothing to cancel. Free stays free after the 30 days.")
-                    .clFont(.footnote)
-                    .foregroundStyle(CLColor.ink3)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.top, 20)
             }
             .padding(.horizontal, CLSpace.gutter)
             .padding(.bottom, 12)
@@ -102,7 +96,7 @@ struct ExamPassView: View {
                 }
                 Button(action: buy) {
                     ZStack {
-                        Text("Get Exam Pass for \(price.display)")
+                        Text(PaywallCopy.cta(for: .examPass, price: price, trialDays: nil))
                             .lineLimit(typeSize.isAccessibilitySize ? 3 : 1)
                             .multilineTextAlignment(.center)
                             .padding(.vertical, typeSize.isAccessibilitySize ? 8 : 0)
@@ -112,6 +106,9 @@ struct ExamPassView: View {
                 }
                 .buttonStyle(.cl(.primary))
                 .allowsHitTesting(store.purchasing == nil)
+                Text(PaywallCopy.fairUse)
+                    .clFont(.caption)
+                    .foregroundStyle(CLColor.ink3)
                 Button("Continue free") { close(.declined) }
                     .buttonStyle(.cl(.ghost, size: .small))
                     .disabled(store.purchasing != nil)
@@ -123,7 +120,7 @@ struct ExamPassView: View {
         .scrollEdgeEffectHidden(true, for: .bottom)
     }
 
-    /// Cap studying, with the exam the pass is for.
+    /// Cap studying, with the exam the pass is for (its name and day on the chip).
     private var hero: some View {
         ZStack(alignment: .bottom) {
             // Sun on paper in light; a yellow tint over navy turns olive, so dark gets a plain raised surface.
@@ -146,29 +143,15 @@ struct ExamPassView: View {
     // MARK: Copy
 
     private var exam: Exam? {
-        if let examID { return app.exam(examID) }
-        // Inside onboarding (the host set a finish action) the person's own answer is the exam that matters.
-        if finish != nil, app.settings.nextExamDate != nil { return nil }
+        if let examID, let exam = app.exam(examID) { return exam }
         return app.upcomingExams().first
     }
 
     private var examDate: Date? { exam?.date ?? app.settings.nextExamDate }
 
-    private var title: String {
-        // The exam's name never breaks across lines ("Chem 110 Quiz", not "Chem / 110 Quiz").
-        if let exam { return "Just need it for the \(exam.title.replacingOccurrences(of: " ", with: "\u{00A0}"))?" }
-        return examDate == nil ? "Just need it for one exam?" : "Just need it for this exam?"
-    }
-
     private var subtitle: String {
         let through = app.calendar.date(byAdding: .day, value: StoreCatalog.examPassDays, to: app.now) ?? app.now
-        var line = "Every Pro feature for \(StoreCatalog.examPassDays) days, through "
-            + "\(through.formatted(.dateTime.month(.abbreviated).day()))."
-        if let examDate {
-            let days = app.calendar.dayDistance(from: app.now, to: examDate)
-            if days > 1 { line += " Your exam is in \(days) days." }
-        }
-        return line
+        return "Every Pro feature for \(StoreCatalog.examPassDays) days, through \(through.formatted(.dateTime.month(.abbreviated).day()))."
     }
 
     private var examChip: String? {
@@ -185,7 +168,8 @@ struct ExamPassView: View {
             switch await store.purchase(.examPass) {
             case .purchased:
                 CLHaptics.success()
-                purchased = true
+                // From the paywall, the paywall celebrates it.
+                if let finish { finish(.purchased(.examPass)) } else { purchased = true }
             case .pending:
                 note = "Waiting for approval. Exam Pass unlocks as soon as it's approved."
             case .cancelled:

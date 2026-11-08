@@ -34,6 +34,9 @@ enum SettingsPage: String, Hashable, CaseIterable, Sendable, Identifiable {
     case account, subscription, study, notifications, aiPrivacy, assistant, accessibility, appearance, help, data, about, debug
     /// DEBUG builds: every sound and haptic, for auditioning and filming.
     case feelLab
+    /// Settings ▸ More (Help, Your data, About, how sure you'll be); the target retention; the kinds of Cap's cards switched off; the
+    /// fonts' licences (under About).
+    case more, retention, hiddenTips, fontLicences
     var id: String { rawValue }
 }
 
@@ -115,7 +118,7 @@ enum AppSheet: Identifiable, Hashable, Sendable {
     case editItem(UUID)
     case newItem(courseID: UUID?)
     case explain(itemID: UUID, given: String)
-    case makeCards(threadID: UUID, maxItems: Int = 6)
+    case makeCards(threadID: UUID)
     case reviewDraft(sourceID: UUID)
     /// A source page over a cover or chat (sessions and the tutor can't push onto a tab's stack).
     case sourcePage(sourceID: UUID, pageIndex: Int, highlight: [String])
@@ -137,8 +140,6 @@ enum AppSheet: Identifiable, Hashable, Sendable {
     case help
     /// Two look-alike questions side by side (Cap's card "Show me").
     case lookAlike(a: UUID, b: UUID, examID: UUID?)
-    /// The month's calendar, from Progress's week card.
-    case streakMonth
     /// The reviews coming due and the brightest topics, over the sky.
     case skyMemory
     /// "Fill the gap": how Cap can help with an exam's topics that have no notes. `topicID` nil: whichever the person picks.
@@ -172,6 +173,10 @@ enum AppCover: Identifiable, Hashable, Sendable {
     case outLoud(SessionRequest, startsAtOnce: Bool = false)
     /// Explaining a topic to Cap.
     case teach(topicID: UUID)
+    #if DEBUG
+    /// One of the old onboarding demos, for films and store art (`CRAMLESS_ROUTE=introScene:<n>`, `IntroScenePage`).
+    case introScene(Int)
+    #endif
 
     var id: String { String(describing: self) }
 
@@ -180,6 +185,9 @@ enum AppCover: Identifiable, Hashable, Sendable {
         switch self {
         case .record, .onboarding: false
         case .session, .mockExam, .scanner, .captureFlow, .outLoud, .teach: true
+        #if DEBUG
+        case .introScene: true
+        #endif
         }
     }
 }
@@ -189,6 +197,8 @@ enum ToastAction: Hashable, Sendable {
     /// A screen pushed on a tab, which becomes the selected one.
     case push(Route, AppTab)
     case present(AppSheet)
+    /// Undo an added harder question (`AppModel.undoRung`): the toast's host runs it, since it has the model.
+    case undoRung(UUID)
 }
 
 @MainActor
@@ -263,6 +273,8 @@ final class Router {
             push(route, on: tab)
         case .present(let sheet):
             present(sheet)
+        case .undoRung:
+            break // RootView's toast host undoes it.
         }
     }
 

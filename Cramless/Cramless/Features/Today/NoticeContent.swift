@@ -75,27 +75,10 @@ enum NoticeContent {
         // The pair as it was named, which knows a name's capitals.
         let title = parts.count == 2 ? note.name.prefix(1).uppercased() + note.name.dropFirst()
             : note.rightRun >= 1 ? SessionCopy.mixUpComingAlong(note.name, questions: note.questions) : SessionCopy.mixUpLine(note.name, questions: note.questions)
-        return CapNotice(id: NoticeEngine.mixUpID(note.id), kind: .mixUp, title: title, detail: missLine(note),
-                         action: .init(title: fixTitle(questions: note.questions), systemImage: "wand.and.stars",
+        return CapNotice(id: NoticeEngine.mixUpID(note.id), kind: .mixUp, title: title, detail: SessionCopy.missLine(note),
+                         action: .init(title: SessionCopy.fixTitle(questions: note.questions), systemImage: "wand.and.stars",
                                        run: .fixMixUp(confusionID: note.id)),
                          link: .confusion(note.id))
-    }
-
-    /// How a mix-up has gone: "Missed 3 of the last 4 times.", "You got the last one right.", "Spotted before any mix-up."
-    static func missLine(_ note: ConfusionNote) -> String {
-        if note.rightRun >= 1, note.missCount > 0 { return String(localized: "You got the last one right.") }
-        if note.recentAnswers >= 3, note.recentMisses >= 2 {
-            return String(localized: "Missed \(note.recentMisses) of the last \(note.recentAnswers) times.")
-        }
-        if note.missCount > 1 { return String(localized: "Missed \(note.missCount) times lately.") }
-        // An adopted look-alike: nothing has been missed yet.
-        if note.missCount == 0 { return String(localized: "Spotted before any mix-up.") }
-        return String(localized: "Missed it lately.")
-    }
-
-    /// The fix's button, with how long it takes: "Fix it · 2 min" (one question: "Fix it · 1 min").
-    static func fixTitle(questions: Int) -> String {
-        questions == 1 ? String(localized: "Fix it · 1 min") : String(localized: "Fix it · 2 min")
     }
 
     /// Two look-alike terms, named as a pair: "Metaphase vs telophase" ("DNA vs mRNA" keeps its capitals).
@@ -248,11 +231,6 @@ enum NoticeContent {
     }
 
     // MARK: Settings
-
-    /// What a switch needs said under it.
-    static func switchNote(_ kind: NoticeKind) -> LocalizedStringResource? {
-        kind == .busyDay ? "Looks at when your calendar is busy, on this iPhone, never at what's in it." : nil
-    }
 
     /// A kind's switch in Settings ▸ Study.
     static func switchTitle(_ kind: NoticeKind) -> LocalizedStringResource {

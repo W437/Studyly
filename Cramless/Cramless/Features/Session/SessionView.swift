@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// A study session, full screen: a top bar (close, progress segments coloured by result, the time), one question
+/// A study session, full screen: a top bar (close, one solid progress bar, how many questions are left), one question
 /// at a time in its own format, then the summary. Answers are recorded as the person commits each one, so closing
 /// only asks first when the question on screen has an answer that isn't saved yet (and an answer being typed is kept as a
 /// draft for next time). A daily, catch-up or eve session that iOS closed picks up the same day where it stood
@@ -11,7 +11,7 @@ import SwiftUI
 /// before), `CRAMLESS_SESSION_RESUME=1` (a session of this kind was cut off earlier today after three answers, with words typed
 /// on an own-words question: it picks up).
 ///
-/// A rating the person gives themselves (a flashcard, own-words marks, "Counts as") is held for `undoWindow` before it is recorded;
+/// A rating the person gives themselves (a flashcard, own-words marks) is held for `undoWindow` before it is recorded;
 /// after the last question that window is "That was the last one." (`SessionRunner.Phase.wrapping`).
 struct SessionView: View {
     let request: SessionRequest
@@ -207,48 +207,19 @@ private extension String {
 
 // MARK: - Top bar
 
-/// Close, the progress segments (mint right, sun partly, rose missed, tangerine now), and the time in a glass pill.
-/// From three right in a row a second glass pill morphs out of the time with the run, and melts back into it when
-/// the run ends.
+/// Close, one solid bar of the questions answered, and how many are left ("41 left") in a glass pill that counts down as answers are
+/// checked. The run of right answers is the answer panel's to say ("3 in a row"); here it only makes the bar glow.
 struct SessionTopBar: View {
     let runner: SessionRunner
     let onClose: () -> Void
 
-    @Namespace private var glass
-
     var body: some View {
-        let combo = runner.liveCombo
-        let showsRun = combo >= ComboRun.shownFrom
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 10) {
                 CLIconButton(systemImage: "xmark", label: "End session", action: onClose)
-                SessionSegments(runner: runner)
+                SessionProgressBar(runner: runner)
                     .frame(maxWidth: .infinity)
-                GlassEffectContainer(spacing: 6) {
-                    HStack(spacing: 6) {
-                        if showsRun {
-                            Label("\(combo)", systemImage: "bolt.fill")
-                                .font(.system(.footnote, design: .rounded, weight: .heavy))
-                                .contentTransition(.numericText(value: Double(combo)))
-                                .foregroundStyle(CLColor.mintInk)
-                                .padding(.horizontal, 10)
-                                .frame(minHeight: 32)
-                                .glassEffect(.regular.tint(CLColor.mint.opacity(0.3)), in: Capsule())
-                                .glassEffectID("run", in: glass)
-                                .accessibilityLabel("\(combo) right in a row")
-                        }
-                        Text(runner.startedAt, style: .timer)
-                            .clFont(.number(15, .bold))
-                            .foregroundStyle(CLColor.ink2)
-                            .padding(.horizontal, 10)
-                            .frame(minWidth: 58, minHeight: 32)
-                            .glassEffect(.regular, in: Capsule())
-                            .glassEffectID("time", in: glass)
-                            .accessibilityLabel("Time in this session")
-                    }
-                }
-                .animation(CLMotion.pop, value: showsRun)
-                .animation(CLMotion.snap, value: combo)
+                SessionLeftPill(left: runner.questionsLeft)
             }
             if let context = contextLine {
                 Text(context)
@@ -264,8 +235,8 @@ struct SessionTopBar: View {
         .dynamicTypeSize(...DynamicTypeSize.accessibility2)
     }
 
-    /// For a session that isn't the daily one: what it is ("2-minute fix · Anaphase vs telophase"). A session picked up after a
-    /// close says so until the first answer.
+    /// For a session that isn't the daily one: what it is ("Fix it · Anaphase vs telophase"). A session picked up after a close says so
+    /// until the first answer.
     private var contextLine: String? {
         if runner.resumed, runner.answers.isEmpty { return String(localized: "Picked up where you left off.") }
         switch runner.kind {
@@ -273,12 +244,12 @@ struct SessionTopBar: View {
             return runner.courseName.map(SessionCopy.studyCourse)
         case .quickCheck, .mock: return nil
         case .fix:
-            let name = runner.built.weakSpots.first?.name
-            return [SessionCopy.fixSessionTitle(entries: runner.built.entries.count), name].compactMap { $0 }.joined(separator: " · ")
+            let name = runner.built.weakSpots.first.map(\.name).flatMap { $0 == ConfusionCandidate.unnamed ? nil : $0 }
+            return [SessionCopy.fixTitle(), name].compactMap { $0 }.joined(separator: " · ")
         case .examEve:
-            return "Exam eve · weak spots only, then sleep"
+            return String(localized: "Night before · weak spots only, then sleep")
         case .catchUp:
-            return "Catch-up · the ones you're closest to forgetting"
+            return String(localized: "Catch-up · the ones you're closest to forgetting")
         case .practice:
             return [String(localized: "Practice"), runner.topicName(runner.request.topicID) ?? runner.courseName]
                 .compactMap { $0 }.joined(separator: " · ")
@@ -286,9 +257,74 @@ struct SessionTopBar: View {
     }
 }
 
-/// The progress bar: one segment per question, coloured by result. The newest result blooms (a glow that shrinks
-/// back), and while a run of three or more right answers is going its segments glow mint, with one shine across
-/// the bar for each new step. Nothing loops while the person reads; under Reduce Motion the bar only changes colour.
+/// "41 left": the questions still to answer, rolling down as each one is checked (and up when a missed one is queued to come back).
+private struct SessionLeftPill: View {
+    let left: Int
+
+    var body: some View {
+        Text(SessionCopy.left(left))
+            .clFont(.number(15, .bold))
+            .foregroundStyle(CLColor.ink2)
+            .contentTransition(.numericText(value: Double(left)))
+            .monospacedDigit()
+            .lineLimit(1)
+            .padding(.horizontal, 12)
+            .frame(minWidth: 58, minHeight: 32)
+            .glassEffect(.regular, in: Capsule())
+            .animation(CLMotion.snap, value: left)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(Text(SessionCopy.leftSpoken(left)))
+    }
+}
+
+/// The progress bar: one solid fill of the questions answered, tangerine like the mock's. When an answer is checked the fill steps on
+/// and its tip blooms in the verdict's colour (a glow that shrinks back); while a run of three or more right answers is going the fill
+/// glows mint, with one shine across it for each new step. Nothing loops while the person reads; under Reduce Motion the fill only moves.
+struct SessionProgressBar: View {
+    let runner: SessionRunner
+
+    @Environment(\.clReduceMotion) private var reduceMotion
+    @State private var bloom = 0.0
+    @State private var bloomColor = Color.clear
+    @State private var shines = 0
+
+    var body: some View {
+        let value = runner.progress
+        let running = runner.liveCombo >= ComboRun.shownFrom
+        GeometryReader { geo in
+            ZStack(alignment: .leading) {
+                Capsule().fill(CLColor.surface3)
+                Capsule()
+                    .fill(CLColor.tangerine)
+                    .frame(width: max(0, min(1, value)) * geo.size.width)
+                    .overlay {
+                        if !reduceMotion && running {
+                            Shine(trigger: shines).clipShape(Capsule())
+                        }
+                    }
+                    .shadow(color: running ? CLColor.mint.opacity(0.55) : .clear, radius: 4)
+                    .shadow(color: reduceMotion ? .clear : bloomColor.opacity(0.8 * bloom), radius: 10 * bloom)
+            }
+        }
+        .frame(height: 8)
+        .padding(.vertical, 4)
+        .animation(reduceMotion ? CLMotion.fade : CLMotion.snap, value: value)
+        .onChange(of: "\(runner.queue.position)-\(runner.provisional?.rawValue ?? "")") {
+            guard !reduceMotion, let outcome = runner.provisional else { return }
+            bloomColor = FeedbackTone(outcome).solid
+            bloom = 1
+            withAnimation(CLMotion.bloom) { bloom = 0 }
+            if runner.liveCombo >= ComboRun.shownFrom { shines += 1 }
+        }
+        // The pill beside it says how many are left; the bar is its picture.
+        .accessibilityHidden(true)
+    }
+}
+
+/// Onboarding's two-question check: one segment per question, coloured by result. The newest result blooms (a glow that shrinks
+/// back), and while a run of three or more right answers is going its segments glow mint, with one shine across the bar for each new
+/// step. Nothing loops while the person reads; under Reduce Motion the bar only changes colour. A session's own bar is
+/// `SessionProgressBar`.
 struct SessionSegments: View {
     let runner: SessionRunner
 
@@ -642,10 +678,10 @@ struct SessionEmptyView: View {
 ///   `flashcard-rated` flips the flashcard and rates it (Good, or `CRAMLESS_SESSION_RATE=again|hard|good|easy`): the next question with
 ///   the Undo pill; `last-rated` does it on a session of that one question: "That was the last one." (`CRAMLESS_UNDO_HOLD=1` keeps the
 ///   pill as long as it takes to look at it; `CRAMLESS_SESSION_UNDO=<ms>` presses Undo that long after it shows);
-///   `flashcard-drag` flips the flashcard and holds it 60% of the way right; `flashcard-swiped` swipes it right: the next one is up, the
-///   tally says 1 and 0, and the Undo pill stays;
+///   `flashcard-drag` flips the flashcard and holds it 60% of the way right; `flashcard-swiped` swipes it right: the next one is up and
+///   the Undo pill stays;
 ///   `flashcard-saved` makes the first flashcard a fading memory, flips it and rates it Good: a save, with the
-///   sky's flare; `mcq-saved` does the same with a multiple-choice question answered right ("Saved it.", Cap's sparkles
+///   sky's flare; `mcq-saved` does the same with a multiple-choice question answered right ("Just in time!", Cap's sparkles
 ///   and the flare together);
 ///   `summary` answers eight questions plus a swapped pair, then shows the summary (with a mix-up offered);
 ///   `exameve-summary`, `fix-summary` answer everything and finish (use with `session:examEve`, `session:fix`);

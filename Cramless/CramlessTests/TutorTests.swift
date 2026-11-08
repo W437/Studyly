@@ -2041,24 +2041,42 @@ final class TutorPrivacyCopyTests: XCTestCase {
             XCTAssertTrue(text.contains("the notes of the course Cap is answering from"), "\(name) says whose notes go with a question")
             XCTAssertFalse(text.contains("the notes of the course you're asking about"), "\(name) no longer says it that way")
         }
-        // Both screens show the same words, so they can't say different things.
+        // The full text (`WhatsSentSheet`, beside the consent sheet) shows the words, and both screens open that one sheet, so they can't
+        // say different things.
+        for part in ["AIConsent.Words.added", "AIConsent.Words.asked", "AIConsent.Words.answered"] {
+            XCTAssertTrue(sheet.contains(part), "the full text shows \(part)")
+        }
         for (name, text) in [("the consent sheet", sheet), ("Settings ▸ AI and privacy", page)] {
-            for part in ["AIConsent.Words.added", "AIConsent.Words.asked", "AIConsent.Words.answered"] {
-                XCTAssertTrue(text.contains(part), "\(name) shows \(part)")
-            }
+            XCTAssertTrue(text.contains("WhatsSentSheet(focus:"), "\(name) opens the full text")
         }
         // A lookup in the notes searches every course, so the passages it finds in any of them are sent too: the screens and the doc say so.
         XCTAssertTrue(words.contains("When you ask Cap to look through your notes, the passages it finds in any of your courses go too."))
         XCTAssertTrue(page.contains("the passages it finds in any of your courses when you ask it to look through your notes"))
         XCTAssertTrue(doc.contains("when you ask Cap to look through your notes, the passages it finds in any of your courses"))
         XCTAssertTrue(sheet.contains("Our server doesn't keep what you send."))
-        XCTAssertTrue(page.contains("Our server doesn't keep what you send."))
         XCTAssertTrue(words.contains("All of it when it's short, otherwise the parts that fit your question"))
         // What the old words promised is gone.
         XCTAssertFalse(doc.contains("a few passages from your notes that match your question"))
         XCTAssertFalse(doc.contains("up to 24 passages"))
         XCTAssertFalse(page.contains("Not your notes, answers or chats"), "with sync on, a signed-in person's notes are on the server")
         XCTAssertTrue(words.contains("cards of imported decks"), "the version note says what is sent")
+    }
+
+    /// The consent sheet's two lines: the processor is named in the first, and the second promises only what Capling controls (our
+    /// server keeps none of it; the provider's own retention is the privacy policy's to say).
+    @MainActor func testTheConsentSheetsTwoLinesNameWhoGetsItAndPromiseNoMore() {
+        for reason: ConsentReason in [.cloudAI(feature: "Write questions from your pages"), .photos] {
+            for cloudOn in [false, true] {
+                let first = String(localized: ConsentSheet.whatGoes(reason, cloudOn: cloudOn))
+                XCTAssertTrue(first.contains(AIConsent.processor), first)
+                XCTAssertTrue(first.contains("through Capling's server"), first)
+            }
+        }
+        XCTAssertTrue(String(localized: ConsentSheet.whatGoes(.photos, cloudOn: false)).contains("notes, questions and answers"),
+                      "allowing photos first also turns on Cloud AI, and the line says what that sends")
+        let kept = String(localized: ConsentSheet.kept)
+        XCTAssertEqual(kept, "Our server keeps none of it, and nothing trains AI. Turn it off any time in Settings.")
+        XCTAssertFalse(kept.lowercased().hasPrefix("nothing is kept"), "the provider may keep requests for a while to detect abuse")
     }
 
     /// What each route carries has a sentence on the screens: a route that starts sending something new is said here first.

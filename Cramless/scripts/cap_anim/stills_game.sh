@@ -19,7 +19,7 @@ NOW=${NOW:-2026-10-26T13:00:00Z}
 shot() {  # name route [KEY=VALUE ...]
   local name=$1 route=$2; shift 2
   if [ -n "${ONLY:-}" ] && [[ " $ONLY " != *" $name "* ]]; then return 0; fi
-  # Its own folder: two names can share a route (streak, streak-milestones), and the later shot must not eat the earlier one.
+  # Its own folder: two names can share a route (streak, streak-freezes), and the later shot must not eat the earlier one.
   local one="$raw/.one"; rm -rf "$one"; mkdir -p "$one"
   WAIT=${WAIT:-6} NOW=$NOW EXTRA="$*" scripts/shots.sh "$udid" "$one" "$route" >/dev/null
   local file="$one/$(echo "$route" | tr ':/' '--').png"
@@ -30,7 +30,7 @@ shot() {  # name route [KEY=VALUE ...]
 shot today-quests today CRAMLESS_QUESTS=partial CRAMLESS_QUEST_PICKS=finishSession,rightInARow,fixMixUp
 THEME=dark shot today-quests-dark today CRAMLESS_QUESTS=partial CRAMLESS_QUEST_PICKS=finishSession,rightInARow,fixMixUp
 shot streak streak
-shot streak-milestones streak CRAMLESS_SCROLL=milestones
+shot streak-freezes streak CRAMLESS_SCROLL=freezes
 shot progress-badges progress CRAMLESS_SCROLL=badges
 shot badges badges
 shot badge-earned badge:streak7

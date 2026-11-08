@@ -31,20 +31,20 @@ struct ClozeQuestionView: View {
 
     var body: some View {
         QuestionScroll(revealsDetails: panel != nil) {
+            QuestionHeader(item: item, entry: entry, topic: runner.topicName(entry.topicID))
             QuestionCard {
-                QuestionHeader(item: item, entry: entry, topic: runner.topicName(entry.topicID))
-                if !item.prompt.isEmpty, item.prompt != spec.text {
+                let asks = !item.prompt.isEmpty && item.prompt != spec.text
+                if asks {
                     Text(item.prompt)
                         .clFont(.subheadlineEmphasis)
                         .foregroundStyle(CLColor.ink2)
-                        .padding(.top, 8)
                 }
                 CLFlow(spacing: 6, lineSpacing: 4) {
                     ForEach(tokens) { token in
                         tokenView(token)
                     }
                 }
-                .padding(.top, 14)
+                .padding(.top, asks ? 14 : 0)
                 .accessibilityElement(children: .contain)
                 if let panel {
                     AccessibilityOnly { FeedbackDetails(feedback: panel).padding(.top, 10) }
