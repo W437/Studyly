@@ -125,7 +125,7 @@ Where each fact comes from:
 | Cloud AI is off until allowed; under 13 never; photos are a second switch | `AI/AIConsent.swift`, `AI/AIRouting.swift`, `Features/Settings/ConsentSheet.swift` |
 | What the model is sent with each question to Cap | Section 0's rows; `AI/TutorSelection.swift`, `AI/AIRouter+Tutor.swift`, `AI/AIRouter+Assistant.swift` (`searchNotes`), `App/AppModel+AI.swift` (`tutorMaterial`), `AI/TutorDeck.swift` (`TutorMaterial.listing`), `supabase/functions/_shared/assistant.ts` (`studyBlock`), `_shared/contract.ts` (`TutorRequest`, `AssistantRequest`) |
 | OpenAI for every AI route | `_shared/deps.ts`, `_shared/openai.ts`, `AI/AIConsent.swift` (`processor`), `docs/BUILD.md` "Every route on OpenAI". Change the sentence if the wiring changes |
-| Drafts are shown first; "Let Cap do it" per kind; never for under 18; undo | `Features/Settings/AssistantPage.swift`, `App/AppModel+Assistant.swift` |
+| Drafts are shown first; one switch lets Cap add without asking; never for under 18; undo | `Features/Settings/AIPrivacyPage.swift`, `App/AppModel+Assistant.swift` |
 | Web research: Pro only, never under 18, 40 listed sites, summary with links, saved only on a tap, no site learns anything | `_shared/assistant.ts` (`RESEARCH_DOMAINS`), `_shared/research_sources.ts`, `_shared/plans.ts`, `AI/AIRouter+Assistant.swift`, `Features/Ask/Assistant/WebSourceTile.swift` (logos drawn in code) |
 | Content is never stored or logged on our server; OpenAI is called with `store: false` | `_shared/log.ts` (an allow-list of fields), `_shared/openai.ts` |
 | The request record: route, model, tokens, cost, time, account ID; "Delete AI data" keeps the counters | `supabase/migrations/20261022000000_cramless_schema.sql` (`ai_requests`), `cramless_delete_ai_data` |
@@ -195,7 +195,7 @@ questionnaire is in front of you, and tell me what it asks.
 
 ## 5. The words inside the app
 
-The consent sheet (`ConsentSheet.swift`) and Settings ▸ AI and privacy (`AIPrivacyPage.swift`) now show the same three paragraphs, `AIConsent.Words` (What you add, What you ask Cap, What you answer), so they can't say different things. `TutorPrivacyCopyTests` holds them to this page. Consent version 3 has not shipped, so it stays 3; once it has, a change in what is sent is version 4.
+The consent sheet (`ConsentSheet.swift`) opens with two lines: "Your notes, questions and answers go to OpenAI, through Capling's server, so Cap can write and grade questions." and "Our server keeps none of it, and nothing trains AI. Turn it off any time in Settings." (not "nothing is kept": see "Check before you publish", 1). Its "Exactly what's sent" and Settings ▸ AI and privacy's "What's sent" open one full text (`WhatsSentSheet`, in the same file) with the three paragraphs `AIConsent.Words` (What you add, What you ask Cap, What you answer), who reads it, training, what our server keeps and how to turn it off, so the two places can't say different things. `TutorPrivacyCopyTests` holds them to this page. Consent version 3 has not shipped, so it stays 3; once it has, a change in what is sent is version 4.
 
 The rest, as they stand: Study out loud's and Teach Cap's intro (`OutLoudCopy.privacy`, `TeachCopy.privacy`), "The photo stays on this iPhone. Only the words go to Cap." on the snap and syllabus screens, Cap's calendar card, the Squad switch (`SquadCopy.switchNote`), and the purpose strings in `Resources/Info.plist`.
 

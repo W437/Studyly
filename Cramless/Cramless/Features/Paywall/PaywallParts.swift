@@ -7,8 +7,8 @@ enum PaywallOutcome: Equatable, Sendable {
     case purchased(PlanOption)
 }
 
-/// Set by a host that embeds the paywall (onboarding) instead of presenting it as a sheet. Without one, the
-/// paywall dismisses itself, and a decline 8 to 21 days before the next exam opens the Exam Pass offer (`ExamPassOffer`).
+/// Set by a host that embeds the paywall (onboarding) instead of presenting it as a sheet, and by the paywall for the Exam Pass it opens
+/// from its link. Without one, the paywall (or Exam Pass) dismisses itself.
 struct PaywallFinishAction {
     let handler: @MainActor (PaywallOutcome) -> Void
     @MainActor func callAsFunction(_ outcome: PaywallOutcome) { handler(outcome) }
@@ -160,9 +160,23 @@ struct PaywallBenefitRow: View {
     }
 }
 
+/// The one line under Pro's rows: what nobody pays for (`PaywallCopy.staysFree`).
+struct StaysFreeLine: View {
+    var body: some View {
+        Label {
+            Text(PaywallCopy.staysFree)
+                .foregroundStyle(CLColor.ink2)
+                .fixedSize(horizontal: false, vertical: true)
+        } icon: {
+            Image(systemName: "checkmark.circle.fill").foregroundStyle(CLColor.mintInk)
+        }
+        .clFont(.subheadlineEmphasis)
+    }
+}
+
 // MARK: - Plan card
 
-/// One of the three plans: a radio, the name and its detail line, the price, and an optional flag on the edge.
+/// One of the two plans: a radio, the name (with "7 days free" under it while the free week is on offer) and the price.
 struct PlanCard: View {
     let option: PlanOption
     let price: PlanPrice
@@ -177,13 +191,10 @@ struct PlanCard: View {
     var body: some View {
         Button(action: action) {
             content
-                .padding(.horizontal, 16)
-                .padding(.top, flag == nil ? 16 : 20)
-                .padding(.bottom, 16)
+                .padding(16)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(CLColor.surface, in: shape)
                 .overlay(shape.strokeBorder(selected ? CLColor.tangerine : CLColor.surface3, lineWidth: 2.5))
-                .overlay(alignment: .topLeading) { flagView.offset(x: 18, y: -11) }
                 .contentShape(shape)
         }
         .buttonStyle(.pressable)
@@ -194,7 +205,7 @@ struct PlanCard: View {
 
     private var shape: RoundedRectangle { RoundedRectangle(cornerRadius: 24, style: .continuous) }
 
-    private var flag: String? { PaywallCopy.flag(for: option, trialDays: trialDays) }
+    private var detail: String? { PaywallCopy.detail(for: option, trialDays: trialDays) }
 
     @ViewBuilder private var content: some View {
         let layout = typeSize.isAccessibilitySize
@@ -205,10 +216,12 @@ struct PlanCard: View {
                 radio
                 VStack(alignment: .leading, spacing: 3) {
                     Text(option.title).clFont(.headline).foregroundStyle(CLColor.ink)
-                    Text(PaywallCopy.detail(for: option, price: price))
-                        .clFont(.footnote)
-                        .foregroundStyle(CLColor.ink2)
-                        .fixedSize(horizontal: false, vertical: true)
+                    if let detail {
+                        Text(detail)
+                            .clFont(.footnoteEmphasis)
+                            .foregroundStyle(CLColor.mintInk)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                 }
             }
             if !typeSize.isAccessibilitySize { Spacer(minLength: 4) }
@@ -230,67 +243,33 @@ struct PlanCard: View {
         .accessibilityHidden(true)
     }
 
-    @ViewBuilder private var flagView: some View {
-        if let flag {
-            Text(flag)
-                .font(.system(size: 11, weight: .bold))
-                .foregroundStyle(CLColor.onFill)
-                .padding(.horizontal, 9)
-                .frame(height: 22)
-                .background(option == .squad ? CLColor.sky : CLColor.tangerine, in: Capsule())
-                .lineLimit(1)
-                .accessibilityHidden(true)
-        }
-    }
-
     private var accessibilityText: String {
-        var parts = [option.title, "\(price.display) \(option.unitLabel)", PaywallCopy.detail(for: option, price: price)]
-        if let flag { parts.append(flag) }
-        return parts.joined(separator: ", ")
+        [option.title, "\(price.display) \(option.unitLabel)", detail].compactMap { $0 }.joined(separator: ", ")
     }
 }
 
-// MARK: - Trial timeline
+// MARK: - Exam Pass link
 
-/// Today, the reminder, the first charge: an honest timeline for a free trial.
-struct TrialTimeline: View {
-    let steps: [PaywallCopy.TimelineStep]
+/// "Just one exam? Exam Pass, $14.99 ›", under the plans while Exam Pass is offered (`ExamPassOffer`).
+struct ExamPassLink: View {
+    let price: PlanPrice
+    let action: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            ForEach(Array(steps.enumerated()), id: \.offset) { index, step in
-                HStack(alignment: .top, spacing: 14) {
-                    node(index: index, symbol: step.symbol)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(step.title).clFont(.subheadlineEmphasis).foregroundStyle(CLColor.ink)
-                        Text(step.detail)
-                            .clFont(.subheadline)
-                            .foregroundStyle(CLColor.ink2)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                    .padding(.bottom, index == steps.count - 1 ? 0 : 16)
-                }
-                .background(alignment: .topLeading) {
-                    if index < steps.count - 1 {
-                        Rectangle().fill(CLColor.surface3).frame(width: 2).padding(.top, 30).padding(.leading, 14)
-                    }
-                }
-                .accessibilityElement(children: .combine)
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Text(PaywallCopy.examPassLink(price: price))
+                    .fixedSize(horizontal: false, vertical: true)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .bold))
+                    .accessibilityHidden(true)
             }
+            .clFont(.subheadlineEmphasis)
+            .foregroundStyle(CLColor.skyInk)
+            .frame(maxWidth: .infinity, minHeight: CLMetrics.minHitTarget)
+            .contentShape(Rectangle())
         }
-        .padding(18)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(CLColor.surface2, in: RoundedRectangle(cornerRadius: CLRadius.card, style: .continuous))
-    }
-
-    private func node(index: Int, symbol: String) -> some View {
-        let fill: Color = [CLColor.tangerine, CLColor.sun, CLColor.sky][min(index, 2)]
-        return Image(systemName: symbol)
-            .font(.system(size: 13, weight: .bold))
-            .foregroundStyle(CLColor.onFill)
-            .frame(width: 30, height: 30)
-            .background(fill, in: Circle())
-            .accessibilityHidden(true)
+        .buttonStyle(.pressable)
     }
 }
 

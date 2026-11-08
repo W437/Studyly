@@ -314,7 +314,7 @@ private struct AppliedFooter: View {
                     .clFont(.footnoteEmphasis)
                     .foregroundStyle(CLColor.mintInk)
                 if step.auto {
-                    Text("Cap did this because you switched on “Let Cap do it”.").clFont(.caption).foregroundStyle(CLColor.ink3)
+                    Text("Without asking, as you chose in Settings.").clFont(.caption).foregroundStyle(CLColor.ink3)
                 }
             }
             Spacer(minLength: 0)

@@ -2,7 +2,7 @@ import DeclaredAgeRange
 import SwiftUI
 
 /// Drives onboarding: owns the step machine, maps it onto a navigation stack, and performs the side effects
-/// (finishing, the Exam Pass offer, the free-plan toast). Every step view reads it from the environment:
+/// (finishing, the free-plan toast). Every step view reads it from the environment:
 ///
 ///     @Environment(OnboardingCoordinator.self) private var onboarding
 ///     Button("Continue") { onboarding.advance() }
@@ -24,7 +24,6 @@ final class OnboardingCoordinator {
     var noExamYet = false
     /// Questions answered in this run (a default like 15 minutes isn't shown as the person's pick until they pick).
     var answered: Set<QuizQuestion> = []
-    var showsExamPass = false
     /// "I already have an account" on the welcome screen: sign in and bring the person's material back.
     var showsWelcomeBack = false
 
@@ -53,32 +52,10 @@ final class OnboardingCoordinator {
     func skipIntro() { machine.skipIntro() }
     func showIntroPage(_ page: Int) { machine.showIntroPage(page) }
 
-    /// The onboarding paywall closed. A purchase finishes; a decline 8 to 21 days before the next exam gets the Exam Pass
-    /// offer first (`ExamPassOffer`).
+    /// The onboarding paywall closed: bought or "Continue free", onboarding is done (no second offer).
     func paywallFinished(_ outcome: PaywallOutcome) {
-        guard let app else { return advance() }
-        switch outcome {
-        case .purchased:
-            advance()
-        case .declined:
-            declinedPaywall = true
-            let examDates = [app.settings.nextExamDate].compactMap { $0 } + app.upcomingExams().map(\.date)
-            if ExamPassOffer.isEligible(plan: app.purchases.plan, canBuyPro: app.settings.canBuyPro, examDates: examDates, now: app.now, calendar: app.calendar) {
-                showsExamPass = true
-            } else {
-                advance()
-            }
-        }
-    }
-
-    func examPassFinished(_ outcome: PaywallOutcome) {
-        if case .purchased = outcome { declinedPaywall = false }
-        showsExamPass = false
-    }
-
-    /// The Exam Pass sheet is gone (bought, declined or swiped away): onboarding is done.
-    func examPassDismissed() {
-        if machine.step == .paywall { advance() }
+        if outcome == .declined { declinedPaywall = true }
+        advance()
     }
 
     /// The last step: onboarding never shows again; the tabs take over.
@@ -137,10 +114,6 @@ struct OnboardingFlow: View {
         // The welcome and the paywall are night-coloured to the top edge, where dark status bar text would
         // vanish (RootView's colour-scheme preference outranks one set in here), so the status bar steps aside.
         .statusBarHidden(coordinator.step == .welcome || coordinator.step == .paywall)
-        .sheet(isPresented: $coordinator.showsExamPass, onDismiss: coordinator.examPassDismissed) {
-            ExamPassView(examID: nil)
-                .environment(\.paywallFinish, PaywallFinishAction { coordinator.examPassFinished($0) })
-        }
         .sheet(isPresented: $coordinator.showsWelcomeBack) {
             WelcomeBackSheet()
                 .presentationDetents([.medium, .large])

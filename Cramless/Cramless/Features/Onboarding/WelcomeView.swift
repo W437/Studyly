@@ -15,7 +15,7 @@ struct WelcomeView: View {
     /// behind the "I already have an account" sheet, and the app is in the foreground. Cap says and lights nothing otherwise, and no
     /// note plays over another screen.
     private var isFront: Bool {
-        onboarding.step == .welcome && !onboarding.showsWelcomeBack && !onboarding.showsExamPass && scenePhase == .active
+        onboarding.step == .welcome && !onboarding.showsWelcomeBack && scenePhase == .active
     }
 
     /// The colour under the lake, so the words below the sky stand on the same ground.

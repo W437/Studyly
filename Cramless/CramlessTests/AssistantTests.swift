@@ -265,12 +265,21 @@ final class AssistantTests: AskTestCase {
         XCTAssertEqual(reply.outcome.steps.first?.status, .proposed)
     }
 
+    /// Settings has one switch for every kind ("Let Cap add cards, notes and exams without asking").
+    func testOneSwitchHandsOverEveryKindAndTakesThemAllBack() {
+        let (app, _, _) = world()
+        app.setAssistantAutoAll(true)
+        XCTAssertEqual(app.settings.assistantAuto, Set(AssistantAutoKind.allCases))
+        app.setAssistantAutoAll(false)
+        XCTAssertTrue(app.settings.assistantAuto.isEmpty)
+    }
+
     func testAnAccountUnder18AlwaysAsksFirstAndHasNoWeb() async throws {
         let (app, bio, spy) = world(age: .teen)
         app.settings.assistant.auto = [.cards, .notes, .exams]   // however it got there
         XCTAssertTrue(app.settings.assistantAuto.isEmpty)
         XCTAssertFalse(app.assistantTools.contains(.researchWeb))
-        app.setAssistantAuto(.cards, true)                       // the switch is locked too
+        app.setAssistantAutoAll(true)                            // the switch is locked too
         let reply = try await XCTUnwrapAsync(await ask("Make me flashcards on mitosis", app: app, bio: bio))
         XCTAssertEqual(reply.outcome.steps.first?.status, .proposed)
         XCTAssertEqual(spy.requests.first?.minor, true)

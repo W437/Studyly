@@ -156,6 +156,6 @@ final class StoreEntitlementTests: XCTestCase {
         for option in PlanOption.allCases {
             XCTAssertEqual(PlanOption(productID: option.productID), option)
         }
-        XCTAssertEqual(PlanOption.paywallOptions, [.yearly, .monthly, .squad])
+        XCTAssertEqual(PlanOption.paywallOptions, [.yearly, .monthly], "Squad sells on its own page, Exam Pass from a link")
     }
 }

@@ -241,7 +241,10 @@ sleep 4; xcrun simctl io <udid> screenshot shot.png
     something else, `_APPROVE=<ms>` presses Add and `_UNDO=<ms>` takes it back, `_SEED=1` (with `CRAMLESS_ROUTE=settings:assistant`) fills "Added by
     Cap", `CRAMLESS_RESEARCH=pro` shows a free account's web research. `scripts/cap_anim/films_assistant.sh <udid> <out>` films and shoots them all.
   - Paywall and onboarding: `CRAMLESS_PAYWALL_PLAN`, `CRAMLESS_PAYWALL_STATE=purchasing|pending|cancelled|failed|purchased|restored`,
-    `CRAMLESS_PAYWALL_TRIAL=0`, `CRAMLESS_PAYWALL_SCROLL=free|plans|timeline` (`free`: the "Always free" card), `CRAMLESS_ONB_REMINDER=1`.
+    `CRAMLESS_PAYWALL_TRIAL=0`, `CRAMLESS_PAYWALL_SCROLL=plans`, `CRAMLESS_PAYWALL_EXAMPASS=link|open` (the Exam Pass link drawn as if
+    it were offered today; `open` also opens it over the paywall), `CRAMLESS_ONB_REMINDER=1`. The Squad page sells Squad itself
+    (`CRAMLESS_ROUTE=squad`, `CRAMLESS_AGE=under13` for `NoPurchaseView`). `CRAMLESS_CONSENT_DETAILS=1` opens "What's sent" (the full
+    text) over `consent`, `consent:photos` or `settings:aiPrivacy`; `settings:assistant` opens the same AI and privacy page.
   - Progress: `CRAMLESS_ROUTE=month` opens the month sheet, `CRAMLESS_ROUTE=streak CRAMLESS_SCROLL=heatmap` the streak page's twelve weeks, `CRAMLESS_SCROLL=week|exams|fading|mixups|more` the tab's sections; `CRAMLESS_SKY=memory` opens "How you remember" over the sky.
   - Mock exam: `CRAMLESS_ROUTE=mock[:<n>]` opens a mock of the nth upcoming exam (without a number, the first with enough questions; `mock:0` is the Chem quiz, multiple choice only, and too short: the too-few state), `CRAMLESS_MOCK=intro|mcq|short|cloze|review|timeup|marking|summary|selfcheck` opens on that state (`selfcheck` with `CRAMLESS_CONSENT=0`: the own-words answers are the person's to mark), `CRAMLESS_MOCK_AUTOPLAY=rrwpk…` answers every question by that pattern (`r` right, `p` partly, `w` wrong, `k` left blank), `CRAMLESS_AUTOPLAY_BEAT` ms apart, then hands in; `CRAMLESS_MOCK_ELAPSED=<s>` starts the clock that far gone. The exam page's card: `CRAMLESS_SCENARIO=mocked` (a mock taken three days ago, "Last mock"), `fewItems` (five questions left in scope, "Write more questions").
   - Money and trust: `CRAMLESS_QUOTA=scans:2,lectures:1,grades:20` sets the free AI uses left on those meters, as if the server said so

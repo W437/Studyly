@@ -1932,6 +1932,35 @@ for Stages 3 and 4 (none shared).
 - **App Privacy**, with the owner's approval: Other Data ▸ Other Data Types added (App Functionality, linked to the user, not
   tracking), matching the manifest; published on the website, 10 data types.
 
+## Clarity pass: money and trust (2026-11-08, lane `c-money`)
+
+Fewer words and one decision per screen where people pay or say yes to Cloud AI; every guard stays (`NoPurchaseView` under 13,
+prices from StoreKit, the reminder before a charge, consent never assumed).
+
+- **Paywall** (`Features/Paywall/`): the headline, "Pro lifts the AI limits." (a gate keeps its own line), Pro's four rows, one line
+  "Reviews, plans, readiness and mock exams stay free.", then two plans: Yearly (picked, "7 days free") and Monthly. No weekly price,
+  no flags, no Squad card, no "Always free" card (still `NoPurchaseView`'s), no three-step timeline: the terms say "We'll remind you
+  2 days before the first charge" (`PaywallCopy.terms`). While Exam Pass is offered (8 to 21 days before the next exam) a link under
+  the plans, "Just one exam? Exam Pass, $14.99", opens it over the paywall; a pass bought there is celebrated by the paywall, and its
+  "Continue free" closes both. "Continue free" never opens another offer: in onboarding it goes straight to Today (the coordinator's
+  Exam Pass sheet is gone). Exam Pass itself is shorter: the exam on the chip, "Exam Pass", one price card, fair use under the button.
+- **Squad page**: no eyebrow and no repeated "every Pro feature" row; "You + 3 friends, $99.99 a year" (the billed amount leads, the
+  share per person is in the line under it), and the button buys Squad there ("Try 7 days free", or "Get Squad"), with the paywall's
+  terms; `PurchasedView` follows a purchase (it asks for the reminder's notifications). Under 13: `NoPurchaseView`.
+  `PaidFeature.paywallLine` and `PlanPrice.perWeek` went with their last uses.
+- **Cloud AI consent**: a fitted sheet with two lines, OpenAI named in the first ("Your notes, questions and answers go to OpenAI,
+  through Capling's server, so Cap can write and grade questions." / "Our server keeps none of it, and nothing trains AI. Turn it off
+  any time in Settings."), then "Exactly what's sent", which opens the full text (`WhatsSentSheet`) unchanged, and Allow / Not now.
+  The second line doesn't say "nothing is kept": the provider may keep requests for a while to detect abuse. The photos sheet the same
+  way. The "Also send page photos" switch and the under-18 hints note left the sheet (photos keep their own sheet and switch). Consent
+  stays version 3: what is sent didn't change.
+- **AI and privacy** now holds "What Cap can do" (`settings:assistant` opens it): Use Cloud AI · Send page photos · "Let Cap add cards,
+  notes and exams without asking" (one switch, `setAssistantAutoAll`; locked under 18) · Research online (not under 18) · Free limits ·
+  "What's sent" (the same full text) · Added by Cap · Delete AI data. Gone: the consent repeated in six blocks, the offline-rules card,
+  the "Hints first" switch (each chat has its own), `AssistantPage.swift`.
+- Tests: `PaywallCopyTests`, `StoreEntitlementTests`, `StoreReminderAndOfferTests`, `SquadTests`, `TutorPrivacyCopyTests`,
+  `AssistantTests`, `LocalizationTests`. Screens: `build/review/c-money/` in the main checkout.
+
 ## Left for the owner
 
 - Accounts and keys (see README "Before the App Store"):
