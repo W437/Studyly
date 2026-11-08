@@ -7,6 +7,9 @@ import SwiftUI
 /// page (tap one to mark its lines). Typed and PDF-text pages show their lines as text, marked the same way. A page photo whose
 /// lines have no boxes (read in the cloud) can't be marked: it opens with its text showing, marked there.
 ///
+/// `asSource`: the page is a one-page source's own screen (`SourceView` opens straight on it): the bar names the source, and the source's
+/// notes and menu come with it.
+///
 /// DEBUG hooks: `CRAMLESS_ROUTE=sourcePage` zooms and circles; `sourcePage:<n>` is page n of the first source and `sourcePage:text` a typed
 /// page; `CRAMLESS_PAGE_ANCHORS=p0.l3,p0.l9` names the lines (across columns: no zoom, a circle each); `CRAMLESS_PAGE_FOCUS=0` keeps the
 /// old look, marks only.
@@ -16,6 +19,8 @@ struct SourcePageView: View {
     let highlight: [String]
     /// Brings its own close: shown over a sheet that isn't the router's.
     var closes = false
+    /// A one-page source's own screen.
+    var asSource = false
 
     @Environment(AppModel.self) private var app
     @Environment(\.dynamicTypeSize) private var typeSize
@@ -26,11 +31,12 @@ struct SourcePageView: View {
     @State private var zoomed = false
     @State private var revealed = false
 
-    init(sourceID: UUID, pageIndex: Int, highlight: [String], closes: Bool = false) {
+    init(sourceID: UUID, pageIndex: Int, highlight: [String], closes: Bool = false, asSource: Bool = false) {
         self.sourceID = sourceID
         self.pageIndex = pageIndex
         self.highlight = highlight
         self.closes = closes
+        self.asSource = asSource
         _shown = State(initialValue: pageIndex)
     }
 
@@ -84,8 +90,14 @@ struct SourcePageView: View {
                             .transition(.opacity.combined(with: .move(edge: .top)))
                     }
 
+                    if asSource {
+                        SourceNotes(source: source)
+                            .padding(.horizontal, CLSpace.gutter)
+                    }
+
                     VStack(alignment: .leading, spacing: 0) {
-                        CLSectionHeader(title: items.isEmpty ? "From this page" : "\(CLFormat.count(items.count, "question")) from this page")
+                        CLSectionHeader(title: asSource ? (items.isEmpty ? "Questions" : "\(CLFormat.count(items.count, "question"))")
+                                        : items.isEmpty ? "From this page" : "\(CLFormat.count(items.count, "question")) from this page")
                             .id("questions")
                         if items.isEmpty {
                             Text("No questions from this page yet.")
@@ -120,8 +132,8 @@ struct SourcePageView: View {
             .harnessScroll(proxy)
         }
         .clScreenBackground()
-        .navigationTitle("p. \(current.label)")
-        .navigationSubtitle(source.title)
+        .navigationTitle(asSource ? source.title : "p. \(current.label)")
+        .navigationSubtitle(asSource ? "p. \(current.label)" : source.title)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             if closes || isCoverRoot {
@@ -130,6 +142,7 @@ struct SourcePageView: View {
                 }
             }
         }
+        .modifier(SourceMenuIf(source: source, shown: asSource))
         .animation(CLMotion.settle, value: showsText)
         .onChange(of: shown) { _, _ in
             markedItem = nil
@@ -639,5 +652,15 @@ private struct PageQuestionRow: View {
             .accessibilityLabel(Text("Edit question"))
         }
         .background(isMarked ? CLColor.sunSoft : Color.clear)
+    }
+}
+
+/// The source's menu on a one-page source's own screen only.
+private struct SourceMenuIf: ViewModifier {
+    let source: Source
+    let shown: Bool
+
+    func body(content: Content) -> some View {
+        if shown { content.sourceMenu(source) } else { content }
     }
 }

@@ -9,7 +9,8 @@ import SwiftUI
 /// With no notes yet it says why (the transcript is still pending, or the notes haven't been made) and offers to
 /// make them.
 ///
-/// A date the lecturer gave for an exam shows first (`ExamHeardCard`).
+/// A date the lecturer gave for an exam shows first (`ExamHeardCard`). A moment flagged for the exam says so once, in a word ("On the
+/// midterm"), over the lecturer's own words; the eyebrow doesn't repeat the title.
 ///
 /// DEBUG hooks, with `CRAMLESS_ROUTE=lectureNotes`: `CRAMLESS_NOTES_FOCUS=<seconds>` opens focused on that moment (cued, "Play from …");
 /// `CRAMLESS_LECTURE_PLAY=<seconds>` opens playing from that moment, as a tap on its time chip would (the harness's seeded lecture plays
@@ -164,12 +165,12 @@ struct LectureNotesView: View {
         .accessibilityElement(children: .combine)
     }
 
-    /// "Your lecturer said this will be on the midterm", "You flagged this for the exam".
+    /// "On the midterm" (what the lecturer said it's on), "You flagged this".
     private func flagLine(_ flag: ExamFlag, text: String) -> String {
-        guard flag.reason == .phrase else { return "You flagged this for the exam" }
+        guard flag.reason == .phrase else { return String(localized: "You flagged this") }
         let lower = text.lowercased()
         let word = ["midterm", "final", "quiz", "test", "exam"].first { lower.contains($0) } ?? "exam"
-        return "Your lecturer said this will be on the \(word)"
+        return String(localized: "On the \(word)")
     }
 
     // MARK: Sections
@@ -348,15 +349,15 @@ struct LectureNotesView: View {
             let shown = showsTranscript ? lecture.segments : Array(lecture.segments.prefix(2))
             NotesCard {
                 ForEach(Array(shown.enumerated()), id: \.element.id) { index, segment in
-                    let flagged = lecture.flags.contains { lecture.segment(at: $0.time)?.id == segment.id }
+                    let flag = lecture.flags.first { lecture.segment(at: $0.time)?.id == segment.id }
                     VStack(alignment: .leading, spacing: 5) {
                         transcriptTime(segment.start)
                         Text(segment.text)
                             .clFont(.body)
                             .foregroundStyle(CLColor.ink)
                             .fixedSize(horizontal: false, vertical: true)
-                        if flagged {
-                            CLPill(text: "On the exam", tone: .tangerine, systemImage: "star.fill")
+                        if let flag {
+                            CLPill(text: .verbatim(flagLine(flag, text: segment.text)), tone: .tangerine, systemImage: "star.fill")
                         }
                     }
                     .padding(.horizontal, 16)
@@ -567,8 +568,8 @@ struct LectureNotesSnapshot: Equatable {
         title = source.title
         track = app.lectureTrack(for: source)
         var parts: [String] = []
+        // The title says which lecture it is ("Lecture 6: Cell division"): the eyebrow doesn't say it again.
         if let course = source.course?.name { parts.append(course) }
-        if let colon = source.title.firstIndex(of: ":") { parts.append(String(source.title[..<colon])) }
         if source.duration >= 60 { parts.append(CLFormat.minutes(Int((source.duration / 60).rounded()))) }
         eyebrow = parts.joined(separator: " · ")
         notes = source.notes
