@@ -14,7 +14,7 @@ def plans(p: Phone) -> None:
     p.tap("Subscription", type="Button", after=2.4)
     p.dwell(2.6)
     p.mark("Pro, with 7 days free")
-    p.tap("See Pro and Squad", after=2.8)
+    p.tap("See Pro", after=2.8)
     p.dwell(2.4)
     p.scroll(300)
     p.mark("Yearly, monthly, or Squad: you and three friends on one plan")
@@ -24,7 +24,6 @@ def plans(p: Phone) -> None:
     p.tap("Exam Pass", type="Button", after=2.0)
     p.dwell(1.0)                      # leave before the sheet says the App Store is unreachable: the simulator has no store
     p.dismiss()
-    p.back(after=1.0)
     p.mark("Squad: four people, one plan; a friend joins with a link or a code")
     p.tap("Squad", type="Button", after=2.6)
     p.dwell(3.4)

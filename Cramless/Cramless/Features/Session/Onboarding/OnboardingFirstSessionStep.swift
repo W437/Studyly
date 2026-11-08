@@ -2,10 +2,9 @@ import SwiftUI
 
 /// Onboarding's first session: two quick questions on the set just made (one multiple choice, one in the
 /// person's own words), graded live with the same question views as every session. The answers are real reviews,
-/// so the readiness step that follows has something honest to show. Calls `onDone` after the second answer (or at
-/// once when the set has no questions).
-///
-/// Plugged into `OnboardingFlow` by the orchestrator:
+/// so the plan that follows has an honest readiness to show. Calls `onDone` after the second answer (or at
+/// once when the set has no questions). The header is "Two quick questions" / "From your page." over the session's
+/// segments, which are the count; there is no other progress bar in onboarding.
 ///
 ///     OnboardingFirstSessionStep(courseID: firstSetCourse) { onboarding.advance() }
 struct OnboardingFirstSessionStep: View {
@@ -30,11 +29,8 @@ struct OnboardingFirstSessionStep: View {
             }
         }
         .background(CLColor.background.ignoresSafeArea())
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.hidden, for: .navigationBar)
         .navigationBarBackButtonHidden(true)
-        .toolbar {
-            ToolbarItem(placement: .principal) { OnboardingProgressBar(value: 1) }
-        }
         .onAppear(perform: start)
         .onChange(of: runner?.phase) { _, phase in
             if phase == .finished { finish() }
@@ -48,23 +44,18 @@ struct OnboardingFirstSessionStep: View {
                     .clFont(.brandTitle(28))
                     .foregroundStyle(CLColor.ink)
                     .accessibilityAddTraits(.isHeader)
-                Text("From your page, graded as you go. This is just where you start.")
+                Text("From your page.")
                     .clFont(.callout)
                     .foregroundStyle(CLColor.ink2)
                     .fixedSize(horizontal: false, vertical: true)
             }
-            HStack(spacing: 10) {
-                SessionSegments(runner: runner)
-                    .frame(width: 72)
-                Text("Question \(min(runner.queue.position + 1, runner.queue.count)) of \(runner.queue.count)")
-                    .clFont(.footnoteEmphasis)
-                    .foregroundStyle(CLColor.ink3)
-                    .contentTransition(.numericText())
-            }
-            .padding(.top, 6)
+            SessionSegments(runner: runner)
+                .frame(width: 72)
+                .padding(.top, 6)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, CLSpace.gutter)
+        .padding(.top, 8)
         .padding(.bottom, 8)
     }
 

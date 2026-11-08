@@ -154,25 +154,17 @@ struct LastLook: Equatable, Sendable {
     var isAllSentences: Bool { ideas.allSatisfy { $0.sentence != nil || $0.question.isEmpty } }
 }
 
-/// The last look's words: one sleep line everywhere ("Sleep is part of studying.").
+/// The last look's words. The night says good night once: on the eve's summary, which holds the ideas itself, or on this screen when it
+/// opens on its own.
 enum LastLookCopy {
-    static let title = String(localized: "Your last look")
+    /// The screen's title when it opens on its own: "Your 5 shakiest ideas".
+    static func title(ideas: Int) -> String { String(localized: "Your \(ideas) shakiest ideas") }
 
-    /// "5 ideas · about 2 minutes · no quiz".
-    static func line(ideas: Int, minutes: Int) -> String {
-        [String(localized: "\(ideas) ideas"), String(localized: "about \(minutes) minutes"), String(localized: "no quiz")].joined(separator: " · ")
-    }
+    /// "2 min · no quiz".
+    static func line(minutes: Int) -> String { String(localized: "\(minutes) min · no quiz") }
 
-    /// The five the screen is meant to hold are named; when fewer are there, the number stays out of it. "In plain words" only when they all are: a question and its answer are the
-    /// student's own words.
-    static func subtitle(ideas: Int, inSentences: Bool) -> String {
-        if inSentences {
-            return ideas == LastLookEngine.shown ? String(localized: "Your five shakiest ideas, in plain words") : String(localized: "Your shakiest ideas, in plain words")
-        }
-        return ideas == LastLookEngine.shown ? String(localized: "Your five shakiest ideas") : String(localized: "Your shakiest ideas")
-    }
-
-    static let closing = String(localized: "That's enough for today. Sleep is part of studying. Good luck tomorrow.")
+    /// The eve summary's heading over the ideas: "Read these once · 2 min".
+    static func readOnce(minutes: Int) -> String { String(localized: "Read these once · \(minutes) min") }
 
     /// Under the ideas, when Cap wrote any of them. Nil when he wrote none.
     static func written(_ look: LastLook) -> String? {

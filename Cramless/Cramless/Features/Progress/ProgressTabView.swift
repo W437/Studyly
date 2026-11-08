@@ -1,11 +1,11 @@
 import SwiftUI
 
-/// The Progress tab, about a screen and a third: this week and the streak (a tap opens the month), the exams as rows (readiness is the one
-/// percentage; no letter here), the topics with questions fading, each with Practice, mix-ups, and two tiles: badges and the memory sky.
-/// Everything is read from the engine once per change of the store (`ProgressModel`).
+/// The Progress tab opens on the exams (readiness is the one percentage; no letter here), then the topics with questions to review soon,
+/// each with Practice, the pairs often confused, the streak and the week's minutes in one row (it opens the streak page), and two tiles:
+/// badges and the memory sky. Everything is read from the engine once per change of the store (`ProgressModel`).
 ///
 /// Harness: `CRAMLESS_SCENARIO=missed|repair|bright|streak:<n>` puts the week in that state first, `CRAMLESS_SEED=0` is a person with nothing
-/// yet (`AppModel.applyHarnessScenario`); `CRAMLESS_SCROLL=week|exams|fading|mixups|more`.
+/// yet (`AppModel.applyHarnessScenario`); `CRAMLESS_SCROLL=exams|review|confused|week|more`.
 struct ProgressTabView: View {
     @Environment(AppModel.self) private var app
 
@@ -15,14 +15,14 @@ struct ProgressTabView: View {
         ScrollViewReader { proxy in
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                WeekCard(model: model)
-                    .padding(.top, 8)
-                    .id("week")
                 ExamsSection(exams: model.exams).id("exams")
-                FadingSection(model: model).id("fading")
-                ConfusionsSection(confusions: model.confusions).id("mixups")
-                MoreTiles(model: model)
+                ReviewSoonSection(model: model).id("review")
+                OftenConfusedSection(confusions: model.confusions).id("confused")
+                WeekRow(model: model)
                     .padding(.top, 26)
+                    .id("week")
+                MoreTiles(model: model)
+                    .padding(.top, 12)
                     .id("more")
             }
             .padding(.horizontal, CLSpace.gutter)
@@ -51,7 +51,7 @@ struct ProgressModel {
         var history: [ReadinessPoint]
     }
 
-    /// A topic with questions fading, as its constellation.
+    /// A topic with questions to review soon, as its constellation.
     struct FadingLine: Identifiable {
         var topic: ProgressPresentation.TopicLight
         var glyph: SkyGlyph?
@@ -63,16 +63,14 @@ struct ProgressModel {
         var name: String
         var courseName: String
         var misses: Int
-        /// How many questions it's about: one is a quick look, not a fix.
-        var questions = 2
     }
 
     var calendar: Calendar
     var now: Date
     var exams: [ExamLine]
     var streak: StreakState
-    var week: WeeklyStats
-    var lastWeek: [Int]
+    /// Minutes studied this week so far.
+    var weekMinutes: Int
     var sky: SkyScene
     var fading: [FadingLine]
     var confusions: [ConfusionLine]
@@ -98,11 +96,8 @@ struct ProgressModel {
                             delta: r.deltaThisWeek, history: app.readinessHistory(for: exam, days: 14))
         }
         let streak = app.streak()
-        let cells = app.heatmap(weeks: 12)
-        let week = app.weeklyStats()
         self.streak = streak
-        self.week = week
-        lastWeek = ProgressPresentation.lastWeekMinutes(cells: cells, week: week, calendar: app.calendar)
+        weekMinutes = app.weeklyStats().totalMinutes
         var courses: [UUID: Course] = [:]
         for course in app.courses { courses[course.id] = course }
         let daysToExam = ProgressPresentation.daysToNearestExam(regions: sky.layout.regions, examDates: sky.examDates, now: app.now,
@@ -118,126 +113,54 @@ struct ProgressModel {
         confusions = app.courses.flatMap { course in
             course.confusions.filter { $0.deletedAt == nil && $0.status == .open }
                 .sorted { $0.lastSeenAt > $1.lastSeenAt }
-                .map { ConfusionLine(id: $0.id, name: $0.name, courseName: course.name, misses: $0.missCount, questions: $0.itemIDs.count) }
+                .map { ConfusionLine(id: $0.id, name: $0.name, courseName: course.name, misses: $0.missCount) }
         }
         badges = app.badgeStatuses()
         dailyMinutes = app.settings.dailyMinutes
-        runBeforeRepair = streak.repairableDay.map { ProgressPresentation.runBefore($0, cells: cells, calendar: app.calendar) } ?? 0
+        runBeforeRepair = streak.repairableDay.map { ProgressPresentation.runBefore($0, cells: app.heatmap(weeks: 12), calendar: app.calendar) } ?? 0
     }
 }
 
-// MARK: - This week and the streak
+// MARK: - The streak and the week
 
-/// "This week", the flame and the run, the minutes against last week and the week's chart. All of it one tap: the month. A repair offer
-/// sits under it, outside that tap.
-private struct WeekCard: View {
+/// One row: the flame, "12-day streak · 3 h 5 min this week" and a chevron; it opens the streak page (in Quiet mode, only the minutes, and
+/// it opens the calendar). A repair offer sits under it, outside that tap.
+private struct WeekRow: View {
     let model: ProgressModel
     @Environment(AppModel.self) private var app
 
     var body: some View {
-        let week = model.week
-        let last = week.previousWeekMinutes
+        let quiet = app.settings.quietMode
+        let days = model.isOnHold ? model.runBeforeRepair : model.streak.current
         VStack(alignment: .leading, spacing: 14) {
             Button {
                 CLHaptics.tap()
-                app.router.present(.streakMonth)
+                app.router.push(.streak)
             } label: {
-                VStack(alignment: .leading, spacing: 12) {
-                    HStack(alignment: .firstTextBaseline) {
-                        Text("This week").clFont(.title3).foregroundStyle(CLColor.ink)
-                            .accessibilityAddTraits(.isHeader)
-                        Spacer(minLength: 8)
-                        HStack(spacing: 3) {
-                            Text("The month").clFont(.subheadlineEmphasis)
-                            Image(systemName: "chevron.right").font(.system(size: 12, weight: .bold))
-                        }
-                        .foregroundStyle(CLColor.skyInk)
-                    }
-                    if !app.settings.quietMode { streakLine }
-                    ReflowStack(verticalAlignment: .firstTextBaseline, spacing: 10) {
-                        Text(CLFormat.minutes(week.totalMinutes))
-                            .clFont(.number(30))
-                            .foregroundStyle(CLColor.ink)
-                            .lineLimit(1)
-                            .fixedSize()
-                        if week.activeDays > 0 {
-                            Text("\(week.activeDays) days studied")
-                                .clFont(.subheadline)
-                                .foregroundStyle(CLColor.ink2)
-                        }
-                    }
-                    // Two empty weeks have nothing to compare.
-                    if week.totalMinutes > 0 || last > 0 {
-                        ReflowPill(text: .verbatim(ProgressPresentation.weekComparison(this: week.totalMinutes, last: last)),
-                                   tone: week.totalMinutes > last ? .mint : .neutral,
-                                   systemImage: week.totalMinutes > last ? "arrow.up.right" : nil)
-                    }
-                    WeekMinutesChart(week: week, lastWeek: model.lastWeek, calendar: model.calendar, plotHeight: 80)
+                HStack(spacing: 10) {
+                    if !quiet { StreakFlame(stage: StreakStage(days: days), size: 26, lit: !model.isOnHold) }
+                    DotLine(parts: ProgressPresentation.weekRowParts(streak: quiet ? nil : days, onHold: model.isOnHold,
+                                                                     minutes: model.weekMinutes))
+                        .clFont(.headline)
+                        .foregroundStyle(CLColor.ink)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    CLChevron()
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(minHeight: CLMetrics.minHitTarget)
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .accessibilityHint(Text("Opens the month"))
-            if let day = model.streak.repairableDay, !app.settings.quietMode {
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(Text(verbatim: ProgressPresentation.weekRowParts(streak: quiet ? nil : days, onHold: model.isOnHold,
+                                                                                 minutes: model.weekMinutes).joined(separator: ", ")))
+            .accessibilityHint(Text(quiet ? "Opens the calendar" : "Opens your streak and the month"))
+            .accessibilityAddTraits(.isButton)
+            if let day = model.streak.repairableDay, !quiet {
                 Rectangle().fill(CLColor.hairline).frame(height: 1)
                 RepairOffer(day: day, run: model.runBeforeRepair, dailyMinutes: model.dailyMinutes, calendar: model.calendar)
             }
         }
-        .clCard()
-    }
-
-    @ViewBuilder
-    private var streakLine: some View {
-        let days = model.isOnHold ? model.runBeforeRepair : model.streak.current
-        HStack(alignment: .center, spacing: 8) {
-            StreakFlame(stage: StreakStage(days: days), size: 26, lit: !model.isOnHold)
-            if days > 0 {
-                Text("\(days)-day streak").clFont(.headline).foregroundStyle(CLColor.ink)
-                    .fixedSize(horizontal: false, vertical: true)
-            } else {
-                Text("Start a streak today.").clFont(.headline).foregroundStyle(CLColor.ink)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            if model.isOnHold {
-                ReflowPill(text: "On hold", tone: .sun, systemImage: "pause.fill")
-            }
-        }
-        .accessibilityElement(children: .combine)
-    }
-}
-
-/// "1 freeze saved · Thu, Oct 16 was covered by a freeze." and today's nudge.
-struct StreakNotes: View {
-    let streak: StreakState
-    let calendar: Calendar
-    let now: Date
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Label {
-                Text(freezesLine).clFont(.subheadline).foregroundStyle(CLColor.ink2)
-            } icon: {
-                Image(systemName: "snowflake").foregroundStyle(CLColor.skyInk)
-            }
-            if !streak.studiedToday, streak.repairableDay == nil {
-                Label {
-                    Text(streak.current > 0 ? "Study today to make it \(streak.current + 1)." : "Study today to start a new streak.")
-                        .clFont(.subheadline).foregroundStyle(CLColor.ink2)
-                } icon: {
-                    Image(systemName: "sun.max").foregroundStyle(CLColor.tangerineInk)
-                }
-            }
-        }
-        .fixedSize(horizontal: false, vertical: true)
-    }
-
-    private var freezesLine: String {
-        let held = streak.freezesAvailable == 0 ? "No freezes saved" : "\(CLFormat.count(streak.freezesAvailable, "freeze")) saved"
-        if let frozen = streak.frozenDays.first, calendar.dayDistance(from: frozen, to: now) <= 14 {
-            return "\(held) · \(CLFormat.day(frozen, calendar: calendar)) was covered by a freeze"
-        }
-        return held
+        .clCard(padding: 16)
     }
 }
 
@@ -288,7 +211,7 @@ private struct ExamsSection: View {
                 Text("Add one and Capling plans backwards from its date, and shows how ready you are, day by day.")
                     .clFont(.subheadline).foregroundStyle(CLColor.ink2)
                     .fixedSize(horizontal: false, vertical: true)
-                Button("Add a date") { app.router.present(.newExam(courseID: nil)) }
+                Button("Add exam") { app.router.present(.newExam(courseID: nil)) }
                     .buttonStyle(.cl(.soft, size: .medium, fullWidth: false))
             }
             .clCard()
@@ -343,18 +266,18 @@ private struct ExamRow: View {
     }
 }
 
-// MARK: - Fading
+// MARK: - Review soon
 
-/// Topics with questions under the sky's dim line, for the nearest exam first: its shape, its course and how many, and Practice.
-private struct FadingSection: View {
+/// Topics with questions under the sky's dim line, for the nearest exam first: its shape, its course and how many to review, and Practice.
+private struct ReviewSoonSection: View {
     let model: ProgressModel
     @Environment(AppModel.self) private var app
 
     var body: some View {
         if model.hasStudied {
-            CLSectionHeader(title: "Fading")
+            CLSectionHeader(title: "Review soon")
             if model.fading.isEmpty {
-                Text("Nothing is fading right now.")
+                Text("Nothing to review right now.")
                     .clFont(.subheadline)
                     .foregroundStyle(CLColor.ink2)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -366,7 +289,7 @@ private struct FadingSection: View {
                             FadingRow(line: line)
                         }
                         .buttonStyle(LibraryRowButtonStyle())
-                        .accessibilityHint(Text("Practises this topic"))
+                        .accessibilityHint(Text("Starts a practice round on this topic"))
                     }
                 }
             }
@@ -398,7 +321,7 @@ private struct FadingRow: View {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(verbatim: topic.name).clFont(.subheadlineEmphasis).foregroundStyle(CLColor.ink)
                         .fixedSize(horizontal: false, vertical: true)
-                    Text(verbatim: "\(topic.courseName) · \(ProgressPresentation.fadingLine(topic.dimCount))")
+                    Text(verbatim: "\(topic.courseName) · \(ProgressPresentation.reviewLine(topic.dimCount))")
                         .clFont(.footnote).foregroundStyle(CLColor.ink2)
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -420,24 +343,26 @@ private struct FadingRow: View {
     }
 }
 
-// MARK: - Mix-ups
+// MARK: - Often confused
 
-private struct ConfusionsSection: View {
+/// The pairs the person keeps confusing, each by its own name ("Anaphase vs telophase"), with how often it was missed: each opens its page.
+private struct OftenConfusedSection: View {
     let confusions: [ProgressModel.ConfusionLine]
 
     var body: some View {
         if !confusions.isEmpty {
-            CLSectionHeader(title: "Mix-ups")
+            CLSectionHeader(title: "Often confused")
             CLList {
                 ForEach(confusions) { confusion in
                     NavigationLink(value: Route.confusion(confusion.id)) {
                         HStack(spacing: 12) {
                             CapFace(size: 36)
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(confusion.name).clFont(.subheadlineEmphasis).foregroundStyle(CLColor.ink)
-                                Text(confusion.questions == 1 ? "Missed \(CLFormat.count(confusion.misses, "time")) · \(confusion.courseName) · a quick look"
-                                    : "Missed \(CLFormat.count(confusion.misses, "time")) · \(confusion.courseName) · a 2-minute fix")
+                                Text(verbatim: confusion.name).clFont(.subheadlineEmphasis).foregroundStyle(CLColor.ink)
+                                    .fixedSize(horizontal: false, vertical: true)
+                                Text(verbatim: ProgressPresentation.confusedLine(misses: confusion.misses, courseName: confusion.courseName))
                                     .clFont(.footnote).foregroundStyle(CLColor.ink2)
+                                    .fixedSize(horizontal: false, vertical: true)
                             }
                             .frame(maxWidth: .infinity, alignment: .leading)
                             CLChevron()

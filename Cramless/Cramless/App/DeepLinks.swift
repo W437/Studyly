@@ -168,7 +168,7 @@ enum DeepLinks {
             router.dismissSheet()
             router.popToRoot(.today)
             router.push(.settings, on: .today)
-            if let page { router.push(.settingsPage(page), on: .today) }
+            for step in page?.trail ?? [] { router.push(.settingsPage(step), on: .today) }
         case .squad(let code):
             router.present(.squadRedeem(code: code))
         case let .session(kind, examID, confusionID, courseID):

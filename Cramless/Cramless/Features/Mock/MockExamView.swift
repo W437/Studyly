@@ -179,16 +179,12 @@ private struct MockIntroView: View {
                     }
                     .multilineTextAlignment(.center)
                     VStack(alignment: .leading, spacing: 10) {
-                        let words = MockCopy.offer(runner.plan, format: runner.format)
-                        Text(verbatim: words.line)
+                        Text(verbatim: MockCopy.cardLine(questions: runner.plan.entries.count, minutes: runner.plan.minutes,
+                                                         realQuestions: runner.format.questionCount))
                             .clFont(.headline)
                             .foregroundStyle(CLColor.ink)
                             .fixedSize(horizontal: false, vertical: true)
-                        Text(verbatim: words.mix)
-                            .clFont(.subheadline)
-                            .foregroundStyle(CLColor.ink2)
-                            .fixedSize(horizontal: false, vertical: true)
-                        Text("No marks until the end, like the real thing.")
+                        Text(verbatim: MockCopy.startLine)
                             .clFont(.subheadline)
                             .foregroundStyle(CLColor.ink2)
                             .fixedSize(horizontal: false, vertical: true)

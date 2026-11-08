@@ -1,3 +1,4 @@
+#if DEBUG
 import SwiftUI
 
 /// Scene 1, "Snap a page": the scanner's brackets lock onto a textbook page, a scan sweeps down it, the key
@@ -163,3 +164,4 @@ struct SnapScene: View {
         try await nap(2400)
     }
 }
+#endif

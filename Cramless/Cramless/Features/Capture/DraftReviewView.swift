@@ -27,6 +27,8 @@ struct DraftReviewView: View {
     var restPages: [Int]? = nil
     /// Onboarding: back to choosing a page.
     var onStartOver: (() -> Void)? = nil
+    /// Onboarding's sample page: the set goes to this course and the class card is not shown.
+    var fixedCourseName: String? = nil
 
     @Environment(AppModel.self) private var app
     @Environment(\.dismiss) private var dismiss
@@ -68,7 +70,7 @@ struct DraftReviewView: View {
                         CaptureOriginNote(systemImage: "info.circle", text: extraNote, tone: .sun).padding(.top, 8)
                     }
                     if formulaPages > 0 { formulasCard.padding(.top, 8) }
-                    if isOnboarding { classCard.padding(.top, 16) }
+                    if isOnboarding && fixedCourseName == nil { classCard.padding(.top, 16) }
                     ForEach(groups, id: \.topic) { group in
                         section(group.topic, rows: group.rows)
                     }
@@ -521,6 +523,7 @@ struct DraftReviewView: View {
 
     /// The class the set goes to in onboarding: the typed name, else the picked suggestion.
     private var className: String {
+        if let fixedCourseName { return fixedCourseName }
         let typed = typedClass.trimmingCharacters(in: .whitespacesAndNewlines)
         return typed.isEmpty ? (pickedClass ?? "") : typed
     }

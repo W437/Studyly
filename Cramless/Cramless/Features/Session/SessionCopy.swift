@@ -1,7 +1,7 @@
 import Foundation
 
 /// The Study screens' words, in one place: intervals, verdicts, mix-ups, session titles. Pure, so the tests read
-/// exactly what a person reads.
+/// exactly what a person reads. One word for one thing: a fix is "Fix it" wherever it shows, the eve is "Night before".
 enum SessionCopy {
 
     // MARK: Sessions
@@ -11,8 +11,8 @@ enum SessionCopy {
         switch kind {
         case .daily: "Today's session"
         case .catchUp: "Catch-up session"
-        case .examEve: "Exam eve"
-        case .fix: "2-minute fix"
+        case .examEve: "Night before"
+        case .fix: "Fix it"
         case .practice: "Practice"
         case .quickCheck: "Quick check"
         case .mock: "Mock exam"
@@ -37,34 +37,16 @@ enum SessionCopy {
         return years == 1 ? "1 year" : "\(years) years"
     }
 
-    /// The same interval in a sentence: "in 10 minutes", "tomorrow", "in 4 days".
-    static func inInterval(days: Double) -> String {
-        let minutes = days * 24 * 60
-        if minutes < 59.5 {
-            let m = max(1, Int(minutes.rounded()))
-            return m == 1 ? "in a minute" : "in \(m) minutes"
-        }
-        if days < 0.98 {
-            let h = max(1, Int((minutes / 60).rounded()))
-            return h == 1 ? "in an hour" : "in \(h) hours"
-        }
-        let d = max(1, Int(days.rounded()))
-        if d == 1 { return "tomorrow" }
-        let text = interval(days: days)
-        return "in \(text)"
-    }
-
     // MARK: The flashcard swipe
 
-    /// A chip's word, and what VoiceOver's action says. Hard counts as "Got it" on the swipe's side.
+    /// A choice's word, the stamp on a dragged card, and what VoiceOver's action says. Hard counts as "Got it" on the swipe's side.
+    /// No interval: the Undo pill says when the question comes back.
     static func swipeWord(_ rating: Rating) -> LocalizedStringResource {
         rating == .again ? "Again" : "Got it"
     }
 
-    /// The stamp on a dragged card: "Got it · 4 days", "Again · 10 min".
-    static func swipeStamp(_ rating: Rating, interval: String) -> LocalizedStringResource {
-        rating == .again ? "Again · \(interval)" : "Got it · \(interval)"
-    }
+    /// "Swipe right if you got it, left if not": shown on a student's first few flashcards ever, then never.
+    static let swipeHint: LocalizedStringResource = "Swipe right if you got it, left if not"
 
     // MARK: Undo
 
@@ -84,10 +66,10 @@ enum SessionCopy {
     // MARK: Grades
 
     /// The answer panel's headline: "Nice!", "Almost.", "Not yet.", "Here's the answer." (nothing was answered), or
-    /// "Saved it." (right on a memory that was fading).
+    /// "Just in time!" (right on a memory that was fading: a save).
     static func headline(_ outcome: SessionRunner.Outcome, answered: Bool = true, saved: Bool = false) -> LocalizedStringResource {
         guard answered else { return "Here's the answer." }
-        if saved, outcome == .right { return "Saved it." }
+        if saved, outcome == .right { return "Just in time!" }
         switch outcome {
         case .right: return "Nice!"
         case .partial: return "Almost."
@@ -102,16 +84,6 @@ enum SessionCopy {
         case .correct: return "Matches"
         case .partial: return "Partly"
         case .incorrect: return "Not yet"
-        }
-    }
-
-    /// Who graded it, for the line under the feedback. The rules matched the answer to the key ideas, which is all they claim: it is
-    /// never "checked" on the iPhone as a model's check is.
-    static func gradedBy(_ origin: ItemOrigin) -> String {
-        switch origin {
-        case .cloud: "Checked with Cloud AI"
-        case .onDevice: "Checked on your iPhone"
-        default: String(localized: "Matched to the key ideas on your iPhone")
         }
     }
 
@@ -197,32 +169,27 @@ enum SessionCopy {
         return "\(pair.0) and \(pair.1)"
     }
 
-    /// What the button says and how long it takes, wherever it is: a slip on one question is a look back, not a fix of two ideas. Either way, what comes is a short lesson and the questions.
-    static func fixTitle(questions: Int) -> String {
-        questions == 1 ? String(localized: "Go over it · 1 min") : String(localized: "Fix it · 2 min")
-    }
+    /// A fix's one name, on its button, its session and its summary, whatever its size: "Fix it". What comes is a short lesson and the
+    /// questions. (`questions` is kept for the callers that pass it; a fix of one question is a fix too.)
+    static func fixTitle(questions: Int = 2) -> String { String(localized: "Fix it") }
 
-    /// The context line's name for a fix drill: a short one isn't two minutes.
-    static func fixSessionTitle(entries: Int) -> String {
-        entries <= 2 ? String(localized: "Quick look") : title(for: .fix)
-    }
-
-    /// "Missed 3 of the last 4 times. Want a 2-minute fix?"
+    /// "Missed 3 of the last 4 times." The button beside it ("Fix it") is the offer, so the line doesn't ask.
     static func missLine(_ note: ConfusionNote) -> String {
-        let offer = note.questions == 1 ? String(localized: "Want to go over it?") : String(localized: "Want a 2-minute fix?")
-        if note.rightRun >= 1, note.missCount > 0 { return "\(String(localized: "You got the last one right.")) \(offer)" }
-        let lead: String
+        if note.rightRun >= 1, note.missCount > 0 { return String(localized: "You got the last one right.") }
         if note.recentAnswers >= 3, note.recentMisses >= 2 {
-            lead = "Missed \(note.recentMisses) of the last \(note.recentAnswers) times."
-        } else if note.missCount > 1 {
-            lead = "Missed \(note.missCount) times lately."
-        } else if note.missCount == 0 {
-            // An adopted look-alike: nothing has been missed yet.
-            lead = String(localized: "Spotted before any mix-up.")
-        } else {
-            lead = "Missed it lately."
+            return String(localized: "Missed \(note.recentMisses) of the last \(note.recentAnswers) times.")
         }
-        return "\(lead) \(offer)"
+        if note.missCount > 1 { return String(localized: "Missed \(note.missCount) times lately.") }
+        // An adopted look-alike: nothing has been missed yet.
+        if note.missCount == 0 { return String(localized: "Spotted before any mix-up.") }
+        return String(localized: "Missed it lately.")
+    }
+
+    /// The end of a fix: "Anaphase vs telophase: 5 of 5 right." (the pair by its name; one the rules couldn't name, just the count).
+    static func fixResult(_ name: String?, right: Int, of total: Int) -> String {
+        let count = String(localized: "\(right) of \(total) right.")
+        guard let name, !name.isEmpty, name != ConfusionCandidate.unnamed else { return count }
+        return "\(name): \(count)"
     }
 
     /// Lower-cases the first letter unless the first word looks like an acronym or a name with capitals inside
@@ -238,8 +205,24 @@ enum SessionCopy {
 
     static func questions(_ n: Int) -> String { n == 1 ? "1 question" : "\(n) questions" }
 
+    /// The session's pill: "41 left", counting down as questions are answered.
+    static func left(_ n: Int) -> LocalizedStringResource { "\(n) left" }
+
+    /// What VoiceOver reads for it: "41 questions left".
+    static func leftSpoken(_ n: Int) -> LocalizedStringResource { "\(n) questions left" }
+
+    /// The summary's line: "6 of 9 right first time · 3 min".
+    static func summaryLine(right: Int, of total: Int, minutes: Int) -> String {
+        "\(String(localized: "\(right) of \(total) right first time")) · \(String(localized: "\(max(1, minutes)) min"))"
+    }
+
     /// "Another session: 5 questions". What the button starts is a fresh short session of that size, not what's left of this one.
     static func anotherSession(_ n: Int) -> String { String(localized: "Another session: \(questions(n))") }
+
+    /// The summary's readiness: "41% → 69% ready".
+    static func readinessChange(before: Double, after: Double) -> String {
+        String(localized: "\(CLFormat.percent(before)) → \(CLFormat.percent(after)) ready")
+    }
 
     /// A phrase that mustn't break across lines ("Bio 101 exam", "23 days left"): spaces become non-breaking when
     /// it's short enough to fit a line.

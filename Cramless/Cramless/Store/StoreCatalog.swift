@@ -6,8 +6,9 @@ enum PlanOption: String, CaseIterable, Identifiable, Hashable, Sendable {
 
     var id: String { rawValue }
 
-    /// The paywall's three options, in display order. Exam Pass is a separate downsell (`ExamPassView`).
-    static let paywallOptions: [PlanOption] = [.yearly, .monthly, .squad]
+    /// The paywall's two plans, in display order. Squad is bought on its own page (`SquadView`), and Exam Pass from a link under the
+    /// plans while it is offered (`ExamPassOffer`, `ExamPassView`).
+    static let paywallOptions: [PlanOption] = [.yearly, .monthly]
 
     var productID: String {
         switch self {
@@ -124,9 +125,6 @@ struct PlanPrice: Equatable, Sendable {
     func format(_ value: Decimal) -> String {
         value.formatted(.currency(code: currencyCode).locale(locale))
     }
-
-    /// "$0.96" for $49.99 a year.
-    var perWeek: String { format(Self.divide(amount, by: 52)) }
 
     /// "$2.08" for Squad: $99.99 a year shared by four, per person per month.
     var perSeatPerMonth: String { format(Self.divide(amount, by: StoreCatalog.squadSeats * 12)) }

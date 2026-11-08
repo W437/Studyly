@@ -1,10 +1,11 @@
 import SwiftUI
 
-/// Two questions that look alike, side by side, and the one difference: Cap's card "Show me". The sheet is the first moment Cloud AI may
-/// be asked (on the relay's `extras` meter; the card said "Uses Cloud AI"). If it may, the sheet shows that Cap is writing until the lesson is
-/// ready, then shows it once; if not, the rules' version is there at once (a line asking for the difference, no words of its own). Nothing is saved until "Try 2 questions" (an open mix-up with no
-/// misses, and its fix drill) or "Not a look-alike" (a dismissed one, so neither finder offers it again). Closing it saves nothing, and
-/// the card stays away for its 7 days. A fitted sheet: as tall as what it says.
+/// Two questions easy to confuse, named for themselves ("Metaphase vs telophase"), side by side, and what tells them apart: Cap's card
+/// "Show me". The sheet is the first moment Cloud AI may be asked (on the relay's `extras` meter; the card said "Uses Cloud AI"). If it may,
+/// the button's spinner says Cap is writing until the lesson is ready, then it shows once; if not, the rules' version is there at once (a line
+/// asking for the difference, no words of its own). Nothing is saved until "Try 2 questions" (an open pair with no misses, and its fix drill)
+/// or "Don't bring this up again" (a dismissed one, so neither finder offers it again). Closing it saves nothing, and the card stays away for
+/// its 7 days. A fitted sheet: as tall as what it says.
 ///
 /// DEBUG: `CRAMLESS_ROUTE=lookAlike` opens it on the demo world's best pair; `CRAMLESS_LOOKALIKE=rules|cloud|writing` shows the rules'
 /// lesson, the mock relay's or the wait that never ends.
@@ -23,23 +24,19 @@ struct LookAlikeView: View {
     var body: some View {
         TodayFittedSheet {
             VStack(alignment: .leading, spacing: 16) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("One difference")
+                if let draft {
+                    Text(verbatim: draft.rules.name)
                         .clFont(.title2)
                         .foregroundStyle(CLColor.ink)
-                        .accessibilityAddTraits(.isHeader)
-                    Text("They look alike. One thing tells them apart.")
-                        .clFont(.subheadline)
-                        .foregroundStyle(CLColor.ink2)
                         .fixedSize(horizontal: false, vertical: true)
-                }
-                .padding(.top, 24)
-                if let draft {
+                        .accessibilityAddTraits(.isHeader)
+                        .padding(.top, 24)
                     columns(draft)
-                    lessonCard
+                    if lesson != nil { lessonCard }
                     buttons(draft)
                 } else {
                     ContentUnavailableView("These questions are gone", systemImage: "questionmark.circle")
+                        .padding(.top, 24)
                 }
             }
             .padding(.horizontal, CLSpace.gutter)
@@ -109,6 +106,7 @@ struct LookAlikeView: View {
         .accessibilityElement(children: .combine)
     }
 
+    /// What Cap wrote, or the rules' line; while Cap writes there is no card, only the button's spinner.
     private var lessonCard: some View {
         VStack(alignment: .leading, spacing: 8) {
             if let lesson, origin == .cloud {
@@ -121,21 +119,12 @@ struct LookAlikeView: View {
                 Text("Written by Cap from your two questions")
                     .clFont(.footnote)
                     .foregroundStyle(CLColor.ink3)
-            } else if lesson != nil {
-                // The rules' lesson only repeats the two columns above; it is kept for the mix-up page, where they aren't.
+            } else {
+                // The rules' lesson only repeats the two columns above; it is kept for the pair's page, where they aren't.
                 Text("Say the difference in your own words, then try them.")
                     .clFont(.body)
                     .foregroundStyle(CLColor.ink)
                     .fixedSize(horizontal: false, vertical: true)
-            } else {
-                HStack(spacing: 10) {
-                    ProgressView()
-                    Text("Cap is writing it")
-                        .clFont(.subheadline)
-                        .foregroundStyle(CLColor.ink2)
-                }
-                .frame(minHeight: CLMetrics.minHitTarget)
-                .accessibilityElement(children: .combine)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -143,15 +132,26 @@ struct LookAlikeView: View {
     }
 
     private func buttons(_ draft: LookAlikeDraft) -> some View {
-        VStack(spacing: 8) {
-            Button("Try \(lesson?.questions.count ?? draft.rules.questions.count) questions") {
+        let writing = lesson == nil
+        return VStack(spacing: 8) {
+            // While Cap writes, the spinner sits in the button, which waits at full strength: a tap does nothing until the lesson is in.
+            Button {
                 guard let lesson else { return }
                 CLHaptics.commit()
                 app.tryLookAlike(draft, lesson: lesson, origin: origin)
+            } label: {
+                HStack(spacing: 10) {
+                    if writing {
+                        ProgressView()
+                            .tint(CLColor.onFill)
+                            .accessibilityHidden(true)
+                    }
+                    Text("Try \(lesson?.questions.count ?? draft.rules.questions.count) questions")
+                }
             }
             .buttonStyle(.cl(.primary))
-            .disabled(lesson == nil)
-            Button("Not a look-alike") {
+            .accessibilityValue(writing ? Text("Cap is writing the difference") : Text(verbatim: ""))
+            Button("Don't bring this up again") {
                 CLHaptics.tap()
                 app.rejectLookAlike(draft)
                 dismiss()

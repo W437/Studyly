@@ -29,13 +29,12 @@ struct ChoiceQuestionView: View {
 
     var body: some View {
         QuestionScroll(revealsDetails: panel != nil) {
+            QuestionHeader(item: item, entry: entry, topic: runner.topicName(entry.topicID))
             QuestionCard {
-                QuestionHeader(item: item, entry: entry, topic: runner.topicName(entry.topicID))
                 Text(item.prompt)
                     .clFont(.title2)
                     .foregroundStyle(CLColor.ink)
                     .fixedSize(horizontal: false, vertical: true)
-                    .padding(.top, 10)
                     .accessibilityAddTraits(.isHeader)
                 VStack(spacing: 10) {
                     ForEach(Array(order.enumerated()), id: \.element) { position, index in

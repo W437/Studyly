@@ -12,9 +12,9 @@ struct MockQuestionPage<Extras: View>: View {
 
     var body: some View {
         QuestionScroll {
+            // No topic in the header: on an exam, the question doesn't say what it is about.
+            QuestionHeader(item: item, entry: entry, topic: nil)
             QuestionCard {
-                // No topic in the header: on an exam, the question doesn't say what it is about.
-                QuestionHeader(item: item, entry: entry, topic: nil)
                 switch entry.kind {
                 case .mcq: MockChoiceBody(runner: runner, item: item)
                 case .cloze: MockClozeBody(runner: runner, item: item)
@@ -44,7 +44,6 @@ private struct MockChoiceBody: View {
             .clFont(.title2)
             .foregroundStyle(CLColor.ink)
             .fixedSize(horizontal: false, vertical: true)
-            .padding(.top, 10)
             .accessibilityAddTraits(.isHeader)
         VStack(spacing: 10) {
             ForEach(Array(order.enumerated()), id: \.element) { position, index in
@@ -84,12 +83,13 @@ private struct MockClozeBody: View {
 
     private var spec: ClozeSpec { item.cloze ?? ClozeSpec(text: "{{\(item.answer)}}") }
 
+    private var asks: Bool { !item.prompt.isEmpty && item.prompt != spec.text }
+
     var body: some View {
-        if !item.prompt.isEmpty, item.prompt != spec.text {
+        if asks {
             Text(item.prompt)
                 .clFont(.subheadlineEmphasis)
                 .foregroundStyle(CLColor.ink2)
-                .padding(.top, 8)
         }
         CLFlow(spacing: 6, lineSpacing: 4) {
             ForEach(ClozeToken.parse(spec.text)) { token in
@@ -105,7 +105,7 @@ private struct MockClozeBody: View {
                 }
             }
         }
-        .padding(.top, 14)
+        .padding(.top, asks ? 14 : 0)
         .accessibilityElement(children: .contain)
         .onAppear {
             guard answers.isEmpty else { return }
@@ -155,7 +155,6 @@ private struct MockWrittenBody: View {
             .clFont(.title2)
             .foregroundStyle(CLColor.ink)
             .fixedSize(horizontal: false, vertical: true)
-            .padding(.top, 10)
             .accessibilityAddTraits(.isHeader)
         AnswerEditor(text: $text, focused: $focused)
             .padding(.top, 16)

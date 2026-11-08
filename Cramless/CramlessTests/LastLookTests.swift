@@ -115,13 +115,10 @@ final class LastLookEngineTests: XCTestCase {
     }
 
     func testTheWords() {
-        XCTAssertEqual(LastLookCopy.title, "Your last look")
-        XCTAssertEqual(LastLookCopy.line(ideas: 5, minutes: 2), "5 ideas · about 2 minutes · no quiz")
-        XCTAssertEqual(LastLookCopy.subtitle(ideas: 5, inSentences: true), "Your five shakiest ideas, in plain words")
-        XCTAssertEqual(LastLookCopy.subtitle(ideas: 3, inSentences: true), "Your shakiest ideas, in plain words")
-        XCTAssertEqual(LastLookCopy.subtitle(ideas: 5, inSentences: false), "Your five shakiest ideas", "a question and its answer aren't plain words of Cap's")
-        XCTAssertEqual(LastLookCopy.subtitle(ideas: 3, inSentences: false), "Your shakiest ideas")
-        XCTAssertEqual(LastLookCopy.closing, "That's enough for today. Sleep is part of studying. Good luck tomorrow.")
+        XCTAssertEqual(LastLookCopy.title(ideas: 5), "Your 5 shakiest ideas")
+        XCTAssertEqual(LastLookCopy.title(ideas: 3), "Your 3 shakiest ideas")
+        XCTAssertEqual(LastLookCopy.line(minutes: 2), "2 min · no quiz")
+        XCTAssertEqual(LastLookCopy.readOnce(minutes: 2), "Read these once · 2 min")
     }
 }
 

@@ -1,8 +1,7 @@
 import SwiftUI
 
-/// Settings ▸ Help: a way to reach a real person (Loopware's support page, `StoreCatalog.supportURL`), what stays free, restore,
-/// and the version to quote. No reply time is promised. Also a sheet (`AppSheet.help`, and `HelpLink` beside the paywall's
-/// footer and the free-limit lines), with a Done button.
+/// Settings ▸ More ▸ Help: one line, and "Write to us", which opens Loopware's support page (`StoreCatalog.supportURL`). No reply time is
+/// promised. Also a sheet (`AppSheet.help`, and `HelpLink` beside the paywall's footer and the free-limit lines), with a Done button.
 ///
 /// DEBUG: `CRAMLESS_ROUTE=settings:help` opens the page.
 struct HelpPage: View {
@@ -14,42 +13,21 @@ struct HelpPage: View {
 
     var body: some View {
         SettingsScroll(title: "Help") {
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 16) {
                 CapView(pose: .wave, size: 96)
                     .accessibilityHidden(true)
                 Text(HelpCopy.intro)
-                    .clFont(.callout)
-                    .foregroundStyle(CLColor.ink2)
+                    .clFont(.body)
+                    .foregroundStyle(CLColor.ink)
                     .fixedSize(horizontal: false, vertical: true)
-            }
-            .padding(.top, 10)
-
-            SettingsGroup {
-                Button {
+                Button(HelpCopy.writeTitle) {
                     CLHaptics.tap()
                     openURL(StoreCatalog.supportURL)
-                } label: {
-                    CLRow(icon: "envelope", tint: .tangerine, title: HelpCopy.writeTitle,
-                          subtitle: .verbatim(HelpCopy.supportHost)) {
-                        Image(systemName: "arrow.up.right")
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(CLColor.ink4)
-                            .accessibilityHidden(true)
-                    }
                 }
-                .buttonStyle(.pressable)
+                .buttonStyle(.cl(.primary))
                 .accessibilityHint(Text("Opens Loopware's support page"))
             }
-            .padding(.top, 8)
-
-            AlwaysFreeCard()
-                .padding(.top, 24)
-
-            SettingsGroup {
-                RestorePurchasesRow()
-                SettingsValueRow(title: "Version", value: AboutInfo.version)
-            }
-            .padding(.top, 16)
+            .padding(.top, 10)
         }
         .toolbar {
             if inSheet {
@@ -63,15 +41,9 @@ struct HelpPage: View {
 
 /// Help's words, in one place (a test reads them).
 enum HelpCopy {
-    static let intro: LocalizedStringResource =
-        "Questions, a bug, or a charge you didn't expect? Write to us. A real person reads every message."
-    static let writeTitle: LocalizedStringResource = "Write to a real person"
+    static let intro: LocalizedStringResource = "Questions, a bug or a surprise charge? A real person reads every message."
+    static let writeTitle: LocalizedStringResource = "Write to us"
     static let linkTitle: LocalizedStringResource = "Questions? Ask a real person"
-    /// "loopware.app/support", under the row.
-    static var supportHost: String {
-        let url = StoreCatalog.supportURL
-        return (url.host() ?? "") + url.path()
-    }
 }
 
 /// The Help page as a sheet of its own.
@@ -106,7 +78,7 @@ struct HelpLink: View {
     }
 }
 
-/// "Restore purchases", with its outcome as a toast. (Settings ▸ Subscription and Help.)
+/// "Restore purchases", with its outcome as a toast (Settings ▸ Subscription, and the paywall for an account under 13).
 struct RestorePurchasesRow: View {
     @Environment(AppModel.self) private var app
     @State private var restoring = false

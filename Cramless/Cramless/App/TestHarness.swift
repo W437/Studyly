@@ -74,6 +74,10 @@ enum TestHarness {
         if let theme = value("CRAMLESS_THEME"), let t = AppSettings.Theme(rawValue: theme) { app.settings.theme = t }
         if value("CRAMLESS_DYSLEXIC") == "1" { app.settings.dyslexicFont = true }
         if value("CRAMLESS_QUIET") == "1" { app.settings.quietMode = true }
+        // `CRAMLESS_HIDDEN_TIPS=mixUp,busyDay`: those kinds of Cap's cards are switched off, as "Don't show these" does (Settings ▸ Study ▸ Hidden tips).
+        if let kinds = value("CRAMLESS_HIDDEN_TIPS") {
+            app.settings.notices.off = Set(kinds.split(separator: ",").compactMap { NoticeKind(rawValue: $0.trimmingCharacters(in: .whitespaces)) })
+        }
         if app.settings.firstName.isEmpty { app.settings.firstName = "Maya" }
         if value("CRAMLESS_CONSENT") != "0" {
             app.settings.cloudConsentVersion = max(app.settings.cloudConsentVersion, AIConsent.currentVersion)
@@ -201,13 +205,10 @@ enum TestHarness {
             if let c = firstCourse?.confusions.first(where: { $0.status == .open }) { r.push(.confusion(c.id), on: .today) }
         case "settings":
             r.push(.settings, on: .today)
-            if let arg, let page = SettingsPage(rawValue: arg) { r.push(.settingsPage(page), on: .today) }
+            // Through the pages a tap would pass (`settings:help` is Settings ▸ More ▸ Help).
+            for step in arg.flatMap(SettingsPage.init(rawValue:))?.trail ?? [] { r.push(.settingsPage(step), on: .today) }
         case "squad": r.push(.squad, on: .today)
         case "streak": r.push(.streak, on: .progress)
-        // Progress's month sheet.
-        case "month":
-            r.tab = .progress
-            r.present(.streakMonth)
         // Every badge, and one badge up close: `badge:<id>` (see `Badge`), `badge:streak30`.
         case "badges": r.push(.badges, on: .progress)
         case "badge": if let id = arg.flatMap(Badge.init(rawValue:)) { r.present(.badge(id)) }
@@ -297,6 +298,8 @@ enum TestHarness {
         case "onboarding":
             app.settings.onboardingCompleted = false
             r.present(.onboarding(page: arg.flatMap(Int.init)))
+        // The old onboarding demos, 1 to 6 (snap, flashcards, own words, readiness, plan, Ask Cap), for films and store art.
+        case "introScene": r.present(.introScene(Int(arg ?? "") ?? 1))
         default:
             AppConfig.log.error("unknown CRAMLESS_ROUTE \(route, privacy: .public)")
         }

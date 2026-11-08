@@ -176,13 +176,13 @@ final class StudyDemoWorldTests: XCTestCase {
         let phase = ExamPresentation.phase(examDate: chem.date, now: app.now, calendar: cal)
         let topics = ExamPresentation.topicsWeakestFirst(rChem.topics, target: rChem.target)
         let projection = try XCTUnwrap(ExamPresentation.projection(
-            phase: phase, plan: plan, questionCount: rChem.itemsInScope, weakestTopic: topics.first { $0.isWeakest }?.name,
+            phase: phase, plan: plan, questionCount: rChem.itemsInScope,
             grade: rChem.projectedGrade, examDate: chem.date, now: app.now, calendar: cal))
         let work = ExamPresentation.todayWork(entries: session.entries, sessionMinutes: session.plannedMinutes, exam: ExamSnapshot(chem),
                                               topicNames: names, studiedToday: false, missedYesterday: false)
         let stops = ExamPresentation.stops(plan: plan, phase: phase, examTitle: chem.title, examDate: chem.date, today: work,
                                            skipped: nil, now: app.now, calendar: cal)
-        lines.append("Chem page: \(projection.sentence) \(projection.nudge ?? "") · letter \(projection.letter ?? "none")")
+        lines.append("Chem page: \(projection.sentence) · letter \(projection.letter ?? "none")")
         lines.append("Chem stops: " + stops.map { "\($0.title) [\($0.detail ?? "")]" }.joined(separator: " → "))
         lines.append("Chem topics: " + topics.map { "\($0.name) \($0.value.map(pct) ?? "gap")\($0.isWeakest ? " (weakest)" : "")" }.joined(separator: ", "))
         for course in app.courses {

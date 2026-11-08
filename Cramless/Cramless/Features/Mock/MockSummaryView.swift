@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// The end of a mock: the score beside what Cap predicted for these questions, the weakest topics with a practice round each, and a way to
+/// The end of a mock: "You scored 76%." and "Cap expected 79%.", then the weakest topics with a practice round each, and a way to
 /// see every answer. Answers no model graded wait for the person's mark ("Mark 3 answers yourself"): they count once marked.
 struct MockSummaryView: View {
     let runner: MockRunner
@@ -16,11 +16,8 @@ struct MockSummaryView: View {
         QuestionScroll {
             VStack(spacing: 16) {
                 hero
-                if let result = runner.result, result.score != nil {
-                    bars(result)
-                }
                 if !runner.toMark.isEmpty { markCard }
-                if let result = runner.result, !result.topics.isEmpty {
+                if let result = runner.result, !result.weakest.isEmpty {
                     topics(result)
                 }
                 if runner.result?.score != nil {
@@ -78,15 +75,9 @@ struct MockSummaryView: View {
                     .clFont(.brandTitle(32))
                     .foregroundStyle(CLColor.ink)
                     .accessibilityAddTraits(.isHeader)
-                Text(verbatim: MockCopy.predicted(result.expected))
+                Text(verbatim: MockCopy.expected(result.expected))
                     .clFont(.title3)
                     .foregroundStyle(CLColor.ink2)
-                if let verdict = result.verdict {
-                    Text(verbatim: MockCopy.verdictLine(verdict))
-                        .clFont(.subheadlineEmphasis)
-                        .foregroundStyle(CLColor.ink2)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
                 if let scope = MockCopy.scopeLine(counted: result.counted + runner.toMark.count, total: result.total, inTime: runner.answeredInTime) {
                     Text(verbatim: scope)
                         .clFont(.footnote)
@@ -121,30 +112,6 @@ struct MockSummaryView: View {
         }
     }
 
-    private func bars(_ result: MockResult) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            row("You scored", result.score ?? 0, color: CLColor.readiness(result.score ?? 0))
-            row("Cap predicted", result.expected, color: CLColor.ink4)
-            Text(verbatim: MockCopy.predictionNote)
-                .clFont(.footnote)
-                .foregroundStyle(CLColor.ink2)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .clCard()
-    }
-
-    private func row(_ title: LocalizedStringResource, _ value: Double, color: Color) -> some View {
-        VStack(alignment: .leading, spacing: 5) {
-            HStack {
-                Text(title).clFont(.footnoteEmphasis).foregroundStyle(CLColor.ink2)
-                Spacer()
-                Text(CLFormat.percent(value)).clFont(.number(15, .bold)).foregroundStyle(CLColor.ink)
-            }
-            CLBar(value: value, color: color, height: 10).accessibilityHidden(true)
-        }
-        .accessibilityElement(children: .combine)
-    }
-
     // MARK: Marking
 
     private var markCard: some View {
@@ -166,28 +133,18 @@ struct MockSummaryView: View {
 
     // MARK: Topics
 
+    /// The topics to practice, weakest first, each with its round. (Every topic's answers are under "See your answers".)
     private func topics(_ result: MockResult) -> some View {
-        let weakIDs = Set(result.weakest.map(\.id))
-        return VStack(alignment: .leading, spacing: 14) {
-            if !result.weakest.isEmpty {
-                CLEyebrow(text: "Your weakest topics").accessibilityAddTraits(.isHeader)
-                ForEach(result.weakest) { topic in
-                    topicRow(topic, practice: true)
-                }
-            }
-            let rest = result.topics.filter { !weakIDs.contains($0.id) }
-            if !rest.isEmpty {
-                CLEyebrow(text: "The other topics").accessibilityAddTraits(.isHeader)
-                    .padding(.top, result.weakest.isEmpty ? 0 : 4)
-                ForEach(rest) { topic in
-                    topicRow(topic, practice: false)
-                }
+        VStack(alignment: .leading, spacing: 14) {
+            CLEyebrow(text: "Practice these").accessibilityAddTraits(.isHeader)
+            ForEach(result.weakest) { topic in
+                topicRow(topic)
             }
         }
         .clCard()
     }
 
-    private func topicRow(_ topic: MockResult.Topic, practice: Bool) -> some View {
+    private func topicRow(_ topic: MockResult.Topic) -> some View {
         ReflowStack(verticalAlignment: .center, spacing: 12) {
             VStack(alignment: .leading, spacing: 6) {
                 HStack(alignment: .firstTextBaseline) {
@@ -201,22 +158,20 @@ struct MockSummaryView: View {
                 .accessibilityElement(children: .combine)
                 CLBar(value: topic.score).accessibilityHidden(true)
             }
-            if practice {
-                Button {
-                    CLHaptics.tap()
-                    onPractice(SessionRequest(kind: .practice, courseID: runner.courseID, examID: runner.examID, minutes: 5, topicID: topic.id))
-                } label: {
-                    Label("Practice", systemImage: "play.fill")
-                        .clFont(.footnoteEmphasis)
-                        .foregroundStyle(CLColor.tangerineInk)
-                        .padding(.horizontal, 14)
-                        .frame(minHeight: CLMetrics.minHitTarget)
-                        .background(CLColor.tangerineSoft, in: Capsule())
-                        .fixedSize()
-                }
-                .buttonStyle(.pressable)
-                .accessibilityLabel(Text("Practice \(topic.name)"))
+            Button {
+                CLHaptics.tap()
+                onPractice(SessionRequest(kind: .practice, courseID: runner.courseID, examID: runner.examID, minutes: 5, topicID: topic.id))
+            } label: {
+                Label("Practice", systemImage: "play.fill")
+                    .clFont(.footnoteEmphasis)
+                    .foregroundStyle(CLColor.tangerineInk)
+                    .padding(.horizontal, 14)
+                    .frame(minHeight: CLMetrics.minHitTarget)
+                    .background(CLColor.tangerineSoft, in: Capsule())
+                    .fixedSize()
             }
+            .buttonStyle(.pressable)
+            .accessibilityLabel(Text("Practice \(topic.name)"))
         }
     }
 

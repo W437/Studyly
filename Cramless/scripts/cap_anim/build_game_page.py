@@ -41,7 +41,7 @@ STILLS = [
     ("today-quests", "Today: the day's quests", "Under the day's button: three quests, the one done checked, the week's twelve pips and what they light."),
     ("today-quests-dark", "Today, dark", "The same in dark mode."),
     ("streak", "The streak screen", "The flame has the stage the streak has reached; a streak on hold is an outline."),
-    ("streak-milestones", "Milestones", "Each with its own flame, a check for those reached and the way to the next."),
+    ("streak-freezes", "How freezes work", "One fold under the month: how a freeze is earned, what it covers, and the repair."),
     ("progress-badges", "Progress: badges", "The latest earned, then the ones that are close. See all opens every badge."),
     ("badges", "Every badge", "Earned ones are medals; the rest are silhouettes with how far along they are."),
     ("badge-earned", "A badge up close", "The sheet hugs its content; the medal follows the phone's tilt."),

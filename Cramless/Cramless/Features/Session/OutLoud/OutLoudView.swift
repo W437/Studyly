@@ -2,8 +2,9 @@ import SwiftUI
 import UIKit
 
 /// Study out loud, full screen, though the point is that nobody has to look at it: Cap asks, the person answers with their voice, for the bus, a
-/// walk or the gym. An intro with the session's size; then who is talking, the question, the words as they're heard, how it went, and Repeat and Skip
-/// for when a hand is free. The screen can go off at any point; the Live Activity carries on with the same line. The summary is a session's own.
+/// walk or the gym. An intro with the session's size and how to steer it by voice ("repeat", "skip", "stop"); then who is talking, the question, the
+/// words as they're heard, how it went, and Repeat and Skip for when a hand is free. The screen can go off at any point; the Live Activity carries
+/// on with the same line. The ✕ does what saying "stop" does: Cap wraps up, and the summary is a session's own.
 ///
 /// What it reads and how it grades is `OutLoudController`. DEBUG: `CRAMLESS_ROUTE=outLoud`, `CRAMLESS_OUTLOUD=asking|listening|verdict|summary|blocked|nomodel`,
 /// `CRAMLESS_OUTLOUD_SCRIPT=rpwk` (`OutLoudDebug`).
@@ -63,7 +64,7 @@ struct OutLoudView: View {
                 Color.clear.onAppear { app.router.dismissCover() }
             }
         default:
-            OutLoudSessionView(controller: controller, onClose: { leave(controller) })
+            OutLoudSessionView(controller: controller, onClose: { stop(controller) })
                 .transition(.opacity)
         }
     }
@@ -74,6 +75,16 @@ struct OutLoudView: View {
         plain.id = UUID()
         plain.spokenOnly = false
         return plain
+    }
+
+    /// The ✕: what saying "stop" does (Cap's last word, then the summary). With nothing running to stop, it leaves.
+    private func stop(_ controller: OutLoudController) {
+        CLHaptics.tap()
+        if controller.isRunning {
+            controller.perform(.stop)
+        } else {
+            leave(controller)
+        }
     }
 
     private func leave(_ controller: OutLoudController) {
@@ -103,17 +114,11 @@ private struct OutLoudIntroView: View {
             ScrollView {
                 VStack(spacing: 14) {
                     CapView(pose: .mic, size: 130, idle: .breathe)
-                    VStack(spacing: 6) {
-                        Text(OutLoudCopy.title)
-                            .clFont(.title)
-                            .foregroundStyle(CLColor.ink)
-                            .accessibilityAddTraits(.isHeader)
-                        Text(OutLoudCopy.pitch)
-                            .clFont(.callout)
-                            .foregroundStyle(CLColor.ink2)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                    .multilineTextAlignment(.center)
+                    Text(OutLoudCopy.title)
+                        .clFont(.title)
+                        .foregroundStyle(CLColor.ink)
+                        .multilineTextAlignment(.center)
+                        .accessibilityAddTraits(.isHeader)
                     if controller.hasQuestions { details } else { nothing }
                 }
                 .padding(.horizontal, CLSpace.gutter)
@@ -130,11 +135,11 @@ private struct OutLoudIntroView: View {
                 .clFont(.headline)
                 .foregroundStyle(CLColor.ink)
                 .fixedSize(horizontal: false, vertical: true)
-            Text(OutLoudCopy.whyFewer)
+            Label(OutLoudCopy.screenOff, systemImage: "lock.fill")
                 .clFont(.subheadline)
                 .foregroundStyle(CLColor.ink2)
                 .fixedSize(horizontal: false, vertical: true)
-            Label(OutLoudCopy.screenOff, systemImage: "lock.fill")
+            Label(OutLoudCopy.commands, systemImage: "waveform")
                 .clFont(.subheadline)
                 .foregroundStyle(CLColor.ink2)
                 .fixedSize(horizontal: false, vertical: true)

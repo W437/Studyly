@@ -43,8 +43,8 @@ Twelve tokens: `pop`, `settle`, `snap`, `calm`, `fill`, `fade`, `exit`, the high
 `press`, `release`, `sheet` and `bloom`.
 - Each token reads Reduce Motion itself. Under Reduce Motion it becomes a short ease, and looping scenes settle on
   their final frame.
-- The onboarding demos use the same tokens as the features they show (the scanner's lock-on, the highlighter,
-  the ring climbing), so the demo and the product can't drift apart.
+- The demo scenes (kept for films and store art) use the same tokens as the features they show (the scanner's lock-on, the
+  highlighter, the ring climbing), so the demo and the product can't drift apart.
 
 ## The first minute
 
@@ -61,10 +61,20 @@ Twelve tokens: `pop`, `settle`, `snap`, `calm`, `fill`, `fade`, `exit`, the high
     "Lights a star", with "n of 3 stars lit" as its value, and Cap's lines are announced. At accessibility text sizes the world
     is a short band above the words.
 - **"capling" is set with a star where the i's dot would be** (`CaplingWordmark`): gold, or faint until it is lit on the welcome.
-- **The intro shows what people come for, in six pages:** snap a page (the scan makes flashcards and questions, each marked with
-  its kind), flashcards that come back in time (flip, rate, and when it returns; Anki and Quizlet decks come too), answer in your own
-  words, know how ready you are, a plan that bends, a tutor that knows your notes. The owner noticed the first version never showed
-  flashcards, which is what most people search a study app for.
+- **Then the student's own page, at once** (the clarity pass): six steps, about a dozen taps, their own questions at the third.
+  Welcome → "Snap a page. Get questions." (scan, a photo, or the sample page; the processing; the review, which asks which class it
+  is for) → "Two quick questions" / "From your page." (graded live, with "I don't know"; the session's segments are the only count,
+  and no progress bar runs across onboarding) → "When's your Bio 101 exam?" (named after the course; a month where today is a ring
+  and nothing is picked until a tap, "Tap your exam day", "No exam yet"; Continue in every case) → "Your plan" → the paywall → Today.
+  - No slides before the camera: everything a demo promised happens for real a minute later. The six demos stay for films and
+    store art (`introScene:<n>`).
+  - Nothing is asked that the app doesn't use: no goal, no "where do your notes live".
+  - The sample page is a try, not a class: no class card, its set files under "Sample", no exam is made from it and the date isn't
+    asked; the plan shows its no-exam state.
+  - "Your plan" is one screen: the readiness ring (or Cap, with no exam), "Bio 101 exam · 23 days", one line from the plan engine
+    ("15 minutes a day gets you to 90% by Nov 28."), the week, and two rows: "15 min a day" (a plain picker: 5, 10, 15, 20, 30) and
+    "Remind me at 7:00 PM" (a switch, on). Its button is "Continue"; with the reminder on, iOS asks for notifications then.
+    "Continue free" on the paywall goes straight to Today.
 
 ## Answers
 
@@ -77,24 +87,27 @@ Twelve tokens: `pop`, `settle`, `snap`, `calm`, `fill`, `fade`, `exit`, the high
   headline:
   - "Nice!", "Almost." and "Not yet."
   - "Here's the answer." when nothing was answered.
-  - "Saved it." when a right answer rescued a fading memory.
+  - "Just in time!" when a right answer rescued a fading memory.
 
   Cap reacts beside it (see Cap), in an 82 pt box (about 74 pt of Cap; 60 pt until 2026-10-26, 44 pt at the accessibility
   sizes). He stays left of the headline, and the panel's spacing is tightened by the amount he grew, so the panel is no
   taller. The owner's rule for him anywhere: bigger is fine, but never by lengthening a panel or by overlapping what is
   above it (a Cap peeking over the top edge hid the ✕ of a wrong answer and the start of a line of a long one). Under the
-  headline come why, the fix and the source, then Continue in the
+  headline come one line (an option's why, or for an answer in one's own words what to add: "Add this: …") and the source,
+  then Continue in the
   verdict's colour (mint, sun, or tangerine for "Not yet": a red button reads as an alarm). At the accessibility
   sizes the panel keeps the headline and Continue, and the details stay in the card. The panel's colour runs on under
   the home indicator to the bottom edge of the screen.
 - **Runs:** consecutive right answers make a run (`ComboRun`); each answer plays the next note up the scale.
-  - From three, a "3 in a row" chip sits under the headline, and a glass pill with the run morphs out of the timer
-    pill.
+  - From three, a "3 in a row" chip sits under the headline (the top bar says nothing more about it).
   - At 5, 10 and 15 the flourish plays.
   - Flashcard self-ratings neither build nor break a run.
   - Nothing ever says a run was lost.
-- **The bar:** the newest result blooms (`bloom`); a run of three or more glows mint, with one shine per step.
-  Nothing loops while the person reads.
+- **The bar:** one solid tangerine fill of the questions answered, like the mock's, with the count left in a glass pill
+  beside it ("41 left", rolling down as each answer is checked). The fill's tip blooms in the verdict's colour (`bloom`);
+  a run of three or more glows mint, with one shine per step. Nothing loops while the person reads.
+- **The line over a question:** its topic only, on one line, above the card, with the read-aloud button: the same place
+  for every kind of question (the card shows what kind it is).
 - **Small touches:** the picked option ripples (a Metal shader, `CLRipple`), and its check draws itself on.
 
 ## Cap
@@ -172,7 +185,7 @@ plan, mic, relax; nice, almost, notYet; listen, ask; sleepy, proud; stargaze, tu
 |---|---|
 | "Nice!" | nice, hop |
 | 5, 10, 15 in a row | celebrate, hop, sparkles |
-| "Saved it." | nice, hop, sparkles |
+| "Just in time!" | nice, hop, sparkles |
 | "Almost." | almost, wiggle |
 | "Not yet." | notYet, nod |
 | "Here's the answer." | point |
@@ -217,7 +230,7 @@ answering relights it. It is the one picture of "how ready am I", and it can't l
 - **Relit** is what a session did: a star that began below about 90% recall (or was new) and ended right. A star
   already at full brightness that is answered right is kept bright, not relit. A new item answered right is lit for
   the first time.
-- **Saved** is exactly the "Saved it." the person saw: a right answer (Good or Easy) on a fading item. A "Hard" is
+- **Saved** is exactly the "Just in time!" the person saw: a right answer (Good or Easy) on a fading item. A "Hard" is
   "Almost.", so it relights the star but isn't a save. The flare, the summary's count and the headline all use
   `ReviewOutcome.isSave`.
 
@@ -227,7 +240,7 @@ answering relights it. It is the one picture of "how ready am I", and it can't l
 | Progress | Each fading topic as a constellation glyph with Practice |
 | The sky screen | The sky, full screen: tap a constellation to focus it, drag to look, pinch to zoom |
 | A focused constellation | Its name and course, a bar of bright, dim and not-yet-lit stars, "Practice Meiosis · 4 min" (a practice session for that topic, its dim stars first) and "Open course" |
-| During a session | When "Saved it." comes up, a gold four-point star blooms over the question with a ring and a few motes, about a second, with no sound of its own (the save's marimba note plays with the verdict). A flashcard flares as you rate it |
+| During a session | When "Just in time!" comes up, a gold four-point star blooms over the question with a ring and a few motes, about a second, with no sound of its own (the save's marimba note plays with the verdict). A flashcard flares as you rate it |
 | The summary | A night strip under the numbers: "Relit 12 stars · 3 saved", which opens the sky |
 | Opening the sky after a session | The relit stars ignite one after another through the constellations, once; a save gets a gold ring and a sparkle |
 
@@ -273,11 +286,12 @@ same sky, taken apart.
   a day, one per kind; a card acted on stays away for 7 days. Counts and minutes, never a percentage. On an exam's eve (any exam tomorrow) the
   slot is his quiet line instead: "Cap is quiet tonight. Bio 101 and AP Psychology can wait until after Chem 110 Quiz." Two exams on one day share the
   evening: one session, both named, and neither waits.
-  - Mix-up: "You keep mixing up anaphase and telophase." / "Missed 3 of the last 4 times. Want a 2-minute fix?" / "Fix it · 2 min" / "No AI".
+  - Mix-up: "You keep mixing up anaphase and telophase." / "Missed 3 of the last 4 times." / "Fix it" / "No AI".
   - Look-alike: "Metaphase and telophase look alike" / "Both are on Wednesday's Bio 101 Midterm. Learn the one difference now?" / "Show me" /
-    "Uses Cloud AI" ("No AI" when Cloud AI won't be asked). The sheet (`LookAlikeView`) sets the two side by side with their sources and the one
-    difference: at once by the rules when Cloud AI won't be asked; otherwise "Cap is writing it" until the lesson is ready, shown once, "Written by
-    Cap from your two questions". "Try 2 questions" or "Not a look-alike".
+    "Uses Cloud AI" ("No AI" when Cloud AI won't be asked). The sheet (`LookAlikeView`) is titled for the pair ("Metaphase vs telophase") and sets
+    the two side by side with their sources and what tells them apart: at once by the rules when Cloud AI won't be asked; otherwise a spinner in
+    the "Try 2 questions" button until the lesson is ready, shown once, "Written by Cap from your two questions". "Try 2 questions" or "Don't
+    bring this up again" (the pair's page says the same).
   - Fading: "18 questions will be dim by exam day" / "From Lecture 3, for your Bio 101 Midterm. 6 more minutes today and tomorrow keeps them." /
     "Fix my week" / "No AI". After it: "Plan updated" / "6 more minutes today and tomorrow for Lecture 3." / OK, Undo. The minutes show on the day
     card and the plan strip.
@@ -287,7 +301,7 @@ same sky, taken apart.
   - Gap: "2 topics on your Bio 101 Midterm have no notes" / "Meiosis and Genetics. Want help filling them in?" / "Fill the gap" / "Free". From 28 to 2 days before the exam. The same card sits under the topics on the exam page, with Later; a topic with drafts waiting says "Questions for Meiosis are waiting for your review." `FillGapSheet`: "Snap the chapter" (the scanner aimed at the topic) or "Find it on trusted study sites" (Pro, never under 18). "Nothing is added until you say so."
   - A date heard in class: "Cap heard an exam date" / "“The second quiz is on November 20.” From Lecture 6." / "See it" / "Free". Never a notification: it may be misheard. It leads to the card at the top of the lecture's notes (`ExamHeardCard`), with the words, "Add the exam" and "Not now"; the exam covers the whole course, then "Exam added, 14 days away" with Undo. A date the plan has on another day: "Your Bio 101 Midterm is set for Nov 29. Cap heard Nov 20." / "Use Nov 20".
   - In the week before an exam a card may also come as one notification instead of that day's reminder and streak nudge: no counts, because they
-    would be stale (`NoticeContent.pingBody`). Settings ▸ Study has a switch per kind, Settings ▸ Notifications the "Cap noticed" switch.
+    would be stale (`NoticeContent.pingBody`). A card's menu has "Don't show these"; the kinds turned off are listed in Settings ▸ Study ▸ Hidden tips (shown only while one is), each with "Show again". Settings ▸ Notifications has the "Cap noticed" switch.
 - **Exams** (`TodayExamsRow`): tiles in a row, two and the edge of the next on any phone (a 46 pt ring, the name, when, rose within three days, "+15% this week" with an
   arrow), "See all" to the Progress tab. With material and no exam: "When is your next exam?" and "Add an exam" (the editor asks
   for a course's name when there is none). Hidden on the eve.
@@ -331,26 +345,31 @@ parts):
 - **It rests**: nothing moves under Reduce Motion, nothing ambient in Low Power Mode, nothing while the band is scrolled away or
   the app is in the background, and on exam eve once there is nothing left to do it holds still.
 
-**Progress** has no second sky, and takes about a screen and a third. In order:
-- **This week**: the flame and the run ("12-day streak"; on hold, an outline and "On hold"), the minutes against last week and the week's chart. All of it one tap: the month (`StreakMonthSheet`, a fitted sheet with the calendar and today's notes, and a way on to the streak page). A repair offer sits under it, outside that tap.
+**Progress** has no second sky, and opens on the exams. In order:
 - **Exams** as rows: a ring, the name, "in 2 days · +15% this week" (rose within three days), a sparkline ending in a star. Readiness is the one percentage; no letter here (the exam page has it once logged grades calibrate it).
-- **Fading**: topics with questions under the sky's dim line, for the nearest exam first, as their constellations drawn small (`SkyGlyphView`), "Chem 110 · 2 questions fading" and Practice. "Nothing is fading right now." when so.
-- **Mix-ups**, when there are any.
-- Two tiles: **Badges** (three medals, "3 of 13 earned") and **Memory sky** ("63 stars · 17 dim").
+- **Review soon**: topics with questions under the sky's dim line, for the nearest exam first, as their constellations drawn small (`SkyGlyphView`), "Chem 110 · 2 to review" and Practice. "Nothing to review right now." when so.
+- **Often confused**, when there are any: each pair by its own name ("Anaphase vs telophase"), "Missed 3 times · Bio 101".
+- One row for the streak and the week: the flame, "12-day streak · 3 h 5 min this week" and a chevron; it opens the streak page. No comparison with last week (a week in progress against a whole one reads as a loss every Sunday). A repair offer sits under it, outside that tap.
+- Two tiles: **Badges** (three medals, "3 of 13 earned") and **Memory sky** ("63 stars · 17 to review").
 
-The streak page has the twelve weeks of studying (the heatmap's days are stars: a dot that grows and brightens with the minutes, a sparkle from the third step, a glow at the top, so size and shape carry the scale as well as colour does). The sky has "How you remember": what's coming due and the brightest topics, counts only, as a fitted sheet over the sky and at the head of its list.
+The streak page is its header ("12-day streak", Best, freezes saved), the month's calendar (exam days and the night before marked) and one fold, "How freezes work". The sky has "How you remember": what's coming due and the brightest topics, counts only, as a fitted sheet over the sky and at the head of its list.
 
 **Library**: "Recent" (questions to review first, then what was opened or added on this iPhone in two weeks; three at most, none under two), then the courses, each with its next exam's ring or "Add exam". The tab bar's + is the way in; a person with no courses yet sees the + sheet's own rows under "Add material".
+
+**An exam**: one value in the ring (readiness) beside "Tue 10 Nov · 10:00" and "In 2 days · Multiple choice"; one sentence, "Study today and
+Monday to be about 78% ready by Tuesday. Your goal is 80%."; "Study this exam · 4 min" (its share of today, its weakest questions first; the
+day's mixed session stays on Today); the topics weakest first, each with Practice; the plan as stops with "Daily goal" and "What if I skip
+Monday?"; the mock as one row ("Mock exam · 19 questions · 30 min", Take it); the materials; "How it's gone" folded, with the week's change.
 
 **A course** is one page, no tabs: the head (badge, "Midterm · Tue 1 Dec", the ring: the course's one number, said once; a tap opens the exam), the other exams as chips ("Final · Dec 14", "Quiz · log your grade", "Quiz · you got 91%") with "Add exam", and "Study Bio 101 · 15 min" (the daily rules limited to the course, at the whole goal), the page's one orange button. Then Topics (readiness for the next exam, gaps first by their course order, "Not on the Midterm" apart with counts only; a tap practices the topic, which a small grey play says), Sources with "Add material", and a last row, "All 36 questions", that opens the questions list (needs attention, meaning to review or often confused, weakest first; suspended; format; topic). The tab bar's + adds to the course on screen, so there is no second +.
 
 **Adding notes** asks for the course once, where the questions land ("Adding to Bio 101" on the review, the import, the question editor); the + sheet carries the course on screen and says the week's free AI allowance in one line under its rows ("This week: 3 free AI scans, 1 lecture."). Paste opens on its text box, the name under it, optional. The processing screen is "Making questions", who writes them once under it ("With Cloud AI"), and four steps that show only what is live; a step not started is an empty ring. The review is "15 questions · p. 87", one line ("Written by Cloud AI, checked against p. 87. Untick any you don't want."), the questions all ticked, and under them "Left out by the check" as one row and the better-questions offer; the one button adds them. A page the iPhone couldn't read says "Couldn't read this page" with one way forward, "Read it with Cloud AI" (it asks for page photos first if it must), and another photo as the soft one.
 
-**An exam** is added date first: When, Name, What's on it (the whole course or ticked topics, and "Snap the syllabus"), with format and target behind one row; opened from a course it doesn't ask for the course. The syllabus's "Here's what I found" is the one check, and its button saves ("Add Midterm", "Save changes"). A grade is typed on the number pad, no slider.
+**Adding an exam** goes date first: When, Name, What's on it (the whole course or ticked topics, and "Snap the syllabus"), with format and target behind one row; opened from a course it doesn't ask for the course. The syllabus's "Here's what I found" is the one check, and its button saves ("Add Midterm", "Save changes"). A grade is typed on the number pad, no slider.
 
-**A mock exam** (`Features/Mock/`): free, built from the exam's own questions and shaped like it. No marks until the end: Back, Next and Flag, a countdown nothing has to redraw for, a grid to look over. "Time's up." offers "Finish untimed" before the score. "Cap predicted" is the fair score for these questions, recall now plus a guess on multiple choice, not the exam-day ring: a mock taken early would otherwise beat Cap and teach that the number is wrong. Never on the eve or the day: tonight is for weak spots and sleep.
+**A mock exam** (`Features/Mock/`): free, built from the exam's own questions and shaped like it. Its start says "19 questions like the real one · 30 min" and "From this exam's topics. Marked at the end." No marks until the end: Back, Next and Flag, a countdown nothing has to redraw for, a grid to look over. "Time's up." offers "Finish untimed" before the score, which says "You scored 76%." and "Cap expected 79%.", then the topics to practice. "Cap expected" is the fair score for these questions, recall now plus a guess on multiple choice, not the exam-day ring: a mock taken early would otherwise beat Cap and teach that the number is wrong. Never on the eve or the day: tonight is for weak spots and sleep.
 
-**The last look** (`LastLookView`, a sheet): the eve's end. "Your last look", then five ideas as one sentence each, each with a chip to the page it came from, then "That's enough for tonight. Sleep is part of studying. Good luck tomorrow." and "Good night". No quiz, no marks, no timer. It is offered in words, on the eve's summary and quietly on Today's done card, never pushed.
+**The last look**: the eve's end, said once. The night-before summary holds it: "That's enough." / "Sleep is part of studying.", the exam, "Read these once · 2 min" and five ideas as one sentence each, each with a chip to the page it came from, with "Good night" pinned. Opened on its own (`LastLookView`, a sheet, quietly from Today's done card): "Your 5 shakiest ideas", "2 min · no quiz", the ideas, "Good night" pinned. No quiz, no marks, no timer, never pushed.
 
 **Busy days** are Cap's cards like the rest: the ask ("Cap can plan around your long days") and "Monday looks busy", whose button moves minutes and whose confirmation has Undo. The day stays in the strip with its shorter minutes.
 
@@ -368,7 +387,7 @@ biggest reason wins and names the summary's title.
 | The first session after onboarding | big | First session done |
 | A streak of 3, 7, or 30/100/365 days | small, medium, big | 7 days. (the hero becomes the flame) |
 | Readiness crossing the exam's goal | medium | Goal reached |
-| A mix-up fixed | medium | Mix-up fixed |
+| A mix-up fixed | medium | Fixed |
 | A new badge | medium | the badge's name |
 | Every answer right first time, 5 or more | small | All right first time |
 | Another day on the streak | nudge | Session done |
@@ -382,10 +401,13 @@ biggest reason wins and names the summary's title.
 - **Limits:**
   - Exam eve and quiet hours are calm: no confetti, and Cap's sparkles if there's a reason.
   - A big celebration plays at most once a day; another that day is medium.
+- **The summary says each thing once:** the title; "6 of 9 right first time · 3 min" with the streak in a small pill; one
+  readiness card ("41% → 69% ready" / "On track for 80% · 2 days left", its ring without a number); the quests the session
+  moved; Done pinned. Cap is 120 pt. A badge's name is the title, and its card says only how it was earned. A fix ends on
+  "Fixed" (or "Not yet") and "Anaphase vs telophase: 5 of 5 right.".
 - **The summary's order:**
   - Cap arrives, then the done sound with its haptic.
-  - The numbers count up, with at most 12 light ticks (`CLCountingText`).
-  - The ring climbs, with ticks again, and the streak rolls over.
+  - The ring climbs as the readiness number counts up, with at most 12 light ticks, and the streak's pill rolls over.
   - The sky line says what the session did to the sky, and the day's quests tick off one by one, each with a light tick
     (a sky the week's quests lit comes up under them).
   - Last comes the celebration, and, rarely, the system's rating prompt a beat and a half after it.
@@ -395,7 +417,7 @@ biggest reason wins and names the summary's title.
 ## Taking a rating back, and swiping one
 
 A rating the student gives themselves is the one answer with no second look, so it can be taken back: a flashcard's rating or swipe, the
-marks of an own-words answer, a "Counts as" call. The session moves on at once and a glass pill floats just above the next question's
+marks of an own-words answer the student marks themselves. The session moves on at once and a glass pill floats just above the next question's
 footer, "Easy · back in 4 weeks" and **Undo** (⌘Z), for 5 seconds (15 with VoiceOver). The pill takes no room, so no button moves under a
 finger, and it steps aside once the next question has been checked. Undo brings the question back from the leading edge as it was: the card
 flipped, the own-words panel with its ticks, no new grade and no sound. After the last question the same moment is a small screen, Cap and
@@ -403,10 +425,11 @@ flipped, the own-words panel with its ticks, no new grade and no sound. After th
 already their moment.
 
 A flipped flashcard can be swiped: right is "got it" (Good), left is Again. The card follows the finger with a little tilt (none under
-Reduce Motion), a stamp says what letting go does ("Got it · 4 days"), past 35% of its width or on a flick it flies off and the next one
-rises in its place; a flick back the other way is a change of mind. The chips "← Again" and "Got it →" do the same, Hard and Easy stay as
-tiles (Hard counts as got it in the tally), and the ← → keys work. The four-tile grid stays at the accessibility text sizes and with
-VoiceOver or Switch Control, and VoiceOver has the four as actions on the answer.
+Reduce Motion), a stamp says what letting go does ("Got it"), past 35% of its width or on a flick it flies off and the next one
+rises in its place; a flick back the other way is a change of mind. The two buttons "← Again" and "Got it →" do the same, with no
+intervals on them (the Undo pill says when the question comes back); Hard and Easy stay as the 2 and 4 keys and VoiceOver's actions on
+the answer, and the ← → keys work. "Swipe right if you got it, left if not" shows on a student's first three flashcards ever. At the
+accessibility text sizes and with VoiceOver or Switch Control there is no swipe, only the two buttons.
 
 ## The game loop
 
@@ -418,18 +441,18 @@ screen that was already there.
 and no asset, so the widgets draw the same. A spark (1 to 6 days), the flame with a bright heart (7 to 29), the flame with a
 warm glow and two embers (30 to 99), gold with glints (100 to 364), and gold with a star over it (365 and more). With no streak,
 or one on hold (a missed day a repair can still join back up) it is an outline. It is in Today's pill, the streak screen, Progress's
-streak card, the badges and the two full-colour widget pills (the Lock Screen's stay monochrome symbols). It bounces once when
+streak row, the badges and the two full-colour widget pills (the Lock Screen's stay monochrome symbols). It bounces once when
 the streak grows (`bounce:`), and never under Reduce Motion.
 
 **Quiet mode** (Settings ▸ Study) turns the whole layer down for someone who wants the plan and nothing else: no flame, quests, badges
-or run counter, celebrations calm, no streak notifications, no "a new sky is lit", no sounds, and the Streak page and Progress's month sheet are only the calendar; Progress keeps its week, exams, fading topics, mix-ups and the sky tile.
+or run counter, celebrations calm, no streak notifications, no "a new sky is lit", no sounds, and the Streak page is only the calendar; Progress keeps its exams, topics to review, pairs often confused, the week's minutes and the sky tile.
 Their plan, stars and readiness stay. Quests and badges go on settling unseen, so turning it off again loses nothing, and a Streak widget
 someone placed stays as it is (they put it there); the Today widget loses its flame.
 
 **Milestones** are 3, 7, 30, 100 and 365 days (`StreakStage.milestones`; the flame changes at the last four). The summary's hero
 becomes the milestone: Cap proud, the stage's flame popping in beside him and bouncing once, "30 days." as the title and one
-warm line about the memory, never about the number ("A month of showing up. Your sky is brighter for it."). The streak screen
-lists all five, a check for each the best streak has reached and how far the streak is along to the next. The day one session
+warm line about the memory, never about the number ("A month of showing up. Your sky is brighter for it."). Four of them are
+badges, on the badges page. The day one session
 makes a milestone (a streak of 29, today not done; or 29 and done, for tomorrow) the reminder and the 20:30 nudge say so: "One
 session today makes it 30 days."
 
@@ -476,8 +499,8 @@ the harness or in tests. It asks 1.5 seconds after the summary's celebration.
 
 Two ways of studying with the voice (`docs/BUILD.md` ▸ Stage 4 has how they work).
 
-- **Study out loud** is for a walk: nobody has to look. Cap asks, the person answers, Cap says how it went, in the session's own words. The screen shows who is talking, the question, the words as they're heard and how it went, with Repeat, Skip and Pause for when a hand is free; the Live Activity carries the same line, with Repeat and Skip, on a locked phone. It enters from a quiet link beside "Why these?", not a second button: the day still has one job.
-- **Teach Cap** is for a topic that's going well: "Explain \(topic) to me like I missed the class." His notes fill in as he hears each idea and never show what hasn't been said, which would be the answer. Then "What you covered" as a count of ideas, never a percentage, one follow-up, and the missing idea as a question.
+- **Study out loud** is for a walk: nobody has to look. Cap asks, the person answers, Cap says how it went, in the session's own words. The screen shows who is talking, the question, the words as they're heard and how it went, with Repeat, Skip and Pause for when a hand is free; the Live Activity carries the same line, with Repeat and Skip, on a locked phone. Its start says "23 questions · about 15 min", "Works with the screen off.", "Say “repeat”, “skip” or “stop” any time." and "Your voice isn't recorded."; the ✕ does what "stop" does (Cap's last word, then the summary). It enters from a quiet link beside "Why these?", not a second button: the day still has one job.
+- **Teach Cap** is for a topic that's going well: "Teach me “\(topic)”, like I missed the class.", then "Say it in your own words. Cap ticks off each idea he hears." His notes fill in as he hears each idea and never show what hasn't been said, which would be the answer. Then "What you covered" as a count of ideas, never a percentage, one follow-up, and the missing idea as a question.
 - **Sounds:** none while the microphone is on (`AudioFocus`): the voice is the feedback, and the phone must not hear itself.
 
 ## Haptics

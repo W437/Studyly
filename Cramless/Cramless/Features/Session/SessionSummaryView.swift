@@ -1,16 +1,16 @@
 import StoreKit
 import SwiftUI
 
-/// The end of a session, inside the cover: Cap celebrating, minutes and answers, first-try accuracy, the next
-/// exam's readiness climbing from before to after, the streak (+1, a freeze earned or used), the topics touched,
-/// and a mix-up found in this session offered as a 2-minute fix. Exam eve ends differently: Cap asleep, "That's
-/// enough. Sleep is part of studying." A fix ends by saying whether the mix-up is fixed.
+/// The end of a session, inside the cover, said once each: Cap celebrating, the title, "6 of 9 right first time · 3 min" with the streak
+/// in a small pill, one readiness card ("41% → 69% ready" / "On track for 80% · 2 days left"), the quests the session moved, and Done
+/// pinned. A mix-up found in this session is offered as "Fix it"; a sky the week lit and a badge earned show when they happen, the badge's
+/// name once. The night before ends differently: Cap asleep, "That's enough.", the exam, and the five shakiest ideas to read once, with
+/// "Good night" pinned. A fix ends with "Fixed" (or "Not yet") and "Anaphase vs telophase: 5 of 5 right.".
 ///
-/// It plays in order: Cap arrives, the session's sound, the numbers count up, the ring climbs, the streak rolls
-/// over, the sky line, the quests the session finished tick off (and a sky they lit says so), and last the celebration
-/// `CelebrationPolicy` picked (confetti, Cap's hop and sparkles), if one is earned. A streak milestone takes over the hero:
-/// its flame, and "30 days.". A good moment (a perfect session, two saves, a milestone) may, rarely, be followed by the
-/// system's rating prompt (`ReviewPromptPolicy`).
+/// It plays in order: Cap arrives, the session's sound, the ring climbs as its number counts up, the streak rolls over, the sky line, the
+/// quests the session finished tick off (and a sky they lit says so), and last the celebration `CelebrationPolicy` picked (confetti, Cap's
+/// hop and sparkles), if one is earned. A streak milestone takes over the hero: its flame, and "30 days.". A good moment (a perfect session,
+/// two saves, a milestone) may, rarely, be followed by the system's rating prompt (`ReviewPromptPolicy`).
 ///
 /// DEBUG: `CRAMLESS_CELEBRATION=none|nudge|small|medium|big|calm` sets the celebration's size (the reason, and so the
 /// title, stays the real one).
@@ -32,8 +32,8 @@ struct SessionSummaryView: View {
     @State private var mixUpHandled = false
     @State private var fixed = false
     @State private var decision = CelebrationDecision.none
-    /// How far the numbers have counted: `countStep` of `countSteps`.
-    @State private var countStep = 0
+    /// How far the readiness number has counted on its way from before to after: `readinessStep` of `readinessSteps`.
+    @State private var readinessStep = 0
     @State private var celebrated = false
     @State private var skyShown = false
     /// What the session did to the game loop: quests finished, a sky lit, badges earned.
@@ -54,19 +54,10 @@ struct SessionSummaryView: View {
         var daysLeft: Int?
         var target: Double = 0.9
         var projected: Double?
-        var topics: [TopicRow] = []
-        var nextSession: String?
         var bonus: SessionRequest?
         var bonusCount = 0
         var freezeEarned = false
         var freezeUsedYesterday = false
-    }
-
-    struct TopicRow: Identifiable {
-        var id: UUID
-        var name: String
-        var missed: Bool
-        var detail: String
     }
 
     struct MixUp {
@@ -88,15 +79,15 @@ struct SessionSummaryView: View {
                 hero
                 if isEve {
                     eveCard
-                    if let lastLook { lastLookCard(lastLook) }
+                    if let lastLook, !lastLook.ideas.isEmpty { eveIdeas(lastLook) }
                 } else {
-                    stats
                     if hasSkyLine { skyLine }
-                    if summary.readinessBefore != nil, summary.readinessAfter != nil, info?.examTitle != nil {
+                    // A fix ends on its own result: no readiness there.
+                    if !isFix, summary.readinessBefore != nil, summary.readinessAfter != nil, info?.examTitle != nil {
                         readinessCard
                     }
                     // A fix shows them only when it finished one (the mix-up's own quest).
-                    if !quests.isEmpty, !isFix || !game.questsDone.isEmpty { questsCard }
+                    if !movedQuests.isEmpty, !isFix || !game.questsDone.isEmpty { questsCard }
                     if let sky = game.skyLit { skyLitCard(sky) }
                     if !game.badges.isEmpty { badgesCard }
                     if let mixUp, !mixUpHandled {
@@ -129,10 +120,10 @@ struct SessionSummaryView: View {
                 if info != nil { CapView(capMoment, size: capSize) }
                 // A streak milestone brings its flame, which pops in with the celebration and bounces once.
                 if let days = milestoneDays {
-                    StreakFlame(stage: StreakStage(days: days), size: 84, bounce: reduceMotion ? nil : flameBounce)
+                    StreakFlame(stage: StreakStage(days: days), size: 60, bounce: reduceMotion ? nil : flameBounce)
                         .scaleEffect(celebrated ? 1 : 0.3, anchor: .bottom)
                         .opacity(celebrated ? 1 : 0)
-                        .offset(x: 54, y: 12)
+                        .offset(x: 38, y: 6)
                         .animation(reduceMotion ? nil : CLMotion.pop, value: celebrated)
                 }
             }
@@ -143,16 +134,63 @@ struct SessionSummaryView: View {
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
                 .accessibilityAddTraits(.isHeader)
-            Text(subtitle)
-                .clFont(.callout)
-                .foregroundStyle(CLColor.ink2)
-                .multilineTextAlignment(.center)
-                .fixedSize(horizontal: false, vertical: true)
+            subtitleLine
         }
         .frame(maxWidth: .infinity)
     }
 
-    private var capSize: CGFloat { isEve ? 200 : 180 }
+    /// The subtitle, and beside it (wrapping under it when there's no room) the streak's small pill.
+    @ViewBuilder private var subtitleLine: some View {
+        let line = Text(subtitle)
+            .clFont(.callout)
+            .foregroundStyle(CLColor.ink2)
+            .multilineTextAlignment(.center)
+            .fixedSize(horizontal: false, vertical: true)
+        if showsStreak {
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 8) {
+                    line
+                    streakPill
+                }
+                VStack(spacing: 8) {
+                    line
+                    streakPill
+                }
+            }
+        } else {
+            line
+        }
+    }
+
+    private var capSize: CGFloat { 120 }
+
+    /// The streak's pill: after a session that isn't the night before or a fix, out of Quiet mode, and not on a milestone (the hero's
+    /// flame says it then).
+    private var showsStreak: Bool {
+        !isEve && !isFix && !app.settings.quietMode && summary.streak.current > 0 && milestoneDays == nil
+    }
+
+    /// The flame and the streak's days, rolling over to today's as the summary plays.
+    private var streakPill: some View {
+        let current = summary.streak.current
+        let shown = streakShown ?? current
+        return HStack(spacing: 3) {
+            StreakFlame(stage: StreakStage(days: shown), size: 18, bounce: reduceMotion ? nil : flameBounce)
+            Text(verbatim: "\(shown)")
+                .clFont(.number(15, .bold))
+                .foregroundStyle(CLColor.tangerineInk)
+                .monospacedDigit()
+                .contentTransition(.numericText(value: Double(shown)))
+        }
+        .padding(.leading, 6)
+        .padding(.trailing, 10)
+        .frame(minHeight: 28)
+        .background(CLColor.tangerineSoft, in: Capsule())
+        .fixedSize()
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text("\(current) day streak"))
+        .accessibilityValue(summary.streakExtended ? Text("One more day") : Text(""))
+    }
 
     /// The streak milestone this session reached, when it is what the summary celebrates.
     private var milestoneDays: Int? {
@@ -177,8 +215,8 @@ struct SessionSummaryView: View {
 
     private var confettiBurst: ConfettiField.Burst? {
         switch decision.size {
-        case .small: .puff(CGPoint(x: 0.5, y: 0.24))
-        case .medium: .burst(CGPoint(x: 0.5, y: 0.22))
+        case .small: .puff(CGPoint(x: 0.5, y: 0.2))
+        case .medium: .burst(CGPoint(x: 0.5, y: 0.18))
         case .big: .cannons
         case .none, .nudge, .calm: nil
         }
@@ -186,13 +224,14 @@ struct SessionSummaryView: View {
 
     private var title: LocalizedStringResource {
         if isEve { return "That's enough." }
-        if isFix { return fixed ? "Mix-up fixed" : "Getting there" }
+        if isFix { return fixed ? "Fixed" : "Not yet" }
         switch decision.reason {
         case .firstSession: return "First session done"
         case .streakMilestone(let days): return MilestoneCopy.title(days)
         case .readinessGoal: return "Goal reached"
         case .perfect: return "All right first time"
-        case .mixUpFixed: return "Mix-up fixed"
+        case .mixUpFixed: return "Fixed"
+        // The badge's name, here and nowhere else on the page.
         case .badge: return game.badges.first?.title ?? "New badge"
         case nil: return "Session done"
         }
@@ -200,114 +239,11 @@ struct SessionSummaryView: View {
 
     private var subtitle: LocalizedStringResource {
         if isEve { return "Sleep is part of studying." }
-        let n = summary.itemsReviewed
         if isFix {
-            let pair = runner.built.weakSpots.first.map { SessionCopy.mixUpPair($0.name) } ?? "them"
-            return fixed ? "You told \(pair) apart \(summary.correctFirstTry) of \(n) times."
-                : "\(summary.correctFirstTry) of \(n) right. Cap will bring these back in a few days."
+            let name = runner.built.weakSpots.first?.name
+            return .verbatim(SessionCopy.fixResult(name, right: summary.correctFirstTry, of: summary.itemsReviewed))
         }
-        if let days = milestoneDays { return MilestoneCopy.line(days) }
-        if decision.reason == .badge, let badge = game.badges.first { return badge.earned(saves: app.achievementFacts().saves) }
-        if decision.reason == .readinessGoal, let exam = info?.examTitle, let after = summary.readinessAfter {
-            return "\(exam) is now \(CLFormat.percent(after)) ready."
-        }
-        return "\(SessionCopy.questions(n)) in about \(SessionCopy.minutes(max(1, summary.minutes)))"
-    }
-
-    // MARK: Stats
-
-    private var stats: some View {
-        let layout = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(spacing: 10))
-            : AnyLayout(HStackLayout(spacing: 10))
-        let steps = countSteps
-        return layout {
-            statTile(final: "\(summary.correctFirstTry)/\(summary.itemsReviewed)", label: "right first time",
-                     color: CLColor.ink) {
-                CLCountingText(value: summary.correctFirstTry, step: countStep, steps: steps) {
-                    "\($0)/\(summary.itemsReviewed)"
-                }
-            }
-            if let delta = summary.readinessDelta {
-                let points = Int((delta * 100).rounded())
-                statTile(final: CLFormat.delta(delta), label: "readiness",
-                         color: delta > 0.004 ? CLColor.mintInk : delta < -0.004 ? CLColor.roseInk : CLColor.ink2) {
-                    if points > 0 {
-                        CLCountingText(value: points, step: countStep, steps: steps) { CLFormat.delta(Double($0) / 100) }
-                    } else {
-                        Text(verbatim: CLFormat.delta(delta))
-                    }
-                }
-            } else {
-                statTile(final: "\(summary.newLearned)", label: "new learned", color: CLColor.skyInk) {
-                    CLCountingText(value: summary.newLearned, step: countStep, steps: steps)
-                }
-            }
-            if !app.settings.quietMode { streakTile }
-        }
-        .accessibilityElement(children: .contain)
-    }
-
-    /// The count-ups' steps: one per unit of the largest number, at most 12.
-    private var countSteps: Int {
-        let points = summary.readinessDelta.map { max(0, Int(($0 * 100).rounded())) } ?? summary.newLearned
-        return CountUp.steps(to: [summary.correctFirstTry, points])
-    }
-
-    /// A number and its label. `final` is what VoiceOver reads, so it never catches a number mid-count.
-    private func statTile<Value: View>(final: String, label: String, color: Color,
-                                       @ViewBuilder value: () -> Value) -> some View {
-        VStack(spacing: 6) {
-            value()
-                .clFont(.number(24))
-                .foregroundStyle(color)
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
-            Text(label)
-                .clFont(.caption)
-                .fontWeight(.semibold)
-                .foregroundStyle(CLColor.ink2)
-                .multilineTextAlignment(.center)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .padding(.vertical, 14)
-        .padding(.horizontal, 8)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(CLColor.surface, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
-        .shadow(color: CLColor.night.opacity(0.05), radius: 1, y: 1)
-        .shadow(color: CLColor.night.opacity(0.06), radius: 12, y: 8)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(Text(verbatim: "\(final) \(label)"))
-    }
-
-    private var streakTile: some View {
-        let current = summary.streak.current
-        return VStack(spacing: 6) {
-            Text("\(streakShown ?? current)")
-                .clFont(.number(24))
-                .foregroundStyle(CLColor.tangerineInk)
-                .contentTransition(.numericText(value: Double(streakShown ?? current)))
-            Text("day streak")
-                .clFont(.caption)
-                .fontWeight(.semibold)
-                .foregroundStyle(CLColor.ink2)
-        }
-        .padding(.vertical, 14)
-        .padding(.horizontal, 8)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(CLColor.surface, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
-        .overlay(alignment: .topTrailing) {
-            if summary.streakExtended {
-                CLPill(text: "+1", tone: .tangerine)
-                    .offset(x: -6, y: 6)
-                    .scaleEffect(streakShown == current ? 1 : 0.4)
-                    .opacity(streakShown == current ? 1 : 0)
-                    .accessibilityHidden(true)
-            }
-        }
-        .shadow(color: CLColor.night.opacity(0.05), radius: 1, y: 1)
-        .shadow(color: CLColor.night.opacity(0.06), radius: 12, y: 8)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(current) day streak" + (summary.streakExtended ? ", one more day" : ""))
+        return .verbatim(SessionCopy.summaryLine(right: summary.correctFirstTry, of: summary.itemsReviewed, minutes: summary.minutes))
     }
 
     // MARK: The sky
@@ -364,9 +300,16 @@ struct SessionSummaryView: View {
 
     // MARK: Quests, a new sky and badges
 
-    /// Today's quests, the ones this session finished showing their check as the choreography reaches them.
+    /// The quests this session moved: further along than when it started, or finished by it.
+    private var movedQuests: [QuestRow] {
+        quests.filter { row in
+            game.questsDone.contains(row.kind) || row.progress.done > (runner.questsBefore[row.kind] ?? 0)
+        }
+    }
+
+    /// The moved quests, the ones this session finished showing their check as the choreography reaches them.
     private var shownQuests: [QuestRow] {
-        quests.map { row in
+        movedQuests.map { row in
             guard let index = game.questsDone.firstIndex(of: row.kind), index >= ticked else { return row }
             var pending = row
             pending.isDone = false
@@ -433,8 +376,11 @@ struct SessionSummaryView: View {
                     HStack(spacing: 14) {
                         BadgeMedal(badge: badge, size: 56)
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(badge.title).clFont(.headline).foregroundStyle(CLColor.ink)
-                            Text(badge.earned(saves: app.achievementFacts().saves)).clFont(.footnote).foregroundStyle(CLColor.ink2)
+                            // The title already names the badge the summary celebrates.
+                            if !(decision.reason == .badge && badge == game.badges.first) {
+                                Text(badge.title).clFont(.headline).foregroundStyle(CLColor.ink)
+                            }
+                            Text(badge.earned(saves: app.achievementFacts().saves)).clFont(.subheadline).foregroundStyle(CLColor.ink2)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -457,23 +403,31 @@ struct SessionSummaryView: View {
 
     // MARK: Readiness
 
+    /// Readiness once: a ring with no number in it (its picture), the exam, "41% → 69% ready" whose second number counts up as the ring
+    /// climbs, and "On track for 80% · 2 days left".
     private var readinessCard: some View {
         let before = summary.readinessBefore ?? 0
         let after = summary.readinessAfter ?? 0
         let layout = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 12))
             : AnyLayout(HStackLayout(spacing: 16))
         return layout {
-            ReadinessRing(value: ring ?? before, size: 92, lineWidth: 11)
-            VStack(alignment: .leading, spacing: 4) {
-                Text(info?.examTitle ?? summary.examTitle ?? "Your exam")
+            ReadinessRing(value: ring ?? before, size: 56, lineWidth: 8, showsLabel: false)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(verbatim: info?.examTitle ?? summary.examTitle ?? String(localized: "Your exam"))
+                    .clFont(.footnoteEmphasis)
+                    .foregroundStyle(CLColor.ink2)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text(verbatim: SessionCopy.readinessChange(before: before, after: shownAfter(before: before, after: after)))
                     .clFont(.headline)
                     .foregroundStyle(CLColor.ink)
-                DotLine(parts: readinessParts(before: before, after: after))
-                    .clFont(.subheadline)
-                    .foregroundStyle(CLColor.ink2)
-                if let pill = projectionPill {
-                    CLPill(text: .verbatim(pill.text), tone: pill.tone, systemImage: pill.symbol)
-                        .padding(.top, 4)
+                    .monospacedDigit()
+                    .contentTransition(.numericText())
+                    .accessibilityLabel(Text("\(CLFormat.percent(before)) to \(CLFormat.percent(after)) ready"))
+                if let line = outlookLine {
+                    Text(verbatim: line.text)
+                        .clFont(.subheadline)
+                        .foregroundStyle(line.onTrack ? CLColor.mintInk : CLColor.ink2)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -482,23 +436,39 @@ struct SessionSummaryView: View {
         .accessibilityElement(children: .combine)
     }
 
-    private func readinessParts(before: Double, after: Double) -> [String] {
-        let change = "\(CLFormat.percent(before)) → \(CLFormat.percent(after)) ready"
-        guard let days = info?.daysLeft else { return [change] }
-        return [change, days == 1 ? "1 day left" : "\(days) days left"]
+    /// The steps the readiness number counts in: one a point, at most 12.
+    private var readinessSteps: Int {
+        guard let before = summary.readinessBefore, let after = summary.readinessAfter, after > before else { return 0 }
+        return min(CountUp.maxSteps, Int(((after - before) * 100).rounded()))
     }
 
-    private var projectionPill: (text: String, tone: CLPill.Tone, symbol: String)? {
-        guard let info, let projected = info.projected else { return nil }
-        let target = CLFormat.percent(info.target)
-        if projected >= info.target - 0.0001 {
-            return ("On track for \(target)", .mint, "chart.line.uptrend.xyaxis")
+    /// The after number as it counts up from before (exactly after once it lands).
+    private func shownAfter(before: Double, after: Double) -> Double {
+        let steps = readinessSteps
+        guard steps > 0, readinessStep < steps else { return readinessStep >= steps ? after : before }
+        return before + (after - before) * Double(readinessStep) / Double(steps)
+    }
+
+    /// "On track for 80% · 2 days left", or "Projected 72% by 12 Nov · 2 days left": the projection, labelled as one.
+    private var outlookLine: (text: String, onTrack: Bool)? {
+        guard let info else { return nil }
+        var parts: [String] = []
+        var onTrack = false
+        if let projected = info.projected {
+            onTrack = projected >= info.target - 0.0001
+            if onTrack {
+                parts.append(String(localized: "On track for \(CLFormat.percent(info.target))"))
+            } else if let date = info.examDate {
+                parts.append(String(localized: "Projected \(CLFormat.percent(projected)) by \(date.formatted(.dateTime.day().month(.abbreviated)))"))
+            } else {
+                parts.append(String(localized: "Projected \(CLFormat.percent(projected))"))
+            }
         }
-        let by = info.examDate.map { " by \($0.formatted(.dateTime.month(.abbreviated).day()))" } ?? ""
-        return ("Projected \(CLFormat.percent(projected))\(by)", .sun, "chart.line.uptrend.xyaxis")
+        if let days = info.daysLeft { parts.append(String(localized: "\(days) days left")) }
+        return parts.isEmpty ? nil : (parts.joined(separator: " · "), onTrack)
     }
 
-    // MARK: Notes (streak, topics, next session)
+    // MARK: Notes (a streak freeze, a repaired day)
 
     @ViewBuilder private var notes: some View {
         let rows = noteRows
@@ -536,13 +506,6 @@ struct SessionSummaryView: View {
             rows.append(NoteRow(id: "repair", icon: "bandage", tint: .mint,
                                 title: "You repaired \(day.formatted(.dateTime.weekday(.wide)))",
                                 subtitle: "A double session joined your streak back up."))
-        }
-        for topic in (info?.topics ?? []).prefix(3) {
-            rows.append(NoteRow(id: topic.id.uuidString, icon: topic.missed ? "arrow.counterclockwise" : "checkmark.circle",
-                                tint: topic.missed ? .sun : .mint, title: topic.name, subtitle: topic.detail))
-        }
-        if let next = info?.nextSession {
-            rows.append(NoteRow(id: "next", icon: "bell", tint: .sky, title: "Next session", subtitle: next))
         }
         return rows
     }
@@ -591,13 +554,14 @@ struct SessionSummaryView: View {
         app.router.toast("Cap will bring it up on Today", systemImage: "clock", tone: .neutral)
     }
 
-    // MARK: Exam eve
+    // MARK: The night before
 
+    /// The exam, its readiness and when it is.
     private var eveCard: some View {
         let layout = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 12))
             : AnyLayout(HStackLayout(spacing: 16))
         return layout {
-            ReadinessRing(value: ring ?? summary.readinessAfter ?? 0, size: 86, lineWidth: 10)
+            ReadinessRing(value: ring ?? summary.readinessAfter ?? 0, size: 72, lineWidth: 9)
             VStack(alignment: .leading, spacing: 4) {
                 Text(info?.examTitle ?? summary.examTitle ?? "Your exam")
                     .clFont(.headline)
@@ -607,11 +571,6 @@ struct SessionSummaryView: View {
                         .clFont(.subheadline)
                         .foregroundStyle(CLColor.ink2)
                 }
-                Text("You went over your weak spots.")
-                    .clFont(.subheadline)
-                    .foregroundStyle(CLColor.ink2)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.top, 2)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
@@ -619,37 +578,17 @@ struct SessionSummaryView: View {
         .accessibilityElement(children: .combine)
     }
 
-    /// One more thing the night can hold, if the student wants it: their shakiest ideas, to read once. Good night is still the big button.
-    private func lastLookCard(_ look: LastLook) -> some View {
-        Button {
-            CLHaptics.tap()
-            app.router.present(.lastLook(examID: look.examID))
-        } label: {
-            HStack(spacing: 12) {
-                Image(systemName: "moon.stars.fill")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(CLColor.sunInk)
-                    .frame(width: 40, height: 40)
-                    .background(CLColor.sunSoft, in: Circle())
-                    .accessibilityHidden(true)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(verbatim: LastLookCopy.title)
-                        .clFont(.headline)
-                        .foregroundStyle(CLColor.ink)
-                    Text(verbatim: LastLookCopy.line(ideas: look.ideas.count, minutes: look.minutes))
-                        .clFont(.subheadline)
-                        .foregroundStyle(CLColor.ink2)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                CLChevron()
-            }
-            .clCard()
-            .contentShape(Rectangle())
+    /// The last look, right here: "Read these once · 2 min" and the shakiest ideas, with "Good night" pinned below.
+    private func eveIdeas(_ look: LastLook) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(verbatim: LastLookCopy.readOnce(minutes: look.minutes))
+                .clFont(.headline)
+                .foregroundStyle(CLColor.ink)
+                .padding(.horizontal, 4)
+                .accessibilityAddTraits(.isHeader)
+            LastLookIdeas(look: look) { ref in SourceButton(ref: ref) }
         }
-        .buttonStyle(.pressable)
-        .accessibilityElement(children: .combine)
-        .accessibilityAddTraits(.isButton)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     // MARK: Footer
@@ -692,7 +631,7 @@ struct SessionSummaryView: View {
 
         if reduceMotion {
             CLFeel.play(isEve ? .goodnight : .done)
-            countStep = countSteps
+            readinessStep = readinessSteps
             ring = after ?? before
             streakShown = summary.streak.current
             skyShown = true
@@ -746,26 +685,25 @@ struct SessionSummaryView: View {
         }
     }
 
-    /// Cap has arrived (its motion plays as it appears): the session's sound, the numbers counting up, the ring
-    /// climbing, the streak rolling over, then the celebration. Stops where it is if the summary closes.
+    /// Cap has arrived (its motion plays as it appears): the session's sound, the ring climbing as the readiness number counts up, the
+    /// streak rolling over, then the celebration. Stops where it is if the summary closes.
     private func playOut(before: Double?, after: Double?) async throws {
         try await nap(250)
         CLFeel.play(isEve ? .goodnight : .done)
         guard !isEve else { return }
         try await nap(300)
-        try await tick(steps: countSteps, over: 0.8) { step in countStep = step }
-        if let before, let after, abs(after - before) >= 0.005 {
-            try await nap(150)
+        if !isFix, let before, let after, abs(after - before) >= 0.005 {
             withAnimation(CLMotion.fill) { ring = after }
             if after > before {
-                try await tick(steps: min(12, Int(((after - before) * 100).rounded())), over: 1.2) { _ in }
+                try await tick(steps: readinessSteps, over: 1.2) { step in readinessStep = step }
             } else {
                 try await nap(1200)
             }
         }
-        if !app.settings.quietMode {
+        if showsStreak {
             try await nap(150)
             withAnimation(CLMotion.pop) { streakShown = summary.streak.current }
+            if summary.streakExtended, !reduceMotion { flameBounce += 1 }
             try await nap(200)
         }
         // The sky says what the session did to it, the quests tick off, then the celebration.
@@ -847,8 +785,6 @@ struct SessionSummaryView: View {
             info.target = readiness.target
             info.projected = readiness.projected
         }
-        info.topics = topicRows()
-        info.nextSession = nextSessionLine()
         info.freezeEarned = summary.streak.freezesAvailable > runner.streakBefore.freezesAvailable
         let yesterday = app.calendar.startOfDay(for: app.calendar.adding(days: -1, to: app.now))
         info.freezeUsedYesterday = summary.streak.frozenDays.contains { app.calendar.isDate($0, inSameDayAs: yesterday) }
@@ -859,50 +795,6 @@ struct SessionSummaryView: View {
             info.bonusCount = app.buildSession(request).entries.count
         }
         return info
-    }
-
-    /// The topics this session touched: missed ones first ("Back tomorrow"), then strong ones ("Next review in
-    /// 4 days").
-    private func topicRows() -> [TopicRow] {
-        var byTopic: [UUID: (missed: Bool, due: Date?)] = [:]
-        var order: [UUID] = []
-        for answer in runner.answers {
-            guard let topic = answer.entry.topicID else { continue }
-            if byTopic[topic] == nil { order.append(topic) }
-            var value = byTopic[topic] ?? (false, nil)
-            if !answer.review.wasCorrect { value.missed = true }
-            if let due = answer.review.after.due { value.due = min(value.due ?? due, due) }
-            byTopic[topic] = value
-        }
-        let rows: [TopicRow] = order.compactMap { id in
-            guard let value = byTopic[id], let name = runner.topicName(id) else { return nil }
-            let days = value.due.map { max(0, $0.timeIntervalSince(app.now)) / 86_400 }
-            let detail: String
-            switch (value.missed, days) {
-            case (true, let d?) where d < 0.98: detail = "Back later today for another go"
-            case (true, let d?): detail = "Back \(SessionCopy.inInterval(days: d)) for another go"
-            case (true, nil): detail = "Back soon for another go"
-            case (false, let d?) where d < 0.98: detail = "Good start. One more look later today"
-            case (false, let d?): detail = "Strong. Next review \(SessionCopy.inInterval(days: d))"
-            case (false, nil): detail = "Strong"
-            }
-            return TopicRow(id: id, name: name, missed: value.missed, detail: detail)
-        }
-        return rows.filter(\.missed) + rows.filter { !$0.missed }
-    }
-
-    private func nextSessionLine() -> String? {
-        let forecast = app.dueForecast(days: 2)
-        let tomorrow = forecast.count > 1 ? forecast[1].count : 0
-        var parts: [String] = []
-        if let minutes = app.settings.reminderMinutes,
-           let time = app.calendar.date(bySettingHour: minutes / 60, minute: minutes % 60, second: 0, of: app.now) {
-            parts.append("Tomorrow at \(time.formatted(.dateTime.hour().minute()))")
-        } else {
-            parts.append("Tomorrow")
-        }
-        if tomorrow > 0 { parts.append(tomorrow == 1 ? "1 review due" : "\(tomorrow) reviews due") }
-        return parts.joined(separator: " · ")
     }
 }
 
