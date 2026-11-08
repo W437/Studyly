@@ -2,15 +2,15 @@
 
 For the owner to approve at Launch. Nothing is uploaded. The notes on the version today are `reviewNotes` in `scripts/asc/capling_copy.json`, written for an older build: they say the microphone is only for lectures and don't mention the calendar, Squad or mocks. At Launch this text goes there and `capling_asc.mjs` sends it, with the owner's approval. (That file is the store lane's, so this lane left it alone.)
 
-The first run, the sample page, the paste and the mock card below were walked with real taps on the simulator on 2026-11-07, on the offline rules, with Cloud AI off. The sample page gives 8 questions, and an exam of multiple choice and short answers then says "A mock needs 8 of those, and you have 6". With the passage below added, the card offers 9 questions and "Take it". Not walked, because a simulator can't: the camera, a real microphone, the real calendar, a sandbox purchase, Sign in with Apple.
+The first run, the sample page, the paste and the mock card below were walked with real taps on the simulator on 2026-11-07, on the offline rules, with Cloud AI off. The sample page gives 8 questions, and an exam of multiple choice and short answers then says "A mock needs 8 of those, and you have 6". With the passage below added, the card offers 9 questions and "Take it". Not walked, because a simulator can't: the camera, a real microphone, the real calendar, a sandbox purchase, Sign in with Apple. The first run was shortened on 2026-11-08 (the clarity pass) and walked again with real taps from the welcome to Today; adding the exam from Today's card was not walked.
 
-## The notes (3,867 characters; the limit is 4,000)
+## The notes (3,876 characters; the limit is 4,000)
 
 ```text
 Capling needs no account or demo login. All of this works on a fresh install with Cloud AI off, unless it says otherwise.
 
 FIRST RUN
-Go through the welcome and four questions; pick an exam about a week away. iOS may show its age range sheet and the notification prompt. At "Let's make your first set" choose "Use our sample page", add the questions and answer the two it asks. Then "See my plan", "Start my plan", "Continue free". Settings is your initial at the top of Today.
+Tap "Get started", then "Use our sample page", add the questions and answer the two it asks. iOS may show its age range sheet, and on "Your plan" its notification prompt. Then "Continue", "Continue free". The sample makes no exam, so add one about a week away: Today > "When is your next exam?" > Add exam. Settings is your initial at the top of Today.
 
 MICROPHONE AND SPEECH (audio background mode)
 Asked for only on first use. No spoken audio is stored or sent.

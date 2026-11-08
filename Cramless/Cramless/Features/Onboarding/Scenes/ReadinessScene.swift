@@ -1,3 +1,4 @@
+#if DEBUG
 import SwiftUI
 
 /// Scene 3, "Readiness": the readiness ring climbs (the product's `ReadinessRing` and `CLMotion.fill`) while the
@@ -89,3 +90,4 @@ struct ReadinessScene: View {
         try await nap(2600)
     }
 }
+#endif

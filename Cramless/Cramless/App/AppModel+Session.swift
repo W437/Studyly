@@ -346,9 +346,19 @@ extension AppModel {
         return Array(picks.prefix(2).map(\.id))
     }
 
-    /// Onboarding's readiness step: the course's next exam, or one made now from the date the person gave in the
-    /// quiz (`settings.nextExamDate`) when they have no exam yet. The title comes from the course ("Bio 101
-    /// exam"); the person can rename it later. Nil without a date (the step shows mastery instead).
+    /// Onboarding's date step ("When's your Bio 101 exam?"): keeps the day (at 9:00, the likeliest time; the time isn't asked) as
+    /// `settings.nextExamDate` and makes the course's exam from it. `day` nil is "No exam yet": no date, no exam.
+    @discardableResult
+    func setOnboardingExam(day: Date?, courseID: UUID?) -> Exam? {
+        var s = settings
+        s.nextExamDate = day.map { calendar.date(bySettingHour: 9, minute: 0, second: 0, of: $0) ?? $0 }
+        settings = s
+        return ensureOnboardingExam(courseID: courseID)
+    }
+
+    /// Onboarding's plan: the course's next exam, or one made now from the date the person gave
+    /// (`settings.nextExamDate`) when they have no exam yet. The title comes from the course ("Bio 101
+    /// exam"); the person can rename it later. Nil without a date (the plan shows its no-exam state).
     @discardableResult
     func ensureOnboardingExam(courseID: UUID?) -> Exam? {
         guard let course = onboardingCourse(courseID) else { return nil }
@@ -368,8 +378,8 @@ extension AppModel {
 
     #if DEBUG
     /// The world an onboarding step expects (`CRAMLESS_STEP`, with `CRAMLESS_SEED=0`): a course with the sample
-    /// page's checked questions, an exam date 23 days out (none with `CRAMLESS_STEP_NODATE=1`), and (`answered`) the quick check
-    /// already taken.
+    /// page's checked questions, an exam date 23 days out as the date step would have given (none with `CRAMLESS_STEP_NODATE=1`), and
+    /// (`answered`) the quick check already taken.
     func debugPrepareOnboardingWorld(answered: Bool) {
         if courses.isEmpty {
             let course = Course(name: "Bio 101", color: .sky, symbol: "leaf", now: now)

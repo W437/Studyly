@@ -92,11 +92,9 @@ struct DebugPage: View {
         guard steps.indices.contains(index) else { return "" }
         switch steps[index] {
         case .welcome: return "Welcome"
-        case .intro(let n): return "Live demo \(n + 1) of \(OnboardingMachine.introPages)"
-        case .quiz(let n): return "Question \(n + 1) of \(OnboardingMachine.quizQuestions)"
         case .firstSet: return "First set"
         case .firstSession: return "First session"
-        case .readiness: return "Readiness"
+        case .examDate: return "Exam date"
         case .plan: return "Plan"
         case .paywall: return "Paywall"
         case .done: return "Done"

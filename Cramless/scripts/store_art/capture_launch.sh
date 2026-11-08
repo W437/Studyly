@@ -24,7 +24,7 @@ shot() {  # name route wait [KEY=VALUE ...]   (a value may hold spaces)
 }
 ANSWER="To grow and repair damaged tissue. Mitosis copies the chromosomes so each new cell is identical and has the same number of chromosomes."
 shot today today 7
-shot plan onboarding:14 14     # the chart draws itself: wait for its last dot
+shot plan onboarding:4 7       # the ring climbs and the week rises
 shot graded session 8 CRAMLESS_SESSION_STATE=ownwords "CRAMLESS_SESSION_ANSWER=$ANSWER" CRAMLESS_MOCK_AI=0
 shot exam exam:0 7
 shot exam-bio exam:1 7

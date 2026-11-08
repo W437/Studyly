@@ -323,9 +323,7 @@ enum SampleData {
 
         var s = app.settings
         s.firstName = s.firstName.isEmpty ? "Maya" : s.firstName
-        s.goal = .aceExams
         s.level = .college
-        s.notesLocations = [.paper, .slides, .lectures, .flashcardApps]
         s.dailyMinutes = 15
         s.onboardingCompleted = true
         app.settings = s

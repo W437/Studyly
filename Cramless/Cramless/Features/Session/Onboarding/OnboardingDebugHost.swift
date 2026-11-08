@@ -1,11 +1,11 @@
 #if DEBUG
 import SwiftUI
 
-/// The Study lane's onboarding steps outside onboarding, for screenshots and checks: `CRAMLESS_STEP=firstSession|
-/// readiness|plan` (read by `TodayView`) opens this over Today. The steps then run on in order, the way the real
-/// flow chains them; the plan's line ends it as a toast.
+/// Onboarding's steps after the first set, outside onboarding, for screenshots and checks: `CRAMLESS_STEP=firstSession|examDate|
+/// plan` (read by `TodayView`) opens this over Today. The steps then run on in order, the way the real flow chains them; the plan's
+/// Continue closes it with a toast.
 enum OnboardingDebugStep: String, Identifiable {
-    case firstSession, readiness, plan
+    case firstSession, examDate, plan
     var id: String { rawValue }
 }
 
@@ -21,13 +21,13 @@ struct OnboardingDebugHost: View {
             Group {
                 switch step ?? start {
                 case .firstSession:
-                    OnboardingFirstSessionStep(courseID: nil) { step = .readiness }
-                case .readiness:
-                    OnboardingReadinessStep(courseID: nil) { step = .plan }
+                    OnboardingFirstSessionStep(courseID: nil) { step = .examDate }
+                case .examDate:
+                    OnboardingExamDateStep(courseID: nil) { step = .plan }
                 case .plan:
-                    OnboardingPlanStep(courseID: nil) { line in
+                    OnboardingPlanStep(courseID: nil) {
                         dismiss()
-                        app.router.toast(line.map { .verbatim($0) } ?? "Your plan is set.", systemImage: "checkmark.circle.fill")
+                        app.router.toast("Your plan is set.", systemImage: "checkmark.circle.fill")
                     }
                 }
             }

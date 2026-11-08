@@ -11,9 +11,9 @@ struct WelcomeView: View {
     @State private var arrived = false
     @State private var stage = WelcomeStage()
 
-    /// The welcome is what the person is looking at: not covered by the intro (a navigation push keeps it alive under the pages), not
-    /// behind the "I already have an account" sheet, and the app is in the foreground. Cap says and lights nothing otherwise, and no
-    /// note plays over another screen.
+    /// The welcome is what the person is looking at: not covered by the first set (a navigation push keeps it alive under the steps),
+    /// not behind the "I already have an account" sheet, and the app is in the foreground. Cap says and lights nothing otherwise, and
+    /// no note plays over another screen.
     private var isFront: Bool {
         onboarding.step == .welcome && !onboarding.showsWelcomeBack && scenePhase == .active
     }

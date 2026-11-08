@@ -307,6 +307,21 @@ final class SessionTests: XCTestCase {
         XCTAssertEqual(app.ensureOnboardingExam(courseID: course.id)?.id, own.id)
     }
 
+    func testTheDateStepMakesTheCoursesExamOrNone() throws {
+        let course = makeCourse()
+        app.save()
+        XCTAssertNil(app.setOnboardingExam(day: nil, courseID: course.id), "No exam yet: none is made")
+        XCTAssertNil(app.settings.nextExamDate)
+        XCTAssertTrue(app.upcomingExams().isEmpty)
+
+        let day = cal.startOfDay(for: cal.adding(days: 12, to: clock.now))
+        let exam = try XCTUnwrap(app.setOnboardingExam(day: day, courseID: course.id))
+        XCTAssertEqual(exam.title, "Bio 101 exam")
+        XCTAssertEqual(cal.component(.hour, from: exam.date), 9, "the morning, since the time isn't asked")
+        XCTAssertTrue(cal.isDate(exam.date, inSameDayAs: day))
+        XCTAssertEqual(app.upcomingExams().map(\.id), [exam.id])
+    }
+
     func testAPastExamDateMakesNoExam() {
         let course = makeCourse()
         app.save()

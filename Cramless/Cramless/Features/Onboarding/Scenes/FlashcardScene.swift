@@ -1,3 +1,4 @@
+#if DEBUG
 import SwiftUI
 
 /// Scene 2, "Flashcards": a card turns over to its answer, the four ratings say when it would come back, "Got it" is tapped, and a
@@ -145,3 +146,4 @@ struct FlashcardScene: View {
         try await nap(2900)
     }
 }
+#endif

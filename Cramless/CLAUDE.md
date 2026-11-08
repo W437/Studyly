@@ -211,9 +211,11 @@ sleep 4; xcrun simctl io <udid> screenshot shot.png
     - The last look: `CRAMLESS_ROUTE=lastLook[:<n>]` opens it on the nth upcoming exam (`lastLook:1`: the Bio midterm, whose notes have pages; without a number, the first with ideas to show), `CRAMLESS_LASTLOOK=offline|cloud` with the prepared sentences missing or written (the mock relay). On an eve's summary (`CRAMLESS_ROUTE=session:examEve CRAMLESS_SESSION_STATE=exameve-summary`) it is the card under the words.
     - `CRAMLESS_SUMMARY_SKY=<ms>` opens the memory sky that long after a summary's choreography, as a tap on its
       "See the sky" strip would (films follow a real session into the sky it relit).
-  - Onboarding steps: `CRAMLESS_STEP=firstSession|readiness|plan` (with `CRAMLESS_SEED=0`; `CRAMLESS_STEP_NODATE=1` for a person
-    who gave no exam date: the readiness step then shows no number);
-    `CRAMLESS_FIRSTSET=choose|processing|review` (with `CRAMLESS_ROUTE=scanner`).
+  - Onboarding steps: `CRAMLESS_STEP=firstSession|examDate|plan` (with `CRAMLESS_SEED=0`; `CRAMLESS_STEP_NODATE=1` for a person
+    who gave no exam date: the plan then shows Cap and no number; `CRAMLESS_STEP_SCROLL=bottom` scrolls the plan to its two rows);
+    `CRAMLESS_ONB_DATE=<days>|none` picks a day that many days out (or "No exam yet") on the date step;
+    `CRAMLESS_FIRSTSET=choose|processing|review` (with `CRAMLESS_ROUTE=scanner`; the sample page, which skips the class card and the
+    date; `CRAMLESS_CAPTURE_INPUT=text` makes it from typed notes, a real page's path).
   - Capture: `CRAMLESS_CAPTURE_PHASE=reading|ideas|writing|checking|done|review|error:<kind>`,
     `CRAMLESS_CAPTURE_INPUT=photo|text`, `CRAMLESS_REVIEW_EDIT|UNTICK|SCROLL|PEEK|APPROVE|ALLOW`,
     `CRAMLESS_RECORD_FLAG|PAUSE|STOP`, `CRAMLESS_NOTES_FOCUS`, `CRAMLESS_IMPORT`, `CRAMLESS_PASTE_TEXT` (`sample`, or `long`: about 21 pages),
@@ -243,7 +245,7 @@ sleep 4; xcrun simctl io <udid> screenshot shot.png
     Cap", `CRAMLESS_RESEARCH=pro` shows a free account's web research. `scripts/cap_anim/films_assistant.sh <udid> <out>` films and shoots them all.
   - Paywall and onboarding: `CRAMLESS_PAYWALL_PLAN`, `CRAMLESS_PAYWALL_STATE=purchasing|pending|cancelled|failed|purchased|restored`,
     `CRAMLESS_PAYWALL_TRIAL=0`, `CRAMLESS_PAYWALL_SCROLL=plans`, `CRAMLESS_PAYWALL_EXAMPASS=link|open` (the Exam Pass link drawn as if
-    it were offered today; `open` also opens it over the paywall), `CRAMLESS_ONB_REMINDER=1`. The Squad page sells Squad itself
+    it were offered today; `open` also opens it over the paywall). The Squad page sells Squad itself
     (`CRAMLESS_ROUTE=squad`, `CRAMLESS_AGE=under13` for `NoPurchaseView`). `CRAMLESS_CONSENT_DETAILS=1` opens "What's sent" (the full
     text) over `consent`, `consent:photos` or `settings:aiPrivacy`; `settings:assistant` opens the same AI and privacy page.
   - Progress: `CRAMLESS_SCROLL=exams|review|confused|week|more` the tab's sections; `CRAMLESS_ROUTE=streak CRAMLESS_SCROLL=freezes` the streak page with "How freezes work" open; `CRAMLESS_SKY=memory` opens "How you remember" over the sky.
@@ -284,8 +286,9 @@ sleep 4; xcrun simctl io <udid> screenshot shot.png
   - The welcome is a small world with a constellation to light (`WelcomeWorld`, `WelcomeStage`, pure parts in `WelcomeSky`):
     `CRAMLESS_WELCOME=lit1|lit2|lit3` shows the sky after that many stars at once, `CRAMLESS_WELCOME=3200:s1,5200:s4,7200:s0`
     taps stars by index (0 to 6, left to right) at those milliseconds, through the finger's own code; with neither, Cap lights them
-    himself (`scripts/cap_anim/films_welcome.sh`). `CRAMLESS_SKY_PERF=1` logs its frame time and `CRAMLESS_FEEL_PERF=1` how long each sound held the main thread. `CRAMLESS_ROUTE=onboarding:<n>` numbers welcome 0, the six intro pages 1 to 6, the
-    four questions 7 to 10, then the first set (11), first session (12), readiness (13), plan (14), paywall (15).
+    himself (`scripts/cap_anim/films_welcome.sh`). `CRAMLESS_SKY_PERF=1` logs its frame time and `CRAMLESS_FEEL_PERF=1` how long each sound held the main thread. `CRAMLESS_ROUTE=onboarding:<n>` numbers welcome 0, the first set 1, the first
+    session 2, the exam date 3, the plan 4, the paywall 5. The six demos that opened onboarding before the clarity pass stay for films
+    and store art only (DEBUG): `CRAMLESS_ROUTE=introScene:<n>`, 1 to 6 (`IntroScenePage`).
   - `CRAMLESS_ROUTE=sky` opens the memory sky; `CRAMLESS_SKY=still|relight[:n]|flare|age:<days>|lapse:<days>|focus:<n>|tour|list|fill:<n>`
     (comma-separated) sets its state: a still frame, a relight after a session, the save's flare on a loop, the sky
     some days on, a time-lapse of forgetting, a focused constellation or a tour of three, the list, more stars.

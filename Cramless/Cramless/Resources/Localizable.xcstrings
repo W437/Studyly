@@ -107,7 +107,6 @@
     "%@ exam" : {},
     "%@ for 30 days of Pro. Doesn't renew." : {},
     "%@ from this page" : {},
-    "%@ goal" : {},
     "%@ goes back to the free plan at once and their seat opens for someone else. Everything they've studied stays theirs." : {},
     "%@ has %lld questions so far" : {
       "localizations" : {
@@ -272,6 +271,48 @@
         }
       }
     },
+    "%@ · %lld days" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ · %#@days@"
+          },
+          "substitutions" : {
+            "days" : {
+              "argNum" : 2,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg day"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg days"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%@ · %lld days away" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ · %2$lld days away"
+          }
+        }
+      }
+    },
     "%@ · %lld min" : {
       "localizations" : {
         "en" : {
@@ -305,6 +346,8 @@
     },
     "%@ · nothing to review" : {},
     "%@ · skipped" : {},
+    "%@ · today" : {},
+    "%@ · tomorrow" : {},
     "%@%@" : {
       "localizations" : {
         "en" : {
@@ -845,6 +888,92 @@
         }
       }
     },
+    "%lld minutes a day gets you to %@ by %@." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%#@minutes@ gets you to %2$@ by %3$@."
+          },
+          "substitutions" : {
+            "minutes" : {
+              "argNum" : 1,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg minute a day"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg minutes a day"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld minutes a day gets you to %@ by exam day." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%#@minutes@ gets you to %2$@ by exam day."
+          },
+          "substitutions" : {
+            "minutes" : {
+              "argNum" : 1,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg minute a day"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg minutes a day"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld minutes a day keeps your questions fresh until you add an exam." : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld minute a day keeps your questions fresh until you add an exam."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld minutes a day keeps your questions fresh until you add an exam."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "%lld minutes left" : {
       "localizations" : {
         "en" : {
@@ -968,28 +1097,6 @@
                 "stringUnit" : {
                   "state" : "translated",
                   "value" : "%lld minutes planned"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "%lld minutes tonight and you're done." : {
-      "localizations" : {
-        "en" : {
-          "variations" : {
-            "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "%lld minute tonight and you're done."
-                }
-              },
-              "other" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "%lld minutes tonight and you're done."
                 }
               }
             }
@@ -2442,7 +2549,6 @@
     "A new sky is lit" : {},
     "A new sky is lit. A week of 12 quests did it." : {},
     "A night sky with a constellation shaped like Cap's graduation cap" : {},
-    "A nudge at the right time" : {},
     "A perfect time for a few cards." : {},
     "A plan and readiness for every exam" : {},
     "A plan! I love a plan." : {},
@@ -3061,10 +3167,7 @@
     "Bring your first page" : {},
     "Bring your stuff" : {},
     "Bringing your material back…" : {},
-    "Building your plan" : {},
-    "Built from your answers. It bends when your week does." : {},
     "Busy days" : {},
-    "By topic, on exam day" : {},
     "CAP-7Q4K" : {},
     "Calendar" : {},
     "Calendar looking good." : {},
@@ -3230,6 +3333,7 @@
     "Capling doesn't know your age, so it keeps to the rules for under 18." : {},
     "Capling is free for you" : {},
     "Capling now projects your grades from your readiness." : {},
+    "Capling plans backwards from that date." : {},
     "Capling puts it beside how ready you were on the day, to learn how your readiness turns into grades." : {},
     "Capling still writes questions, grades answers and lets Cap explain, on this iPhone." : {},
     "Capturing knowledge…" : {},
@@ -3450,7 +3554,6 @@
     "Everything you've studied stays on this iPhone. Sync stops until you sign in again." : {},
     "Exactly what's sent" : {},
     "Exam" : {},
-    "Exam %@" : {},
     "Exam Pass" : {},
     "Exam Pass for %@" : {},
     "Exam added, %lld days away" : {
@@ -3478,32 +3581,9 @@
     "Exam countdowns" : {},
     "Exam countdowns only" : {},
     "Exam date" : {},
-    "Exam day %@" : {},
     "Exam moved to %@" : {},
     "Exam time" : {},
     "Exam: %@" : {},
-    "Example reminder: %lld minutes tonight and you're done." : {
-      "localizations" : {
-        "en" : {
-          "variations" : {
-            "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "Example reminder: %lld minute tonight and you're done."
-                }
-              },
-              "other" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "Example reminder: %lld minutes tonight and you're done."
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "Exams" : {},
     "Explain" : {},
     "Explain %@ in your own words." : {},
@@ -3602,16 +3682,6 @@
     "Fresh brain, fresh start." : {},
     "Fresh sky. Lovely." : {},
     "From" : {},
-    "From %@ today to %@ on exam day, if you follow the plan." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "From %1$@ today to %2$@ on exam day, if you follow the plan."
-          }
-        }
-      }
-    },
     "From %@, for your %@." : {
       "localizations" : {
         "en" : {
@@ -3629,7 +3699,7 @@
     "From a photo" : {},
     "From this page" : {},
     "From your notes" : {},
-    "From your page, graded as you go. This is just where you start." : {},
+    "From your page." : {},
     "From your past grades, that's about a %@." : {},
     "From your past grades, that's about an %@." : {},
     "From your photo of the syllabus" : {},
@@ -3657,7 +3727,6 @@
     "Go on, tap one." : {},
     "Go over it · 1 min" : {},
     "Goal reached" : {},
-    "Goes to the questions" : {},
     "Gold" : {},
     "Gold star, well deserved." : {},
     "Golden hour, golden brain." : {},
@@ -3825,7 +3894,6 @@
       }
     },
     "In page order, up to 6" : {},
-    "In progress" : {},
     "In the week before an exam, one a day at most, instead of that day's reminder." : {},
     "In this Squad" : {},
     "In your notes" : {},
@@ -4017,7 +4085,6 @@
     "Let's colour in the calendar." : {},
     "Let's figure it out together." : {},
     "Let's find out together." : {},
-    "Let's go" : {},
     "Let's make your first set" : {},
     "Let's read it once more." : {},
     "Letter grade %@" : {},
@@ -4111,6 +4178,7 @@
     "Midterm %@" : {},
     "Midterm in 23 days" : {},
     "Minutes" : {},
+    "Minutes a day" : {},
     "Miss a day and a freeze covers it, so your streak carries on. It never covers two days in a row." : {},
     "Missed %@? You can repair it." : {},
     "Missed %lld times" : {
@@ -4248,6 +4316,7 @@
     "New question" : {},
     "New topic" : {},
     "Next" : {},
+    "Next month" : {},
     "Next review %@" : {},
     "Next time, the same idea as a fill-in?" : {},
     "Next time, the same idea in a real problem?" : {},
@@ -4335,7 +4404,6 @@
     "Not recording" : {},
     "Not set" : {},
     "Not set up in this build. Everything runs on this iPhone." : {},
-    "Not started" : {},
     "Not studied yet" : {},
     "Not sure" : {},
     "Not this close to the exam. Tonight is for your weak spots, then sleep." : {},
@@ -4511,7 +4579,6 @@
     "Photos of the pages you scan go to %@ with your notes, questions and answers, through Capling's server, so it can read handwriting, math and diagrams." : {},
     "Photos of the pages you scan, made smaller first, along with their text, for as long as this switch is on." : {},
     "Photos of the pages you scan, made smaller first, along with their text, for as long as this switch is on. This also turns on Cloud AI, so your notes, your answers and your questions to Cap go too." : {},
-    "Pick as many as apply" : {},
     "Pick me!" : {},
     "Pick topics" : {},
     "Pick up where you left off" : {},
@@ -4576,6 +4643,7 @@
         }
       }
     },
+    "Previous month" : {},
     "Privacy" : {},
     "Privacy Policy" : {},
     "Pro" : {},
@@ -4583,7 +4651,6 @@
     "Pro works once you turn on Cloud AI in Settings." : {},
     "Profile and settings" : {},
     "Progress" : {},
-    "Projected, if you follow the plan" : {},
     "Proud paws on hips." : {},
     "Purchasing" : {},
     "Pure skill." : {},
@@ -4642,16 +4709,6 @@
     "Quizlet and Anki imports" : {},
     "Quizlet export" : {},
     "Raise your paw if you wonder." : {},
-    "Reaches %@ on %@" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "Reaches %1$@ on %2$@"
-          }
-        }
-      }
-    },
     "Read" : {},
     "Read %@" : {},
     "Read it all" : {},
@@ -4758,6 +4815,7 @@
     "Rise and review." : {},
     "Said: on the exam" : {},
     "Same you, brand new view." : {},
+    "Sample" : {},
     "Save" : {},
     "Save 3 fading stars" : {},
     "Save as note" : {},
@@ -4818,7 +4876,6 @@
     "See all %lld" : {},
     "See how it went" : {},
     "See it" : {},
-    "See my plan" : {},
     "See my score" : {},
     "See plans" : {},
     "See that card? Yep." : {},
@@ -4838,7 +4895,6 @@
     "Set from your syllabus. Check anything Cap misread before you save." : {},
     "Setting up practice" : {},
     "Settings" : {},
-    "Setup progress" : {},
     "Share invite" : {},
     "Share your age range" : {},
     "Shh. Good part coming up." : {},
@@ -4952,8 +5008,8 @@
     "Smooth." : {},
     "Smoothing the corners." : {},
     "Snap a page, add a PDF or import a deck. Capling turns it into questions, each one linked to where it came from." : {},
+    "Snap a page. Get questions." : {},
     "Snap a problem" : {},
-    "Snap any page from your notes or a textbook. It takes about 20 seconds." : {},
     "Snap the chapter" : {},
     "Snap the syllabus" : {},
     "Snap the syllabus or a past paper. Cap sets the topics, the date and the format." : {},
@@ -4996,7 +5052,6 @@
     "Start 5 min" : {},
     "Start a %@ session" : {},
     "Start a streak today" : {},
-    "Start my plan" : {},
     "Start today's session" : {},
     "Start today's session, %lld minutes" : {
       "localizations" : {
@@ -5020,7 +5075,6 @@
         }
       }
     },
-    "Started" : {},
     "Starting" : {},
     "Starting your note" : {},
     "Starts a practice round on this topic" : {},
@@ -5155,7 +5209,7 @@
     "Tap a circle to mark the right answer." : {},
     "Tap me anytime." : {},
     "Tap tap tap!" : {},
-    "Tap the day of your exam" : {},
+    "Tap your exam day" : {},
     "Target" : {},
     "Target %@" : {},
     "Teach Cap" : {},
@@ -5466,7 +5520,6 @@
     "To mark" : {},
     "To whom, and what our server keeps" : {},
     "Today" : {},
-    "Today %@" : {},
     "Today · %@" : {},
     "Today · %lld min" : {},
     "Today · done" : {},
@@ -5550,12 +5603,13 @@
     "Turn it off any time in Settings, AI and privacy. Without it, Capling still works: questions and grades come from your iPhone, in less detail." : {},
     "Turn it on in Settings, and Cap can hear your answers." : {},
     "Turn on Cloud AI" : {},
-    "Turn on reminders" : {},
     "Turning pages, turning heads." : {},
     "Turns off every haptic in Capling." : {},
     "Turns off every sound in Capling." : {},
+    "Turns on a daily reminder" : {},
     "Turns on a daily reminder at 7 PM; you can change the time." : {},
     "Turns on taps you can feel for your own actions." : {},
+    "Turns the daily reminder off" : {},
     "Turns the daily reminder off. Exam countdowns still come." : {},
     "Two a day at most, an hour apart. If you stop opening Capling, it stops after a week." : {},
     "Two days before a free week ends, so you're never charged by surprise" : {},
@@ -5585,7 +5639,6 @@
     "Version %@" : {},
     "Very proud. Very capybara." : {},
     "VoiceOver" : {},
-    "Waiting" : {},
     "Waiting for review" : {},
     "Wait… I know this." : {},
     "Wake me at the good part." : {},
@@ -5632,6 +5685,8 @@
     "When" : {},
     "When is your next exam?" : {},
     "When there's something to study" : {},
+    "When's your %@ exam?" : {},
+    "When's your next exam?" : {},
     "Where you are in the lecture" : {},
     "Which class is this for?" : {},
     "Which one is this? %@" : {},
@@ -5693,6 +5748,7 @@
     },
     "You answered 25 questions in your own words." : {},
     "You came back. Love that." : {},
+    "You can add it later" : {},
     "You can change the options after adding, in the card's editor." : {},
     "You can still study the same questions on screen." : {},
     "You covered all of it. Cap gets it now." : {},
@@ -5928,14 +5984,13 @@
     "Your memory sky is empty. Add class material and every question you study becomes a star." : {},
     "Your name" : {},
     "Your notes and answers are never used to train AI models." : {},
+    "Your notes, a textbook or a handout. It takes about 20 seconds." : {},
     "Your notes, questions and answers go to %@, through Capling's server, so Cap can write and grade questions." : {},
     "Your other exams can wait until after %@." : {},
     "Your page stays on this iPhone unless you turn on Cloud AI or sign in." : {},
-    "Your path to %@" : {},
     "Your plan" : {},
     "Your plan aims for this readiness by exam day. 90% suits most exams." : {},
     "Your plan is set." : {},
-    "Your projected path to %@" : {},
     "Your questions already cover everything in this one." : {},
     "Your questions cover %@ of the notes you've added, and %@." : {
       "localizations" : {
@@ -5960,7 +6015,6 @@
     "Your sky is waiting" : {},
     "Your stars waited for you. 5 minutes today is a good start." : {},
     "Your streak, quests and the sky" : {},
-    "Your topics" : {},
     "Your turn" : {},
     "Your voice isn't recorded, and nothing you say is kept. If Cloud AI is on, your words go to it to be checked." : {},
     "Your voice isn't recorded. Your iPhone turns it into words, and they're gone after the answer. An answer in your own words goes to Cloud AI to be graded, if you've turned it on." : {},

@@ -4,18 +4,6 @@ import Foundation
 /// `AppModel.settings` (which saves on every change); everything else reads it from there.
 /// New fields need defaults in `init(from:)` (decodeIfPresent), never a version bump.
 struct AppSettings: Codable, Equatable, Sendable {
-    enum Goal: String, Codable, CaseIterable, Sendable {
-        case passClass, aceExams, keepUp, learn
-        var title: String {
-            switch self {
-            case .passClass: "Pass a hard class"
-            case .aceExams: "Ace my exams"
-            case .keepUp: "Keep up every week"
-            case .learn: "Actually remember it"
-            }
-        }
-    }
-
     enum Level: String, Codable, CaseIterable, Sendable {
         case highSchool, college, grad, other
         var title: String {
@@ -24,18 +12,6 @@ struct AppSettings: Codable, Equatable, Sendable {
             case .college: "College"
             case .grad: "Grad or professional school"
             case .other: "Something else"
-            }
-        }
-    }
-
-    enum NotesLocation: String, Codable, CaseIterable, Sendable {
-        case paper, slides, lectures, flashcardApps
-        var title: String {
-            switch self {
-            case .paper: "Paper and textbooks"
-            case .slides: "Slides and PDFs"
-            case .lectures: "In lectures"
-            case .flashcardApps: "Quizlet or Anki"
             }
         }
     }
@@ -58,12 +34,10 @@ struct AppSettings: Codable, Equatable, Sendable {
 
     // Profile
     var firstName = ""
-    var goal: Goal?
     var level: Level?
-    var notesLocations: [NotesLocation] = []
     var ageBand: AgeBand = .unknown
-    /// The next big exam, as onboarding's second question answered it (nil: no exam yet). The plan step turns it
-    /// into an `Exam` once there's a course to attach it to.
+    /// The next big exam, as onboarding's date step answered it (nil: no exam yet). It becomes the first course's `Exam`
+    /// (`AppModel.setOnboardingExam`).
     var nextExamDate: Date?
 
     // Study
@@ -139,9 +113,7 @@ struct AppSettings: Codable, Equatable, Sendable {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         let d = AppSettings()
         firstName = try c.decodeIfPresent(String.self, forKey: .firstName) ?? d.firstName
-        goal = try c.decodeIfPresent(Goal.self, forKey: .goal)
         level = try c.decodeIfPresent(Level.self, forKey: .level)
-        notesLocations = try c.decodeIfPresent([NotesLocation].self, forKey: .notesLocations) ?? d.notesLocations
         ageBand = try c.decodeIfPresent(AgeBand.self, forKey: .ageBand) ?? d.ageBand
         nextExamDate = try c.decodeIfPresent(Date.self, forKey: .nextExamDate)
         dailyMinutes = try c.decodeIfPresent(Int.self, forKey: .dailyMinutes) ?? d.dailyMinutes

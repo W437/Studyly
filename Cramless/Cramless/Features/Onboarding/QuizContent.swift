@@ -1,79 +1,16 @@
 import Foundation
 
-/// The four one-tap questions. Answers land in `AppSettings` as they're picked.
-enum QuizQuestion: Int, CaseIterable, Sendable {
-    case goal, examDate, minutes, notes
-
-    var title: String {
-        switch self {
-        case .goal: "What's your goal this term?"
-        case .examDate: "When's your next big exam?"
-        case .minutes: "How much time can you give it a day?"
-        case .notes: "Where do your notes live?"
-        }
-    }
-
-    var subtitle: String {
-        switch self {
-        case .goal: "We'll shape your plan around it."
-        case .examDate: "Capling plans backwards from that date."
-        case .minutes: "Little and often beats cramming. You can change this anytime."
-        case .notes: "Pick all that apply. Capling can use every one of them."
-        }
-    }
-
-    /// Single-choice questions move on by themselves after a pick (the date waits for Continue).
-    var isMultiSelect: Bool { self == .notes }
-}
-
-/// One answer on a question card.
-struct QuizChoice<Value: Hashable>: Identifiable {
-    var value: Value
-    var symbol: String
-    var title: String
-    var detail: String?
-
-    var id: Value { value }
-}
-
+/// The words of onboarding's one question (the exam's date) and of the plan screen that follows it.
 enum QuizContent {
-    static let goals: [QuizChoice<AppSettings.Goal>] = AppSettings.Goal.allCases.map { goal in
-        switch goal {
-        case .passClass: QuizChoice(value: goal, symbol: "checkmark.seal", title: goal.title,
-                                    detail: "Get through the one that worries you")
-        case .aceExams: QuizChoice(value: goal, symbol: "star", title: goal.title,
-                                   detail: "Top marks on midterms and finals")
-        case .keepUp: QuizChoice(value: goal, symbol: "calendar", title: goal.title,
-                                 detail: "No more catching up the night before")
-        case .learn: QuizChoice(value: goal, symbol: "brain.head.profile", title: goal.title,
-                                detail: "Know it after the exam, too")
-        }
-    }
-
+    /// The plan screen's minutes a day: plain numbers, no labels.
     static let minuteOptions = [5, 10, 15, 20, 30]
 
-    static let minutes: [QuizChoice<Int>] = minuteOptions.map { m in
-        let (symbol, word): (String, String) = switch m {
-        case 5: ("cup.and.saucer", "Light")
-        case 10: ("timer", "Steady")
-        case 15: ("flame", "Serious")
-        case 20: ("bolt", "Focused")
-        default: ("figure.run", "All in")
+    /// "When's your Bio 101 exam?", named after the course the first page went to.
+    static func examQuestion(courseName: String?) -> String {
+        guard let name = courseName?.trimmingCharacters(in: .whitespacesAndNewlines), !name.isEmpty else {
+            return String(localized: "When's your next exam?")
         }
-        return QuizChoice(value: m, symbol: symbol, title: "\(m) minutes", detail: word)
-    }
-
-    static let notes: [QuizChoice<AppSettings.NotesLocation>] = AppSettings.NotesLocation.allCases.map { place in
-        switch place {
-        case .paper: QuizChoice(value: place, symbol: "book", title: place.title,
-                                detail: "Snap pages with the camera")
-        case .slides: QuizChoice(value: place, symbol: "doc.richtext", title: place.title,
-                                 detail: "From Files, Drive or email")
-        case .lectures: QuizChoice(value: place, symbol: "mic", title: place.title,
-                                   detail: "Record and transcribe on iPhone")
-        case .flashcardApps: QuizChoice(value: place, symbol: "rectangle.stack", title: place.title,
-                                        detail: "Import them in one tap")
-        }
+        return String(localized: "When's your \(name) exam?")
     }
 
     /// "Sat, Nov 14 · 23 days away" under the calendar.
@@ -81,18 +18,33 @@ enum QuizContent {
         let days = calendar.dayDistance(from: now, to: date)
         let day = date.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day())
         switch days {
-        case ..<1: return "\(day) · today"
-        case 1: return "\(day) · tomorrow"
-        default: return "\(day) · \(days) days away"
+        case ..<1: return String(localized: "\(day) · today")
+        case 1: return String(localized: "\(day) · tomorrow")
+        default: return String(localized: "\(day) · \(days) days away")
         }
     }
 
-    /// The reminder moment after the minutes question: when, and why.
-    static func reminderBody(minutes: Int, time: String) -> String {
-        "One reminder a day at \(time), so your \(minutes) minutes don't slip. "
-            + "Never during quiet hours, and you can change it anytime in Settings."
+    /// The plan's exam line: "Bio 101 exam · 23 days".
+    static func examLine(title: String, days: Int) -> String {
+        days < 1 ? String(localized: "\(title) · today") : String(localized: "\(title) · \(days) days")
     }
 
+    /// The plan's one line, from the plan engine's projection: "15 minutes a day gets you to 90% by Nov 28.", or, when the target
+    /// isn't reached before the exam, how far it does get ("… to 72% by exam day.").
+    static func planLine(minutes: Int, target: Double, reachedOn: Date?, projected: Double) -> String {
+        if let reachedOn {
+            let day = reachedOn.formatted(.dateTime.month(.abbreviated).day())
+            return String(localized: "\(minutes) minutes a day gets you to \(CLFormat.percent(target)) by \(day).")
+        }
+        return String(localized: "\(minutes) minutes a day gets you to \(CLFormat.percent(projected)) by exam day.")
+    }
+
+    /// The plan's line with no exam: no readiness to promise.
+    static func noExamLine(minutes: Int) -> String {
+        String(localized: "\(minutes) minutes a day keeps your questions fresh until you add an exam.")
+    }
+
+    /// "7:00 PM" for minutes after midnight.
     static func timeString(minutes: Int) -> String {
         var parts = DateComponents()
         parts.year = 2001
@@ -102,14 +54,5 @@ enum QuizContent {
         parts.minute = minutes % 60
         let date = Calendar(identifier: .gregorian).date(from: parts) ?? .now
         return date.formatted(.dateTime.hour().minute())
-    }
-}
-
-extension AppSettings {
-    /// Adds or removes a notes location, keeping the list in the order the question shows it.
-    mutating func toggleNotesLocation(_ place: NotesLocation) {
-        var set = Set(notesLocations)
-        if set.contains(place) { set.remove(place) } else { set.insert(place) }
-        notesLocations = NotesLocation.allCases.filter(set.contains)
     }
 }

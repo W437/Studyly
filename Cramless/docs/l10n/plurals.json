@@ -20,10 +20,6 @@
     "one": "%lld minute a day",
     "other": "%lld minutes a day"
   },
-  "%lld minutes tonight and you're done.": {
-    "one": "%lld minute tonight and you're done.",
-    "other": "%lld minutes tonight and you're done."
-  },
   "%lld pages": {
     "one": "%lld page",
     "other": "%lld pages"
@@ -43,10 +39,6 @@
   "Based on %lld questions so far.": {
     "one": "Based on %lld question so far.",
     "other": "Based on %lld questions so far."
-  },
-  "Example reminder: %lld minutes tonight and you're done.": {
-    "one": "Example reminder: %lld minute tonight and you're done.",
-    "other": "Example reminder: %lld minutes tonight and you're done."
   },
   "No exam yet. %lld minutes today.": {
     "one": "No exam yet. %lld minute today.",
@@ -613,5 +605,39 @@
   "Missed %lld times": {
     "one": "Missed %lld time",
     "other": "Missed %lld times"
+  },
+  "%lld minutes a day gets you to %@ by %@.": {
+    "value": "%#@minutes@ gets you to %2$@ by %3$@.",
+    "substitutions": {
+      "minutes": {
+        "argNum": 1,
+        "one": "%arg minute a day",
+        "other": "%arg minutes a day"
+      }
+    }
+  },
+  "%lld minutes a day gets you to %@ by exam day.": {
+    "value": "%#@minutes@ gets you to %2$@ by exam day.",
+    "substitutions": {
+      "minutes": {
+        "argNum": 1,
+        "one": "%arg minute a day",
+        "other": "%arg minutes a day"
+      }
+    }
+  },
+  "%lld minutes a day keeps your questions fresh until you add an exam.": {
+    "one": "%lld minute a day keeps your questions fresh until you add an exam.",
+    "other": "%lld minutes a day keeps your questions fresh until you add an exam."
+  },
+  "%@ · %lld days": {
+    "value": "%1$@ · %#@days@",
+    "substitutions": {
+      "days": {
+        "argNum": 2,
+        "one": "%arg day",
+        "other": "%arg days"
+      }
+    }
   }
 }
