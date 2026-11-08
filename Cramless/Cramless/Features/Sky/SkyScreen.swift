@@ -1,8 +1,11 @@
 import SwiftUI
 
 /// Your memory sky, full screen: every star an item you've studied, every constellation a topic. Tap a constellation
-/// for how it's doing and to practise it; "Sky as a list" is the same thing for VoiceOver, for large text, and for
+/// for how it's doing and to practice it; "Sky as a list" is the same thing for VoiceOver, for large text, and for
 /// anyone who'd rather read it.
+///
+/// Opened from "Why these?" ("Study something else", the route `skyList`), the page is a list titled "Study something else" that
+/// starts with the courses and their Practice buttons, with the sky's summary under them; the sky is a tap away.
 ///
 /// DEBUG hooks, read once (`SkyDebug`): `CRAMLESS_SKY=still|relight|flare|age:<days>|lapse:<days>|focus:<n>|tour|list|fill:<n>`,
 /// comma-separated; the route is `CRAMLESS_ROUTE=sky`.
@@ -16,6 +19,8 @@ struct SkyScreen: View {
     @State private var sceneID = 0
     @State private var focus: Int?
     @State private var asList: Bool?
+    /// Opened to pick something else to study: the list leads with the courses, under that title.
+    private let choosing: Bool
     @State private var relight: SkyRelight = .none
     @State private var size = CGSize.zero
     #if DEBUG
@@ -30,9 +35,10 @@ struct SkyScreen: View {
 
     private var listMode: Bool { asList ?? typeSize.isAccessibilitySize }
 
-    /// `startsAsList`: open as the list (Today's "Study something else"), with the sky a tap away.
+    /// `startsAsList`: open as the list that leads with the courses (Today's "Study something else"), with the sky a tap away.
     init(startsAsList: Bool = false) {
         _asList = State(initialValue: startsAsList ? true : nil)
+        choosing = startsAsList
     }
 
     var body: some View {
@@ -41,7 +47,8 @@ struct SkyScreen: View {
                 if listMode {
                     CLColor.background.ignoresSafeArea()
                     if let scene {
-                        SkyListView(scene: scene, due: app.dueForecast(days: 7), calendar: app.calendar, onRelight: start, onOpenCourse: openCourse)
+                        SkyListView(scene: scene, due: app.dueForecast(days: 7), calendar: app.calendar, coursesFirst: choosing,
+                                    onRelight: start, onOpenCourse: openCourse)
                     }
                 } else {
                     sky(geo)
@@ -49,7 +56,7 @@ struct SkyScreen: View {
             }
             .onChange(of: geo.size, initial: true) { _, new in size = new }
         }
-        .navigationTitle("Memory sky")
+        .navigationTitle(listMode && choosing ? Text("Study something else") : Text("Memory sky"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(listMode ? .automatic : .hidden, for: .tabBar)
         .toolbarBackground(listMode ? .automatic : .hidden, for: .navigationBar)
@@ -326,7 +333,7 @@ private struct SkyMeter: View {
     }
 }
 
-/// A tapped constellation: its name, how it's doing, and the way to practise it.
+/// A tapped constellation: its name, how it's doing, and the way to practice it.
 private struct SkyFocusCard: View {
     let scene: SkyScene
     let index: Int
@@ -425,12 +432,16 @@ private struct SkyEmpty: View {
 // MARK: - As a list
 
 /// The sky as rows: each course, and under it each constellation with how many of its stars are bright and a way to
-/// practise it. What VoiceOver gets by default, and anyone at large text sizes (where each row stacks).
+/// practice it. What VoiceOver gets by default, and anyone at large text sizes (where each row stacks).
+///
+/// `coursesFirst` ("Study something else"): the courses lead, so the first Practice is on the first screen (above the tab bar on an SE),
+/// and the sky's summary and its panel follow them.
 struct SkyListView: View {
     let scene: SkyScene
-    /// The panel at its head: what's coming due.
+    /// The panel with the summary: what's coming up to review.
     let due: [DueForecastDay]
     let calendar: Calendar
+    var coursesFirst = false
     var onRelight: (SkyLayout.Constellation) -> Void
     var onOpenCourse: (UUID) -> Void
 
@@ -460,20 +471,12 @@ struct SkyListView: View {
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 0) {
-                Text(SkyCopy.summary(scene))
-                    .clFont(.callout).foregroundStyle(CLColor.ink2)
-                    .padding(.top, 8)
-                if !scene.isEmpty {
-                    SkyMemoryPanel(scene: scene, due: due, calendar: calendar)
-                        .padding(.top, 14)
-                }
-                ForEach(groups) { group in
-                    header(group)
-                    CLList {
-                        ForEach(group.constellations, id: \.c.id) { entry in
-                            SkyListRow(scene: scene, index: entry.index, constellation: entry.c, color: group.color, onRelight: onRelight)
-                        }
-                    }
+                if coursesFirst {
+                    courses
+                    summary.padding(.top, 30)
+                } else {
+                    summary.padding(.top, 8)
+                    courses
                 }
             }
             .padding(.horizontal, CLSpace.gutter)
@@ -481,8 +484,30 @@ struct SkyListView: View {
         }
     }
 
-    /// The course's name, with "Open course" beside it (below it at large text sizes).
-    private func header(_ group: Group) -> some View {
+    /// The sky in a sentence, and what's coming up to review.
+    private var summary: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text(SkyCopy.summary(scene))
+                .clFont(.callout).foregroundStyle(CLColor.ink2)
+            if !scene.isEmpty { SkyMemoryPanel(scene: scene, due: due, calendar: calendar) }
+        }
+    }
+
+    /// Each course, and its topics with Practice.
+    @ViewBuilder private var courses: some View {
+        ForEach(Array(groups.enumerated()), id: \.element.id) { position, group in
+            header(group, first: position == 0)
+            CLList {
+                ForEach(group.constellations, id: \.c.id) { entry in
+                    SkyListRow(scene: scene, index: entry.index, constellation: entry.c, color: group.color, onRelight: onRelight)
+                }
+            }
+        }
+    }
+
+    /// The course's name, with "Open course" beside it (below it at large text sizes). The first one at the head of the page sits
+    /// close under the title.
+    private func header(_ group: Group, first: Bool = false) -> some View {
         let stacked = typeSize.isAccessibilitySize
         let layout = stacked ? AnyLayout(VStackLayout(alignment: .leading, spacing: 6)) : AnyLayout(HStackLayout(alignment: .firstTextBaseline))
         return layout {
@@ -495,7 +520,7 @@ struct SkyListView: View {
                 .buttonStyle(.plain)
                 .frame(minHeight: CLMetrics.minHitTarget, alignment: .leading)
         }
-        .padding(.top, 26)
+        .padding(.top, coursesFirst && first ? 4 : 26)
         .padding(.bottom, 10)
         .padding(.horizontal, 2)
     }
@@ -590,7 +615,7 @@ struct SkyDebug {
     }
 }
 
-/// A made-up session for the films: a topic or two practised, the stars that had faded or never been lit answered right.
+/// A made-up session for the films: a topic or two practiced, the stars that had faded or never been lit answered right.
 enum SkyDemo {
     static func relit(_ scene: SkyScene, count: Int) -> (SkyScene, SkyRelight) {
         var scene = scene
