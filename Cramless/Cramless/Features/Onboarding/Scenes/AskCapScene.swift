@@ -1,3 +1,4 @@
+#if DEBUG
 import SwiftUI
 
 /// Scene 5, "Ask Cap": a question, Cap thinking, and the thinking bubble growing into an answer that cites the
@@ -143,3 +144,4 @@ struct AskCapScene: View {
         }
     }
 }
+#endif

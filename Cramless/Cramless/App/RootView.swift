@@ -364,6 +364,9 @@ struct CoverDestination: View {
         case .onboarding(let page): OnboardingFlow(startPage: page)
         case .outLoud(let request, let startsAtOnce): OutLoudView(request: request, startsAtOnce: startsAtOnce)
         case .teach(let topicID): TeachCapView(topicID: topicID)
+        #if DEBUG
+        case .introScene(let number): IntroScenePage(number: number)
+        #endif
         }
     }
 }

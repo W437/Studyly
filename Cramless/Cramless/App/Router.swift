@@ -172,6 +172,10 @@ enum AppCover: Identifiable, Hashable, Sendable {
     case outLoud(SessionRequest, startsAtOnce: Bool = false)
     /// Explaining a topic to Cap.
     case teach(topicID: UUID)
+    #if DEBUG
+    /// One of the old onboarding demos, for films and store art (`CRAMLESS_ROUTE=introScene:<n>`, `IntroScenePage`).
+    case introScene(Int)
+    #endif
 
     var id: String { String(describing: self) }
 
@@ -180,6 +184,9 @@ enum AppCover: Identifiable, Hashable, Sendable {
         switch self {
         case .record, .onboarding: false
         case .session, .mockExam, .scanner, .captureFlow, .outLoud, .teach: true
+        #if DEBUG
+        case .introScene: true
+        #endif
         }
     }
 }

@@ -1,9 +1,13 @@
 import SwiftUI
 
-// The pieces every live-demo scene shares: the lifecycle (play while front-most, loop through a fade, settle under
+// The pieces the live-demo scenes share: the lifecycle (play while front-most, loop through a fade, settle under
 // Reduce Motion, reset while off-screen), the card the scene plays in, and the miniature vocabulary (paper,
 // text lines, scanner brackets, chat bubbles). Scenes replay the product's own motion with CLMotion tokens and
-// fire no haptics: page turns own the haptic.
+// fire no haptics.
+//
+// The scenes left onboarding (it starts with the person's own page now) and stay for films and store art only, behind the DEBUG
+// route `introScene:<n>` (`IntroScenePage`). The paper, its lines and the scanner's brackets are the capture flow's too, so they
+// ship; the rest is DEBUG only.
 
 /// Applies a change without animation (a reset nobody should see).
 @MainActor
@@ -13,6 +17,7 @@ func withoutAnimation(_ body: () -> Void) {
     withTransaction(transaction, body)
 }
 
+#if DEBUG
 /// The shared scene lifecycle.
 ///
 /// - Plays `script` while `active` (its page is front-most). Leaving cancels it mid-beat: `nap` throws.
@@ -110,6 +115,8 @@ struct SceneCard<Content: View>: View {
     }
 }
 
+#endif
+
 /// Ink on paper. Paper is white in both appearances (it's paper), so these never adapt.
 enum PaperInk {
     static let line = CLColor.night.opacity(0.13)
@@ -163,6 +170,7 @@ struct BracketCorner: Shape {
     }
 }
 
+#if DEBUG
 /// A chat bubble shape: round, with the tail corner tucked in.
 struct BubbleShape: Shape {
     var mine: Bool
@@ -204,3 +212,4 @@ struct TypingDots: View {
         }
     }
 }
+#endif

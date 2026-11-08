@@ -288,6 +288,8 @@ enum TestHarness {
         case "onboarding":
             app.settings.onboardingCompleted = false
             r.present(.onboarding(page: arg.flatMap(Int.init)))
+        // The old onboarding demos, 1 to 6 (snap, flashcards, own words, readiness, plan, Ask Cap), for films and store art.
+        case "introScene": r.present(.introScene(Int(arg ?? "") ?? 1))
         default:
             AppConfig.log.error("unknown CRAMLESS_ROUTE \(route, privacy: .public)")
         }

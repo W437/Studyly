@@ -1,17 +1,20 @@
 import PhotosUI
 import SwiftUI
 
-/// Onboarding's first set: scan a page (a photo of one where the scanner isn't available) or use the sample page,
-/// then the same processing as the app's capture flow, then the review in onboarding mode, which asks which class it
-/// is for. `onDone` gets the course the set went to.
+/// Onboarding's first step after the welcome, "Snap a page. Get questions.": scan a page (a photo of one where the scanner isn't
+/// available) or use the sample page, then the same processing as the app's capture flow, then the review in onboarding mode, which
+/// asks which class it is for. The sample page is asked nothing: its set files under a course named "Sample", and no exam is made
+/// from it. `onDone` gets the course the set went to and whether it was the sample.
 ///
 /// The step lives on onboarding's navigation stack; while the set is being made and reviewed it hides the bar and
 /// shows the full-screen processing and review, with their own way back.
 ///
-/// DEBUG: shown through `CRAMLESS_ROUTE=scanner` with `CRAMLESS_FIRSTSET=choose|processing|review`
-/// (`ScannerFlowView`); `CRAMLESS_CAPTURE_PHASE` holds the processing as in the capture flow.
+/// DEBUG: shown through `CRAMLESS_ROUTE=scanner` with `CRAMLESS_FIRSTSET=choose|processing|review` (`ScannerFlowView`; inside
+/// onboarding, `CRAMLESS_ROUTE=onboarding:1` opens it on the chooser); `CRAMLESS_CAPTURE_PHASE` holds the processing as in the
+/// capture flow. The set is the sample page's; `CRAMLESS_CAPTURE_INPUT=text` makes it from typed notes instead (a real page's path,
+/// with the class card).
 struct OnboardingFirstSetStep: View {
-    let onDone: (UUID?) -> Void
+    let onDone: (OnboardingFirstSet) -> Void
 
     @Environment(AppModel.self) private var app
     @Environment(\.clReduceMotion) private var reduceMotion
@@ -36,7 +39,8 @@ struct OnboardingFirstSetStep: View {
                         .transition(.opacity)
                 case .review(let id):
                     DraftReviewView(sourceID: id, isOnboarding: true, onFinish: finished,
-                                    onRewrite: { rewrite(id) }, onStartOver: { withAnimation(CLMotion.settle) { self.run = nil } })
+                                    onRewrite: { rewrite(id) }, onStartOver: { withAnimation(CLMotion.settle) { self.run = nil } },
+                                    fixedCourseName: isSample ? Self.sampleCourseName : nil)
                         .transition(.move(edge: .bottom))
                     .zIndex(1)
                 case .failed(let failure):
@@ -71,14 +75,25 @@ struct OnboardingFirstSetStep: View {
             Task { await stage(items) }
         }
         .onAppear {
-            OnboardingCaptureBridge.onDone = onDone
+            OnboardingCaptureBridge.onDone = { onDone(OnboardingFirstSet(courseID: $0, isSample: false)) }
             #if DEBUG
             guard !debugStarted, let debugStage, debugStage != "choose" else { return }
             debugStarted = true
-            begin(.sample)
+            // `CRAMLESS_CAPTURE_INPUT=text`: typed notes stand in for a real page (the review then asks which class it is for).
+            begin(TestHarness.value("CRAMLESS_CAPTURE_INPUT") == "text"
+                  ? .text(title: "Cell division notes", body: DebugCapture.notes) : .sample)
             #endif
         }
         .onDisappear { OnboardingCaptureBridge.onDone = nil }
+    }
+
+    /// The sample page's set goes to a course of this name (its subject would be a made-up class).
+    static var sampleCourseName: String { String(localized: "Sample") }
+
+    /// The set being made is the bundled sample page.
+    private var isSample: Bool {
+        if case .sample = run?.request.input { return true }
+        return false
     }
 
     private var phaseKey: String {
@@ -95,12 +110,12 @@ struct OnboardingFirstSetStep: View {
     private var chooser: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                Text("Let's make your first set")
+                Text("Snap a page. Get questions.")
                     .clFont(.brandTitle(30))
                     .foregroundStyle(CLColor.ink)
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityAddTraits(.isHeader)
-                Text("Snap any page from your notes or a textbook. It takes about 20 seconds.")
+                Text("Your notes, a textbook or a handout. It takes about 20 seconds.")
                     .clFont(.body)
                     .foregroundStyle(CLColor.ink2)
                     .fixedSize(horizontal: false, vertical: true)
@@ -112,7 +127,7 @@ struct OnboardingFirstSetStep: View {
                         scanning = true
                     } label: {
                         heroCard(symbol: "camera.fill", title: "Scan a page",
-                                 subtitle: "Point your camera at a textbook, a handout or your own notes")
+                                 subtitle: "Point your camera at the page")
                     }
                     .buttonStyle(.pressable)
                     .padding(.top, 24)
@@ -245,7 +260,7 @@ struct OnboardingFirstSetStep: View {
     }
 
     private func finished(_ courseID: UUID?) {
-        onDone(courseID)
+        onDone(OnboardingFirstSet(courseID: courseID, isSample: isSample))
     }
 
     private func readWithCloud() async {

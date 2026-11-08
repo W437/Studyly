@@ -93,7 +93,6 @@ enum DataExport {
 
     struct ProfileRecord: Codable, Equatable, Sendable {
         var firstName: String
-        var goal: String?
         var level: String?
         var dailyMinutes: Int
         var reminderMinutes: Int?
@@ -263,7 +262,7 @@ enum DataExport {
     @MainActor
     static func archive(app: AppModel) -> Archive {
         let s = app.settings
-        let profile = ProfileRecord(firstName: s.firstName, goal: s.goal?.rawValue, level: s.level?.rawValue,
+        let profile = ProfileRecord(firstName: s.firstName, level: s.level?.rawValue,
                                     dailyMinutes: s.dailyMinutes, reminderMinutes: s.reminderMinutes,
                                     quietHoursStart: s.quietHoursStart, quietHoursEnd: s.quietHoursEnd,
                                     targetRetention: s.targetRetention, easyDays: s.easyDays, tutorMode: s.tutorMode.rawValue,
