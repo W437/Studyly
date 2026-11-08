@@ -1932,6 +1932,27 @@ for Stages 3 and 4 (none shared).
 - **App Privacy**, with the owner's approval: Other Data ▸ Other Data Types added (App Functionality, linked to the user, not
   tracking), matching the manifest; published on the website, 10 data types.
 
+## Clarity pass: the exam page, mix-ups, look-alikes, Progress and the streak (2026-11-08, lane `c-exam`)
+
+Each of these screens did one job behind several others; the pass removes, merges and renames.
+- **The exam page.** The main button studies this exam alone: "Study this exam · 4 min", its share of today (the number the plan's first
+  stop says) or 5 minutes with none today, as a practice round that `SessionBuilder.buildPractice` now scopes to the exam (its questions
+  only, the weakest on exam day first). The day's mixed session stays on Today, and the line under the button is gone. The ring holds
+  readiness only (no goal dot, no plan arc); beside it "Tue 10 Nov · 10:00" and "In 2 days · Multiple choice"; one sentence with the goal
+  in it ("Study today and Monday to be about 78% ready by Tuesday. Your goal is 80%."), so no nudge, "Based on…" or footnote. "+14% this
+  week" moved into "How it's gone"; "Adjust" is "Daily goal". The mock is one row under the plan ("Mock exam · 19 questions · 30 min",
+  Take it, or "Needs 6 more questions" with a way to add them, hidden in the last three days); its mix and last score are for its own
+  start screen. The unused `ExamWeekStrip` view is gone.
+- **The pair's page and the look-alike sheet** are titled for the pair ("Metaphase vs telophase"), under the course's name; the page's
+  header counts the misses now ("Missed 3 times · last on Sat 7 Nov") and no longer shows the stored explanation, whose counts went
+  stale; the lesson is "The difference". Both ways out say "Don't bring this up again". The sheet's spinner sits in its button.
+- **Progress** opens on the exams, then "Review soon" ("2 to review") and "Often confused", then one row, "12-day streak · 3 h 5 min this
+  week", which opens the streak page. The week's chart and the comparison with last week are gone: a week in progress against a whole
+  one read as a loss every Sunday.
+- **The streak page** is its header, the month and one fold, "How freezes work" (with the repair). The month sheet (`StreakMonthSheet`,
+  `AppSheet.streakMonth`, the `month` route), "Last 12 weeks" (`StudyHeatmap` and its presentation) and "Milestones" (four of them are
+  badges) are gone. The calendar's key says "Night before".
+
 ## Left for the owner
 
 - Accounts and keys (see README "Before the App Store"):

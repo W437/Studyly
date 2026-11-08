@@ -36,10 +36,6 @@
     "one": "%lld question",
     "other": "%lld questions"
   },
-  "%lld questions fading": {
-    "one": "%lld question fading",
-    "other": "%lld questions fading"
-  },
   "%lld points": {
     "one": "%lld point",
     "other": "%lld points"
@@ -47,20 +43,6 @@
   "Based on %lld questions so far.": {
     "one": "Based on %lld question so far.",
     "other": "Based on %lld questions so far."
-  },
-  "About %lld minutes on what you're shakiest on. Then stop: sleep does the rest.": {
-    "one": "About %lld minute on what you're shakiest on. Then stop: sleep does the rest.",
-    "other": "About %lld minutes on what you're shakiest on. Then stop: sleep does the rest."
-  },
-  "About %lld of the %lld minutes are for this exam.": {
-    "value": "About %1$lld of %#@minutes@.",
-    "substitutions": {
-      "minutes": {
-        "argNum": 2,
-        "one": "the %arg minute is for this exam",
-        "other": "the %arg minutes are for this exam"
-      }
-    }
   },
   "Example reminder: %lld minutes tonight and you're done.": {
     "one": "Example reminder: %lld minute tonight and you're done.",
@@ -615,5 +597,21 @@
         "other": "your %arg questions"
       }
     }
+  },
+  "In %lld days": {
+    "one": "In %lld day",
+    "other": "In %lld days"
+  },
+  "%lld days ago": {
+    "one": "%lld day ago",
+    "other": "%lld days ago"
+  },
+  "Needs %lld more questions": {
+    "one": "Needs %lld more question",
+    "other": "Needs %lld more questions"
+  },
+  "Missed %lld times": {
+    "one": "Missed %lld time",
+    "other": "Missed %lld times"
   }
 }
