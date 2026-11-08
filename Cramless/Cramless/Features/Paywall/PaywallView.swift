@@ -1,18 +1,18 @@
 import StoreKit
 import SwiftUI
 
-/// The three-option paywall: Yearly (preselected, 7 days free), Monthly, Squad. `context` says why it opened:
-/// the end of onboarding names the plan just built, a gate names the feature, Settings just opens it.
+/// The paywall: the headline, what Pro adds (four rows, then one line on what stays free), and two plans, Yearly (picked, with its free
+/// week) and Monthly. `context` says why it opened: a gate names its limit; onboarding and Settings say what Pro does.
 ///
-/// Pro's rows name only the AI work it adds; the "Always free" card under them says what nobody pays for (plans, readiness,
-/// reviews, imports, the free AI allowance) before any price shows. "Continue free" is always on screen (in the bottom bar
-/// beside the button), the trial timeline is honest about the reminder and the first charge, the footer has a way to reach a
-/// real person, and Terms and Privacy appear only once real URLs exist. An account under 13 is sold nothing (`NoPurchaseView`).
+/// Squad is bought on its own page (`SquadView`). While Exam Pass is offered (8 to 21 days before the next exam, `ExamPassOffer`) a link
+/// under the plans opens it over the paywall; "Continue free" never opens another offer. "Continue free" is always on screen (in the
+/// bottom bar beside the button), the terms say the price, the reminder before the first charge and how to cancel, the footer has a way
+/// to reach a real person, and Terms and Privacy appear only once real URLs exist. An account under 13 is sold nothing (`NoPurchaseView`).
 ///
-/// DEBUG hooks, read once: `CRAMLESS_PAYWALL_PLAN=yearly|monthly|squad` preselects a plan;
+/// DEBUG hooks, read once: `CRAMLESS_PAYWALL_PLAN=yearly|monthly` preselects a plan;
 /// `CRAMLESS_PAYWALL_STATE=purchasing|pending|cancelled|failed|purchased|restored` shows that state;
-/// `CRAMLESS_PAYWALL_TRIAL=0` draws it as if the free week were already used;
-/// `CRAMLESS_PAYWALL_SCROLL=free|plans|timeline` scrolls there (`free`: the "Always free" card).
+/// `CRAMLESS_PAYWALL_TRIAL=0` draws it as if the free week were already used; `CRAMLESS_PAYWALL_SCROLL=plans` scrolls to the plans;
+/// `CRAMLESS_PAYWALL_EXAMPASS=link|open` draws the Exam Pass link as if it were offered today (`open`: and opens it).
 struct PaywallView: View {
     let context: PaywallContext
 
@@ -27,7 +27,13 @@ struct PaywallView: View {
     @State private var restoring = false
     @State private var simulatedPurchasing = false
     @State private var trialUsed = false
-    /// DEBUG: scrolls to "free", "plans" or "timeline" for screenshots.
+    /// Exam Pass, opened over the paywall from its link.
+    @State private var showsExamPass = false
+    /// What Exam Pass ended with, acted on once its sheet has gone.
+    @State private var examPassOutcome: PaywallOutcome?
+    /// DEBUG: draws the Exam Pass link whatever the exams say.
+    @State private var forcesExamPassLink = false
+    /// DEBUG: scrolls to "plans" for screenshots.
     @State private var scrollTarget: String?
 
     struct Note: Equatable {
@@ -43,7 +49,7 @@ struct PaywallView: View {
             ZStack {
                 if let done {
                     PurchasedView(mode: done, primaryTitle: finish == nil ? "Done" : "Start studying",
-                                  onPrimary: { close(after: done) }, onInvite: invite)
+                                  onPrimary: { close(after: done) })
                         .transition(.opacity.combined(with: .scale(scale: 0.98)))
                 } else if store.isPro {
                     PurchasedView(mode: .current, primaryTitle: finish == nil ? "Done" : "Continue",
@@ -61,6 +67,13 @@ struct PaywallView: View {
         .task {
             applyDebugHooks()
             await store.loadProducts()
+        }
+        .sheet(isPresented: $showsExamPass, onDismiss: examPassClosed) {
+            ExamPassView(examID: app.upcomingExams().first?.id)
+                .environment(\.paywallFinish, PaywallFinishAction { outcome in
+                    examPassOutcome = outcome
+                    showsExamPass = false
+                })
         }
     }
 
@@ -99,11 +112,10 @@ struct PaywallView: View {
                             PaywallBenefitRow(symbol: $0.symbol, text: $0.text)
                         }
                         if let caveat { ProCaveatLine(text: caveat) }
+                        StaysFreeLine()
+                            .padding(.top, 5)
                     }
                     .padding(.top, 20)
-                    AlwaysFreeCard()
-                        .padding(.top, 24)
-                        .id("free")
                     VStack(spacing: 16) {
                         ForEach(PlanOption.paywallOptions) { option in
                             PlanCard(option: option, price: store.price(for: option), trialDays: trialDays(for: option),
@@ -111,13 +123,15 @@ struct PaywallView: View {
                                 .disabled(isBusy)
                         }
                     }
-                    .padding(.top, 30)
+                    .padding(.top, 26)
                     .id("plans")
-                    if let days = trialDays(for: selected) {
-                        TrialTimeline(steps: timeline(days: days))
-                            .padding(.top, 18)
-                            .transition(.opacity.combined(with: .move(edge: .top)))
-                            .id("timeline")
+                    if offersExamPass {
+                        ExamPassLink(price: store.price(for: .examPass)) {
+                            CLHaptics.tap()
+                            showsExamPass = true
+                        }
+                        .disabled(isBusy)
+                        .padding(.top, 6)
                     }
                     if typeSize.isAccessibilitySize {
                         termsText.padding(.top, 18)
@@ -214,6 +228,16 @@ struct PaywallView: View {
         PaywallCopy.proCaveat(canBuyPro: app.settings.canBuyPro, cloudAvailable: app.ai.cloudAvailableInThisBuild, cloudAllowed: app.hasCloudConsent)
     }
 
+    /// Exam Pass is offered today (`ExamPassOffer`): a free person 8 to 21 days before the next exam. In onboarding the person's own
+    /// answer counts as an exam.
+    private var offersExamPass: Bool {
+        if forcesExamPassLink { return app.settings.canBuyPro && store.plan == .free }
+        var dates = app.upcomingExams().map(\.date)
+        if case .onboarding = context, let answered = app.settings.nextExamDate { dates.append(answered) }
+        return ExamPassOffer.isEligible(plan: store.plan, canBuyPro: app.settings.canBuyPro, examDates: dates, now: app.now,
+                                        calendar: app.calendar)
+    }
+
     private var isPurchasing: Bool { store.purchasing != nil || simulatedPurchasing }
     private var isBusy: Bool { isPurchasing || restoring }
 
@@ -223,12 +247,6 @@ struct PaywallView: View {
 
     private func trialDays(for option: PlanOption) -> Int? {
         trialUsed ? nil : store.trialDays(for: option)
-    }
-
-    private func timeline(days: Int) -> [PaywallCopy.TimelineStep] {
-        let end = app.calendar.date(byAdding: .day, value: days, to: app.now) ?? app.now
-        return PaywallCopy.timeline(trialDays: days, price: store.price(for: selected), now: app.now,
-                                    reminder: store.reminderDate(forTrialEnding: end), calendar: app.calendar)
     }
 
     // MARK: Actions
@@ -280,15 +298,19 @@ struct PaywallView: View {
         }
     }
 
-    /// "Continue free" and the close button. Embedded (onboarding), the host decides; as a sheet, a free
-    /// person 8 to 21 days before the next exam gets the Exam Pass offer (`ExamPassOffer`), everyone else just closes.
+    /// "Continue free" and the close button: embedded (onboarding), the host goes on; as a sheet, it closes. Never another offer.
     private func decline() {
-        if let finish { finish(.declined); return }
-        let exams = app.upcomingExams()
-        if ExamPassOffer.isEligible(plan: store.plan, canBuyPro: app.settings.canBuyPro, examDates: exams.map(\.date), now: app.now, calendar: app.calendar) {
-            app.router.present(.examPass(examID: exams.first?.id))
-        } else {
-            dismiss()
+        if let finish { finish(.declined) } else { dismiss() }
+    }
+
+    /// Exam Pass's sheet has gone. A pass bought there is celebrated here; "Continue free" there is "Continue free" here too; a swipe
+    /// down comes back to the plans.
+    private func examPassClosed() {
+        guard let outcome = examPassOutcome else { return }
+        examPassOutcome = nil
+        switch outcome {
+        case .purchased(let option): done = .purchased(option)
+        case .declined: decline()
         }
     }
 
@@ -298,11 +320,6 @@ struct PaywallView: View {
         } else {
             dismiss()
         }
-    }
-
-    private func invite() {
-        close(after: done ?? .current)
-        app.router.push(.squad, on: .today)
     }
 
     // MARK: DEBUG
@@ -320,6 +337,16 @@ struct PaywallView: View {
         case "failed": note = Note(text: PurchaseStore.PurchaseFailure.network.message, tone: .warning)
         case "purchased": done = .purchased(selected)
         case "restored": done = .restored(selected.plan)
+        default: break
+        }
+        switch TestHarness.once("CRAMLESS_PAYWALL_EXAMPASS") {
+        case "link": forcesExamPassLink = true
+        case "open":
+            forcesExamPassLink = true
+            Task {
+                try? await nap(900)
+                showsExamPass = true
+            }
         default: break
         }
         if let target = TestHarness.once("CRAMLESS_PAYWALL_SCROLL") {

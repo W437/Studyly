@@ -24,8 +24,9 @@ enum PaywallCopy {
         return rows
     }
 
-    /// What every account keeps without paying, shown above the prices ("Always free"). A feature joins here when it ships free. The
-    /// last row is the free AI allowance, in the relay's numbers (`AIFreeLimits`; a test keeps them in step).
+    /// What every account keeps without paying ("Always free", `AlwaysFreeCard`: what an account under 13 sees instead of a price). A
+    /// feature joins here when it ships free. The last row is the free AI allowance, in the relay's numbers (`AIFreeLimits`; a test keeps
+    /// them in step). The paywall says it in one line (`staysFree`).
     static let alwaysFree: [Row] = [
         Row(symbol: "rectangle.stack", text: "Reviews and flashcards, as many as you like"),
         Row(symbol: "target", text: "A plan and readiness for every exam"),
@@ -50,17 +51,18 @@ enum PaywallCopy {
     static let noPurchaseTitle: LocalizedStringResource = "Capling is free for you"
     static let noPurchaseDetail: LocalizedStringResource = "Pro is Cloud AI's work, and Cloud AI isn't available for accounts under 13. So there's nothing here to buy."
 
-    /// The line under the headline, by context.
+    /// The one line under Pro's rows: what nobody pays for, said once (the full list is `alwaysFree`, for an account under 13).
+    static let staysFree: LocalizedStringResource = "Reviews, plans, readiness and mock exams stay free."
+
+    /// The line under the headline: what Pro adds, or, when a gate opened the paywall, that gate's own line.
     static func subline(for context: PaywallContext) -> String {
         switch context {
-        case .onboarding(let planLine): planLine
         case .feature(let line): line
-        case .settings: "Pro lifts the AI limits, for every class and every exam."
+        case .onboarding, .settings: "Pro lifts the AI limits."
         }
     }
 
-    /// "Your Bio 101 plan is set: 15 minutes a day until Nov 14." The plan step can say it better; this is what
-    /// the onboarding paywall says when it hasn't.
+    /// "Your Bio 101 plan is set: 15 minutes a day until Nov 14." The onboarding plan step's summary.
     static func planLine(courseName: String?, minutes: Int, examDate: Date?, now: Date) -> String {
         let subject = courseName.map { "Your \($0) plan is set" } ?? "Your plan is set"
         guard let examDate, examDate > now else { return "\(subject): \(minutes) minutes a day." }
@@ -68,26 +70,10 @@ enum PaywallCopy {
         return "\(subject): \(minutes) minutes a day until \(date)."
     }
 
-    /// The small flag on a plan card: "7 days free · Best value".
-    static func flag(for option: PlanOption, trialDays: Int?) -> String? {
-        let tag: String? = switch option {
-        case .yearly: "Best value"
-        case .squad: "Study together"
-        case .monthly, .examPass: nil
-        }
-        guard let tag else { return nil }
-        guard let trialDays else { return tag }
-        return "\(trialDays) days free · \(tag)"
-    }
-
-    /// The line under a plan's name: "$0.96 a week", "Cancel anytime", "You + 3 friends · $2.08 each a month".
-    static func detail(for option: PlanOption, price: PlanPrice) -> String {
-        switch option {
-        case .yearly: "\(price.perWeek) a week"
-        case .monthly: "Cancel anytime"
-        case .squad: "You + \(StoreCatalog.squadSeats - 1) friends · \(price.perSeatPerMonth) each a month"
-        case .examPass: "30 days, one time"
-        }
+    /// The line under a plan's name: "7 days free" while the free week is on offer, else nothing.
+    static func detail(for option: PlanOption, trialDays: Int?) -> String? {
+        guard option.isAutoRenewing, let trialDays else { return nil }
+        return "\(trialDays) days free"
     }
 
     /// The button.
@@ -97,8 +83,8 @@ enum PaywallCopy {
             guard let trialDays else { return "Subscribe for \(price.display)/year" }
             return trialDays == 7 ? "Start my free week" : "Start my \(trialDays)-day free trial"
         case .squad:
-            guard let trialDays else { return "Subscribe for \(price.display)/year" }
-            return trialDays == 7 ? "Start the Squad free week" : "Start the Squad \(trialDays)-day trial"
+            guard let trialDays else { return "Get Squad" }
+            return "Try \(trialDays) days free"
         case .monthly:
             return "Subscribe for \(price.display)/month"
         case .examPass:
@@ -106,14 +92,14 @@ enum PaywallCopy {
         }
     }
 
-    /// The terms beside the button: what it costs, when, and how to stop it. (The trial timeline says when the
-    /// reminder comes.)
+    /// The terms beside the button: what it costs, when, the reminder before the first charge, and how to stop it.
     static func terms(for option: PlanOption, price: PlanPrice, trialDays: Int?) -> String {
         let billing: String
         switch option {
         case .yearly, .squad:
             if let trialDays {
-                billing = "Free for \(trialDays) days, then \(price.display) a year. Cancel anytime in two taps."
+                billing = "Free for \(trialDays) days, then \(price.display) a year. "
+                    + "We'll remind you \(StoreCatalog.trialReminderLeadDays) days before the first charge. Cancel anytime in two taps."
             } else {
                 billing = "Renews at \(price.display) a year. Cancel anytime in two taps."
             }
@@ -125,31 +111,12 @@ enum PaywallCopy {
         return "\(billing) \(fairUse)"
     }
 
+    /// The paywall's way to Exam Pass, shown only while it is offered (`ExamPassOffer`): "Just one exam? Exam Pass, $14.99".
+    static func examPassLink(price: PlanPrice) -> String {
+        "Just one exam? Exam Pass, \(price.display)"
+    }
+
     /// "Unlimited" on the benefit rows means no count of scans, answers or lectures, not no ceiling: a day with a lot of Cloud AI (a cram night
     /// of dozens of questions) pauses it until midnight (the relay's cost caps), so the fine print says so.
     static let fairUse = "Fair use applies."
-
-    /// The trial timeline: Today, the reminder, the first charge. Day numbers count from today.
-    struct TimelineStep: Equatable {
-        var symbol: String
-        var title: String
-        var detail: String
-    }
-
-    static func timeline(trialDays: Int, price: PlanPrice, now: Date, reminder: Date?, calendar: Calendar)
-        -> [TimelineStep] {
-        let end = calendar.date(byAdding: .day, value: trialDays, to: now) ?? now
-        let remind = reminder ?? calendar.date(byAdding: .day, value: -StoreCatalog.trialReminderLeadDays, to: end) ?? end
-        let short = Date.FormatStyle.dateTime.month(.abbreviated).day()
-        let remindDay = calendar.dayDistance(from: now, to: remind)
-        let endDay = calendar.dayDistance(from: now, to: end)
-        return [
-            TimelineStep(symbol: "lock.open", title: "Today",
-                         detail: "Every Pro feature unlocks."),
-            TimelineStep(symbol: "bell", title: "Day \(remindDay)",
-                         detail: "We remind you on \(remind.formatted(short)) that the trial is ending."),
-            TimelineStep(symbol: "calendar.badge.checkmark", title: "Day \(endDay)",
-                         detail: "Billing starts on \(end.formatted(short)) at \(price.display), unless you cancel before."),
-        ]
-    }
 }
