@@ -336,15 +336,16 @@ struct OriginNote: View {
 
 // MARK: - Quick check
 
-/// Cap's closing question, answerable in place: tap an option, or type an answer. Answering sends it to Cap.
+/// Cap's closing question: tap an option to answer it. A typed answer goes in the chat's own field, which asks for it while the question
+/// waits (`ChatPane`); where there is no such field (Explain my mistake), the card has one (`takesTypedAnswer`). Answering sends it to Cap.
 struct QuickCheckCard: View {
     let check: QuickCheck
     /// Only the latest answer's quick check takes an answer; earlier ones show what was picked.
     let isActive: Bool
     /// The person's reply, once there is one.
     let answered: String?
-    /// False where the screen's own title already says it (step 3 of Explain my mistake).
-    var showsLabel = true
+    /// A field of its own for a question with no options, on a screen with no composer to answer it in.
+    var takesTypedAnswer = false
     let onAnswer: (String) -> Void
 
     @State private var typed = ""
@@ -352,19 +353,17 @@ struct QuickCheckCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            if showsLabel {
-                Label(check.isLabelled ? "Quick check" : "Your turn",
-                      systemImage: check.isLabelled ? "checkmark.circle" : "lightbulb")
-                    .clFont(.eyebrow)
-                    .foregroundStyle(check.isLabelled ? CLColor.tangerineInk : CLColor.skyInk)
-            }
+            Label(check.isLabelled ? "Quick check" : "Your turn",
+                  systemImage: check.isLabelled ? "checkmark.circle" : "lightbulb")
+                .clFont(.eyebrow)
+                .foregroundStyle(check.isLabelled ? CLColor.tangerineInk : CLColor.skyInk)
             Text(CapMarkdown.inline(check.question))
                 .clFont(.body)
                 .foregroundStyle(CLColor.ink)
                 .fixedSize(horizontal: false, vertical: true)
             if !check.options.isEmpty {
                 options
-            } else if isActive && answered == nil {
+            } else if takesTypedAnswer && isActive && answered == nil {
                 field
             }
         }
@@ -573,6 +572,8 @@ struct ChatComposer: View {
     /// The chat, for Cap's style.
     var thread: ChatThread? = nil
     var showsMode = false
+    /// Cap's question is waiting: what is typed is the answer to it (`ChatPane`), and VoiceOver says so.
+    var takesAnswer = false
     /// The slot for a camera at the field's start: shown once there is something to do with it.
     var onCamera: (() -> Void)? = nil
     let onSend: () -> Void
@@ -627,7 +628,7 @@ struct ChatComposer: View {
                 }
                 .padding(.leading, onCamera == nil ? 16 : 2)
                 .padding(.vertical, 12)
-                .accessibilityLabel("Question for Cap")
+                .accessibilityLabel(takesAnswer ? "Your answer" : "Question for Cap")
             if showsMode, !typeSize.isAccessibilitySize {
                 TutorModePill(thread: thread)
                     .padding(.bottom, 3)
@@ -653,7 +654,7 @@ struct ChatComposer: View {
                     }
                     .disabled(!canSend)
                     .accessibilityLabel("Send")
-                    .accessibilityHint("Asks Cap, who answers from your notes")
+                    .accessibilityHint(takesAnswer ? "Sends your answer to Cap" : "Asks Cap, who answers from your notes")
                 }
             }
             .buttonStyle(.pressable)
@@ -830,7 +831,7 @@ struct AskTitleMenu: View {
     }
 }
 
-/// A suggestion under the chat: "Quiz me on this", "Explain with an analogy", "Make cards from this".
+/// A suggestion under the chat: "Quiz me on this", "Explain it simpler", "Make cards", "Just tell me".
 struct SuggestionChip: View {
     let title: String
     var systemImage: String?

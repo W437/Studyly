@@ -195,7 +195,7 @@ struct ChatHistoryMenu: View {
     }
 }
 
-/// Make cards from the chat, or delete it.
+/// Make cards from the chat (the same sheet as the chip under a reply), or delete it.
 struct ChatActionsMenu: View {
     let thread: ChatThread
     let onDelete: () -> Void
@@ -205,7 +205,7 @@ struct ChatActionsMenu: View {
     var body: some View {
         let hasAnswers = thread.modelContext != nil && thread.messages.contains { $0.role == .assistant }
         Menu {
-            Button("Make cards from this chat", systemImage: "rectangle.stack.badge.plus") {
+            Button("Make cards", systemImage: "rectangle.stack.badge.plus") {
                 app.router.present(.makeCards(threadID: thread.id))
             }
             .disabled(!hasAnswers)

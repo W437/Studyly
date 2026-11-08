@@ -2419,7 +2419,6 @@
     "A light tap when you answer, turn a page or finish a session." : {},
     "A little every day." : {},
     "A little every day.\nReady on exam day." : {},
-    "A little every day. Ready on exam day." : {},
     "A little polish, and it shines." : {},
     "A mock exam for your %@" : {},
     "A mock needs %lld multiple-choice or written questions, and you have %lld. Add a page or paste your notes, and Cap writes more." : {
@@ -2440,7 +2439,6 @@
     "A new sky is lit. A week of 12 quests did it." : {},
     "A night sky with a constellation shaped like Cap's graduation cap" : {},
     "A nudge at the right time" : {},
-    "A nudge at your time, when there's something to study" : {},
     "A perfect time for a few cards." : {},
     "A plan and readiness for every exam" : {},
     "A plan! I love a plan." : {},
@@ -2462,7 +2460,7 @@
     "A tiny step is still a step." : {},
     "A topic with no material yet shows as a gap to fill." : {},
     "A week" : {},
-    "A week before an exam, and the evening before" : {},
+    "A week before an exam, and the night before" : {},
     "A week of 12 quests" : {},
     "A whole week. What you reviewed is holding." : {},
     "A wind-down review, anyone?" : {},
@@ -2686,6 +2684,7 @@
     "Add an exam date and Capling shows how ready you are." : {},
     "Add an exam date for %@" : {},
     "Add class material, and every question you study becomes a star." : {},
+    "Add exam" : {},
     "Add it" : {},
     "Add it anyway" : {},
     "Add material" : {},
@@ -2805,8 +2804,8 @@
     "Also in this course" : {},
     "Also on this syllabus: %@" : {},
     "Also send page photos" : {},
+    "Also sent" : {},
     "Always ask first for accounts under 18." : {},
-    "Always asks first" : {},
     "Always free" : {},
     "Always free, no limits" : {},
     "Always on for accounts under 18, so Cap helps you work it out." : {},
@@ -2898,7 +2897,6 @@
         }
       }
     },
-    "At %@, when there's something to study" : {},
     "At %lld days" : {},
     "At %lld minutes a day they're cleared in %lld days, starting with what you're closest to forgetting." : {
       "localizations" : {
@@ -3106,7 +3104,6 @@
     "Cap answered “%@”" : {},
     "Cap asks a guiding question before it explains. Just explain is one tap away in any chat." : {},
     "Cap asks a question before it explains." : {},
-    "Cap asks first" : {},
     "Cap asks the question again." : {},
     "Cap asks today's questions out loud and you answer with your voice" : {},
     "Cap asks today's questions out loud and you answer with your voice." : {},
@@ -3148,7 +3145,6 @@
     "Cap is quiet today." : {},
     "Cap is re-reading %@…" : {},
     "Cap is reading your notes" : {},
-    "Cap is still writing this step" : {},
     "Cap is waiting for you" : {},
     "Cap is working: %@" : {},
     "Cap is writing a harder one…" : {},
@@ -3223,6 +3219,7 @@
     "Cap will bring it up tomorrow" : {},
     "Cap will check this when you're online. It won't count against you." : {},
     "Cap won't bring it up again" : {},
+    "Cap won't bring these up on Today." : {},
     "Cap won't bring these up. Turn them on again in Settings." : {},
     "Cap won't look anything up online." : {},
     "Cap writes down each idea as he hears it." : {},
@@ -3242,7 +3239,6 @@
     "Capling is free for you" : {},
     "Capling now projects your grades from your readiness." : {},
     "Capling puts it beside how ready you were on the day, to learn how your readiness turns into grades." : {},
-    "Capling sends two notifications a day at most, counting exam countdowns, and none during quiet hours." : {},
     "Capling still writes questions, grades answers and lets Cap explain, on this iPhone." : {},
     "Capturing knowledge…" : {},
     "Capybara overload." : {},
@@ -3250,7 +3246,6 @@
     "Capybaras hum when they're happy." : {},
     "Card added from your notes" : {},
     "Cards as CSV" : {},
-    "Cards from this chat" : {},
     "Cards make good pillows." : {},
     "Cards make me smarter, slowly." : {},
     "Careful, that's a big one." : {},
@@ -3486,6 +3481,7 @@
       }
     },
     "Exam countdowns" : {},
+    "Exam countdowns only" : {},
     "Exam date" : {},
     "Exam day %@" : {},
     "Exam moved to %@" : {},
@@ -3524,6 +3520,7 @@
     "Explaining it in your own words shows what's really stuck." : {},
     "Explanation" : {},
     "Export" : {},
+    "Export or delete" : {},
     "Eyes on the card!" : {},
     "Eyes on the prize. Gently." : {},
     "Fading" : {},
@@ -3563,7 +3560,7 @@
     "Focuses this constellation" : {},
     "Follow my paw." : {},
     "Follows your iPhone" : {},
-    "Fonts" : {},
+    "Font licences" : {},
     "Food for thought." : {},
     "For %@" : {},
     "For accounts under 18 Cap always asks first. You decide what is added." : {},
@@ -3607,7 +3604,6 @@
     "Found it for you." : {},
     "Free AI scans are used up until Monday. Cap still writes questions on your iPhone." : {},
     "Free limits" : {},
-    "Free plan" : {},
     "Free trial" : {},
     "Free. Cap re-reads %@ with Cloud AI." : {},
     "Fresh as a pond at dawn." : {},
@@ -3667,7 +3663,6 @@
     "Give me a hint" : {},
     "Give me a second. Or ten." : {},
     "Glacier" : {},
-    "Go Pro" : {},
     "Go on, I'm writing it down." : {},
     "Go on, tap one." : {},
     "Go over it · 1 min" : {},
@@ -3721,6 +3716,7 @@
     "Hello from a capybara." : {},
     "Hello, hello, hello." : {},
     "Help" : {},
+    "Help, your data and About" : {},
     "Here's the answer, served." : {},
     "Here's the answer." : {},
     "Here's the answer: %@" : {},
@@ -3733,6 +3729,7 @@
     "Hi! Still me. Still Cap." : {},
     "Hi, I'm Cap. Light a star with me." : {},
     "Hidden" : {},
+    "Hidden tips" : {},
     "Hide" : {},
     "Hides the flame, quests and badges, and turns sounds off." : {},
     "Hides the flame, quests and badges, and turns sounds off. Your plan, stars and readiness stay." : {},
@@ -3818,7 +3815,6 @@
     "Import from Anki" : {},
     "Import from Quizlet" : {},
     "In %lld days" : {},
-    "In Study" : {},
     "In page order, up to 6" : {},
     "In progress" : {},
     "In the week before an exam, one a day at most, instead of that day's reminder." : {},
@@ -3890,6 +3886,7 @@
     "Just explain" : {},
     "Just five more cards…" : {},
     "Just resting my brain." : {},
+    "Just tell me" : {},
     "Just vibing. And sipping." : {},
     "Keep %@" : {},
     "Keep for later" : {},
@@ -4008,7 +4005,6 @@
         }
       }
     },
-    "Legal" : {},
     "Less" : {},
     "Let Cap research online" : {},
     "Let me chew on that." : {},
@@ -4053,13 +4049,10 @@
     "Looks right" : {},
     "Looks wrong?" : {},
     "Lunch for the brain?" : {},
-    "Made for students 13 and up. Your notes are never used to train AI models." : {},
-    "Make 3 flashcards" : {},
     "Make a wish. Then a review." : {},
-    "Make cards from this chat" : {},
+    "Make cards" : {},
+    "Make cards on " : {},
     "Make cards yourself" : {},
-    "Make flashcards" : {},
-    "Make flashcards on " : {},
     "Make notes" : {},
     "Make questions" : {},
     "Make the transcript now" : {},
@@ -4154,6 +4147,7 @@
     "Mock exams follow this mix, as far as your questions go" : {},
     "More" : {},
     "More reviews" : {},
+    "More reviews, for exam week" : {},
     "More sparkle, please." : {},
     "Morning! Orange juice?" : {},
     "Mostly %@, for your %@." : {
@@ -4270,6 +4264,7 @@
     },
     "No exams coming up" : {},
     "No marks until the end, like the real thing." : {},
+    "No name yet" : {},
     "No notes yet" : {},
     "No one in your Squad has studied yet today" : {},
     "No pressure. Just vibes." : {},
@@ -4337,6 +4332,7 @@
     "Nothing is added until you say so." : {},
     "Nothing is due right now. Add pages to study more." : {},
     "Nothing is fading right now." : {},
+    "Nothing is hidden. Cap brings up every kind of tip on Today." : {},
     "Nothing left to review tonight" : {},
     "Nothing long this week. Cap will keep an eye out." : {},
     "Nothing needs attention right now." : {},
@@ -4355,7 +4351,6 @@
     "Nudge it a little more." : {},
     "OK" : {},
     "Off while Quiet mode is on" : {},
-    "Off. Turn it on in Study." : {},
     "Off: nothing goes to Cloud AI, and Capling does the work on this iPhone, in less detail. You'll be asked first." : {},
     "Offline rules, always" : {},
     "Oh, hello there." : {},
@@ -4368,6 +4363,7 @@
     "On the web" : {},
     "On these days, Cap keeps to reviews: no new material, and a shorter session." : {},
     "On this iPhone" : {},
+    "On this iPhone only" : {},
     "On track" : {},
     "Onboarding" : {},
     "One difference" : {},
@@ -4376,7 +4372,6 @@
     "One more card?" : {},
     "One more question" : {},
     "One more." : {},
-    "One note at a time on Today, three a day at most. Spotting them runs on this iPhone and uses no AI." : {},
     "One tiny tweak." : {},
     "Only Cloud AI counts. The offline rules are free and never do. Days reset at midnight, weeks on Monday." : {},
     "Only Cloud AI counts. Your iPhone's own AI and the offline rules are free and never do. Days reset at midnight, weeks on Monday." : {},
@@ -4555,7 +4550,6 @@
     },
     "Privacy" : {},
     "Privacy Policy" : {},
-    "Privacy and access" : {},
     "Pro" : {},
     "Pro is Cloud AI's work, and Cloud AI isn't available for accounts under 13. So there's nothing here to buy." : {},
     "Pro works once you turn on Cloud AI in Settings." : {},
@@ -4602,7 +4596,7 @@
     "Questions for %@ are waiting for your review." : {},
     "Questions on it" : {},
     "Questions that got too easy" : {},
-    "Questions, a bug, or a charge you didn't expect? Write to us. A real person reads every message." : {},
+    "Questions, a bug or a surprise charge? A real person reads every message." : {},
     "Questions, checks of fill-ins and choices, and Cap's answers from your notes, with no network and no AI. They never count against a limit. Answers in your own words you mark yourself, unless an AI is there to check them." : {},
     "Questions? Ask a real person" : {},
     "Quick check" : {},
@@ -4610,6 +4604,7 @@
     "Quick question…" : {},
     "Quiet hours" : {},
     "Quiet mode" : {},
+    "Quiet mode on" : {},
     "Quiet sky, quiet mind." : {},
     "Quiet, scholar at work." : {},
     "Quietly beaming." : {},
@@ -4699,9 +4694,8 @@
     },
     "Remember: it's a marathon." : {},
     "Remind me at" : {},
-    "Reminder" : {},
+    "Reminder at %@, exam countdowns" : {},
     "Reminder time" : {},
-    "Reminder time and quiet hours" : {},
     "Remove" : {},
     "Remove %@" : {},
     "Remove %@ from your Squad?" : {},
@@ -4793,7 +4787,6 @@
     "See Capling Pro" : {},
     "See Exam Pass" : {},
     "See Pro" : {},
-    "See Pro and Squad" : {},
     "See Squad" : {},
     "See all" : {},
     "See all %lld" : {},
@@ -4812,6 +4805,7 @@
     "Send answer" : {},
     "Send page photos" : {},
     "Sends this answer to Cap" : {},
+    "Sends your answer to Cap" : {},
     "Sentence" : {},
     "Session done" : {},
     "Set from your syllabus" : {},
@@ -4829,6 +4823,8 @@
     "Short questions, quick grades and Cap's short answers can run on this iPhone: private, free and offline." : {},
     "Short sessions win." : {},
     "Show" : {},
+    "Show %@ again" : {},
+    "Show again" : {},
     "Show all %lld" : {},
     "Show answer" : {},
     "Show fewer" : {},
@@ -4876,10 +4872,12 @@
     "Sign in and your courses, questions and streak come back to this iPhone." : {},
     "Sign in first" : {},
     "Sign in first, so your friends' seats stay with your account on any iPhone." : {},
+    "Sign in to keep a copy in your account" : {},
     "Sign in to keep a copy of your courses, notes, questions and progress in your account. Sync turns on when you do." : {},
     "Sign out" : {},
     "Sign out?" : {},
     "Signed in" : {},
+    "Signed in with Apple" : {},
     "Signed in. Sync is on." : {},
     "Signed out. Everything stays on this iPhone." : {},
     "Signs in with your Apple Account. Capling gets a private address if you choose to hide yours." : {},
@@ -5006,16 +5004,6 @@
     "Steady this week" : {},
     "Steady today" : {},
     "Steam is a great view." : {},
-    "Step %lld of %lld" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "Step %1$lld of %2$lld"
-          }
-        }
-      }
-    },
     "Still hearing: %@" : {},
     "Still learning, still good." : {},
     "Still missing: %@." : {},
@@ -5113,7 +5101,6 @@
     "Study today to start a new streak." : {},
     "Study · %@" : {},
     "Study · %lld min" : {},
-    "Studying" : {},
     "Subscription" : {},
     "Sun's high, brain's warm." : {},
     "Sunrise study? Lovely." : {},
@@ -5258,8 +5245,10 @@
     "The sky looks lovely tonight." : {},
     "The sky says hello." : {},
     "The stars are out. Look!" : {},
+    "The sweet spot for most people" : {},
     "The syllabus doesn't name these. They stay on the exam unless you untick them." : {},
     "The transcript isn't ready yet" : {},
+    "The version, terms and privacy" : {},
     "The weakest topics for this exam, plus %lld new questions." : {
       "localizations" : {
         "en" : {
@@ -5549,16 +5538,7 @@
     "Turns on a daily reminder at 7 PM; you can change the time." : {},
     "Turns on taps you can feel for your own actions." : {},
     "Turns the daily reminder off. Exam countdowns still come." : {},
-    "Two a day at most, an hour apart, and never between %@ and %@. If you stop opening Capling, it stops after a week." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "Two a day at most, an hour apart, and never between %1$@ and %2$@. If you stop opening Capling, it stops after a week."
-          }
-        }
-      }
-    },
+    "Two a day at most, an hour apart. If you stop opening Capling, it stops after a week." : {},
     "Two days before a free week ends, so you're never charged by surprise" : {},
     "Two quick questions" : {},
     "Type it" : {},
@@ -5569,6 +5549,7 @@
     "Undo" : {},
     "Undo %@" : {},
     "Untangled" : {},
+    "Until" : {},
     "Up to 6 pages" : {},
     "Up to date. Nice." : {},
     "Up to three searches, and you see every page" : {},
@@ -5582,7 +5563,6 @@
     "Use the whole course" : {},
     "Use this page anyway" : {},
     "Uses Cloud AI" : {},
-    "Version" : {},
     "Version %@" : {},
     "Very proud. Very capybara." : {},
     "VoiceOver" : {},
@@ -5616,7 +5596,6 @@
     "Welcome back, %@" : {},
     "Welcome, %@" : {},
     "What Cap can do" : {},
-    "What Capling sends" : {},
     "What does it cover?" : {},
     "What if I skip %@?" : {},
     "What if…?" : {},
@@ -5627,20 +5606,19 @@
     "What you answer" : {},
     "What you ask Cap" : {},
     "What you covered" : {},
-    "What you wrote" : {},
     "What's off? (optional)" : {},
     "What's on it" : {},
     "What's sent" : {},
     "Whatever happens, I'm here." : {},
     "When" : {},
     "When is your next exam?" : {},
+    "When there's something to study" : {},
     "Where you are in the lecture" : {},
     "Which class is this for?" : {},
     "Which one is this? %@" : {},
     "Who reads it" : {},
     "Who's in your Squad" : {},
     "Whoa, easy there!" : {},
-    "Why" : {},
     "Why do cells divide by mitosis?" : {},
     "Why does anaphase matter?" : {},
     "Why it's right (optional)" : {},
@@ -5659,7 +5637,7 @@
     "Write a question" : {},
     "Write me a note on " : {},
     "Write more questions" : {},
-    "Write to a real person" : {},
+    "Write to us" : {},
     "Writing a note" : {},
     "Writing flashcards" : {},
     "Writing questions" : {},
@@ -5672,7 +5650,6 @@
     "Yawns are contagious. You're welcome." : {},
     "Yes! Nailed it." : {},
     "Yes, harder" : {},
-    "You" : {},
     "You + 3 friends, %@ each a month" : {},
     "You already have an exam in this course that day." : {},
     "You answered %lld of %lld in time." : {
@@ -5884,6 +5861,7 @@
     "Your answer: %@" : {},
     "Your answers" : {},
     "Your answers so far are marked. The rest are left out." : {},
+    "Your answer…" : {},
     "Your best streak unlocks a new icon at 7, 30, 100 and 365 days. They stay yours." : {},
     "Your best streak, %lld days, is still yours. 5 minutes today lights your flame again." : {},
     "Your call" : {},
@@ -6099,6 +6077,7 @@
       }
     },
     "in a mix-up" : {},
+    "lighter on %@" : {},
     "log your grade" : {},
     "min" : {},
     "multiple choice" : {},
@@ -6178,16 +6157,6 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "“%1$@” in %2$@"
-          }
-        }
-      }
-    },
-    "“Let Cap do it” is on for %lld of %lld" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "“Let Cap do it” is on for %1$lld of %2$lld"
           }
         }
       }

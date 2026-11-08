@@ -260,41 +260,34 @@ struct QuickCheck: Equatable, Sendable {
     }
 }
 
-// MARK: - The mistake in three steps
+// MARK: - The mistake, explained
 
-/// Cap's reply to "Explain my mistake", as the sheet pages through it: what the answer got right and the one thing off, why (with the
-/// page it rests on), and one quick check. The relay asks for three parts separated by a blank line (`mistakeInstruction`); this also takes
-/// what else can arrive: two parts, one paragraph, a hint that is only a question, the offline tutor's words, or a reply that says the
-/// notes don't hold it, which stays one page.
-struct MistakeSteps: Equatable, Sendable {
-    enum Page: Int, Equatable, Sendable, CaseIterable {
-        case what = 1, why, check
-    }
-
-    /// What their answer got right and the one thing off. Empty when the reply opens with its question.
-    var what = ""
-    /// Why, from the notes. Empty when the reply has no such part.
-    var why = ""
+/// Cap's reply to "Explain my mistake", as the sheet shows it on one page: the explanation (what the answer got right, the one thing off, and
+/// why, from the notes, with the page), then one quick check. The relay asks for three parts separated by a blank line (`mistakeInstruction`);
+/// this also takes what else can arrive: two parts, one paragraph, a hint that is only a question, the offline tutor's words, or a reply that
+/// says the notes don't hold it, which has no check.
+struct MistakeReply: Equatable, Sendable {
+    /// Everything before the quick check. Empty when the reply opens with its question.
+    var explanation = ""
     var check: QuickCheck?
     /// The last part while it is still arriving, before it ends in a question.
     var checkDraft = ""
-    /// The pages the reply has reached, in order. While it streams, a page unlocks when its part begins.
-    var pages: [Page] = [.what]
-    /// How many pages the sheet says there are. Three until a finished reply shows otherwise.
-    var total = 3
+
+    /// The check's part has begun: the explanation above it is whole.
+    var reachedCheck: Bool { check != nil || !checkDraft.isEmpty }
 
     /// The ask when the reply didn't end in a question of its own.
     static var sayItBack: QuickCheck {
         QuickCheck(lead: "", question: String(localized: "Can you say it back in your own words?"), options: [], isLabelled: true)
     }
 
-    static func split(_ text: String, streaming: Bool = false, chatContext: String = "") -> MistakeSteps {
+    static func split(_ text: String, streaming: Bool = false, chatContext: String = "") -> MistakeReply {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return MistakeSteps() }
+        guard !trimmed.isEmpty else { return MistakeReply() }
         let parts = paragraphs(trimmed)
         if streaming { return arriving(parts, chatContext: chatContext) }
         if LocalTutor.isNotCoveredReply(trimmed) || TutorPolicy.isDecline(trimmed) {
-            return MistakeSteps(what: trimmed, pages: [.what], total: 1)
+            return MistakeReply(explanation: trimmed)
         }
         return settled(parts, chatContext: chatContext)
     }
@@ -307,36 +300,27 @@ struct MistakeSteps: Equatable, Sendable {
             .filter { !$0.isEmpty }
     }
 
-    /// A reply still streaming: each part is its page, as far as it has come.
-    private static func arriving(_ parts: [String], chatContext: String) -> MistakeSteps {
-        var steps = MistakeSteps(what: parts[0])
-        guard parts.count > 1 else { return steps }
-        steps.pages = [.what, .why]
-        guard parts.count > 2, let last = parts.last else {
-            steps.why = parts[1]
-            return steps
-        }
-        steps.why = parts[1..<(parts.count - 1)].joined(separator: "\n\n")
-        steps.pages = Page.allCases
+    /// A reply still streaming: the first two parts explain; from a third on, the last is the check as far as it has come.
+    private static func arriving(_ parts: [String], chatContext: String) -> MistakeReply {
+        guard parts.count > 2, let last = parts.last else { return MistakeReply(explanation: parts.joined(separator: "\n\n")) }
+        var reply = MistakeReply(explanation: parts.dropLast().joined(separator: "\n\n"))
         if let check = QuickCheck.split(last, chatContext: chatContext), check.lead.isEmpty {
-            steps.check = check
+            reply.check = check
         } else {
-            steps.checkDraft = last
+            reply.checkDraft = last
         }
-        return steps
+        return reply
     }
 
-    /// A finished reply: its ending question is the check, the first part what was right, the rest why.
-    private static func settled(_ parts: [String], chatContext: String) -> MistakeSteps {
+    /// A finished reply: its ending question is the check, everything before it the explanation.
+    private static func settled(_ parts: [String], chatContext: String) -> MistakeReply {
         var rest = parts
         var check: QuickCheck?
-        var splitsOneParagraph = true
         if let last = rest.last, var found = QuickCheck.split(last, chatContext: chatContext) {
             rest.removeLast()
             if found.lead.contains("____") {
                 // The offline hint (`LocalTutor`): "You wrote “x”. Have another look: p. 87 says: “a line with a ____” What goes in the gap?"
-                // The line goes with its question, and "You wrote" stands alone: its words are the student's, and no place to cut.
-                splitsOneParagraph = false
+                // The line goes with its question, and "You wrote" stands alone above it.
                 if let look = found.lead.range(of: "Have another look: ") {
                     rest.append(String(found.lead[..<look.lowerBound]).trimmingCharacters(in: .whitespaces))
                     found.question = String(found.lead[look.upperBound...]) + " " + found.question
@@ -349,27 +333,7 @@ struct MistakeSteps: Equatable, Sendable {
             found.lead = ""
             check = found
         }
-        var what = rest.first ?? ""
-        var why = rest.dropFirst().joined(separator: "\n\n")
-        // One paragraph: its first sentence, then the rest. Not a list or a table, which only read whole.
-        if splitsOneParagraph, why.isEmpty, !what.contains("\n") {
-            let sentences = Lexicon.sentences(what)
-            if sentences.count >= 2 {
-                what = sentences[0]
-                why = sentences.dropFirst().joined(separator: " ")
-            }
-        }
-        // "Your notes say:" belongs with what the notes say, on the next page.
-        if what.hasSuffix(":") {
-            let sentences = Lexicon.sentences(what)
-            let leadIn = sentences.last ?? what
-            what = sentences.dropLast().joined(separator: " ")
-            why = why.isEmpty ? leadIn : leadIn + "\n\n" + why
-        }
-        var pages: [Page] = [.what]
-        if !why.isEmpty { pages.append(.why) }
-        pages.append(.check)
-        return MistakeSteps(what: what, why: why, check: check ?? sayItBack, pages: pages, total: pages.count)
+        return MistakeReply(explanation: rest.filter { !$0.isEmpty }.joined(separator: "\n\n"), check: check ?? sayItBack)
     }
 }
 
