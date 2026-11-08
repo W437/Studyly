@@ -571,7 +571,7 @@ final class TeachAppModelTests: XCTestCase {
         XCTAssertEqual(notices.map(\.id), [NoticeEngine.teachID(topic.id)])
         XCTAssertFalse(try XCTUnwrap(notices.first).notifiable, "an extra: never a notification")
         let card = NoticeContent.card(try XCTUnwrap(notices.first), firstName: "", now: clock.now, calendar: cal)
-        XCTAssertEqual(card.title, "You know anaphase. Can you teach it?")
+        XCTAssertEqual(card.title, "You know anaphase well", "no question over \"Teach Cap\"")
         XCTAssertNil(card.cost)
         XCTAssertFalse(card.title.contains("%") || card.detail.contains("%"), "no percentage")
         let action = try XCTUnwrap(card.action)

@@ -33,25 +33,18 @@ enum TodayHero: Equatable, Sendable {
     }
 }
 
-/// One upcoming exam as Today shows it (the exams row, the card's chip, the done card's ring).
+/// One upcoming exam as Today shows it (the card's chip and ring, the night before, the done card).
 struct TodayExam: Identifiable, Equatable, Sendable {
     var id: UUID
     var title: String
     var courseName: String
-    var color: CourseColor
     var date: Date
     var daysLeft: Int
     var readiness: Double
-    var delta: Double
-    /// "Sun · in 2 days" (`TodayCopy.when`).
-    var when: String = ""
-    /// Questions in its scope: under `TodayCopy.fewQuestions` the readiness is a thin guess.
-    var itemsInScope: Int = 0
-    /// Readiness gained since the start of today.
-    var deltaToday: Double = 0
-    /// Questions just added and not studied yet, while they hold its readiness down, and whether its plan has places for them (`ExamReadiness.newQuestions`).
-    var newQuestions: Int = 0
-    var newQuestionsInPlan = false
+    /// Its day on the chip: "Tue", "Tomorrow at 10:00", "29 Nov" (`TodayCopy.examDay`).
+    var day: String = ""
+    /// The same in full, for VoiceOver ("Tuesday"), when it differs.
+    var daySpoken: String? = nil
 }
 
 /// The exam the session serves (`SessionFocus`: one this week with 20% of its minutes, else one with 40%), as the day card names it.
@@ -59,21 +52,8 @@ struct TodayFocus: Equatable, Sendable {
     var exam: TodayExam
     /// The session's topics for it, weakest first (the order "Why these?" reads them in).
     var topics: [String]
-    /// "About N% after today": the ring's own function over today's session (`AppModel.readinessAfter`).
-    var forecast: Double
-    var weakCount: Int
-    var dueCount: Int
-    var newCount: Int
-    /// All of the session's questions for it: "7" where the session holds 39.
+    /// All of the session's questions for it: "7" where the session holds 42. Under half, the card's title names the courses instead.
     var questions: Int = 0
-}
-
-/// The exam the day's finished sessions counted toward, for the done card's ring ("+10% today · 2 days to go").
-struct TodayDoneExam: Equatable, Sendable {
-    var title: String
-    var readiness: Double
-    var deltaToday: Double
-    var daysLeft: Int
 }
 
 /// A short practice on one topic, for a day with nothing due ("Practice Limiting reagents · 5 min").
@@ -99,6 +79,8 @@ struct TodaySnapshot: Equatable, Sendable {
     var focus: TodayFocus?
     /// The session's topics (and with none, its courses), for a card with no exam to name.
     var sessionTopics: [String] = []
+    /// The session's courses, soonest exam first (courses with no exam after them): the title when no one exam has half the session.
+    var sessionCourses: [String] = []
     /// The exam eve session would have questions (weak spots in scope), and on which topics.
     var eveHasWork = true
     /// That session's planned minutes, rounded up, at most 10 (`BuiltSession.tonightMinutes`).
@@ -108,17 +90,12 @@ struct TodaySnapshot: Equatable, Sendable {
     var eveOthers: [String] = []
     /// Once tonight's session is done: how many ideas the last look holds.
     var lastLookIdeas = 0
-    /// The exam today's finished sessions counted toward.
-    var doneExam: TodayDoneExam?
-    /// A topic to practise on a day with nothing due.
+    /// The exam today's finished sessions counted toward: the done card's chip and ring.
+    var doneExam: TodayExam?
+    /// A topic to practice on a day with nothing to review.
     var practice: TodayPractice?
-    /// "Your plan": two days back, today and four ahead.
-    var strip: [TodayPlanDay] = []
     /// Cap's cards still to show today, at most three, the first one on screen.
     var notices: [CapNotice] = []
-    /// Where that first one stands among today's: "2 of 3".
-    var noticePosition = 1
-    var noticeTotal = 0
     /// No session has ever been finished: the band says "Welcome".
     var firstDay = false
     /// The person's memory sky, laid out for the band.
@@ -134,7 +111,7 @@ struct TodaySnapshot: Equatable, Sendable {
 
     /// There is material to study.
     var hasMaterial: Bool { hero != .empty && hero != .noMaterial }
-    /// "Your plan" may say who in the Squad has studied: never on an eve, which is calm, or in Quiet mode.
+    /// The quests row may say who in the Squad has studied: never the night before an exam, which is calm, or in Quiet mode.
     var showsSquad: Bool { !isEve && !quiet }
     /// The day is an exam's eve (before or after its session).
     var isEve: Bool {
@@ -167,17 +144,15 @@ struct TodaySnapshot: Equatable, Sendable {
         let calendar = app.calendar
         let now = app.now
         let eveDone = app.eveSessionDone(summary)
-        let exams: [TodayExam] = app.upcomingExams()
-            .filter { $0.course?.deletedAt == nil && $0.date > now }
+        let upcoming = app.upcomingExams().filter { $0.course?.deletedAt == nil && $0.date > now }
+        let exams: [TodayExam] = upcoming
             .prefix(5)
             .map { exam in
                 let r = app.readiness(for: exam)
-                return TodayExam(id: exam.id, title: exam.title, courseName: exam.course?.name ?? "",
-                                 color: exam.course?.color ?? .sky, date: exam.date, daysLeft: r.daysLeft,
-                                 readiness: r.value, delta: r.deltaThisWeek,
-                                 when: TodayCopy.when(exam.date, now: now, calendar: calendar),
-                                 itemsInScope: r.itemsInScope, deltaToday: r.deltaToday, newQuestions: r.newQuestions,
-                                 newQuestionsInPlan: r.newQuestionsInPlan)
+                let day = TodayCopy.examDay(exam.date, now: now, calendar: calendar)
+                let spoken = TodayCopy.examDay(exam.date, now: now, calendar: calendar, spoken: true)
+                return TodayExam(id: exam.id, title: exam.title, courseName: exam.course?.name ?? "", date: exam.date, daysLeft: r.daysLeft,
+                                 readiness: r.value, day: day, daySpoken: spoken == day ? nil : spoken)
             }
         let firstDay = !app.hasFinishedAnySession()
         var snapshot = TodaySnapshot(
@@ -199,22 +174,17 @@ struct TodaySnapshot: Equatable, Sendable {
         // What the day's session is for.
         let names = app.topicNames()
         let focus = app.sessionFocus(session)
-        if let id = focus.examID, let exam = exams.first(where: { $0.id == id }),
-           let examSnapshot = app.examSnapshots(upcomingOnly: true).first(where: { $0.id == id }) {
+        if let id = focus.examID, let exam = exams.first(where: { $0.id == id }) {
             var readiness: [UUID: Double] = [:]
             if let model = app.exam(id) {
                 for topic in app.topicReadiness(for: model) { readiness[topic.id] = topic.value }
             }
             snapshot.focus = TodayFocus(exam: exam, topics: focus.topicsWeakestFirst(readiness: readiness).compactMap { names[$0] },
-                                        forecast: max(exam.readiness, app.readinessAfter(session, for: examSnapshot)),
-                                        weakCount: focus.weakCount, dueCount: focus.dueCount, newCount: focus.newCount, questions: focus.questionCount)
+                                        questions: focus.questionCount)
         }
+        snapshot.sessionCourses = sessionCourses(session, exams: upcoming, app: app)
         snapshot.sessionTopics = focus.examID == nil ? focus.topicIDs.compactMap { names[$0] } : []
-        if snapshot.sessionTopics.isEmpty {
-            let ids = session.entries.compactMap(\.courseID)
-            var seen = Set<UUID>()
-            snapshot.sessionTopics = ids.filter { seen.insert($0).inserted }.compactMap { app.course($0)?.name }
-        }
+        if snapshot.sessionTopics.isEmpty { snapshot.sessionTopics = snapshot.sessionCourses }
 
         // The eve: tonight's topics, and the exams that wait.
         if let eve = snapshot.eveExam {
@@ -225,14 +195,9 @@ struct TodaySnapshot: Equatable, Sendable {
             snapshot.eveOthers = otherCourses(exams, besides: snapshot.eveExams)
             if case .examEveDone = snapshot.hero { snapshot.lastLookIdeas = app.lastLookCount(for: eve.id) }
         }
-        snapshot.doneExam = app.todayDoneExamID().flatMap { id in exams.first { $0.id == id } }.map {
-            TodayDoneExam(title: $0.title, readiness: $0.readiness, deltaToday: $0.deltaToday, daysLeft: $0.daysLeft)
-        }
+        snapshot.doneExam = app.todayDoneExamID().flatMap { id in exams.first { $0.id == id } }
         snapshot.practice = practice(in: snapshot.sky)
-        snapshot.strip = app.todayStrip(summary: summary, tonightMinutes: snapshot.eveExam == nil ? nil : snapshot.eveMinutes)
         snapshot.notices = app.todayNotices(session: session)
-        let place = app.todayNoticePlace(session: session)
-        (snapshot.noticePosition, snapshot.noticeTotal) = (place.position, snapshot.notices.first?.isConfirmation == true ? 1 : place.count)
         if app.hasFinishedAnySession(), !app.settings.quietMode { snapshot.quests = app.questsToday() }
         #if DEBUG
         debugOverride(&snapshot, app: app)
@@ -243,6 +208,21 @@ struct TodaySnapshot: Equatable, Sendable {
     static func initials(_ name: String) -> String {
         let parts = name.split(separator: " ").prefix(2)
         return parts.compactMap { $0.first.map { String($0).uppercased() } }.joined()
+    }
+
+    /// The courses a session holds, by name: those with an upcoming exam soonest first, then the rest in the order they first come up.
+    @MainActor
+    static func sessionCourses(_ session: BuiltSession, exams: [Exam], app: AppModel) -> [String] {
+        var soonest: [UUID: Date] = [:]
+        for exam in exams {
+            guard let id = exam.course?.id else { continue }
+            soonest[id] = min(soonest[id] ?? exam.date, exam.date)
+        }
+        var seen = Set<UUID>()
+        let ids = session.entries.compactMap(\.courseID).filter { seen.insert($0).inserted }
+        return ids.enumerated()
+            .sorted { (soonest[$0.element] ?? .distantFuture, $0.offset) < (soonest[$1.element] ?? .distantFuture, $1.offset) }
+            .compactMap { app.course($0.element)?.name }
     }
 
     /// A session's topics by name, in the order they first come up.
@@ -301,7 +281,6 @@ struct TodaySnapshot: Equatable, Sendable {
     private static func debugOverride(_ snapshot: inout TodaySnapshot, app: AppModel) {
         if let raw = TestHarness.value("CRAMLESS_TODAY_NOTICES"), let n = Int(raw) {
             snapshot.notices = Array(TodayNoticesDemo.notices(base: snapshot.notices).prefix(max(0, n)))
-            (snapshot.noticePosition, snapshot.noticeTotal) = (1, snapshot.notices.count)
         }
         guard let state = TestHarness.value("CRAMLESS_TODAY") else { return }
         let firstExam = snapshot.exams.first
@@ -326,14 +305,6 @@ struct TodaySnapshot: Equatable, Sendable {
             if let focus = snapshot.focus { snapshot.sessionTopics = focus.topics }
             snapshot.focus = nil
             snapshot.exams = []
-            snapshot.strip = snapshot.strip.map { day in
-                var d = day
-                switch d.mark {
-                case .eve, .exam: d.mark = .minutes(snapshot.summary.minutesGoal); d.examTitles = []
-                default: break
-                }
-                return d
-            }
             snapshot.hero = .session
         case "examEve", "eveDone", "twoEves":
             let id = firstExam?.id ?? UUID()
@@ -343,22 +314,14 @@ struct TodaySnapshot: Equatable, Sendable {
             snapshot.eveHasWork = true
             if let first = firstExam {
                 // The demo's first exam is days away: say it as its eve would.
-                snapshot.exams[0].when = TodayCopy.when(first.date, now: first.date.addingTimeInterval(-86_400), calendar: app.calendar)
+                let eve = first.date.addingTimeInterval(-86_400)
+                snapshot.exams[0].day = TodayCopy.examDay(first.date, now: eve, calendar: app.calendar)
+                snapshot.exams[0].daySpoken = nil
                 let built = app.buildSession(SessionRequest(kind: .examEve, examID: id))
                 snapshot.eveMinutes = built.tonightMinutes
                 snapshot.eveTopics = eveTopicNames(of: built, exams: [first], names: app.topicNames(), app: app)
                 snapshot.eveOthers = otherCourses(snapshot.exams, besides: snapshot.eveExams)
                 snapshot.lastLookIdeas = state == "eveDone" ? app.lastLookCount(for: id) : 0
-                // The week as the eve's: tonight's moon, tomorrow's exam.
-                for i in snapshot.strip.indices {
-                    switch snapshot.strip[i].offset {
-                    case 0: snapshot.strip[i].mark = .eve(minutes: built.tonightMinutes); snapshot.strip[i].examTitles = [first.title]
-                    case 1: snapshot.strip[i].mark = .exam(count: 1); snapshot.strip[i].examTitles = [first.title]
-                    default:
-                        if case .exam = snapshot.strip[i].mark { snapshot.strip[i].mark = .minutes(snapshot.summary.minutesGoal) }
-                        if case .eve = snapshot.strip[i].mark { snapshot.strip[i].mark = .minutes(snapshot.summary.minutesGoal) }
-                    }
-                }
             }
             snapshot.quests = QuestsToday()
         case "done":
@@ -367,24 +330,21 @@ struct TodaySnapshot: Equatable, Sendable {
             snapshot.answersToday = max(snapshot.answersToday, 24)
             snapshot.streak.studiedToday = true
             snapshot.hero = .done
-            if let exam = snapshot.focus?.exam ?? firstExam {
-                snapshot.doneExam = TodayDoneExam(title: exam.title, readiness: min(1, exam.readiness + 0.10), deltaToday: 0.10,
-                                                  daysLeft: exam.daysLeft)
+            if var exam = snapshot.focus?.exam ?? firstExam {
+                exam.readiness = min(1, exam.readiness + 0.10)
+                snapshot.doneExam = exam
             }
-            if let i = snapshot.strip.firstIndex(where: \.isToday) { snapshot.strip[i].mark = .done }
         case "caughtUp":
             snapshot.hero = .caughtUp
         case "noMaterial":
             snapshot.hero = .noMaterial
             snapshot.exams = []
             snapshot.notices = []
-            snapshot.strip = []
             snapshot.quests = QuestsToday()
         case "empty":
             snapshot.hero = .empty
             snapshot.exams = []
             snapshot.notices = []
-            snapshot.strip = []
             snapshot.quests = QuestsToday()
             snapshot.firstDay = true
             snapshot.greeting = TodayCopy.greeting(hour: app.calendar.component(.hour, from: app.now),

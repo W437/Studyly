@@ -459,14 +459,14 @@ final class NoticeEngineTests: XCTestCase {
     func testWelcomeBackPromisesOnlyWhatIsTrue() throws {
         let card = NoticeContent.card(try XCTUnwrap(welcomed(lastStudied: 8)), firstName: "Maya", now: now, calendar: cal)
         XCTAssertEqual(card.title, "Welcome back, Maya")
-        XCTAssertEqual(card.detail, "Your best streak, 23 days, is still yours. 5 minutes today lights your flame again.")
+        XCTAssertEqual(card.detail, "Your best streak, 23 days, is still yours.", "the button says the 5 minutes")
         XCTAssertEqual(card.action?.title, "Start 5 min")
-        XCTAssertEqual(card.cost, "No AI")
+        XCTAssertNil(card.cost, "no AI: no cost word")
         if case .session(let kind, let minutes, _, _, _)? = card.action?.run {
             XCTAssertEqual(kind, .daily)
             XCTAssertEqual(minutes, 5)
         } else { XCTFail("a 5-minute session") }
-        XCTAssertEqual(NoticeContent.welcomeBackDetail(best: 1), "Your stars waited for you. 5 minutes today is a good start.")
+        XCTAssertEqual(NoticeContent.welcomeBackDetail(best: 1), "Your stars waited for you.")
         for word in ["restore", "back to", "lost"] { XCTAssertFalse(card.detail.lowercased().contains(word), word) }
     }
 
@@ -542,11 +542,20 @@ final class NoticeEngineTests: XCTestCase {
         let note = ConfusionNote(id: UUID(), name: "Metaphase vs telophase", missCount: 0, recentMisses: 0, recentAnswers: 0)
         XCTAssertEqual(SessionCopy.missLine(note), "Spotted before any mix-up.")
         let card = NoticeContent.card(for: note)
-        XCTAssertEqual(card.title, "Metaphase and telophase look alike")
-        XCTAssertFalse(card.title.contains("keep"))
+        XCTAssertEqual(card.title, "Metaphase vs telophase", "named by its pair")
+        XCTAssertEqual(card.detail, "Spotted before any mix-up.")
+        XCTAssertEqual(card.action?.title, "Fix it")
         let missed = ConfusionNote(id: UUID(), name: "Metaphase vs telophase", missCount: 1, recentMisses: 1, recentAnswers: 1)
-        XCTAssertEqual(NoticeContent.card(for: missed).title, "You keep mixing up metaphase and telophase.")
-        XCTAssertEqual(SessionCopy.missLine(missed), "Missed it lately.")
+        XCTAssertEqual(NoticeContent.card(for: missed).title, "Metaphase vs telophase")
+        XCTAssertEqual(NoticeContent.card(for: missed).detail, "Missed it lately.", "no question over \"Fix it\"")
+        var one = missed
+        one.questions = 1
+        XCTAssertEqual(NoticeContent.card(for: one).action?.title, "Fix it", "one name for a fix, whatever its size")
+        // A pair's names keep their capitals; a topic-shaped one, or one with no name, says its own line.
+        XCTAssertEqual(NoticeContent.card(for: ConfusionNote(id: UUID(), name: "Darcy vs Bingley", missCount: 2, recentMisses: 0, recentAnswers: 0)).title,
+                       "Darcy vs Bingley")
+        XCTAssertEqual(NoticeContent.card(for: ConfusionNote(id: UUID(), name: "Mendelian genetics", missCount: 2, recentMisses: 0, recentAnswers: 0)).title,
+                       "Mendelian genetics: still tripping you up.")
     }
 
     /// A course whose finished exam covers its questions, and an exam still to come in another course (or none).
@@ -841,8 +850,8 @@ final class NoticeEngineTests: XCTestCase {
             return NoticeContent.card(try XCTUnwrap(NoticeEngine(i).candidates().first), firstName: "", now: now, calendar: cal)
         }
         XCTAssertEqual(try card(cloud: true).cost, "Uses Cloud AI")
-        XCTAssertEqual(try card(cloud: false).cost, "No AI")
-        XCTAssertEqual(NoticeContent.costLine(.none), "No AI")
+        XCTAssertNil(try card(cloud: false).cost, "no AI: no cost word")
+        XCTAssertNil(NoticeContent.costLine(.none))
         XCTAssertEqual(NoticeContent.costLine(.drafts(1)), "Uses Cloud AI")
 
         // A mix-up's fix opens on a lesson Cloud AI writes when it may; one question's recap is the rules'.
@@ -856,8 +865,8 @@ final class NoticeEngineTests: XCTestCase {
             return NoticeContent.card(try XCTUnwrap(NoticeEngine(i).candidates().first), firstName: "", now: now, calendar: cal)
         }
         XCTAssertEqual(try fixCard(cloud: true, questions: 2).cost, "Uses Cloud AI")
-        XCTAssertEqual(try fixCard(cloud: false, questions: 2).cost, "No AI")
-        XCTAssertEqual(try fixCard(cloud: true, questions: 1).cost, "No AI")
+        XCTAssertNil(try fixCard(cloud: false, questions: 2).cost)
+        XCTAssertNil(try fixCard(cloud: true, questions: 1).cost)
         XCTAssertNil(NoticeContent.costLine(.free))
     }
 
@@ -978,7 +987,7 @@ final class NoticeEngineTests: XCTestCase {
         let one = try XCTUnwrap(cards(note(right: 1, later: 1)).first)
         XCTAssertFalse(one.notifiable, "no notification on the strength of an answer that came right")
         let card = NoticeContent.card(one, firstName: "", now: now, calendar: cal)
-        XCTAssertEqual(card.title, "Anaphase and telophase are coming along.")
+        XCTAssertEqual(card.title, "Anaphase vs telophase")
         XCTAssertEqual(card.detail, "You got the last one right.")
         XCTAssertTrue(try XCTUnwrap(cards(note(right: 0, later: 0)).first).notifiable)
     }
@@ -1057,21 +1066,21 @@ final class NoticeEngineTests: XCTestCase {
         let rescue = FadeRescue(noticeID: "fade", examID: midterm.id, examTitle: midterm.title, examDate: midterm.date, daysLeft: 5, dimCount: 18, dimShare: 0.5,
                                 days: [], minutesPerDay: 6, kept: 18, origin: .source("Lecture 3"))
         let fading = Notice(id: "f", kind: .fading, rank: 0, evidence: .fading(rescue))
-        XCTAssertEqual(NoticeContent.pingBody(fading), "Some Lecture 3 questions are fading before your Bio 101 Midterm. A few extra minutes keeps them.")
+        XCTAssertEqual(NoticeContent.pingBody(fading), "Some Lecture 3 questions need a review before your Bio 101 Midterm. A few extra minutes covers them.")
         let pairCard = Notice(id: "p", kind: .lookAlike, rank: 0, evidence: .lookAlike(pair()))
-        XCTAssertEqual(NoticeContent.pingBody(pairCard), "Metaphase and telophase look alike, and both are on your Bio 101 Midterm. Cap can show you the difference.")
+        XCTAssertEqual(NoticeContent.pingBody(pairCard), "Metaphase vs telophase: they look alike, and both are on your Bio 101 Midterm. Cap can show you the difference.")
         let mix = Notice(id: "m", kind: .mixUp, rank: 0, evidence: .mixUp(mixUp().note))
-        XCTAssertEqual(NoticeContent.pingBody(mix), "Anaphase vs telophase: still mixing them up? A 2-minute fix is ready.")
-        // A name keeps its capitals, a topic isn't a pair, and one question is a look, not a fix.
+        XCTAssertEqual(NoticeContent.pingBody(mix), "Anaphase vs telophase: still mixing them up? Fix it in 2 minutes.")
+        // A name keeps its capitals, a topic isn't a pair, and one question takes a minute.
         let topic = Notice(id: "t", kind: .mixUp, rank: 0, evidence: .mixUp(mixUp("TCP segment structure").note))
-        XCTAssertEqual(NoticeContent.pingBody(topic), "TCP segment structure: still tripping you up. A 2-minute fix is ready.")
+        XCTAssertEqual(NoticeContent.pingBody(topic), "TCP segment structure: still tripping you up. Fix it in 2 minutes.")
         let named = Notice(id: "n", kind: .mixUp, rank: 0, evidence: .mixUp(mixUp("Longbourn vs Netherfield").note))
-        XCTAssertEqual(NoticeContent.pingBody(named), "Longbourn vs Netherfield: still mixing them up? A 2-minute fix is ready.")
+        XCTAssertEqual(NoticeContent.pingBody(named), "Longbourn vs Netherfield: still mixing them up? Fix it in 2 minutes.")
         var slip = mixUp("Water availability").note
         slip.questions = 1
-        XCTAssertEqual(NoticeContent.pingBody(Notice(id: "s", kind: .mixUp, rank: 0, evidence: .mixUp(slip))), "Water availability: still tripping you up. A quick look is ready.")
+        XCTAssertEqual(NoticeContent.pingBody(Notice(id: "s", kind: .mixUp, rank: 0, evidence: .mixUp(slip))), "Water availability: still tripping you up. Fix it in a minute.")
         slip.name = ConfusionCandidate.unnamed
-        XCTAssertEqual(NoticeContent.pingBody(Notice(id: "s", kind: .mixUp, rank: 0, evidence: .mixUp(slip))), "Still tripping on the same question? A quick look is ready.")
+        XCTAssertEqual(NoticeContent.pingBody(Notice(id: "s", kind: .mixUp, rank: 0, evidence: .mixUp(slip))), "Still tripping on the same question? Fix it in a minute.")
         XCTAssertEqual(SessionCopy.mixUpLine(ConfusionCandidate.unnamed, questions: 1), "This question keeps tripping you up.")
         XCTAssertEqual(SessionCopy.mixUpComingAlong(ConfusionCandidate.unnamed, questions: 1), "This question is coming along.")
         XCTAssertNil(NoticeContent.pingBody(Notice(id: "b", kind: .welcomeBack, rank: 0, evidence: .welcomeBack(best: 3))))
@@ -1087,22 +1096,22 @@ final class NoticeEngineTests: XCTestCase {
                        minutesPerDay: 6, kept: kept, origin: origin)
         }
         XCTAssertEqual(NoticeContent.fadingDetail(rescue([0, 1], kept: 18, origin: .source("Lecture 3")), now: now, calendar: cal),
-                       "From Lecture 3, for your Bio 101 Midterm. 6 more minutes today and tomorrow keeps them.")
+                       "From Lecture 3, for your Bio 101 Midterm. 6 more minutes today and tomorrow covers them.")
         XCTAssertEqual(NoticeContent.fadingDetail(rescue([0, 1], kept: 15, origin: .topic("Meiosis")), now: now, calendar: cal),
-                       "Mostly Meiosis, for your Bio 101 Midterm. 6 more minutes today and tomorrow keeps 15 of them.")
+                       "Mostly Meiosis, for your Bio 101 Midterm. 6 more minutes today and tomorrow covers 15 of them.")
         XCTAssertEqual(NoticeContent.fadingDetail(rescue([1, 4], kept: 18, origin: nil), now: now, calendar: cal),
-                       "For your Bio 101 Midterm. 6 more minutes tomorrow and Monday keeps them.")
+                       "For your Bio 101 Midterm. 6 more minutes tomorrow and Monday covers them.")
         XCTAssertEqual(NoticeContent.dayWords([cal.adding(days: 1, to: now), cal.adding(days: 5, to: now)], now: now, calendar: cal), "tomorrow and Tuesday")
         XCTAssertEqual(NoticeContent.dayWords([cal.adding(days: 2, to: now), cal.adding(days: 5, to: now)], now: now, calendar: cal), "on Saturday and Tuesday")
         let card = NoticeContent.card(Notice(id: "f", kind: .fading, rank: 0, evidence: .fading(rescue([0], kept: 18, origin: nil))), firstName: "", now: now, calendar: cal)
-        XCTAssertEqual(card.title, "18 questions could go dim by exam day")
+        XCTAssertEqual(card.title, "18 more to review before exam day")
         XCTAssertEqual(card.action?.title, "Fix my week")
-        XCTAssertEqual(card.cost, "No AI")
+        XCTAssertNil(card.cost)
         XCTAssertEqual(card.link, .exam(midterm.id))
         var one = rescue([0], kept: 1, origin: nil)
         one.dimCount = 1
         XCTAssertEqual(NoticeContent.card(Notice(id: "f", kind: .fading, rank: 0, evidence: .fading(one)), firstName: "", now: now, calendar: cal).title,
-                       "1 question could go dim by exam day")
+                       "1 more to review before exam day")
     }
 
     func testPlanUpdatedSaysWhatChanged() throws {
@@ -1118,10 +1127,12 @@ final class NoticeEngineTests: XCTestCase {
 
     func testLookAlikeWords() {
         let soon = pair(in: 5)
-        XCTAssertEqual(NoticeContent.lookAlikeTitle(soon.termA, soon.termB), "Metaphase and telophase look alike")
-        XCTAssertEqual(NoticeContent.lookAlikeDetail(soon, now: now, calendar: cal), "Both are on Tuesday's Bio 101 Midterm. Learn the one difference now?")
-        XCTAssertEqual(NoticeContent.lookAlikeDetail(pair(in: 12), now: now, calendar: cal), "Both are on your Bio 101 Midterm. Learn the one difference now?")
+        XCTAssertEqual(NoticeContent.pairTitle(soon.termA, soon.termB), "Metaphase vs telophase")
+        XCTAssertEqual(NoticeContent.pairTitle("DNA", "mRNA"), "DNA vs mRNA")
+        XCTAssertEqual(NoticeContent.lookAlikeDetail(soon, now: now, calendar: cal), "They look alike, and both are on Tuesday's Bio 101 Midterm.")
+        XCTAssertEqual(NoticeContent.lookAlikeDetail(pair(in: 12), now: now, calendar: cal), "They look alike, and both are on your Bio 101 Midterm.")
         let card = NoticeContent.card(Notice(id: "p", kind: .lookAlike, rank: 0, evidence: .lookAlike(soon), cost: .cloud), firstName: "", now: now, calendar: cal)
+        XCTAssertEqual(card.title, "Metaphase vs telophase")
         XCTAssertEqual(card.action?.title, "Show me")
         XCTAssertEqual(card.cost, "Uses Cloud AI")
     }
@@ -1145,7 +1156,15 @@ final class NoticeEngineTests: XCTestCase {
             XCTAssertFalse(words.lowercased().contains("card"), words)
             XCTAssertFalse(words.unicodeScalars.contains { $0.properties.isEmojiPresentation }, words)
             XCTAssertNotNil(card.action)
-            XCTAssertEqual(card.cost != nil, notice.cost != .free, "a cost word only where there is a cost: \(notice.id)")
+            XCTAssertFalse(card.detail.hasSuffix("?"), "no question over a button that answers it: \(notice.id)")
+            XCTAssertFalse(words.contains("No AI"), words)
+            XCTAssertFalse(words.contains("fading") || words.contains("go dim") || words.contains("2-minute"), words)
+            let cloud: Bool
+            switch notice.cost {
+            case .cloud, .drafts: cloud = true
+            case .none, .free: cloud = false
+            }
+            XCTAssertEqual(card.cost != nil, cloud, "a cost word only where Cloud AI is used: \(notice.id)")
         }
         for kind in NoticeKind.allCases {
             XCTAssertFalse(String(localized: NoticeContent.switchTitle(kind)).isEmpty, kind.rawValue)
@@ -1241,7 +1260,7 @@ extension NoticeEngineTests {
         XCTAssertTrue(card.notifiable)
         let words = NoticeContent.card(card, firstName: "Maya", now: now, calendar: cal)
         XCTAssertEqual(words.title, "2 topics on your Bio 101 Midterm have no notes")
-        XCTAssertEqual(words.detail, "Meiosis and Genetics. Want help filling them in?")
+        XCTAssertEqual(words.detail, "Meiosis and Genetics.", "\"Fill the gap\" says what Cap offers")
         XCTAssertEqual(words.action?.title, "Fill the gap")
         XCTAssertEqual(words.action?.run, .fillGap(examID: midterm.id))
         XCTAssertEqual(words.link, .exam(midterm.id))
@@ -1441,9 +1460,9 @@ extension NoticeEngineTests {
         XCTAssertNil(NoticeContent.pingBody(card))
         let words = NoticeContent.card(card, firstName: "Maya", now: now, calendar: cal)
         XCTAssertEqual(words.title, "Sunday looks busy")
-        XCTAssertEqual(words.detail, "About 6 hours in your calendar. Move 10 minutes to Saturday and Monday?")
+        XCTAssertEqual(words.detail, "About 6 hours in your calendar. Cap can move 10 minutes to Saturday and Monday.")
         XCTAssertEqual(words.action?.title, "Move them")
-        XCTAssertEqual(words.cost, "No AI")
+        XCTAssertNil(words.cost)
         guard case .moveBusyDay(let move)? = words.action?.run else { return XCTFail("the button moves them") }
         XCTAssertEqual(move.noticeID, card.id)
         // Later and acted on keep it away, as any card; switched off it never shows, and without the calendar there's nothing to go on.
@@ -1458,7 +1477,7 @@ extension NoticeEngineTests {
     func testTomorrowAndTodayInTheBusyWords() throws {
         let move = try XCTUnwrap(busyFinder().move(blocks: [block(1, 9, 15)], exams: [exam(in: 9)]))
         XCTAssertEqual(NoticeContent.busyTitle(move, calendar: cal), "Tomorrow looks busy")
-        XCTAssertEqual(NoticeContent.busyDetail(move, now: now, calendar: cal), "About 6 hours in your calendar. Move 10 minutes to today and Saturday?")
+        XCTAssertEqual(NoticeContent.busyDetail(move, now: now, calendar: cal), "About 6 hours in your calendar. Cap can move 10 minutes to today and Saturday.")
     }
 
     func testTheConfirmationSaysWhatMovedAndCanBeUndone() throws {
@@ -1484,7 +1503,7 @@ extension NoticeEngineTests {
         let words = NoticeContent.card(card, firstName: "", now: now, calendar: cal)
         XCTAssertEqual(words.title, "Cap can plan around your long days")
         XCTAssertEqual(words.action?.run, .askCalendar)
-        XCTAssertEqual(words.cost, "No AI")
+        XCTAssertNil(words.cost)
         XCTAssertTrue(words.detail.contains("only their times"), "says what it reads")
         XCTAssertTrue(words.detail.contains("Nothing leaves"), "and that it stays here")
         XCTAssertTrue(deal(ask { $0.exams = [exam(in: 15)] }).deck.isEmpty, "no exam near")
@@ -1503,10 +1522,8 @@ extension NoticeEngineTests {
         XCTAssertEqual(dealt.deck.map(\.kind), [.mixUp, .busyDay])
     }
 
-    func testTheCalendarSwitchSaysWhatItReads() {
+    func testTheCalendarSwitchIsNamedForWhatItDoes() {
         XCTAssertEqual(NoticeContent.switchTitle(.busyDay).key, "Busy days")
-        XCTAssertNotNil(NoticeContent.switchNote(.busyDay))
-        XCTAssertNil(NoticeContent.switchNote(.mixUp))
     }
 }
 

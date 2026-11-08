@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// How you remember, in the sky's own terms: the reviews coming due and the brightest topics. Counts only: each exam's readiness is the
+/// How you remember, in the sky's own terms: what comes up to review in the next days and the brightest topics. Counts only: each exam's readiness is the
 /// one percentage. It heads the sky's list, and opens as a fitted sheet from the sky itself.
 struct SkyMemoryPanel: View {
     let scene: SkyScene
@@ -10,7 +10,7 @@ struct SkyMemoryPanel: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             VStack(alignment: .leading, spacing: 6) {
-                CLEyebrow(text: "Reviews due, next 7 days")
+                CLEyebrow(text: "To review, next 7 days")
                     .padding(.bottom, 6)
                     .accessibilityAddTraits(.isHeader)
                 DueForecastChart(days: due, calendar: calendar)

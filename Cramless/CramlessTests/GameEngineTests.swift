@@ -651,7 +651,7 @@ final class GameCopyTests: XCTestCase {
 
     func testTheExamQuestNamesTheExam() {
         let row = QuestRow(kind: .examTopic, progress: QuestProgress(done: 2, goal: 5), isDone: false, subject: "Bio 101")
-        XCTAssertEqual(String(localized: row.title), "Practise for Bio 101")
+        XCTAssertEqual(String(localized: row.title), "Practice for Bio 101")
         XCTAssertEqual(String(localized: row.progressText ?? "none"), "2 of 5")
         let done = QuestRow(kind: .finishSession, progress: QuestProgress(done: 1, goal: 1), isDone: true, subject: nil)
         XCTAssertNil(done.progressText, "a single thing to do has no count")

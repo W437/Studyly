@@ -1,20 +1,20 @@
 import SwiftUI
 
-/// The Today tab, "plan first": a short band of your memory sky with the greeting, the streak and Cap (`TodaySkyHero`); the day's
-/// one card (`TodayDayCard`: its exam and why, readiness now and about where today takes it, "Study · 15 min", "Why these?"); "Your
-/// plan" for the week (`TodayPlanCard`, with today's quests in one line); one of Cap's cards (`TodayNoticeCard`; on an exam's eve his
-/// quiet line instead); and the exams as a row (`TodayExamsRow`, or "When is your next exam?" with material and no exam).
+/// The Today tab: a short band of your memory sky with the greeting, the streak and Cap (`TodaySkyHero`); the day's one card
+/// (`TodayDayCard`: the exam and its readiness, what today holds, "Study · 15 min", "Why these?"); one quests row ("0 of 3 quests ›",
+/// `TodayQuestsRow`, with the Squad's line under it for a Squad member); and one of Cap's cards (`TodayNoticeCard`; the night before an
+/// exam, his quiet line instead). Every exam is on Progress; the chip on the day card opens its exam.
 ///
 /// DEBUG hooks: `CRAMLESS_TODAY=catchup|partway|split|noExam|examEve|twoEves|eveDone|done|caughtUp|noMaterial|empty` (see `TodaySnapshot`);
 /// `CRAMLESS_TODAY_NOTICES=0|1|2|3` deals that many of Cap's cards; `CRAMLESS_NOTICES`, `CRAMLESS_NOTICE_STATE` shape the world for his
 /// real ones (`AppModel+NoticeHarness`); `CRAMLESS_TODAY_WHY=<ms>`, `CRAMLESS_TODAY_QUESTS=<ms>` open "Why these?" and the quests that
 /// long after launch, `CRAMLESS_TODAY_LATER=<ms>` presses Cap's "Later" and `CRAMLESS_NOTICE_TAP=<ms>` his card's button; `CRAMLESS_TODAY_SCROLL=1`
-/// scrolls down to the exams and back, to film it; `CRAMLESS_SKY_TOUR=<ms>` shows each sky behind the stars in turn;
+/// scrolls down to the foot of the page and back, to film it; `CRAMLESS_SKY_TOUR=<ms>` shows each sky behind the stars in turn;
 /// `CRAMLESS_TODAY_OPEN=<ms>` opens the sky that long after launch, as a tap on the band would; `CRAMLESS_TODAY_TYPE=ax3` draws
 /// Today at that text size; `CRAMLESS_HERO_PULL=2500:96:500`
 /// pulls the page down 96 points at 2.5 s, holds it 0.5 s and lets go (the readings a finger gives it; the page itself doesn't
 /// move), to film the refresh; `CRAMLESS_CANVAS=375x667` draws the page at an iPhone SE's size; and
-/// `CRAMLESS_STEP=firstSession|readiness|plan` opens an onboarding step of this lane over Today (with `CRAMLESS_SEED=0` it first
+/// `CRAMLESS_STEP=firstSession|examDate|plan` opens an onboarding step of this lane over Today (with `CRAMLESS_SEED=0` it first
 /// makes the world onboarding would have made).
 ///
 /// The band is pinned: pulled down past its top, the page moves under it and the band stays put. The pull is a pull to refresh, and
@@ -81,12 +81,14 @@ struct TodayView: View {
                             }
                         VStack(alignment: .leading, spacing: 16) {
                             TodayDayCard(content: content, perform: { perform($0, snap) }, onWhy: { present(.todayReasons) },
-                                         onOutLoud: outLoudAction(content))
+                                         onChip: { follow($0, snap) }, onOutLoud: outLoudAction(content))
                             rest(snap)
                         }
                         .padding(.horizontal, CLSpace.gutter)
                         .padding(.top, 16)
                         .padding(.bottom, 28)
+                        // The foot of the page, for the scroll hook.
+                        .overlay(alignment: .bottom) { Color.clear.frame(height: 1).id("today-bottom") }
                         .animation(CLMotion.settle, value: snap.notices.first?.id)
                     }
                 }
@@ -164,34 +166,24 @@ struct TodayView: View {
 
     // MARK: Below the day card
 
-    /// "Your plan", Cap's card (or on the eve his quiet line), and the exams.
+    /// Today's quests in one row (with the Squad's line for a Squad member), then Cap's card, or the night before an exam his quiet line.
     @ViewBuilder
     private func rest(_ snap: TodaySnapshot) -> some View {
-        if snap.hasMaterial, !snap.strip.isEmpty {
-            TodayPlanCard(days: snap.strip, quests: snap.isEve ? QuestsToday() : snap.quests, showsSquad: snap.showsSquad,
-                          onCalendar: { open(.streak) }, onQuests: { present(.quests) }, onSquad: { open(.squad) })
+        let squad = snap.hasMaterial && snap.showsSquad ? app.squadTodayLine : nil
+        if snap.hasMaterial, !snap.isEve, !snap.quests.isEmpty || squad != nil {
+            TodayQuestsRow(quests: snap.quests, squad: squad, onQuests: { present(.quests) }, onSquad: { open(.squad) })
         }
         if snap.isEve, let eve = snap.eveExam {
             TodayQuietLine(text: TodayCopy.quietLine(examTitle: snap.eveTitle ?? eve.title, others: snap.eveOthers))
         } else if snap.hasMaterial, let notice = snap.notices.first {
-            TodayNoticeCard(notice: notice, index: snap.noticePosition, total: snap.noticeTotal,
-                            onAction: { act(on: $0) }, onLater: { later(notice) }, onOpen: { follow($0) }, onHide: { hide(notice) })
+            TodayNoticeCard(notice: notice, onAction: { act(on: $0) }, onLater: { later(notice) }, onOpen: { follow($0) },
+                            onHide: { hide(notice) })
                 .id(notice.id)
                 .transition(.opacity.combined(with: .scale(scale: 0.97)))
                 // On screen, not just on the page: a card seen today needs no notification today.
                 .onScrollVisibilityChange(threshold: 0.6) { visible in
                     if visible, !notice.isConfirmation { app.noteNoticeShown(notice.id) }
                 }
-        }
-        if snap.hasMaterial, !snap.isEve {
-            Group {
-                if snap.exams.isEmpty {
-                    TodayAddExamCard { app.router.present(.newExam(courseID: snap.firstCourseID)) }
-                } else {
-                    TodayExamsRow(exams: snap.exams, onOpen: { open(.exam($0)) }, onSeeAll: seeAllExams)
-                }
-            }
-            .id("today-bottom")
         }
     }
 
@@ -260,7 +252,7 @@ struct TodayView: View {
         }
     }
 
-    /// `CRAMLESS_TODAY_SCROLL=1`: after a moment, down the page to the exams and back up, for a film. `=notice`: to Cap's card, and it stays.
+    /// `CRAMLESS_TODAY_SCROLL=1`: after a moment, down to the foot of the page and back up, for a film. `=notice`: to Cap's card, and it stays.
     private func runScrollHook(_ proxy: ScrollViewProxy) async {
         guard let scroll = TestHarness.once("CRAMLESS_TODAY_SCROLL") else { return }
         if scroll == "notice" {
@@ -311,11 +303,12 @@ struct TodayView: View {
         app.router.present(sheet)
     }
 
-    /// "See all" exams: the Progress tab, the one list of exams, at its top.
-    private func seeAllExams() {
-        CLHaptics.tap()
-        app.router.popToRoot(.progress)
-        app.router.tab = .progress
+    /// The day card's chip: its exam's page, or with no exam at all, a new one.
+    private func follow(_ link: TodayHeroContent.Chip.Link, _ snap: TodaySnapshot) {
+        switch link {
+        case .exam(let id): open(.exam(id))
+        case .addExam: present(.newExam(courseID: snap.firstCourseID))
+        }
     }
 
     /// Cap's card's button.

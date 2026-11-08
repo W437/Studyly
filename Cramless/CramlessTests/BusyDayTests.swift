@@ -74,9 +74,6 @@ final class BusyDayTests: AskTestCase {
         XCTAssertEqual(plan.days.first { $0.offset == 3 }?.sessionMinutes, 5, "the long day keeps 5")
         XCTAssertEqual(plan.days.first { $0.offset == 2 }?.sessionMinutes, 20)
         XCTAssertEqual(plan.days.first { $0.offset == 4 }?.sessionMinutes, 20)
-        let strip = app.todayStrip(summary: app.todaySummary())
-        XCTAssertEqual(strip.first { $0.offset == 3 }?.mark, .minutes(5))
-        XCTAssertEqual(strip.first { $0.offset == 2 }?.mark, .minutes(20))
 
         // The slot says so, with Undo, and the card has gone for its 7 days.
         let slot = try XCTUnwrap(app.todayNotices().first)

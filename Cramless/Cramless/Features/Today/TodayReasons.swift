@@ -1,8 +1,15 @@
 import Foundation
 
-/// "Why these?" on Today's card: why today's session holds what it holds, as a few plain rows (`TodayReasons.make`, pure, tested in
-/// `TodayReasonsTests`). The sheet (`TodayReasonsSheet`) draws them with "Study something else" (the sky as a list) and "Got it".
+/// "Why these?" on Today's card: why today's session holds what it holds, as at most three plain rows (`TodayReasons.make`, pure,
+/// tested in `TodayReasonsTests`). Only what the card doesn't already say: the card names the exam, its day, its readiness and the
+/// minutes, so the rows say how the session is shared, what is weakest, what is to review or new, and what waits. The sheet
+/// (`TodayReasonsSheet`) draws them with "Study something else" (the courses, each with Practice) and "Got it".
 enum TodayReasons {
+    /// At most this many rows: the first ones in `make`'s order.
+    static let maxRows = 3
+    /// Readiness this thin is a guess: under this many questions in scope a row says what it rests on.
+    static let fewQuestions = 15
+
     struct Row: Equatable, Sendable, Identifiable {
         var id: String
         var symbol: String
@@ -25,46 +32,37 @@ enum TodayReasons {
 
     /// Everything the rows say, as plain values.
     struct Input: Equatable, Sendable {
-        /// The exam the session mostly serves, and when it is ("Sun · in 2 days").
+        /// The exam the session mostly serves.
         var examTitle: String?
-        var when: String?
         /// Days until it, and today's planned seconds for it.
         var daysLeft: Int?
         var focusSeconds: Double = 0
-        /// The exam's topics by name, or empty when it covers its whole course (`courseName`).
-        var scopeTopics: [String] = []
-        var courseName: String = ""
         /// The exam's weakest topic: its name, its readiness and how many of today's questions are on it.
         var weakestName: String?
         var weakestValue: Double = 0
         var weakestToday: Int = 0
-        /// Today's reviews about to be forgotten, and its new questions (for the exam, or the whole session without one).
+        /// Today's questions to review, and its new questions (for the exam, or the whole session without one).
         var due: Int = 0
         var new: Int = 0
         /// The other upcoming exams, soonest first.
         var others: [Other] = []
-        /// Questions in the exam's scope: under `TodayCopy.fewQuestions` the readiness is a thin guess and a row says so.
+        /// Questions in the exam's scope: under `fewQuestions` the readiness is a thin guess and a row says so.
         var scopeCount: Int = 0
-        /// The session's questions in all, the same number the card says, and how many of them are for the exam.
+        /// The session's questions in all, and how many of them are for the exam.
         var sessionTotal: Int = 0
         var examQuestions: Int = 0
     }
 
+    /// The rows, most telling first, at most `maxRows`: how the session is shared (when the exam has only part of it) and which
+    /// other courses are in it, the exam's weakest topic, what is to review, what is new, what waits, and how thin the readiness is.
     static func make(_ input: Input) -> [Row] {
-        var rows: [Row] = []
-        if let exam = input.examTitle {
-            let covers = input.scopeTopics.isEmpty
-                ? String(localized: "It covers all of \(input.courseName).")
-                : String(localized: "It covers \(input.scopeTopics.formatted(.list(type: .and))).")
-            let title = input.when.map { "\(exam) · \($0)" } ?? exam
-            rows.append(Row(id: "exam", symbol: "graduationcap.fill", title: title, detail: input.courseName.isEmpty && input.scopeTopics.isEmpty ? nil : covers))
-        }
-        // The whole session first, so the counts after it read as its parts.
         let shared = input.examTitle != nil && input.examQuestions < input.sessionTotal
-        if input.sessionTotal > 0 {
-            let detail = shared && input.examQuestions > 0 ? input.examTitle.map { String(localized: "\(input.examQuestions) are for \($0).") } : nil
-            rows.append(Row(id: "total", symbol: "list.bullet", title: String(localized: "About \(input.sessionTotal) questions today"), detail: detail))
+        var rows: [Row] = []
+        if shared, let exam = input.examTitle {
+            rows.append(Row(id: "total", symbol: "list.bullet", title: String(localized: "About \(input.sessionTotal) questions today"),
+                            detail: input.examQuestions > 0 ? String(localized: "\(input.examQuestions) are for \(exam).") : nil))
         }
+        if input.examTitle != nil, let row = alsoIn(input) { rows.append(row) }
         if let weakest = input.weakestName {
             let detail = input.weakestToday > 0 ? String(localized: "\(input.weakestToday) of today's questions are on it.") : nil
             rows.append(Row(id: "weakest", symbol: "scope",
@@ -73,8 +71,8 @@ enum TodayReasons {
         }
         if input.due > 0 {
             rows.append(Row(id: "due", symbol: "clock.arrow.circlepath",
-                            title: shared ? String(localized: "\(input.due) for this exam are due") : String(localized: "\(input.due) questions are due"),
-                            detail: String(localized: "You're about to forget them, so they come back now.")))
+                            title: shared ? String(localized: "\(input.due) to review for this exam") : String(localized: "\(input.due) to review"),
+                            detail: String(localized: "They come back just before you'd forget them.")))
         }
         if input.new > 0 {
             rows.append(Row(id: "new", symbol: "sparkles",
@@ -92,16 +90,15 @@ enum TodayReasons {
             rows.append(Row(id: "wait", symbol: "calendar", title: String(localized: "\(names.formatted(.list(type: .and))) can wait"),
                             detail: detail))
         }
-        if let row = alsoIn(input) { rows.append(row) }
-        if let exam = input.examTitle, input.scopeCount > 0, input.scopeCount < TodayCopy.fewQuestions {
+        if let exam = input.examTitle, input.scopeCount > 0, input.scopeCount < fewQuestions {
             rows.append(Row(id: "few", symbol: "info.circle", title: String(localized: "\(exam) has \(input.scopeCount) questions so far"),
                             detail: String(localized: "Readiness is based on them. Add more material and it gets surer.")))
         }
-        return rows
+        return Array(rows.prefix(maxRows))
     }
 
     /// The other exams with questions today. It says only what is true of all of them, in any order of exams: "a few" when each has
-    /// less of today than the exam the session is for, "further off" when each is, "because they're due" when none of them is new.
+    /// less of today than the exam the session is for, "further off" when each is, "up for review" when none of them is new.
     private static func alsoIn(_ input: Input) -> Row? {
         let others = input.others.filter(\.inToday)
         guard !others.isEmpty else { return nil }
@@ -109,24 +106,18 @@ enum TodayReasons {
         let names = unique.formatted(.list(type: .and))
         let few = others.allSatisfy { $0.seconds <= input.focusSeconds }
         let furtherOff = input.daysLeft.map { days in others.allSatisfy { $0.daysLeft > days } } ?? false
-        let title: String
-        var detail: String?
+        let title = few ? String(localized: "A few \(names) questions are in too") : String(localized: "\(names) questions are in too")
         if few, furtherOff {
-            title = String(localized: "A few \(names) questions are in too")
-            detail = unique.count == 1 ? String(localized: "Its exam is further off, so it gets a smaller share of today.")
-                : String(localized: "Their exams are further off, so they get a smaller share of today.")
-        } else {
-            if others.allSatisfy(\.due) {
-                title = few ? String(localized: "A few \(names) questions are in too, because they're due.")
-                    : String(localized: "\(names) questions are in too, because they're due.")
-            } else {
-                title = few ? String(localized: "A few \(names) questions are in too") : String(localized: "\(names) questions are in too")
-            }
-            if furtherOff {
-                detail = unique.count == 1 ? String(localized: "Its exam is further off.") : String(localized: "Their exams are further off.")
-            }
+            return Row(id: "alsoIn", symbol: "plus.circle", title: title,
+                       detail: unique.count == 1 ? String(localized: "Its exam is further off, so it gets a smaller share of today.")
+                           : String(localized: "Their exams are further off, so they get a smaller share of today."))
         }
-        return Row(id: "alsoIn", symbol: "plus.circle", title: title, detail: detail)
+        var parts: [String] = []
+        if others.allSatisfy(\.due) { parts.append(String(localized: "They're up for review.")) }
+        if furtherOff {
+            parts.append(unique.count == 1 ? String(localized: "Its exam is further off.") : String(localized: "Their exams are further off."))
+        }
+        return Row(id: "alsoIn", symbol: "plus.circle", title: title, detail: parts.isEmpty ? nil : parts.joined(separator: " "))
     }
 
     private static func unique(_ names: [String]) -> [String] {

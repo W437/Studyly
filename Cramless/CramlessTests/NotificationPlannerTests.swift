@@ -162,7 +162,7 @@ final class NotificationPlannerTests: XCTestCase {
             "10-27 19:00 daily",
             "10-28 19:00 daily",
         ])
-        XCTAssertEqual(p[0].body, "15 minutes keeps Chem 110 on track. 18 cards are due.")
+        XCTAssertEqual(p[0].body, "15 minutes keeps Chem 110 on track. 18 to review today.")
         XCTAssertEqual(p[0].url, CramlessLink.session)
         XCTAssertEqual(p[1].body, "15 minutes tonight and your 12-day streak is safe.")
         XCTAssertEqual(p[2].body, "Chem 110 tomorrow. A few minutes on your weak spots, then sleep.", "too far off to know its minutes")
@@ -272,7 +272,7 @@ final class NotificationPlannerTests: XCTestCase {
             $0.exams = []
             $0.today.reviews = 1
         }
-        XCTAssertEqual(dueOnly.first?.body, "1 card is due. Your 15-minute session is ready.")
+        XCTAssertEqual(dueOnly.first?.body, "1 to review today. Your 15-minute session is ready.")
     }
 
     // MARK: Time

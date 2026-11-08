@@ -5,7 +5,7 @@ import XCTest
 
 /// Draws Today's cards in every state to PNGs in build/review/s1-today/render/ (gitignored), at an iPhone SE's width (375) and a
 /// 17 Pro's (402), light and dark, and at the third accessibility text size, to be looked at; and checks that on an SE the day's card,
-/// button included, fits on the first screen under the band.
+/// button included, fits on the first screen under the band, with the quests row under it.
 @MainActor
 final class TodayRenderTests: XCTestCase {
     static let outputFolder = URL(fileURLWithPath: #filePath)
@@ -20,31 +20,38 @@ final class TodayRenderTests: XCTestCase {
 
     // MARK: The states
 
-    private func exam(_ title: String = "Chem 110 Quiz", when: String = "Sun · in 2 days", readiness: Double = 0.42, delta: Double = 0.15,
-                      days: Int = 2) -> TodayExam {
-        TodayExam(id: title == "Chem 110 Quiz" ? examID : UUID(), title: title, courseName: "Chem 110", color: .tangerine,
-                  date: Date(timeIntervalSince1970: 1_790_000_000), daysLeft: days, readiness: readiness, delta: delta, when: when,
-                  itemsInScope: 7, deltaToday: 0.1)
+    private func exam(_ title: String = "Chem 110 Quiz", day: String = "Tue", readiness: Double = 0.42, days: Int = 2) -> TodayExam {
+        TodayExam(id: title == "Chem 110 Quiz" ? examID : UUID(), title: title, courseName: "Chem 110",
+                  date: Date(timeIntervalSince1970: 1_790_000_000), daysLeft: days, readiness: readiness, day: day)
     }
 
     private func snapshot(_ hero: TodayHero) -> TodaySnapshot {
         var summary = TodaySummary()
         summary.plannedMinutes = 15
+        summary.plannedQuestions = 12
         summary.reviews = 12
         summary.newItems = 3
         summary.weakSpots = 2
         summary.sessionReady = true
         var snap = TodaySnapshot(hero: hero, summary: summary, streak: StreakState(current: 12), answersToday: 24,
-                                 exams: [exam(), exam("Bio 101 Midterm", when: "29 Nov · in 23 days", readiness: 0.53, delta: 0.04, days: 23)],
+                                 exams: [exam(), exam("Bio 101 Midterm", day: "29 Nov", readiness: 0.53, days: 23)],
                                  firstCourseID: nil, initials: "M")
-        snap.focus = TodayFocus(exam: exam(), topics: ["Limiting reagents", "Stoichiometry"], forecast: 0.52, weakCount: 2,
-                                dueCount: 12, newCount: 3)
+        snap.focus = TodayFocus(exam: exam(), topics: ["Limiting reagents", "Stoichiometry"], questions: 12)
         snap.eveTopics = ["Limiting reagents", "Stoichiometry"]
+        snap.quests = QuestsToday(rows: [QuestRow(kind: .finishSession, progress: QuestProgress(done: 0, goal: 1), isDone: false, subject: nil),
+                                         QuestRow(kind: .beforeNoon, progress: QuestProgress(done: 0, goal: 1), isDone: false, subject: nil),
+                                         QuestRow(kind: .examTopic, progress: QuestProgress(done: 0, goal: 5), isDone: false, subject: "Chem 110")],
+                                  week: 0, weekGoal: 12, nextSky: .dusk, weekLit: false)
         return snap
     }
 
     private func states() -> [(String, TodaySnapshot)] {
         var list: [(String, TodaySnapshot)] = [("plan", snapshot(.session))]
+        var shared = snapshot(.session)
+        shared.summary.plannedQuestions = 42
+        shared.focus?.questions = 7
+        shared.sessionCourses = ["Chem 110", "Bio 101", "AP Psychology"]
+        list.append(("shared", shared))
         var partway = snapshot(.session)
         partway.summary.minutesDone = 6
         partway.summary.plannedMinutes = 9
@@ -57,6 +64,9 @@ final class TodayRenderTests: XCTestCase {
         noExam.focus = nil
         noExam.sessionTopics = ["Cell cycle", "Moles", "Learning"]
         list.append(("noExam", noExam))
+        var noExamAtAll = noExam
+        noExamAtAll.exams = []
+        list.append(("noExamAtAll", noExamAtAll))
         list.append(("eve", snapshot(.examEve(examID))))
         var nothingWeak = snapshot(.examEve(examID))
         nothingWeak.eveHasWork = false
@@ -64,7 +74,7 @@ final class TodayRenderTests: XCTestCase {
         list.append(("eveDone", snapshot(.examEveDone(examID))))
         var done = snapshot(.done)
         done.summary.minutesDone = 15
-        done.doneExam = TodayDoneExam(title: "Chem 110 Quiz", readiness: 0.52, deltaToday: 0.10, daysLeft: 2)
+        done.doneExam = exam(readiness: 0.52)
         list.append(("done", done))
         var allLit = snapshot(.caughtUp)
         allLit.practice = TodayPractice(name: "Limiting reagents", topicID: UUID(), courseID: UUID())
@@ -75,7 +85,7 @@ final class TodayRenderTests: XCTestCase {
     }
 
     /// The states whose card holds the day's session: on an SE it must fit under the band.
-    private let sessionStates: Set<String> = ["plan", "partway", "catchup", "noExam", "eve"]
+    private let sessionStates: Set<String> = ["plan", "shared", "partway", "catchup", "noExam", "noExamAtAll", "eve"]
 
     // MARK: Drawing
 
@@ -119,6 +129,9 @@ final class TodayRenderTests: XCTestCase {
             let size = try render(card, width: 375, name: "se-\(name)", scheme: .light)
             XCTAssertLessThanOrEqual(size.height, room, "\(name): \(size.height) pt tall, \(room) pt of room")
         }
+        // The plan day's card is short enough now that the quests row starts on the first screen too.
+        let plan = TodayDayCard(content: TodayHeroContent.make(snapshot(.session)), perform: { _ in }, onWhy: {})
+        XCTAssertLessThanOrEqual(try render(plan, width: 375, name: "se-plan", scheme: .light).height + 16, room - 30)
     }
 
     /// Every kind of Cap's card, in its real words: to be looked at, at the SE's width and the largest text size too.
@@ -145,7 +158,7 @@ final class TodayRenderTests: XCTestCase {
         let boosts = days.map { PlanBoost(noticeID: "fade", examID: examID, examTitle: "Bio 101 Midterm", origin: "Lecture 3", dayKey: $0.dayKey, minutes: 6, itemIDs: []) }
         cards.append(("updated", try XCTUnwrap(NoticeContent.confirmation(boosts: boosts, now: now, calendar: cal))))
         for (name, notice) in cards {
-            let view = TodayNoticeCard(notice: notice, index: 2, total: 3, onAction: { _ in }, onLater: {}, onOpen: { _ in })
+            let view = TodayNoticeCard(notice: notice, onAction: { _ in }, onLater: {}, onOpen: { _ in })
             for width in [375.0, 402.0] {
                 try render(view, width: width, name: "notice-\(name)", scheme: .light)
                 try render(view, width: width, name: "notice-\(name)", scheme: .dark)
@@ -154,25 +167,19 @@ final class TodayRenderTests: XCTestCase {
         }
     }
 
-    func testCapsCardTheQuietLineAndTheExams() throws {
+    func testCapsCardTheQuietLineAndTheQuestsRow() throws {
         let note = ConfusionNote(id: UUID(), name: "Anaphase vs telophase", missCount: 3, recentMisses: 3, recentAnswers: 4)
-        var noticed = NoticeContent.card(for: note)
-        noticed.cost = "No AI"
-        let card = TodayNoticeCard(notice: noticed, index: 1, total: 2, onAction: { _ in }, onLater: {}, onOpen: { _ in })
+        let card = TodayNoticeCard(notice: NoticeContent.card(for: note), onAction: { _ in }, onLater: {}, onOpen: { _ in })
         let quiet = TodayQuietLine(text: TodayCopy.quietLine(examTitle: "Chem 110 Quiz", others: ["Bio 101", "AP Psychology"]))
-        let exams = snapshot(.session).exams
+        let quests = TodayQuestsRow(quests: snapshot(.session).quests, onQuests: {})
         for width in [375.0, 402.0] {
             for scheme in [ColorScheme.light, .dark] {
                 try render(card, width: width, name: "notice", scheme: scheme)
                 try render(quiet, width: width, name: "quiet", scheme: scheme)
-                // The row scrolls sideways (which an image renderer draws empty), so its tiles are drawn side by side here.
-                let tiles = HStack(alignment: .top, spacing: 12) { ForEach(exams) { TodayExamTile(exam: $0, onOpen: {}) } }
-                try render(tiles, width: width, name: "exams", scheme: scheme)
-                try render(TodayAddExamCard(onAdd: {}), width: width, name: "addExam", scheme: scheme)
+                try render(quests, width: width, name: "quests", scheme: scheme)
             }
             try render(card, width: width, name: "notice", scheme: .light, size: .accessibility3)
-            try render(TodayExamsRow(exams: exams, onOpen: { _ in }, onSeeAll: {}), width: width, name: "exams", scheme: .light,
-                       size: .accessibility3)
+            try render(quests, width: width, name: "quests", scheme: .light, size: .accessibility3)
         }
     }
 }

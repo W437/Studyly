@@ -3,7 +3,7 @@ import SwiftData
 
 // The Squad's studied-today dot. Off until the person switches it on (`settings.shareSquadDay`, which follows the server's `SquadMembers.sharing`). Their side: after the day's first
 // finished session the phone tells the server "studied" and nothing else; it needs only a session, not sync, and a day it couldn't reach the server is tried again when the app comes back.
-// Everyone's side: who in the Squad has studied today, for one line in Today's "Your plan" (`SquadToday`), read at most every 15 minutes and kept for the rest of the day, so
+// Everyone's side: who in the Squad has studied today, for one line under Today's quests row (`SquadToday`), read at most every 15 minutes and kept for the rest of the day, so
 // the line is there at once. It's never read for someone with no Squad.
 extension AppModel {
     private static let squadTodayKey = "capling.squad.today.v1"

@@ -1,73 +1,83 @@
 import SwiftUI
 
-/// The day's one card under the band (`TodayHeroContent` says what it holds): who today is for ("For Chem 110 Quiz", "Sun · in 2
-/// days"), the topics, why, readiness now and about where today takes it (the dashed ring is a projection), the day's one button and
-/// "Why these?", with "Study out loud" beside it on a day with something to study: a quiet way into the same session, not a second job.
+/// The day's one card under the band (`TodayHeroContent` says what it holds): the exam it is for and its day as a chip that opens the
+/// exam ("Chem 110 Quiz · Tue ›"), with its readiness beside it as one ring ("41% ready"); the title; at most one short line; the
+/// day's one button; and "Why these?", with "Study out loud" beside it on a day with something to study: a quiet way into the same
+/// session, not a second job.
 ///
-/// - Large text or a small phone: the rings sit above their words, the chip and when it is take two lines when one won't hold them,
-///   and a long practice button shortens to "Practice · 5 min" (the reason names the topic).
-/// - Differentiate Without Color: the projection ring is dashed, the done card's change has an arrow, every chip has a symbol.
-/// - VoiceOver: the chip, the title (a header), the reason, the rings as one sentence ("42 percent ready now, about 52 percent after
-///   today, projected"), the button, "Why these?".
+/// - Large text or a small phone: the ring goes under the chip when the row won't hold both, the chip wraps rather than cutting its
+///   words, and a long practice button shortens to "Practice · 5 min".
+/// - VoiceOver: the chip (a button: "Chem 110 Quiz, Tuesday", "Opens the exam"), "41 percent ready", the title (a header), the line,
+///   the button, "Why these?".
 struct TodayDayCard: View {
     let content: TodayHeroContent
     var perform: (TodayHeroContent.Action) -> Void
     var onWhy: () -> Void
+    /// A tap on the chip: the exam's page, or a new exam.
+    var onChip: (TodayHeroContent.Chip.Link) -> Void = { _ in }
     /// Study out loud, on a day that has a session to say. Nil: no link.
     var onOutLoud: (() -> Void)? = nil
 
     @Environment(\.dynamicTypeSize) private var typeSize
-    /// The title's mark grows with the text it sits beside.
+    /// The title's mark and the ring grow with the text they sit beside.
     @ScaledMetric(relativeTo: .title2) private var symbolSize: CGFloat = 19
+    @ScaledMetric(relativeTo: .subheadline) private var ringSize: CGFloat = 24
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            if content.chip != nil || content.when != nil { chipRow }
+            if content.chip != nil || content.readiness != nil { chipRow }
             VStack(alignment: .leading, spacing: 6) {
                 title
-                Text(verbatim: content.reason)
-                    .clFont(.callout)
-                    .foregroundStyle(CLColor.ink2)
-                    .fixedSize(horizontal: false, vertical: true)
+                if let line = content.line {
+                    Text(verbatim: line)
+                        .clFont(.callout)
+                        .foregroundStyle(CLColor.ink2)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
-            if let rings = content.rings { ringsRow(rings) }
-            if let line = content.ringLine { ringLine(line) }
             buttons
         }
         .clCard()
         .accessibilityElement(children: .contain)
     }
 
-    // MARK: Pieces
+    // MARK: The chip and the ring
 
-    private var chipRow: some View {
-        ViewThatFits(in: .horizontal) {
-            HStack(spacing: 8) {
-                chipPill
-                if let when = content.when {
-                    Text(verbatim: when)
-                        .clFont(.footnoteEmphasis)
-                        .foregroundStyle(CLColor.ink2)
-                        .lineLimit(1)
-                }
-            }
-            VStack(alignment: .leading, spacing: 6) {
-                chipPill
-                if let when = content.when {
-                    DotLine(parts: when.components(separatedBy: " · "))
-                        .clFont(.footnoteEmphasis)
-                        .foregroundStyle(CLColor.ink2)
-                }
+    /// The chip and the ring on one row (on a small phone with the ring's words a size smaller), or the ring under the chip when one
+    /// row won't hold them.
+    @ViewBuilder private var chipRow: some View {
+        if typeSize.isAccessibilitySize {
+            VStack(alignment: .leading, spacing: 10) { chipRowParts(spaced: false) }
+        } else {
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .center, spacing: 6) { chipRowParts(spaced: true) }
+                HStack(alignment: .center, spacing: 6) { chipRowParts(spaced: true, small: true) }
+                VStack(alignment: .leading, spacing: 10) { chipRowParts(spaced: false) }
             }
         }
-        .accessibilityElement(children: .combine)
     }
 
-    @ViewBuilder private var chipPill: some View {
-        if let chip = content.chip {
-            ReflowPill(text: .verbatim(chip.text), tone: tone(chip.tone), systemImage: chip.symbol)
-        }
+    @ViewBuilder private func chipRowParts(spaced: Bool, small: Bool = false) -> some View {
+        if let chip = content.chip { TodayChip(chip: chip, onTap: onChip) }
+        if spaced { Spacer(minLength: 4) }
+        if let readiness = content.readiness { ring(readiness, small: small) }
     }
+
+    /// One ring and "41% ready": the chip's exam, as of now.
+    private func ring(_ value: Double, small: Bool = false) -> some View {
+        HStack(spacing: small ? 5 : 7) {
+            ReadinessRing(value: value, size: small ? ringSize * 0.85 : ringSize, lineWidth: max(4, ringSize / 6), showsLabel: false)
+            Text(verbatim: TodayCopy.ready(value))
+                .clFont(small ? .footnoteEmphasis : .subheadlineEmphasis)
+                .foregroundStyle(CLColor.ink)
+                .lineLimit(1)
+                .fixedSize()
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text(verbatim: TodayCopy.readySpoken(value)))
+    }
+
+    // MARK: The title and the buttons
 
     private var title: some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
@@ -83,68 +93,6 @@ struct TodayDayCard: View {
                 .fixedSize(horizontal: false, vertical: true)
                 .accessibilityAddTraits(.isHeader)
         }
-    }
-
-    /// Readiness now, solid, and about where today's session takes it, dashed; at the large text sizes the rings sit above the words.
-    private func ringsRow(_ rings: TodayHeroContent.Rings) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            ReflowStack(verticalAlignment: .center, spacing: 12) {
-                HStack(spacing: 6) {
-                    ReadinessRing(value: rings.now, size: 34, lineWidth: 5, showsLabel: false)
-                    if let after = rings.after {
-                        Image(systemName: "arrow.right")
-                            .font(.system(size: 11, weight: .bold))
-                            .foregroundStyle(CLColor.ink3)
-                        ReadinessRing(value: after, size: 34, lineWidth: 5, showsLabel: false, style: .projection)
-                    }
-                }
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(verbatim: TodayCopy.readyNow(rings.now))
-                        .clFont(.subheadlineEmphasis)
-                        .foregroundStyle(CLColor.ink)
-                    if let after = rings.after {
-                        Text(verbatim: TodayCopy.afterToday(after))
-                            .clFont(.subheadline)
-                            .foregroundStyle(CLColor.ink2)
-                    }
-                }
-                .fixedSize(horizontal: false, vertical: true)
-            }
-            if let footnote = rings.footnote {
-                Text(verbatim: footnote)
-                    .clFont(.footnote)
-                    .foregroundStyle(CLColor.ink3)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-        .padding(.vertical, 2)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(Text(verbatim: TodayCopy.ringsSpoken(now: rings.now, after: rings.after)))
-        .accessibilityValue(Text(verbatim: rings.footnote ?? ""))
-    }
-
-    /// The done card's exam: "Chem 110 Quiz: 52% ready", "+10% today · 2 days to go".
-    private func ringLine(_ line: TodayHeroContent.RingLine) -> some View {
-        ReflowStack(verticalAlignment: .center, spacing: 12) {
-            ReadinessRing(value: line.value, size: 40, lineWidth: 5, showsLabel: false)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(verbatim: line.title)
-                    .clFont(.subheadlineEmphasis)
-                    .foregroundStyle(CLColor.ink)
-                let points = Int((line.change * 100).rounded())
-                Label {
-                    DotLine(parts: line.detail.components(separatedBy: " · "))
-                } icon: {
-                    Image(systemName: points > 0 ? "arrow.up.right" : points < 0 ? "arrow.down.right" : "minus")
-                        .font(.system(size: 11, weight: .bold))
-                }
-                .labelStyle(.titleAndIcon)
-                .clFont(.subheadline)
-                .foregroundStyle(points > 0 ? CLColor.mintInk : CLColor.ink2)
-            }
-            .fixedSize(horizontal: false, vertical: true)
-        }
-        .accessibilityElement(children: .combine)
     }
 
     private var buttons: some View {
@@ -198,12 +146,55 @@ struct TodayDayCard: View {
             .accessibilityHint("Cap asks today's questions out loud and you answer with your voice")
         }
     }
+}
 
-    private func tone(_ tone: TodayHeroContent.Chip.Tone) -> CLPill.Tone {
-        switch tone {
-        case .exam: .sky
-        case .eve: .sun
-        case .done: .mint
+/// The day card's chip: a soft pill with its mark, its words and, when it leads somewhere, a small chevron. A 44-point target around a
+/// 30-point pill; at the large text sizes it wraps rather than cutting the exam's name.
+struct TodayChip: View {
+    let chip: TodayHeroContent.Chip
+    var onTap: (TodayHeroContent.Chip.Link) -> Void
+
+    @Environment(\.dynamicTypeSize) private var typeSize
+    /// The mark and the chevron grow with the words.
+    @ScaledMetric(relativeTo: .footnote) private var markSize: CGFloat = 11
+    @ScaledMetric(relativeTo: .footnote) private var chevronSize: CGFloat = 9
+
+    var body: some View {
+        if let link = chip.link {
+            Button { onTap(link) } label: { pill }
+                .buttonStyle(.pressable)
+                .accessibilityLabel(Text(verbatim: chip.spoken ?? chip.text))
+                .accessibilityHint(link == .addExam ? Text("Adds the date of your next exam") : Text("Opens the exam"))
+        } else {
+            pill.accessibilityElement(children: .combine)
         }
+    }
+
+    private var pill: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 5) {
+            Image(systemName: chip.symbol)
+                .font(.system(size: markSize, weight: .bold))
+                .accessibilityHidden(true)
+            // "Quiz · Tue" holds together, so a wrapped chip never starts or ends a line on the dot.
+            Text(verbatim: chip.text.replacingOccurrences(of: " · ", with: "\u{00A0}·\u{00A0}"))
+                .clFont(.footnoteEmphasis)
+                .lineLimit(typeSize.isAccessibilitySize ? nil : 1)
+                .fixedSize(horizontal: false, vertical: typeSize.isAccessibilitySize)
+            if chip.link != nil {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: chevronSize, weight: .bold))
+                    .opacity(0.7)
+                    .accessibilityHidden(true)
+            }
+        }
+        .padding(.horizontal, 11)
+        .padding(.vertical, 6)
+        .frame(minHeight: 30)
+        .foregroundStyle(chip.tone == .eve ? CLColor.sunInk : CLColor.skyInk)
+        .background(chip.tone == .eve ? CLColor.sunSoft : CLColor.skySoft, in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+        // A 44-point target that doesn't make the row taller.
+        .padding(.vertical, 7)
+        .contentShape(Rectangle())
+        .padding(.vertical, -7)
     }
 }

@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// "Why these?": why today's session holds what it holds (`TodayReasons`), with "Study something else" (the sky as a list, where
-/// every topic has Practice) and "Got it". A fitted sheet: as tall as what it says.
+/// "Why these?": why today's session holds what it holds, in three rows at most (`TodayReasons`), with "Study something else" (every
+/// course's topics, each with Practice) and a quiet "Got it". A fitted sheet: as tall as what it says.
 struct TodayReasonsSheet: View {
     @Environment(AppModel.self) private var app
     @Environment(\.dismiss) private var dismiss
@@ -35,9 +35,7 @@ struct TodayReasonsSheet: View {
                         .accessibilityElement(children: .combine)
                     }
                 }
-                VStack(spacing: 8) {
-                    Button("Got it") { dismiss() }
-                        .buttonStyle(.cl(.primary))
+                VStack(spacing: 4) {
                     Button {
                         dismiss()
                         CLHaptics.tap()
@@ -45,8 +43,10 @@ struct TodayReasonsSheet: View {
                     } label: {
                         Text("Study something else")
                     }
-                    .buttonStyle(.cl(.ghost, size: .medium))
-                    .accessibilityHint("Opens every topic, each with Practice")
+                    .buttonStyle(.cl(.soft))
+                    .accessibilityHint("Opens your courses, each topic with Practice")
+                    Button("Got it") { dismiss() }
+                        .buttonStyle(.cl(.ghost, size: .medium))
                 }
                 .padding(.top, 4)
             }
@@ -57,7 +57,8 @@ struct TodayReasonsSheet: View {
     }
 }
 
-/// Today's quests up close: the three quests with how far each is, and the week's meter (`TodayQuestsCard`). A fitted sheet.
+/// Today's quests up close, from the quests row: the three quests with how far each is, and the week's meter (`TodayQuestsCard`). A
+/// fitted sheet.
 struct TodayQuestsSheet: View {
     @Environment(AppModel.self) private var app
     @Environment(\.dismiss) private var dismiss

@@ -1,7 +1,8 @@
 import Foundation
 
 /// What Cap says on each of his cards, as plain values, so every word is tested without a view. Counts and minutes, never a percentage
-/// (readiness is the only learning percentage), and "questions", not "cards".
+/// (readiness is the only learning percentage), and "questions", not "cards". A pair of terms is named as a pair ("Metaphase vs
+/// telophase"), what is due is "to review", and no line asks a question its button already answers.
 enum NoticeContent {
     /// A card for Today. `firstName`, `now` and `calendar` are the person's and the clock's.
     static func card(_ notice: Notice, firstName: String, now: Date, calendar: Calendar) -> CapNotice {
@@ -11,13 +12,13 @@ enum NoticeContent {
             card.cost = costLine(notice.cost)
             return card
         case .lookAlike(let pair):
-            return CapNotice(id: notice.id, kind: .lookAlike, title: lookAlikeTitle(pair.termA, pair.termB),
+            return CapNotice(id: notice.id, kind: .lookAlike, title: pairTitle(pair.termA, pair.termB),
                              detail: lookAlikeDetail(pair, now: now, calendar: calendar),
                              action: .init(title: String(localized: "Show me"), systemImage: "rectangle.split.2x1",
                                            run: .showLookAlike(pair)),
                              link: nil, cost: costLine(notice.cost))
         case .fading(let rescue):
-            return CapNotice(id: notice.id, kind: .fading, title: String(localized: "\(rescue.dimCount) questions could go dim by exam day"),
+            return CapNotice(id: notice.id, kind: .fading, title: String(localized: "\(rescue.dimCount) more to review before exam day"),
                              detail: fadingDetail(rescue, now: now, calendar: calendar),
                              action: .init(title: String(localized: "Fix my week"), systemImage: "calendar.badge.plus", run: .fixMyWeek(rescue)),
                              link: .exam(rescue.examID), cost: costLine(notice.cost))
@@ -35,8 +36,9 @@ enum NoticeContent {
                              action: .init(title: String(localized: "Take it"), systemImage: "doc.text", run: .takeMock(examID: offer.examID)),
                              link: .exam(offer.examID), cost: costLine(notice.cost))
         case .gap(let gap):
+            // The topics, and no question: "Fill the gap" says what Cap offers.
             return CapNotice(id: notice.id, kind: .gap, title: ExamGapCopy.title(count: gap.topics.count, examTitle: gap.examTitle),
-                             detail: ExamGapCopy.detail(gap.topics.map(\.name)),
+                             detail: "\(ExamGapCopy.list(gap.topics.map(\.name))).",
                              action: .init(title: String(localized: "Fill the gap"), systemImage: "text.badge.plus", run: .fillGap(examID: gap.examID)),
                              link: .exam(gap.examID), cost: costLine(notice.cost))
         case .lectureDate(let heard):
@@ -60,24 +62,32 @@ enum NoticeContent {
                              action: .init(title: String(localized: "Move them"), systemImage: "calendar.badge.clock", run: .moveBusyDay(move)),
                              cost: costLine(notice.cost))
         case .teachBack(let offer):
-            return CapNotice(id: notice.id, kind: .teachBack, title: TeachCopy.noticeTitle(offer.topicName), detail: TeachCopy.noticeLine,
+            return CapNotice(id: notice.id, kind: .teachBack, title: teachTitle(offer.topicName), detail: TeachCopy.noticeLine,
                              action: .init(title: TeachCopy.noticeAction, systemImage: "person.wave.2", run: .teach(topicID: offer.topicID)),
                              cost: costLine(notice.cost))
         }
     }
 
-    /// An open mix-up as a card. One that was spotted before any mistake (an adopted look-alike) says so, until the first miss.
+    /// An open mix-up as a card, named by its pair ("Anaphase vs telophase"; a topic-shaped one, or one the rules couldn't name, by its
+    /// own line). The line says how it has gone, with no question over "Fix it".
     static func card(for note: ConfusionNote) -> CapNotice {
         let parts = note.name.components(separatedBy: " vs ")
-        let title = note.missCount == 0 && parts.count == 2 ? lookAlikeTitle(parts[0], parts[1])
+        // The pair as it was named, which knows a name's capitals.
+        let title = parts.count == 2 ? note.name.prefix(1).uppercased() + note.name.dropFirst()
             : note.rightRun >= 1 ? SessionCopy.mixUpComingAlong(note.name, questions: note.questions) : SessionCopy.mixUpLine(note.name, questions: note.questions)
-        // The fix's length holds together on one line ("2-minute" never breaks at its hyphen).
-        return CapNotice(id: NoticeEngine.mixUpID(note.id), kind: .mixUp, title: title,
-                         detail: SessionCopy.missLine(note).replacingOccurrences(of: "2-minute", with: "2\u{2011}minute"),
+        return CapNotice(id: NoticeEngine.mixUpID(note.id), kind: .mixUp, title: title, detail: SessionCopy.missLine(note),
                          action: .init(title: SessionCopy.fixTitle(questions: note.questions), systemImage: "wand.and.stars",
                                        run: .fixMixUp(confusionID: note.id)),
                          link: .confusion(note.id))
     }
+
+    /// Two look-alike terms, named as a pair: "Metaphase vs telophase" ("DNA vs mRNA" keeps its capitals).
+    static func pairTitle(_ a: String, _ b: String) -> String {
+        "\(a.prefix(1).uppercased() + a.dropFirst()) vs \(SessionCopy.lowerFirst(b))"
+    }
+
+    /// Teach Cap's card: "You know cell cycle well", over "Teach Cap".
+    static func teachTitle(_ topic: String) -> String { String(localized: "You know \(SessionCopy.lowerFirst(topic)) well") }
 
     /// The session "welcome back" offers.
     static let welcomeBackMinutes = 5
@@ -85,41 +95,33 @@ enum NoticeContent {
     /// A best streak is worth naming from this many days (the first milestone).
     private static let namedStreak = 3
 
+    /// The button says the 5 minutes; the line says what is still true.
     static func welcomeBackDetail(best: Int) -> String {
-        best >= namedStreak
-            ? String(localized: "Your best streak, \(best) days, is still yours. 5 minutes today lights your flame again.")
-            : String(localized: "Your stars waited for you. 5 minutes today is a good start.")
+        best >= namedStreak ? String(localized: "Your best streak, \(best) days, is still yours.") : String(localized: "Your stars waited for you.")
     }
 
-    /// "No AI" or "Uses Cloud AI". Nothing when the card's own button costs nothing and what follows may or may not use AI: no cost word, and never a price.
+    /// "Uses Cloud AI" when the button does. Nothing otherwise: no cost word, and never a price.
     static func costLine(_ cost: Notice.Cost) -> String? {
         switch cost {
-        case .none: String(localized: "No AI")
         case .cloud, .drafts: String(localized: "Uses Cloud AI")
-        case .free: nil
+        case .none, .free: nil
         }
     }
 
     // MARK: Look-alikes
 
-    /// "Metaphase and telophase look alike".
-    static func lookAlikeTitle(_ a: String, _ b: String) -> String {
-        let first = a.prefix(1).uppercased() + a.dropFirst()
-        return String(localized: "\(first) and \(SessionCopy.lowerFirst(b)) look alike")
-    }
-
-    /// "Both are on Wednesday's Bio 101 Midterm. Learn the one difference now?" (its weekday only inside a week).
+    /// "They look alike, and both are on Wednesday's Bio 101 Midterm." (its weekday only inside a week).
     static func lookAlikeDetail(_ pair: LookAlikePair, now: Date, calendar: Calendar) -> String {
         if pair.daysLeft <= 6 {
             let day = weekday(pair.examDate, calendar: calendar)
-            return String(localized: "Both are on \(day)'s \(pair.examTitle). Learn the one difference now?")
+            return String(localized: "They look alike, and both are on \(day)'s \(pair.examTitle).")
         }
-        return String(localized: "Both are on your \(pair.examTitle). Learn the one difference now?")
+        return String(localized: "They look alike, and both are on your \(pair.examTitle).")
     }
 
     // MARK: Fading
 
-    /// "From Lecture 3, for your Bio 101 Midterm. 6 more minutes today and tomorrow keeps them."
+    /// "From Lecture 3, for your Bio 101 Midterm. 6 more minutes today and tomorrow covers them."
     static func fadingDetail(_ rescue: FadeRescue, now: Date, calendar: Calendar) -> String {
         let lead: String
         switch rescue.origin {
@@ -129,8 +131,8 @@ enum NoticeContent {
         }
         let days = dayWords(rescue.days.map(\.date), now: now, calendar: calendar)
         let plan = rescue.kept >= rescue.dimCount
-            ? String(localized: "\(rescue.minutesPerDay) more minutes \(days) keeps them.")
-            : String(localized: "\(rescue.minutesPerDay) more minutes \(days) keeps \(rescue.kept) of them.")
+            ? String(localized: "\(rescue.minutesPerDay) more minutes \(days) covers them.")
+            : String(localized: "\(rescue.minutesPerDay) more minutes \(days) covers \(rescue.kept) of them.")
         return "\(lead) \(plan)"
     }
 
@@ -142,10 +144,10 @@ enum NoticeContent {
             : String(localized: "\(weekday(move.busy.date, calendar: calendar)) looks busy")
     }
 
-    /// "About 6 hours in your calendar. Move 10 minutes to Sunday and Tuesday?"
+    /// "About 6 hours in your calendar. Cap can move 10 minutes to Sunday and Tuesday."
     static func busyDetail(_ move: BusyMove, now: Date, calendar: Calendar) -> String {
         let days = dayWords(move.to.map(\.date), now: now, calendar: calendar, withOn: false)
-        return "\(String(localized: "About \(move.hours) hours in your calendar.")) \(String(localized: "Move \(move.minutes) minutes to \(days)?"))"
+        return "\(String(localized: "About \(move.hours) hours in your calendar.")) \(String(localized: "Cap can move \(move.minutes) minutes to \(days)."))"
     }
 
     /// What's on the slot right after "Fix my week" or a busy day's move: "Plan updated" and what changed, with Undo.
@@ -206,15 +208,14 @@ enum NoticeContent {
         case .fading(let rescue):
             switch rescue.origin {
             case .source(let name), .topic(let name):
-                return String(localized: "Some \(name) questions are fading before your \(rescue.examTitle). A few extra minutes keeps them.")
+                return String(localized: "Some \(name) questions need a review before your \(rescue.examTitle). A few extra minutes covers them.")
             case nil:
-                return String(localized: "Some questions are fading before your \(rescue.examTitle). A few extra minutes keeps them.")
+                return String(localized: "Some questions need a review before your \(rescue.examTitle). A few extra minutes covers them.")
             }
         case .lookAlike(let pair):
-            let first = pair.termA.prefix(1).uppercased() + pair.termA.dropFirst()
-            return String(localized: "\(first) and \(SessionCopy.lowerFirst(pair.termB)) look alike, and both are on your \(pair.examTitle). Cap can show you the difference.")
+            return String(localized: "\(pairTitle(pair.termA, pair.termB)): they look alike, and both are on your \(pair.examTitle). Cap can show you the difference.")
         case .mixUp(let note):
-            let ready = note.questions == 1 ? String(localized: "A quick look is ready.") : String(localized: "A 2-minute fix is ready.")
+            let ready = note.questions == 1 ? String(localized: "Fix it in a minute.") : String(localized: "Fix it in 2 minutes.")
             if note.name == ConfusionCandidate.unnamed {
                 let same = note.questions == 1 ? String(localized: "Still tripping on the same question?") : String(localized: "Still tripping on the same questions?")
                 return "\(same) \(ready)"
@@ -231,17 +232,12 @@ enum NoticeContent {
 
     // MARK: Settings
 
-    /// What a switch needs said under it.
-    static func switchNote(_ kind: NoticeKind) -> LocalizedStringResource? {
-        kind == .busyDay ? "Looks at when your calendar is busy, on this iPhone, never at what's in it." : nil
-    }
-
     /// A kind's switch in Settings ▸ Study.
     static func switchTitle(_ kind: NoticeKind) -> LocalizedStringResource {
         switch kind {
-        case .mixUp: "Mix-ups"
-        case .lookAlike: "Look-alikes"
-        case .fading: "Fading before an exam"
+        case .mixUp: "Often confused"
+        case .lookAlike: "Pairs that look alike"
+        case .fading: "To review before an exam"
         case .welcomeBack: "Welcome back"
         case .gap: "Gaps in your notes"
         case .lectureDate: "Dates heard in a lecture"

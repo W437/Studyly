@@ -9,13 +9,13 @@ extension QuestKind {
     var title: LocalizedStringResource {
         switch self {
         case .finishSession: "Finish today's session"
-        case .rescueFading: "Save 3 fading stars"
+        case .rescueFading: "Get 3 right just in time"
         case .ownWords: "Answer 2 in your own words"
         case .beforeNoon: "Study before noon"
         case .fixMixUp: "Fix a mix-up"
         case .learnNew: "Meet 5 new questions"
         case .rightInARow: "Get 5 right in a row"
-        case .examTopic: "Practise for your exam"
+        case .examTopic: "Practice for your exam"
         case .event: "Today's event"
         }
     }
@@ -50,9 +50,9 @@ extension QuestKind {
 }
 
 extension QuestRow {
-    /// "Practise for Bio 101" for the exam quest, the kind's own words for the rest.
+    /// "Practice for Bio 101" for the exam quest, the kind's own words for the rest.
     var title: LocalizedStringResource {
-        if kind == .examTopic, let subject { return "Practise for \(subject)" }
+        if kind == .examTopic, let subject { return "Practice for \(subject)" }
         return kind.title
     }
 
@@ -64,16 +64,16 @@ extension QuestRow {
 }
 
 enum QuestCopy {
-    /// "5 of 12 this week", on the card and in the summary.
+    /// "5 of 12 quests this week", in the quests sheet and in the summary.
     static func week(_ count: Int, of goal: Int) -> LocalizedStringResource {
-        "\(count) of \(goal) this week"
+        "\(count) of \(goal) quests this week"
     }
 
-    /// What the week is working toward, said gently.
+    /// What the week is working toward, said gently: "12 this week unlocks a new sky: Dusk".
     static func skyLine(_ quests: QuestsToday) -> LocalizedStringResource {
         if quests.weekLit { return "This week lit a new sky" }
         guard let sky = quests.nextSky else { return "Every sky is lit" }
-        return "\(sky.title) lights at \(quests.weekGoal)"
+        return "\(quests.weekGoal) this week unlocks a new sky: \(sky.title)"
     }
 }
 

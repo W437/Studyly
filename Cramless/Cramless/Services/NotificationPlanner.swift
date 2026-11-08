@@ -5,7 +5,7 @@ import Foundation
 ///
 /// - **Daily reminder** at the person's time (`settings.reminderMinutes`; nil means none): today when there's
 ///   something to study and it isn't done, and each of the next 6 days. Today's copy is specific ("15 minutes keeps
-///   Bio 101 on track. 18 cards are due."); later days carry no counts (they'd be stale by then) and fall back to a
+///   Bio 101 on track. 18 to review today."); later days carry no counts (they'd be stale by then) and fall back to a
 ///   generic line when there's little to say. Seven days ahead at most, so someone who stops opening the app stops
 ///   hearing from it after a week.
 /// - **Exam countdowns** for exams in the next 14 days: a week before at the reminder time (18:00 when reminders are
@@ -281,13 +281,13 @@ enum NotificationPlanner {
         if let focus {
             var text = "\(minutes) minutes keeps \(focus.shortName) on track."
             if t.reviews > 0 {
-                text += " \(cards(t.reviews)) due."
+                text += " \(toReview(t.reviews))"
             } else if t.newItems > 0 {
                 text += " \(newQuestions(t.newItems)) ready."
             }
             return text
         }
-        if t.reviews > 0 { return "\(cards(t.reviews)) due. Your \(minutes)-minute session is ready." }
+        if t.reviews > 0 { return "\(toReview(t.reviews)) Your \(minutes)-minute session is ready." }
         if t.newItems > 0 {
             return "Your \(minutes)-minute session has \(t.newItems) new \(t.newItems == 1 ? "question" : "questions")."
         }
@@ -309,9 +309,8 @@ enum NotificationPlanner {
         exams.first { $0.date > date && days(from: date, to: $0.date, calendar: calendar) <= 30 }
     }
 
-    private static func cards(_ n: Int) -> String {
-        n == 1 ? "1 card is" : "\(n) cards are"
-    }
+    /// "18 to review today."
+    private static func toReview(_ n: Int) -> String { String(localized: "\(n) to review today.") }
 
     private static func newQuestions(_ n: Int) -> String {
         n == 1 ? "1 new question is" : "\(n) new questions are"

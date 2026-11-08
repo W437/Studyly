@@ -2,7 +2,7 @@ import SwiftUI
 
 /// The streak: its header, this month's calendar of studied, frozen and repaired days, with each upcoming exam's day and the night
 /// before marked (earlier months and the next one a tap of the arrows away), the repair offer when there is one, and one fold, "How freezes
-/// work". Every streak link opens it (Progress's row, Today's flame, "Calendar" in "Your plan"). In Quiet mode it is only the calendar.
+/// work". Every streak link opens it (Progress's row, Today's flame). In Quiet mode it is only the calendar.
 ///
 /// Harness: `CRAMLESS_ROUTE=streak`; `CRAMLESS_SCROLL=freezes` opens the fold and scrolls to it.
 struct StreakView: View {

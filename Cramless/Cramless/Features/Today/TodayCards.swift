@@ -1,7 +1,7 @@
 import SwiftUI
 
-// The band's header pieces (`TodaySkyHero`): the streak pill and the avatar. The cards below the band are `TodayDayCard`,
-// `TodayPlanCard`, `TodayNoticeCard` and `TodayExamsRow`.
+// The band's header pieces (`TodaySkyHero`): the streak pill and the avatar. Below the band are `TodayDayCard`, `TodayQuestsRow`
+// and `TodayNoticeCard`.
 
 // MARK: - Header pieces
 

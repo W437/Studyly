@@ -544,18 +544,17 @@ final class StudyAppModelTests: XCTestCase {
             return NoticeContent.card(notice, firstName: "Maya", now: clock.now, calendar: cal)
         }
         XCTAssertTrue(try welcome().detail.contains("best streak"))
-        XCTAssertTrue(try welcome().detail.contains("flame"))
 
         app.settings.quietMode = true
         let quiet = try welcome()
-        XCTAssertEqual(quiet.detail, "Your stars waited for you. 5 minutes today is a good start.")
+        XCTAssertEqual(quiet.detail, "Your stars waited for you.")
         XCTAssertEqual(quiet.title, "Welcome back, Maya", "the card itself stays: it is about coming back to the plan")
     }
 
     func testShowMeAddsNothing() throws {
         let (course, draft, _, _, pair) = try lookAlikeWorld()
         let card = NoticeContent.card(try XCTUnwrap(app.noticeDeck().first), firstName: "", now: clock.now, calendar: cal)
-        XCTAssertEqual(card.title, "Metaphase and telophase look alike")
+        XCTAssertEqual(card.title, "Metaphase vs telophase")
         XCTAssertNil(app.perform(try XCTUnwrap(card.action)), "it opens the sheet, not a session")
         XCTAssertEqual(app.router.sheet, .lookAlike(a: pair.a, b: pair.b, examID: pair.examID))
         XCTAssertTrue(course.confusions.isEmpty, "nothing saved")
@@ -579,7 +578,7 @@ final class StudyAppModelTests: XCTestCase {
         XCTAssertEqual(course.items.count, 4)
         // The Today card now reads as what it is.
         let note = try XCTUnwrap(app.todayConfusionNote())
-        XCTAssertEqual(NoticeContent.card(for: note).title, "Metaphase and telophase look alike")
+        XCTAssertEqual(NoticeContent.card(for: note).title, "Metaphase vs telophase")
     }
 
     func testNotALookAlikeIsRememberedAndSkippedByBothFinders() throws {
