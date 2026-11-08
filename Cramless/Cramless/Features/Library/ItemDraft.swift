@@ -35,6 +35,7 @@ struct ItemDraft: Equatable, Sendable {
     var explanation = ""
     var ideas: [Idea] = []
     var options: [Option] = []
+    /// A fill-in's sentence as typed, the hidden words in [brackets] (stored with {{double braces}}: `ClozeSpec`).
     var clozeText = ""
     /// Other accepted answers for each blank, comma-separated, in blank order.
     var clozeAlternates: [String] = []
@@ -88,9 +89,21 @@ struct ItemDraft: Equatable, Sendable {
 
     // MARK: Reading and checking
 
-    /// The blanks in the fill-in text, in order ("{{telophase}}" → "telophase"), trimmed.
+    /// The blanks in the fill-in text, in order ("[telophase]" → "telophase"), trimmed.
     var blanks: [String] {
-        ClozeSpec(text: clozeText).answers.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+        ClozeSpec(text: Self.braced(clozeText)).answers.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+    }
+
+    /// The sentence as stored: "[telophase]" → "{{telophase}}". Braces typed by hand stay as they are.
+    static func braced(_ text: String) -> String {
+        text.replacingOccurrences(of: "{{", with: "\u{0}").replacingOccurrences(of: "}}", with: "\u{1}")
+            .replacingOccurrences(of: "[", with: "{{").replacingOccurrences(of: "]", with: "}}")
+            .replacingOccurrences(of: "\u{0}", with: "{{").replacingOccurrences(of: "\u{1}", with: "}}")
+    }
+
+    /// The sentence as the editors show it: "{{telophase}}" → "[telophase]".
+    static func bracketed(_ text: String) -> String {
+        text.replacingOccurrences(of: "{{", with: "[").replacingOccurrences(of: "}}", with: "]")
     }
 
     /// What still stops the draft from being saved, said plainly; nil when it's ready.
@@ -114,7 +127,7 @@ struct ItemDraft: Equatable, Sendable {
             if filled.filter(\.correct).count != 1 { return "Mark the one right answer." }
         case .cloze:
             let blanks = self.blanks
-            if blanks.isEmpty { return "Put {{double braces}} around the words to hide." }
+            if blanks.isEmpty { return "Put [brackets] around the words to hide." }
             if blanks.contains(where: \.isEmpty) { return "One of the blanks is empty." }
         case .diagram:
             if prompt.isEmpty { return "Write the question." }
@@ -150,7 +163,7 @@ struct ItemDraft: Equatable, Sendable {
             return Normalized(prompt: prompt.clTrimmed, answer: right, explanation: explanation, keyIdeas: [],
                               choices: choices, cloze: nil)
         case .cloze:
-            let text = clozeText.clTrimmed
+            let text = Self.braced(clozeText.clTrimmed)
             let blanks = self.blanks
             let alternates = blanks.indices.map { index -> [String] in
                 guard clozeAlternates.indices.contains(index) else { return [] }
@@ -194,7 +207,7 @@ extension ItemDraft {
         }
         options = item.choices.map { Option(text: $0.text, correct: $0.correct, why: $0.why ?? "") }
         if let cloze = item.cloze {
-            clozeText = cloze.text
+            clozeText = Self.bracketed(cloze.text)
             clozeAlternates = cloze.alternates.map { $0.joined(separator: ", ") }
             if prompt == Self.defaultClozePrompt { prompt = "" }
         }

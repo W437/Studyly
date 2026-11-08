@@ -37,11 +37,13 @@ final class LibraryDraftTests: XCTestCase {
 
         var cloze = ItemDraft.blank(kind: .cloze)
         cloze.clozeText = "During telophase the envelopes re-form."
-        XCTAssertEqual(cloze.problem, "Put {{double braces}} around the words to hide.")
-        cloze.clozeText = "During {{ }} the envelopes re-form."
+        XCTAssertEqual(cloze.problem, "Put [brackets] around the words to hide.")
+        cloze.clozeText = "During [ ] the envelopes re-form."
         XCTAssertEqual(cloze.problem, "One of the blanks is empty.")
-        cloze.clozeText = "During {{telophase}} the envelopes re-form."
+        cloze.clozeText = "During [telophase] the envelopes re-form."
         XCTAssertNil(cloze.problem, "a fill-in needs no instruction")
+        cloze.clozeText = "During {{telophase}} the envelopes re-form."
+        XCTAssertNil(cloze.problem, "braces typed by hand still mark a blank")
     }
 
     func testNormalizedChoicesDropEmptyRowsAndAnswerWithTheRightOne() {
@@ -75,7 +77,7 @@ final class LibraryDraftTests: XCTestCase {
 
     func testNormalizedClozeDerivesItsAnswerAndKeepsOnlyRealAlternates() {
         var draft = ItemDraft.blank(kind: .cloze)
-        draft.clozeText = " In {{osmosis}}, water moves from {{dilute}} to concentrated. "
+        draft.clozeText = " In [osmosis], water moves from [dilute] to concentrated. "
         draft.clozeAlternates = ["Osmosis, osmotic flow", ""]
         let n = draft.normalized
         XCTAssertEqual(n.prompt, ItemDraft.defaultClozePrompt)
@@ -103,6 +105,8 @@ final class LibraryDraftTests: XCTestCase {
         XCTAssertEqual(clozeDraft.prompt, "", "the default instruction isn't shown as typed text")
         XCTAssertEqual(clozeDraft.clozeAlternates, ["osmotic flow"])
         XCTAssertEqual(clozeDraft.blanks, ["osmosis"])
+        XCTAssertEqual(clozeDraft.clozeText, "In [osmosis], water moves.", "both editors show blanks in [brackets]")
+        XCTAssertEqual(clozeDraft.normalized.cloze?.text, "In {{osmosis}}, water moves.", "and store them in braces")
     }
 
     func testRowsAndIDs() {
