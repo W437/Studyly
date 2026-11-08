@@ -1,18 +1,20 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// Import Quizlet or Anki: a deck file (.apkg, .csv, .txt) or a Quizlet export pasted in, previewed before anything
-/// is added (how many cards, a few of them, what was left out, whether Anki's scheduling comes along), then added to
-/// a course. A file opened from another app ("Open in Capling") waits in `pendingImportFile` and previews at once.
+/// Import Quizlet or Anki: two tabs, "Quizlet" (an export pasted in; it opens here) and "Anki or a file" (.apkg, .csv, .txt), previewed
+/// before anything is added (how many cards, a few of them, what was left out, whether Anki's scheduling comes along), then added to
+/// a course. A file opened from another app ("Open in Capling") waits in `pendingImportFile` and opens on the file tab, previewed at once.
 ///
 /// DEBUG hook: `CRAMLESS_IMPORT=quizlet` (a pasted Quizlet export), `csv` (a CSV file), `link` (a pasted Quizlet link).
 struct ImportDeckView: View {
     let courseID: UUID?
 
-    private enum Mode: Hashable { case file, paste }
+    private enum Mode: Hashable { case paste, file }
 
     @Environment(AppModel.self) private var app
-    @State private var mode: Mode = .file
+    @State private var mode: Mode = .paste
+    /// The mode was set on opening (a waiting file, a hook), not by a tap: its change keeps what's being previewed.
+    @State private var openedOnFile = false
     @State private var pasted = ""
     @State private var preview: ImportPreview?
     @State private var file: URL?
@@ -31,11 +33,15 @@ struct ImportDeckView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     Picker("Import from", selection: $mode) {
-                        Text("A file").tag(Mode.file)
-                        Text("Pasted from Quizlet").tag(Mode.paste)
+                        Text("Quizlet").tag(Mode.paste)
+                        Text("Anki or a file").tag(Mode.file)
                     }
                     .pickerStyle(.segmented)
                     .onChange(of: mode) { _, _ in
+                        if openedOnFile {
+                            openedOnFile = false
+                            return
+                        }
                         CLHaptics.select()
                         clearPreview()
                         if mode == .paste { schedulePastePreview() }
@@ -281,6 +287,8 @@ struct ImportDeckView: View {
                 mode = .paste
                 pasted = "https://quizlet.com/512345678/unit-3-cell-division-flash-cards/"
             case "csv":
+                openedOnFile = true
+                mode = .file
                 if let url = try? DebugImport.csvFile() { file = url; Task { await previewFile(url) } }
             default: break
             }
@@ -288,6 +296,8 @@ struct ImportDeckView: View {
         }
         #endif
         if let waiting = app.pendingImportFile {
+            openedOnFile = true
+            mode = .file
             file = waiting
             Task { await previewFile(waiting) }
         }

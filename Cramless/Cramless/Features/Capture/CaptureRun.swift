@@ -79,9 +79,9 @@ final class CaptureRun {
     private(set) var noQuestionsSuggestion: AISuggestion?
     /// The first questions, landing with their page chips.
     private(set) var cards: [Card] = []
-    /// The reading step's second line: "Page 2 of 5", "Text and layout, on your iPhone".
-    private(set) var readingDetail: String
-    /// Who is writing the questions, as the generator reports it.
+    /// The reading step's live line while a reading of several pages runs: "Page 2 of 5", "5 pages read". Nil otherwise.
+    private(set) var readingDetail: String?
+    /// Who is writing the questions: what the router expects when the run starts, then what the generator reports.
     private(set) var origin: ItemOrigin = .rules
     private(set) var preview: CapturePagePreview?
     private(set) var pageCount: Int
@@ -129,38 +129,24 @@ final class CaptureRun {
         case .sample, .text: pageCount = 1
         case .pdf: pageCount = 0
         }
-        switch request.input {
-        case .text: readingDetail = "Your text, on your iPhone"
-        case .pdf: readingDetail = "Opening the PDF, on your iPhone"
-        default: readingDetail = "Text and layout, on your iPhone"
-        }
+        // Cloud AI writes this set if the router would send it there now (it says so from the start, rather than changing its mind
+        // once the first progress arrives); the generator's own report replaces the guess.
+        if AIRouting.route(app.ai.routeContext(.generate)).usesCloud { origin = .cloud }
         preview = CapturePagePreview(input: request.input)
         if let regenerating, let source = app.source(regenerating) {
             preview = CapturePagePreview(source: source) ?? preview
             pageCount = source.pages.count
         }
-        if request.restOf != nil { readingDetail = "The parts nothing asks about yet" }
     }
 
-    /// "1 page · Bio 101".
+    /// Who writes the questions, said once under the title: "With Cloud AI", "On your iPhone".
     var subtitle: String {
-        var parts: [String] = []
-        if pageCount > 0 { parts.append(CLFormat.count(pageCount, "page")) }
-        let course = app?.course(request.courseID)?.name ?? sourceID.flatMap { app?.source($0)?.course?.name }
-        if let course { parts.append(course) } else if case .text(let title, _) = request.input, !title.isEmpty { parts.append(title) }
-        return parts.joined(separator: " · ")
+        origin == .cloud ? String(localized: "With Cloud AI") : String(localized: "On your iPhone")
     }
 
-    var writtenDetail: String {
-        shownWritten > 0 ? CLFormat.count(shownWritten, "question") : (origin == .cloud ? "With Cloud AI" : "On your iPhone")
-    }
-
-    var whoLine: String {
-        switch origin {
-        case .cloud: "With Cloud AI"
-        case .onDevice: "On your iPhone"
-        default: "On your iPhone, with the offline rules"
-        }
+    /// "14 questions", counted as they are written; nil before the first.
+    var writtenDetail: String? {
+        shownWritten > 0 ? CLFormat.count(shownWritten, "question") : nil
     }
 
     func start() {
@@ -273,8 +259,8 @@ final class CaptureRun {
         guard progress.total > 1 else { return }
         switch progress.stage {
         case .preparing: break
-        case .reading: readingDetail = "Page \(min(progress.total, progress.completed + 1)) of \(progress.total), on your iPhone"
-        case .saving: readingDetail = "\(progress.total) pages read, on your iPhone"
+        case .reading: readingDetail = String(localized: "Page \(min(progress.total, progress.completed + 1)) of \(progress.total)")
+        case .saving: readingDetail = String(localized: "\(progress.total) pages read")
         }
         pageCount = max(pageCount, progress.total)
     }
@@ -343,7 +329,7 @@ final class CaptureRun {
             if holdAt == .checking { return }
             try await land()
             if holdAt == .done { return }
-            try await beat(reduceMotion ? 1200 : 1600)
+            try await beat(600)
             guard let sourceID else { return }
             withAnimation(CLMotion.settle) { phase = .review(sourceID) }
         } catch {
@@ -358,7 +344,7 @@ final class CaptureRun {
         guard let outcome else { return }
         withAnimation(CLMotion.settle) { step = .done }
         CLHaptics.success()
-        announcement = "Your study set is ready: \(CLFormat.count(outcome.items.count, "question"))."
+        announcement = String(localized: "Your questions are ready: \(CLFormat.count(outcome.items.count, "question")).")
         for card in firstCards(outcome) {
             withAnimation(CLMotion.pop) { cards.append(card.card) }
             if let anchor = card.anchor { withAnimation(CLMotion.calm) { marked.append(anchor) } }

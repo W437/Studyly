@@ -117,7 +117,7 @@ struct CaptureFlowView: View {
     }
 
     /// Reads the pages the iPhone couldn't (handwriting, math) with Cloud AI from their photos, then writes the set.
-    /// Offered only while page photos may be sent; the router reads that switch again before anything goes.
+    /// Runs only while page photos may be sent; the router reads that switch again before anything goes.
     private func readWithCloud() async {
         guard let id = run?.sourceID else { return }
         CLHaptics.tap()
@@ -227,8 +227,9 @@ enum DebugCapture {
 
 // MARK: - Problems
 
-/// What went wrong, in words the person can act on, with the way forward first. A cloud read of the photo is
-/// offered only while page photos may be sent; otherwise the screen says what would allow it.
+/// What went wrong, in words the person can act on, with the way forward first. For a page the iPhone couldn't read, when Cloud AI could
+/// read the photo, that is the one orange button ("Read it with Cloud AI", which asks for page photos first if they aren't allowed) and
+/// another photo the soft one; otherwise another photo is the way, with a tip for taking it.
 struct CaptureProblemView: View {
     let failure: CaptureRun.Failure
     let input: CaptureRequest.Input
@@ -244,6 +245,8 @@ struct CaptureProblemView: View {
     var suggestion: AISuggestion? = nil
 
     @Environment(AppModel.self) private var app
+    /// "Read it with Cloud AI" asked for page photos first: the read starts once they're allowed.
+    @State private var readsOncePhotosAllowed = false
 
     var body: some View {
         ScrollView {
@@ -263,36 +266,12 @@ struct CaptureProblemView: View {
                     .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.top, 8)
-                if isPageProblem {
+                if isPageProblem && !offersCloudRead {
                     Label("Flat, in good light, with the whole page in the frame", systemImage: "camera.viewfinder")
                         .clFont(.footnote)
                         .foregroundStyle(CLColor.ink3)
                         .multilineTextAlignment(.center)
                         .padding(.top, 14)
-                }
-                if showsCloudHint {
-                    VStack(spacing: 6) {
-                        Text("Cloud AI can read handwriting and math from the photo, once page photos are allowed to go to it.")
-                            .clFont(.footnote)
-                            .foregroundStyle(CLColor.ink2)
-                            .multilineTextAlignment(.center)
-                            .fixedSize(horizontal: false, vertical: true)
-                        Button {
-                            CLHaptics.tap()
-                            app.router.present(.consent(.photos))
-                        } label: {
-                            Text("Allow page photos")
-                                .clFont(.subheadlineEmphasis)
-                                .foregroundStyle(CLColor.skyInk)
-                                .frame(minHeight: CLMetrics.minHitTarget)
-                                .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                    }
-                    .padding(14)
-                    .frame(maxWidth: .infinity)
-                    .background(CLColor.skySoft, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-                    .padding(.top, 22)
                 }
                 if let cloudNote {
                     Label(cloudNote, systemImage: "exclamationmark.triangle.fill")
@@ -320,6 +299,25 @@ struct CaptureProblemView: View {
             .frame(minHeight: 50)
         }
         .safeAreaBar(edge: .bottom) { actions }
+        .onChange(of: photosAllowed) { _, allowed in
+            guard allowed, readsOncePhotosAllowed else { return }
+            readsOncePhotosAllowed = false
+            readWithCloud()
+        }
+    }
+
+    private var photosAllowed: Bool { AIConsent.photosGranted(app.settings) && app.ai.hasCloudConsent }
+
+    /// "Read it with Cloud AI": with page photos allowed it reads at once; otherwise it asks for them (one sheet, which also turns on
+    /// Cloud AI if needed) and reads as soon as they're allowed.
+    private func readAskingFirst() {
+        if photosAllowed {
+            readWithCloud()
+        } else {
+            CLHaptics.tap()
+            readsOncePhotosAllowed = true
+            app.router.present(.consent(.photos))
+        }
     }
 
     private var isPageProblem: Bool {
@@ -336,22 +334,16 @@ struct CaptureProblemView: View {
         }
     }
 
-    /// Cloud AI could read this photo, and the person may send it now.
-    private var canReadWithCloud: Bool {
-        isPageProblem && app.ai.cloudAvailableInThisBuild && AIConsent.photosGranted(app.settings)
-    }
-
-    /// Cloud AI could read this photo, but page photos aren't allowed to go yet.
-    private var showsCloudHint: Bool {
-        isPageProblem && app.ai.cloudAvailableInThisBuild && !AIConsent.photosGranted(app.settings)
-            && app.settings.ageBand != .under13
+    /// Cloud AI could read this photo: now, or once page photos are allowed (never for a child's account).
+    private var offersCloudRead: Bool {
+        isPageProblem && app.ai.cloudAvailableInThisBuild && app.settings.ageBand != .under13
     }
 
     private var words: (title: String, body: String, symbol: String) {
         switch failure {
         case .unreadable:
-            ("We couldn't read this page",
-             "Your iPhone wasn't sure of the writing on this photo, so it kept nothing rather than guess. Handwriting and some alphabets are hard for it.",
+            ("Couldn't read this page",
+             "The writing was too hard to read on this photo.",
              "text.magnifyingglass")
         case .noText:
             ("There's no text on this page",
@@ -422,8 +414,8 @@ struct CaptureProblemView: View {
                 .buttonStyle(.cl(.primary))
                 Button(tryAnotherTitle, action: tryAnother)
                     .buttonStyle(.cl(.soft))
-            } else if canReadWithCloud {
-                Button(action: readWithCloud) {
+            } else if offersCloudRead {
+                Button(action: readAskingFirst) {
                     ZStack {
                         Text("Read it with Cloud AI").opacity(readingWithCloud ? 0 : 1)
                         if readingWithCloud { ProgressView().tint(CLColor.onFill) }
@@ -442,7 +434,7 @@ struct CaptureProblemView: View {
                 Button("Use this page anyway", action: useAnyway)
                     .buttonStyle(.cl(.ghost, size: .medium))
             case .noQuestions:
-                Button("Make cards yourself", action: makeCards)
+                Button("Write a question", action: makeCards)
                     .buttonStyle(.cl(.ghost, size: .medium))
             default:
                 EmptyView()

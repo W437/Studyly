@@ -38,9 +38,9 @@ def scan(p: Phone) -> None:
 def lecture(p: Phone) -> None:
     p.mark("Add ▸ Record a lecture: transcribed on the iPhone, never uploaded")
     p.dwell(1.2)
+    p.tab("Library", after=2.4)                       # the demo lecture is about biology: from its class, the + adds to it
+    p.tap("Bio 101", type="Button", after=2.4)
     p.tab("Add", after=2.4)
-    p.tap("re:^For ", type="Button", after=1.2)       # the class it is for: a menu (the demo lecture is about biology)
-    p.tap("Bio 101", type="Button", after=1.2)
     p.tap("Record a lecture", after=3.0)
     p.mark("The transcript fills in as the lecturer talks (a demo transcript here: the simulator can't hear)")
     p.dwell(13.0)

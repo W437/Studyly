@@ -1,14 +1,16 @@
 import SwiftUI
 
 /// The processing screen: the page on a stage (the scanner's brackets lock on, a scan sweeps it, the lines the key
-/// ideas came from get highlighted, the first questions land with their page chips) above the four real steps from
-/// `generateSet`. The motion is the onboarding demo's (`SnapScene`) on the person's own page; `CaptureRun` paces it.
+/// ideas came from get highlighted, the first questions land with their page chips) above "Making questions", who writes them ("With
+/// Cloud AI", once), and the four real steps from `generateSet`. A step shows only what is live (the page being read, the topics found,
+/// the questions counted, how many match); one that hasn't started is an empty ring. The motion is the onboarding demo's (`SnapScene`)
+/// on the person's own page; `CaptureRun` paces it.
 ///
 /// Under Reduce Motion nothing sweeps or pops: the stage shows its final state as each step lands, and the step list
 /// carries the progress. VoiceOver hears each step as it starts, then how many questions are ready.
 struct CaptureProcessingView: View {
     let run: CaptureRun
-    var title = "Making your study set"
+    var title = "Making questions"
     var onClose: (() -> Void)?
 
     @Environment(\.dynamicTypeSize) private var typeSize
@@ -308,7 +310,7 @@ private struct TextMark: View {
 
 // MARK: - The steps
 
-/// The four steps, each with its real detail: pages read, the topics found, questions written, how many match.
+/// The four steps, each with its live detail only: the page being read, the topics found, questions written, how many match.
 struct CaptureSteps: View {
     let run: CaptureRun
 
@@ -316,8 +318,7 @@ struct CaptureSteps: View {
         VStack(alignment: .leading, spacing: 2) {
             CaptureStepRow(state: state(.reading), title: CaptureRun.Step.reading.title, detail: run.readingDetail)
                 .id(CaptureRun.Step.reading)
-            CaptureStepRow(state: state(.ideas), title: CaptureRun.Step.ideas.title,
-                           detail: run.topics.isEmpty ? run.whoLine : nil) {
+            CaptureStepRow(state: state(.ideas), title: CaptureRun.Step.ideas.title, detail: nil) {
                 if !run.topics.isEmpty {
                     CaptureChips(spacing: 6) {
                         ForEach(run.topics, id: \.self) { topic in
@@ -331,7 +332,7 @@ struct CaptureSteps: View {
             CaptureStepRow(state: state(.writing), title: CaptureRun.Step.writing.title, detail: run.writtenDetail)
                 .id(CaptureRun.Step.writing)
             CaptureStepRow(state: state(.checking), title: CaptureRun.Step.checking.title,
-                           detail: run.checkLine ?? run.partLine ?? "So nothing made up gets through")
+                           detail: run.checkLine ?? run.partLine)
                 .id(CaptureRun.Step.checking)
         }
     }
@@ -415,9 +416,14 @@ struct CaptureStepRow<Extra: View>: View {
         }
     }
 
+    /// Done: a mint tick. Under way: a spinner. Not started: an empty ring, so nothing looks finished before it is.
     private var dot: some View {
         ZStack {
-            Circle().fill(state == .done ? CLColor.mint : state == .active ? CLColor.skySoft : CLColor.surface3)
+            if state == .waiting {
+                Circle().strokeBorder(CLColor.ink4, lineWidth: 2)
+            } else {
+                Circle().fill(state == .done ? CLColor.mint : CLColor.skySoft)
+            }
             switch state {
             case .active:
                 if reduceMotion {
@@ -429,7 +435,7 @@ struct CaptureStepRow<Extra: View>: View {
                 Image(systemName: "checkmark").font(.system(size: 13, weight: .heavy)).foregroundStyle(CLColor.onFill)
                     .transition(.scale(scale: 0.4).combined(with: .opacity))
             case .waiting:
-                Image(systemName: "checkmark").font(.system(size: 13, weight: .heavy)).foregroundStyle(CLColor.ink4)
+                EmptyView()
             }
         }
         .frame(width: 28, height: 28)
