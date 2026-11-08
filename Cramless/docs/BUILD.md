@@ -1932,6 +1932,26 @@ for Stages 3 and 4 (none shared).
 - **App Privacy**, with the owner's approval: Other Data ▸ Other Data Types added (App Functionality, linked to the user, not
   tracking), matching the manifest; published on the website, 10 data types.
 
+## Clarity pass: onboarding (2026-11-08, lane `c-onb`)
+
+- **About 21 screens became 6, and the student's own questions come at the third tap.** Welcome → "Snap a page. Get questions."
+  (`OnboardingFirstSetStep`) → "Two quick questions" / "From your page." → "When's your Bio 101 exam?" (`OnboardingExamDateStep`)
+  → "Your plan" (`OnboardingPlanStep`) → paywall → Today. `OnboardingMachine` has the steps; the harness numbering is welcome 0,
+  first set 1, first session 2, exam date 3, plan 4, paywall 5. Why: two minutes of slides and forms came before the one thing that
+  sells the app.
+- The six intro demos left the flow (each showed what the student does for real a minute later). They stay DEBUG-only for films
+  and store art (`IntroScenePage`, `CRAMLESS_ROUTE=introScene:1…6`); the paper, its lines and the brackets still ship (capture).
+- The goal and "where do your notes live" questions are gone with `AppSettings.goal`, `.notesLocations` and their enums (nothing
+  read them; old settings still decode). The year question was not added.
+- The sample page files under a course named "Sample" with no class card (`DraftReviewView.fixedCourseName`), makes no exam and
+  skips the date: it had turned the student's real exam date into a "Biology exam".
+- Readiness and the plan are one screen: the ring, "Bio 101 exam · 23 days", one line from the plan engine ("15 minutes a day gets
+  you to 90% by Nov 28."), the week, "15 min a day" (a plain picker) and "Remind me at 7:00 PM" (a switch). No "Building your plan"
+  checklist, no path chart, no reminder sheet, no mood words on the minutes. "Continue" asks iOS for notifications when the reminder
+  is on, then opens the paywall; "Continue free" there goes straight to Today (no Exam Pass sheet after it in onboarding). The plan
+  is no longer repeated to the paywall (`OnboardingCoordinator.planLine` is gone).
+- No progress bar anywhere in onboarding; the date waits for Continue in every case, and today is a ring, not a fill.
+
 ## Left for the owner
 
 - Accounts and keys (see README "Before the App Store"):

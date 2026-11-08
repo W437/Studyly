@@ -43,8 +43,8 @@ Twelve tokens: `pop`, `settle`, `snap`, `calm`, `fill`, `fade`, `exit`, the high
 `press`, `release`, `sheet` and `bloom`.
 - Each token reads Reduce Motion itself. Under Reduce Motion it becomes a short ease, and looping scenes settle on
   their final frame.
-- The onboarding demos use the same tokens as the features they show (the scanner's lock-on, the highlighter,
-  the ring climbing), so the demo and the product can't drift apart.
+- The demo scenes (kept for films and store art) use the same tokens as the features they show (the scanner's lock-on, the
+  highlighter, the ring climbing), so the demo and the product can't drift apart.
 
 ## The first minute
 
@@ -61,10 +61,20 @@ Twelve tokens: `pop`, `settle`, `snap`, `calm`, `fill`, `fade`, `exit`, the high
     "Lights a star", with "n of 3 stars lit" as its value, and Cap's lines are announced. At accessibility text sizes the world
     is a short band above the words.
 - **"capling" is set with a star where the i's dot would be** (`CaplingWordmark`): gold, or faint until it is lit on the welcome.
-- **The intro shows what people come for, in six pages:** snap a page (the scan makes flashcards and questions, each marked with
-  its kind), flashcards that come back in time (flip, rate, and when it returns; Anki and Quizlet decks come too), answer in your own
-  words, know how ready you are, a plan that bends, a tutor that knows your notes. The owner noticed the first version never showed
-  flashcards, which is what most people search a study app for.
+- **Then the student's own page, at once** (the clarity pass): six steps, about a dozen taps, their own questions at the third.
+  Welcome → "Snap a page. Get questions." (scan, a photo, or the sample page; the processing; the review, which asks which class it
+  is for) → "Two quick questions" / "From your page." (graded live, with "I don't know"; the session's segments are the only count,
+  and no progress bar runs across onboarding) → "When's your Bio 101 exam?" (named after the course; a month where today is a ring
+  and nothing is picked until a tap, "Tap your exam day", "No exam yet"; Continue in every case) → "Your plan" → the paywall → Today.
+  - No slides before the camera: everything a demo promised happens for real a minute later. The six demos stay for films and
+    store art (`introScene:<n>`).
+  - Nothing is asked that the app doesn't use: no goal, no "where do your notes live".
+  - The sample page is a try, not a class: no class card, its set files under "Sample", no exam is made from it and the date isn't
+    asked; the plan shows its no-exam state.
+  - "Your plan" is one screen: the readiness ring (or Cap, with no exam), "Bio 101 exam · 23 days", one line from the plan engine
+    ("15 minutes a day gets you to 90% by Nov 28."), the week, and two rows: "15 min a day" (a plain picker: 5, 10, 15, 20, 30) and
+    "Remind me at 7:00 PM" (a switch, on). Its button is "Continue"; with the reminder on, iOS asks for notifications then.
+    "Continue free" on the paywall goes straight to Today.
 
 ## Answers
 

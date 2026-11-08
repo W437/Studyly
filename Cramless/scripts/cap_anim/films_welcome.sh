@@ -1,5 +1,5 @@
 #!/bin/bash
-# Films the welcome and the intro pages for the review page (build/review/welcome-v2/): the welcome with touches (the sounds laid
+# Films the welcome and the demo pages for the review page (build/review/welcome-v2/): the welcome with touches (the sounds laid
 # over the notes), with nobody touching (Cap lights the stars himself), with Reduce Motion, and the two intro pages that changed.
 #
 #   scripts/cap_anim/films_welcome.sh <udid> <out-dir> [name ...]     (no names = all)
@@ -28,9 +28,7 @@ film welcome-touch 17 CRAMLESS_ONBOARDING=1 CRAMLESS_WELCOME=3200:s1,5200:s4,720
 film welcome-alone 27 CRAMLESS_ONBOARDING=1
 # Reduce Motion: no clips, no ripples, no ignition; the stars light at once and the sky brightens. The sounds still play.
 film welcome-calm 13 CRAMLESS_ONBOARDING=1 CRAMLESS_REDUCE_MOTION=1 CRAMLESS_WELCOME=3200:s1,5000:s4,6800:s0
-# The intro's first two pages: the scan now makes flashcards and questions, and the new flashcards page. A harness route to an
-# onboarding page covers the app's own welcome (the harness leaves onboarding on) and does not stop it, so its Cap would light stars
-# and play notes under the film: CRAMLESS_WELCOME=lit3 has that hidden welcome already finished and silent. (A real person's welcome
-# stops when the intro is pushed over it: `WelcomeView.isFront`.)
-film intro-snap 14 CRAMLESS_ROUTE=onboarding:1 CRAMLESS_WELCOME=lit3
-film intro-flashcards 16 CRAMLESS_ROUTE=onboarding:2 CRAMLESS_WELCOME=lit3
+# The old intro's first two demos (they left onboarding and stay for films and store art): the scan that makes flashcards and
+# questions, and the flashcards page. `introScene:<n>` opens one as a cover over Today, so no hidden welcome plays under it.
+film intro-snap 14 CRAMLESS_ROUTE=introScene:1
+film intro-flashcards 16 CRAMLESS_ROUTE=introScene:2

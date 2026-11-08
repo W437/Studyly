@@ -63,16 +63,16 @@ badge | badge:streak30 | 7 |
 paywall | paywall | 7 |
 welcome | onboarding:0 | 6 |
 welcome-lit | onboarding:0 | 8 | CRAMLESS_WELCOME=lit3
-onb1 | onboarding:1 | 6 |
-onb2 | onboarding:2 | 6 |
-onb3 | onboarding:3 | 6 |
-onb4 | onboarding:4 | 6 |
-onb5 | onboarding:5 | 6 |
-onb6 | onboarding:6 | 6 |
-onb-quiz | onboarding:7 | 6 |
-first-session | onboarding:12 | 7 |
-readiness | onboarding:13 | 7 |
-plan | onboarding:14 | 7 |
+onb1 | introScene:1 | 6 |
+onb2 | introScene:2 | 6 |
+onb3 | introScene:3 | 6 |
+onb4 | introScene:4 | 6 |
+onb5 | introScene:5 | 6 |
+onb6 | introScene:6 | 6 |
+first-set | onboarding:1 | 6 |
+first-session | onboarding:2 | 7 |
+onb-date | onboarding:3 | 6 |
+plan | onboarding:4 | 7 |
 theme-night | today | 7 | CRAMLESS_UNLOCK=all CRAMLESS_SKY_THEME=night
 theme-dusk | today | 7 | CRAMLESS_UNLOCK=all CRAMLESS_SKY_THEME=dusk
 theme-aurora | today | 7 | CRAMLESS_UNLOCK=all CRAMLESS_SKY_THEME=aurora
