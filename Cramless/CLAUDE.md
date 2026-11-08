@@ -186,7 +186,7 @@ sleep 4; xcrun simctl io <udid> screenshot shot.png
     `CRAMLESS_ROUTE=settings:notifications CRAMLESS_NOTICES=fading` shows the ping in the page's planned list.
     `CRAMLESS_MIXUP=coming|slip` (with `mixup`): the last answer came right ("coming along"), or the mix-up is about one question ("Go over it"). `CRAMLESS_ESSAYS=<n>` (with `mock`): the midterm is essays only, with `n` of them.
     `CRAMLESS_NOTICES=busy` (the midterm 9 days out) with `CRAMLESS_BUSY=<offset>[:<hours>]` (`DemoBusyCalendar`, access granted; 3 days ahead and 6 hours by default) deals "Monday looks busy"; `CRAMLESS_BUSY=ask` the card that asks for the calendar (a press grants it, and the busy card follows), `askno` the same with a refusal, `denied` refused long ago. `CRAMLESS_NOTICE_STATE=done` also moves that day.
-    `CRAMLESS_NOTICES=tooeasy` (or `CRAMLESS_LADDER=offer`): a Bio midterm question has become too easy (`Ladder`). `CRAMLESS_ROUTE=ladder` opens "Yes, harder" on a question, with `CRAMLESS_LADDER=writing|proposal|added` holding that state (`LadderSheet`).
+    `CRAMLESS_NOTICES=tooeasy` (or `CRAMLESS_LADDER=offer`): a Bio midterm question has become too easy (`Ladder`). `CRAMLESS_ROUTE=ladder` opens "Yes, harder" on a question, with `CRAMLESS_LADDER=writing|proposal|added` holding that state (`added`: the sheet closes with the "Added." toast and its Undo; `LadderSheet`).
   - Sessions:
     - `CRAMLESS_LOOKSWRONG=sheet|checking|fixed|stands|retired|queued` with an answered state (`CRAMLESS_SESSION_STATE=mcq-answered CRAMLESS_SESSION_PICK=wrong`) opens "Looks wrong?" over the question, in that state (`LooksWrongSheet`). Wait 9 s or so: the sheet opens 1.6 s after the question.
     - `CRAMLESS_SESSION_STATE=ownwords|graded|mcq(-answered)|cloze(-answered)|diagram(-filled|-answered)|flashcard|flipped|flashcard-rated|last-rated|flashcard-drag|flashcard-swiped|summary|exameve-summary|fix-summary`
@@ -202,13 +202,13 @@ sleep 4; xcrun simctl io <udid> screenshot shot.png
     - Undo (`SessionRunner.PendingGrade`): `flashcard-rated` flips and rates the first flashcard (`CRAMLESS_SESSION_RATE=again|hard|good|easy`, Good by default), so the
       next question shows the pill; `last-rated` does it on a session of that one question ("That was the last one."). `CRAMLESS_UNDO_HOLD=1` keeps the
       pill until it is pressed; `CRAMLESS_SESSION_UNDO=<ms>` presses Undo that long after it shows.
-    - The flashcard swipe: `flashcard-drag` holds the flipped card 60% of the way right; `flashcard-swiped` swipes it (the next one up, the tally at 1 and 0,
-      the pill stays); `CRAMLESS_SESSION_SWIPE=rrlhe` plays a session of flashcards only by that pattern (`r` swipe right, `l` swipe left, `h` the Hard
-      tile, `e` the Easy tile, `f` only flips, for a real finger), `CRAMLESS_AUTOPLAY_BEAT` ms on each flipped card. Check the swipe itself with a real drag too
+    - The flashcard swipe: `flashcard-drag` holds the flipped card 60% of the way right; `flashcard-swiped` swipes it (the next one up,
+      the pill stays); `CRAMLESS_SESSION_SWIPE=rrlhe` plays a session of flashcards only by that pattern (`r` swipe right, `l` swipe left, `h` Hard,
+      `e` Easy, `f` only flips, for a real finger), `CRAMLESS_AUTOPLAY_BEAT` ms on each flipped card. Check the swipe itself with a real drag too
       (`mobilecli io swipe x1,y1,x2,y2 --duration 700`: a fast one is a flick, which counts from anywhere). `CRAMLESS_SESSION_LONG_ANSWER=1` (with a flashcard state) gives the card an answer longer than the screen: a real drag up scrolls it, a real drag sideways swipes it (`FlashcardSwipe.SwipePan`).
     - `CRAMLESS_SESSION_STATE=flashcard-saved|mcq-saved` makes the first flashcard (or multiple-choice question) a
       fading memory and answers it right: a save, with the sky's flare.
-    - The last look: `CRAMLESS_ROUTE=lastLook[:<n>]` opens it on the nth upcoming exam (`lastLook:1`: the Bio midterm, whose notes have pages; without a number, the first with ideas to show), `CRAMLESS_LASTLOOK=offline|cloud` with the prepared sentences missing or written (the mock relay). On an eve's summary (`CRAMLESS_ROUTE=session:examEve CRAMLESS_SESSION_STATE=exameve-summary`) it is the card under the words.
+    - The last look: `CRAMLESS_ROUTE=lastLook[:<n>]` opens it on the nth upcoming exam (`lastLook:1`: the Bio midterm, whose notes have pages; without a number, the first with ideas to show), `CRAMLESS_LASTLOOK=offline|cloud` with the prepared sentences missing or written (the mock relay). On an eve's summary (`CRAMLESS_ROUTE=session:examEve CRAMLESS_SESSION_STATE=exameve-summary`) its ideas are on the summary itself.
     - `CRAMLESS_SUMMARY_SKY=<ms>` opens the memory sky that long after a summary's choreography, as a tap on its
       "See the sky" strip would (films follow a real session into the sky it relit).
   - Onboarding steps: `CRAMLESS_STEP=firstSession|readiness|plan` (with `CRAMLESS_SEED=0`; `CRAMLESS_STEP_NODATE=1` for a person
@@ -423,9 +423,9 @@ sleep 4; xcrun simctl io <udid> screenshot shot.png
   - Both are for the person's own actions; demo scenes and loops fire none.
   - Sounds are synthesized (`CLSynth`, no audio files), mix with other audio and obey the Silent switch.
   - Anything that takes the audio session claims `AudioFocus` first.
-- A self-given rating (a flashcard, own-words marks, "Counts as") is held for Undo (`SessionRunner.Options.undoWindow`, `PendingGrade`) before it is written. Graded
+- A self-given rating (a flashcard, own-words marks) is held for Undo (`SessionRunner.Options.undoWindow`, `PendingGrade`) before it is written. Graded
   answers aren't: Continue was their moment. A review log is append-only once sync has pushed it, so nothing is ever recorded and then reverted.
-- "Saved it" is `ReviewOutcome.isSave`: a right answer (Good or Easy, not "Almost.") on a studied item whose recall
+- "Just in time!" (a save) is `ReviewOutcome.isSave`: a right answer (Good or Easy, not "Almost.") on a studied item whose recall
   was below 0.7 at that moment. It's the one definition for the headline, the sky's flare and "saved" count, quests
   and badges. The flare is published where the views play the verdict's cues (`SessionRunner.flareSave(of:)`), not
   when the answer is recorded.

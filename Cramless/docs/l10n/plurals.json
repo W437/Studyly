@@ -36,6 +36,18 @@
     "one": "%lld question",
     "other": "%lld questions"
   },
+  "%lld questions left": {
+    "one": "%lld question left",
+    "other": "%lld questions left"
+  },
+  "%lld days left": {
+    "one": "%lld day left",
+    "other": "%lld days left"
+  },
+  "Your %lld shakiest ideas": {
+    "one": "Your %lld shakiest idea",
+    "other": "Your %lld shakiest ideas"
+  },
   "%lld questions fading": {
     "one": "%lld question fading",
     "other": "%lld questions fading"

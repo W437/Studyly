@@ -1932,6 +1932,29 @@ for Stages 3 and 4 (none shared).
 - **App Privacy**, with the owner's approval: Other Data ▸ Other Data Types added (App Functionality, linked to the user, not
   tracking), matching the manifest; published on the website, 10 data types.
 
+## Clarity pass: inside a session (2026-11-08, lane `c-study`)
+
+Every study screen says each thing once, with its one action and its length in it.
+
+- **Top bar:** one solid bar like the mock's and "41 left" (counting down as answers are checked, up when a missed one comes back) in
+  place of 42 hairline ticks and a timer that counted up; the ⚡ run pill is gone (the panel's "3 in a row" says it).
+- **Over a question:** the topic only, one line, above the card for every kind (the kind label and its glyph are gone).
+- **A graded own-words answer:** the highlight, then "Almost." and "Add this: …". No ✓/✗ rows, no "Right so far", no "Counts as …"
+  (the rating is the grade's) and no "Grade again" ("Looks wrong?" disputes; a self-check grades again by itself once Cloud AI is
+  allowed). Secondary buttons only once the verdict is in.
+- **A flipped flashcard:** "← Again" and "Got it →" with no intervals (Undo says when it's back); Hard and Easy are the 2 and 4 keys and
+  VoiceOver actions; the swipe hint shows on the first three flashcards ever (`AppSettings.swipeHintsShown`); no tally.
+- **Summaries:** "6 of 9 right first time · 3 min" with a streak pill, one readiness card, the quests the session moved, Cap at 120 pt;
+  no tiles, topic rows or "Next session". A fix ends "Fixed" / "Anaphase vs telophase: 5 of 5 right."; "Fix it" is its one name. The
+  night before holds the five ideas itself ("Read these once · 2 min", "Good night" pinned); the last look opened alone is "Your 5
+  shakiest ideas" / "2 min · no quiz".
+- **Mock:** start "19 questions like the real one · 30 min" / "From this exam's topics. Marked at the end."; score "You scored 76%." /
+  "Cap expected 79%." and the topics to practice (no bars card, no verdict line).
+- **Out loud:** "23 questions · about 15 min", "Works with the screen off.", "Say “repeat”, “skip” or “stop” any time.", "Your voice
+  isn't recorded."; the ✕ does what "stop" does. **Teach Cap:** "Teach me “Cell cycle”, like I missed the class.", what Cap listens
+  for, and Done as the main button. **Harder question:** "Add it" closes the sheet with "Added. It replaces the easier one." and Undo
+  (`ToastAction.undoRung`). A save's verdict is "Just in time!" (on screen and spoken).
+
 ## Left for the owner
 
 - Accounts and keys (see README "Before the App Store"):
