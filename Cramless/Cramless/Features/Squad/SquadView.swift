@@ -4,7 +4,9 @@ import SwiftUI
 /// - The owner (bought Squad) sees the seats and members, invites a friend (a single-use code, shared as a link with
 ///   the code), and can remove a member.
 /// - A member (a seat on a friend's Squad) sees whose Squad it is, and can leave.
-/// - Without Squad: what it is ("You + 3 friends, $2.08 each a month"), the plans, and "Have a code?".
+/// - Without Squad: what it is ("You + 3 friends, $99.99 a year", then $2.08 each a month), and a button that buys it here ("Try 7 days free",
+///   or "Get Squad" with no free week), with the paywall's terms under it; then "Have a code?". An account under 13 sees
+///   `NoPurchaseView` instead. A purchase opens `PurchasedView` (the free week's reminder is asked for there), over the owner's page.
 ///
 /// - Owner and member alike see who has studied today, among those who share it, and have the switch to share it themselves (off until they turn it on).
 ///
@@ -17,7 +19,13 @@ struct SquadView: View {
     enum Role: Equatable { case owner, member, none }
 
     @Environment(AppModel.self) private var app
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.dynamicTypeSize) private var typeSize
     @State private var members: SquadMembers?
+    /// What the App Store said about a purchase that didn't go through.
+    @State private var purchaseNote: String?
+    /// Squad was just bought here: `PurchasedView` covers the page.
+    @State private var bought = false
     @State private var loadError: String?
     /// Why the switch went back.
     @State private var sharingError: LocalizedStringResource?
@@ -48,32 +56,35 @@ struct SquadView: View {
 
     var body: some View {
         let role = self.role
-        ScrollView {
-            VStack(alignment: .leading, spacing: 0) {
-                switch role {
-                case .owner: owner
-                case .member: member
-                case .none:
-                    if app.settings.canBuyPro {
-                        pitch
-                    } else {
-                        SettingsInfoCard(icon: "person.3.fill", tint: .mint, title: "Squad isn't available for accounts under 13",
-                                         text: "A Squad shares Pro, and Pro is Cloud AI's work, which isn't available for accounts under 13.")
-                            .clCard(padding: 0)
-                            .padding(.top, 10)
+        Group {
+            if role == .none && !app.settings.canBuyPro {
+                NoPurchaseView(primaryTitle: "Done") { dismiss() }
+            } else {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 0) {
+                        switch role {
+                        case .owner: owner
+                        case .member: member
+                        case .none: pitch
+                        }
                     }
+                    .padding(.horizontal, CLSpace.gutter)
+                    .padding(.top, 6)
+                    .padding(.bottom, 40)
+                    .frame(maxWidth: CLMetrics.readableWidth)
+                    .frame(maxWidth: .infinity)
                 }
             }
-            .padding(.horizontal, CLSpace.gutter)
-            .padding(.top, 6)
-            .padding(.bottom, 40)
-            .frame(maxWidth: CLMetrics.readableWidth)
-            .frame(maxWidth: .infinity)
         }
         .clScreenBackground()
         .navigationTitle("Squad")
         .navigationBarTitleDisplayMode(.inline)
         .task(id: role) { await load(role) }
+        .sheet(isPresented: $bought) {
+            PurchasedView(mode: .purchased(.squad), primaryTitle: "Done", onPrimary: { bought = false },
+                          onInvite: { bought = false })
+                .interactiveDismissDisabled()
+        }
         .confirmationDialog(removing.map { "Remove \($0.name) from your Squad?" } ?? "",
                             isPresented: Binding(get: { removing != nil }, set: { if !$0 { removing = nil } }),
                             titleVisibility: .visible, presenting: removing) { member in
@@ -199,39 +210,63 @@ struct SquadView: View {
     // MARK: No Squad
 
     private var pitch: some View {
-        let price = app.purchases.price(for: .squad)
-        let isPro = app.purchases.plan == .pro
+        let store = app.purchases
+        let price = store.price(for: .squad)
+        let trialDays = store.trialDays(for: .squad)
+        let isPro = store.plan == .pro
         return VStack(alignment: .leading, spacing: 0) {
             VStack(alignment: .leading, spacing: 12) {
                 SquadHeroArt()
                     .frame(maxWidth: .infinity)
-                CLEyebrow(text: "Squad", color: CLColor.mintInk)
-                Text("You + 3 friends, \(price.perSeatPerMonth) each a month")
+                // The billed amount leads; the share per person follows it.
+                Text("You + 3 friends, \(price.display) a year")
                     .clFont(.brandTitle(28))
                     .foregroundStyle(CLColor.ink)
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityAddTraits(.isHeader)
-                Text(isPro ? "You're on Pro. With Squad, three friends get every Pro feature too, on one plan."
-                     : "One plan, four people, every Pro feature. \(price.display) a year in all"
-                        + (app.purchases.trialDays(for: .squad).map { ", with \($0) days free." } ?? "."))
+                Text(isPro ? "You're on Pro. With Squad, three friends get every Pro feature too: \(price.perSeatPerMonth) each a month."
+                     : "One plan, every Pro feature for all four: \(price.perSeatPerMonth) each a month.")
                     .clFont(.callout)
                     .foregroundStyle(CLColor.ink2)
                     .fixedSize(horizontal: false, vertical: true)
                 VStack(alignment: .leading, spacing: 11) {
-                    PaywallBenefitRow(symbol: "sparkles", text: "Everyone gets every Pro feature")
                     PaywallBenefitRow(symbol: "link", text: "Invite friends with a link or a code")
                     PaywallBenefitRow(symbol: "person.crop.circle", text: "Each friend keeps their own account and notes")
                 }
                 .padding(.top, 4)
-                Button("See Squad") {
-                    CLHaptics.tap()
-                    app.router.present(.paywall(.feature(PaidFeature.squadSeats.paywallLine)))
+                if let purchaseNote {
+                    Label(purchaseNote, systemImage: "info.circle.fill")
+                        .clFont(.footnoteEmphasis)
+                        .foregroundStyle(CLColor.ink2)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.top, 4)
+                        .transition(.opacity)
+                }
+                Button(action: buySquad) {
+                    ZStack {
+                        Text(PaywallCopy.cta(for: .squad, price: price, trialDays: trialDays))
+                            .lineLimit(typeSize.isAccessibilitySize ? 3 : 1)
+                            .multilineTextAlignment(.center)
+                            .opacity(store.purchasing == .squad ? 0 : 1)
+                        if store.purchasing == .squad { ProgressView().tint(CLColor.onFill) }
+                    }
                 }
                 .buttonStyle(.cl(.primary))
+                .allowsHitTesting(store.purchasing == nil)
+                .accessibilityLabel(store.purchasing == .squad ? Text("Purchasing")
+                                    : Text(PaywallCopy.cta(for: .squad, price: price, trialDays: trialDays)))
                 .padding(.top, 8)
+                Text(PaywallCopy.terms(for: .squad, price: price, trialDays: trialDays))
+                    .clFont(.caption)
+                    .foregroundStyle(CLColor.ink3)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity)
+                    .contentTransition(.opacity)
             }
             .clCard(padding: 20)
             .padding(.top, 10)
+            .animation(CLMotion.settle, value: purchaseNote)
 
             CLList {
                 NavigationLinkRow(icon: "ticket", tint: .mint, title: "Have a code?",
@@ -240,6 +275,26 @@ struct SquadView: View {
                 }
             }
             .padding(.top, 16)
+        }
+    }
+
+    /// Buys Squad here. Bought, the page becomes the owner's and `PurchasedView` says what happens next.
+    private func buySquad() {
+        guard app.settings.canBuyPro, app.purchases.purchasing == nil else { return }
+        CLHaptics.tap()
+        purchaseNote = nil
+        Task {
+            switch await app.purchases.purchase(.squad) {
+            case .purchased:
+                CLHaptics.success()
+                bought = true
+            case .pending:
+                purchaseNote = "Waiting for approval. Squad starts as soon as it's approved."
+            case .cancelled:
+                purchaseNote = "No charge. You can start whenever you're ready."
+            case .failed(let failure):
+                purchaseNote = failure.message
+            }
         }
     }
 

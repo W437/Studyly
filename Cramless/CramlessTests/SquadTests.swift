@@ -15,6 +15,21 @@ final class SquadTests: AskTestCase {
         XCTAssertEqual(SquadView.role(allowsSeats: false, plan: .free), SquadView.Role.none)
     }
 
+    /// The Squad page sells Squad itself (no detour through the paywall), with the paywall's terms, and an account under 13 sees
+    /// `NoPurchaseView` there. Read from its source: these are the guards of a way to a purchase.
+    func testTheSquadPageBuysSquadWithItsTermsAndItsGuard() throws {
+        let url = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("Cramless/Features/Squad/SquadView.swift")
+        let source = try String(contentsOf: url, encoding: .utf8)
+        XCTAssertTrue(source.contains("purchase(.squad)"))
+        XCTAssertTrue(source.contains("PaywallCopy.terms(for: .squad"))
+        XCTAssertTrue(source.contains("NoPurchaseView("))
+        XCTAssertTrue(source.contains("canBuyPro"))
+        XCTAssertFalse(source.contains(".paywall("), "the button buys, it doesn't open another sales sheet")
+        XCTAssertFalse(source.contains("CLEyebrow(text: \"Squad\""), "the title says it")
+        XCTAssertFalse(source.contains("Everyone gets every Pro feature"), "said once, in the line under the title")
+    }
+
     func testCodesFromLinksAndTyping() {
         XCTAssertEqual(SquadRedeemView.normalize("https://capling.app/squad/cap-7q4k"), "CAP-7Q4K")
         XCTAssertEqual(SquadRedeemView.normalize("  cap 7q4k \n"), "CAP7Q4K")
