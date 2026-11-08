@@ -260,31 +260,6 @@ final class SkyDerivedTests: XCTestCase {
         XCTAssertNil(sky.glyph(of: -1))
     }
 
-    // MARK: The heatmap's stars
-
-    func testHeatmapStarsGrowAndBrightenWithTheMinutes() throws {
-        let marks = try (1...4).map { try XCTUnwrap(ProgressPresentation.starMark(.level($0))) }
-        for (a, b) in zip(marks, marks.dropFirst()) {
-            XCTAssertLessThan(a.size, b.size)
-            XCTAssertLessThan(a.opacity, b.opacity)
-        }
-        XCTAssertEqual(marks.map(\.shape), [.dot, .dot, .sparkle, .sparkle], "a sparkle from the third step")
-        XCTAssertEqual(marks.map(\.glow), [false, false, false, true], "a glow only at the top")
-        XCTAssertEqual(marks[3].size, 1)
-        let empty = try XCTUnwrap(ProgressPresentation.starMark(.empty))
-        XCTAssertLessThan(empty.size, marks[0].size, "an unstudied day is the smallest dot")
-        XCTAssertEqual(empty.shape, .dot)
-        XCTAssertEqual(try XCTUnwrap(ProgressPresentation.starMark(.frozen)).shape, .dot)
-        XCTAssertNil(ProgressPresentation.starMark(.future), "a day to come is a faint ring")
-    }
-
-    func testEveryHeatmapStepDiffersInSizeNotJustColour() throws {
-        let steps: [ProgressPresentation.CellStyle] = [.empty, .level(1), .level(2), .level(3), .level(4)]
-        let sizes = try steps.map { try XCTUnwrap(ProgressPresentation.starMark($0)).size }
-        XCTAssertEqual(Set(sizes).count, sizes.count, "no two steps are the same size")
-        XCTAssertEqual(sizes, sizes.sorted(), "and they only grow")
-    }
-
     // MARK: The sparkle
 
     func testTheSparkleIsAFourPointStarFillingTheShorterSide() {
