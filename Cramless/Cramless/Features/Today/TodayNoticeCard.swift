@@ -1,8 +1,8 @@
 import SwiftUI
 
-/// "Cap noticed": one of Cap's cards (`CapNotice`) at a time, with "2 of 3" when there are others today, its one action, "Later" (until
-/// tomorrow) and what the button costs. Today shows the first of `AppModel.todayNotices()`. The menu's "Don't show these" switches the
-/// kind off (Settings ▸ Study turns it on again). "Plan updated" (after "Fix my week") has "OK" and Undo instead.
+/// "Cap noticed": one of Cap's cards (`CapNotice`) at a time, with its one action, "Later" (until tomorrow) and "Uses Cloud AI" when the
+/// button does. Today shows the first of `AppModel.todayNotices()`; the next one takes its place after "Later". The menu's "Don't show
+/// these" switches the kind off (Settings ▸ Study turns it on again). "Plan updated" (after "Fix my week") has "OK" and Undo instead.
 ///
 /// DEBUG: `CRAMLESS_TODAY_NOTICES=0|1|2|3` deals that many (see `TodaySnapshot`), `CRAMLESS_NOTICES=mixup,lookalike,fading,back,mock,gap,lecturedate|all|none`
 /// shapes the world so the real engine finds them and `CRAMLESS_NOTICE_STATE=second|later|done|allLater` puts them part way through the
@@ -10,9 +10,6 @@ import SwiftUI
 /// launch (`TodayView`).
 struct TodayNoticeCard: View {
     let notice: CapNotice
-    /// Its place among today's cards, from 1, and how many there are.
-    let index: Int
-    let total: Int
     var onAction: (CapNotice.Action) -> Void
     var onLater: () -> Void
     var onOpen: (CapNotice.Link) -> Void
@@ -29,13 +26,6 @@ struct TodayNoticeCard: View {
                 HStack(alignment: large ? .center : .firstTextBaseline) {
                     if large { CapFace(size: 44) } else { eyebrow }
                     Spacer(minLength: 8)
-                    if total > 1, !notice.isConfirmation {
-                        Text(verbatim: TodayCopy.noticeCount(index, of: total))
-                            .clFont(.footnoteEmphasis)
-                            .foregroundStyle(CLColor.ink3)
-                            .monospacedDigit()
-                            .accessibilityHidden(true)
-                    }
                     if !notice.isConfirmation { menu }
                 }
                 // The menu's hit area reaches over the title's first line; it stays on top.
@@ -53,8 +43,7 @@ struct TodayNoticeCard: View {
         }
         .clCard()
         .accessibilityElement(children: .contain)
-        .accessibilityLabel(Text(verbatim: total > 1 ? "\(String(localized: "Cap noticed")), \(TodayCopy.noticeCount(index, of: total))"
-                                 : String(localized: "Cap noticed")))
+        .accessibilityLabel(Text("Cap noticed"))
     }
 
     private var eyebrow: some View {
@@ -62,7 +51,7 @@ struct TodayNoticeCard: View {
             .accessibilityHidden(true)
     }
 
-    /// A button's words are never cut: what it costs goes beside the buttons when all of it fits, and under them when it doesn't.
+    /// A button's words are never cut: "Uses Cloud AI" goes beside the buttons when all of it fits, and under them when it doesn't.
     @ViewBuilder private var buttons: some View {
         if notice.isConfirmation {
             ReflowStack(verticalAlignment: .center, spacing: 6) {

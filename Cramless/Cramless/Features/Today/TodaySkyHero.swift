@@ -2,7 +2,7 @@ import SwiftUI
 
 /// The top of Today: a short band of your memory sky (`HeroWorld`, `HeroWorldGeometry.band`), edge to edge and up behind the status
 /// bar, with the date and a greeting ("Good afternoon, Maya"), the streak and your avatar on it, Cap standing on the shore at the
-/// bottom left and "17 stars dimming" at the bottom right. Tap the band (or the pill) and the full sky opens; pull the page down
+/// bottom left and "17 to review" at the bottom right. Tap the band (or the pill) and the full sky opens; pull the page down
 /// and the sky refreshes.
 ///
 /// At the accessibility text sizes the band is low with only the streak and the avatar on it; the date and the greeting move
@@ -58,13 +58,13 @@ struct TodaySkyHero: View {
         }
     }
 
-    /// "17 stars dimming ›": what is fading in the sky, and the cue that it opens. For a moment after a refresh it says so instead.
+    /// "17 to review ›": the sky's stars that need a review, and the cue that it opens. For a moment after a refresh it says so instead.
     private var starsPill: some View {
         // A finger opens the sky here; VoiceOver does it from the band itself, so the pill stays hidden from it.
         Button(action: onOpenSky) {
             HStack(spacing: 6) {
                 Text(verbatim: showsFresh ? String(localized: "Sky refreshed")
-                     : TodayCopy.starsPill(stars: snapshot.sky.starCount, dimming: snapshot.sky.dimCount))
+                     : TodayCopy.starsPill(stars: snapshot.sky.starCount, toReview: snapshot.sky.dimCount))
                     .clFont(.footnoteEmphasis)
                     .lineLimit(1)
                     .contentTransition(.opacity)

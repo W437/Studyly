@@ -2,16 +2,17 @@ import SwiftUI
 import XCTest
 @testable import Cramless
 
-/// What Today's day card says and offers on each kind of day: the chip (who the day is for and when), the title, one reason, the
-/// rings (now and about where today takes it), one big button (or none, with a title that says what the day is), "Why these?", Cap
+/// What Today's day card says and offers on each kind of day: the chip (the exam and its day, which opens it), one ring with its
+/// readiness, the title, at most one short line, one big button (or none, with a title that says what the day is), "Why these?", Cap
 /// in the band in the right mood and the sky in the right state.
 final class TodayHeroContentTests: XCTestCase {
     private let examID = UUID()
 
-    private func summary(planned: Int = 15, reviews: Int = 18, new: Int = 6, weak: Int = 2, done: Int = 0, goal: Int = 15,
-                         ready: Bool = true, due: Int = 0, days: Int = 0) -> TodaySummary {
+    private func summary(planned: Int = 15, questions: Int = 7, reviews: Int = 18, new: Int = 6, weak: Int = 2, done: Int = 0,
+                         goal: Int = 15, ready: Bool = true, due: Int = 0, days: Int = 0) -> TodaySummary {
         var s = TodaySummary()
         s.plannedMinutes = planned
+        s.plannedQuestions = questions
         s.reviews = reviews
         s.newItems = new
         s.weakSpots = weak
@@ -23,58 +24,50 @@ final class TodayHeroContentTests: XCTestCase {
         return s
     }
 
-    private func exam(readiness: Double = 0.42, scope: Int = 7) -> TodayExam {
-        TodayExam(id: examID, title: "Chem 110 Quiz", courseName: "Chem 110", color: .tangerine,
-                  date: Date(timeIntervalSince1970: 1_790_000_000), daysLeft: 2, readiness: readiness, delta: 0.05,
-                  when: "Sun · in 2 days", itemsInScope: scope, deltaToday: 0.1)
+    private func exam(readiness: Double = 0.42) -> TodayExam {
+        TodayExam(id: examID, title: "Chem 110 Quiz", courseName: "Chem 110", date: Date(timeIntervalSince1970: 1_790_000_000), daysLeft: 2,
+                  readiness: readiness, day: "Tue", daySpoken: "Tuesday")
     }
 
-    private func focus(forecast: Double = 0.52, scope: Int = 7, topics: [String] = ["Limiting reagents", "Stoichiometry"],
-                       weak: Int = 2, due: Int = 12, new: Int = 0) -> TodayFocus {
-        TodayFocus(exam: exam(scope: scope), topics: topics, forecast: forecast, weakCount: weak, dueCount: due, newCount: new)
+    private func focus(topics: [String] = ["Limiting reagents", "Stoichiometry"], questions: Int = 7) -> TodayFocus {
+        TodayFocus(exam: exam(), topics: topics, questions: questions)
     }
 
-    private func snapshot(_ hero: TodayHero, _ s: TodaySummary? = nil, answers: Int = 0, focus: TodayFocus? = nil,
-                          eveHasWork: Bool = true) -> TodaySnapshot {
-        var snap = TodaySnapshot(hero: hero, summary: s ?? summary(), streak: StreakState(), answersToday: answers,
-                                 exams: [exam()], firstCourseID: nil, initials: "M")
+    private func snapshot(_ hero: TodayHero, _ s: TodaySummary? = nil, focus: TodayFocus? = nil, eveHasWork: Bool = true,
+                          exams: [TodayExam]? = nil) -> TodaySnapshot {
+        var snap = TodaySnapshot(hero: hero, summary: s ?? summary(), streak: StreakState(), answersToday: 0,
+                                 exams: exams ?? [exam()], firstCourseID: nil, initials: "M")
         snap.focus = focus
         snap.eveHasWork = eveHasWork
         snap.eveTopics = ["Limiting reagents", "Stoichiometry"]
         return snap
     }
 
-    private func content(_ hero: TodayHero, _ s: TodaySummary? = nil, answers: Int = 0, focus: TodayFocus? = nil,
-                         eveHasWork: Bool = true) -> TodayHeroContent {
-        TodayHeroContent.make(snapshot(hero, s, answers: answers, focus: focus, eveHasWork: eveHasWork))
+    private func content(_ hero: TodayHero, _ s: TodaySummary? = nil, focus: TodayFocus? = nil, eveHasWork: Bool = true) -> TodayHeroContent {
+        TodayHeroContent.make(snapshot(hero, s, focus: focus, eveHasWork: eveHasWork))
     }
 
     private func text(_ r: LocalizedStringResource) -> String { String(localized: r) }
 
-    // MARK: The days
-
-    func testTheCardSaysTheWholeSessionOnlyWhenItHoldsMoreThanTheExams() {
-        var whole = summary()
-        whole.plannedQuestions = 39
-        var mine = focus(weak: 0, due: 6, new: 1)
-        mine.questions = 7
-        XCTAssertEqual(content(.session, whole, focus: mine).reason,
-                       "6 questions you're about to forget and 1 new one for this exam. About 39 questions fit in today's session.")
-        whole.plannedQuestions = 7
-        XCTAssertEqual(content(.session, whole, focus: mine).reason, "6 questions you're about to forget, and 1 new one.")
+    /// The words above the button: the chip, the ring's words, the title and the line.
+    private func wordsAboveTheButton(_ c: TodayHeroContent) -> Int {
+        let parts = [c.chip?.text, c.readiness.map(TodayCopy.ready), c.title, c.line].compactMap { $0 }
+        return parts.joined(separator: " ").split(whereSeparator: { $0 == " " || $0 == "·" }).count
     }
 
-    func testAPlanDayNamesItsExamTopicsAndWhereTodayTakesIt() throws {
+    // MARK: The days
+
+    func testAPlanDayIsTheChipTheTitleOneRingAndTheButton() throws {
         let c = content(.session, focus: focus())
-        XCTAssertEqual(c.chip?.text, "For Chem 110 Quiz")
-        XCTAssertEqual(c.chip?.tone, .exam)
-        XCTAssertEqual(c.when, "Sun · in 2 days")
+        let chip = try XCTUnwrap(c.chip)
+        XCTAssertEqual(chip.text, "Chem 110 Quiz · Tue", "no \"For\"")
+        XCTAssertEqual(chip.spoken, "Chem 110 Quiz, Tuesday")
+        XCTAssertEqual(chip.tone, .exam)
+        XCTAssertEqual(chip.link, .exam(examID), "the chip opens the exam")
+        XCTAssertEqual(c.readiness, 0.42, "one ring: readiness now")
+        XCTAssertEqual(TodayCopy.ready(0.42), "42% ready")
         XCTAssertEqual(c.title, "Limiting reagents and Stoichiometry")
-        XCTAssertEqual(c.reason, "The weakest topics for this exam, plus 12 questions you're about to forget.")
-        let rings = try XCTUnwrap(c.rings)
-        XCTAssertEqual(rings.now, 0.42)
-        XCTAssertEqual(rings.after, 0.52)
-        XCTAssertEqual(rings.footnote, "Based on 7 questions so far.", "a quiz with few questions says so")
+        XCTAssertNil(c.line, "no paragraph: the reasons are in Why these?")
         let action = try XCTUnwrap(c.actions.first)
         XCTAssertEqual(c.actions.count, 1)
         XCTAssertEqual(text(action.title), "Study · 15 min")
@@ -85,14 +78,31 @@ final class TodayHeroContentTests: XCTestCase {
         XCTAssertEqual(c.sky, .live)
         XCTAssertEqual(c.cap.pose, .stargaze)
         XCTAssertTrue(c.twinkles)
+        XCTAssertLessThanOrEqual(wordsAboveTheButton(c), 12, "a dozen words at most to read before Study")
     }
 
-    func testTheForecastShowsOnlyWhenTodayMovesItAPointAndTheFootnoteOnlyForAFewQuestions() throws {
-        let flat = try XCTUnwrap(content(.session, focus: focus(forecast: 0.425, scope: 40)).rings)
-        XCTAssertNil(flat.after, "under a point it is not a projection worth drawing")
-        XCTAssertNil(flat.footnote)
-        XCTAssertNotNil(try XCTUnwrap(content(.session, focus: focus(forecast: 0.43, scope: 15)).rings).after)
-        XCTAssertNil(try XCTUnwrap(content(.session, focus: focus(scope: 15)).rings).footnote, "15 is enough")
+    /// An exam a few days off with a fifth of the session doesn't claim the title: the courses do, soonest exam first. The session is
+    /// the same.
+    func testWhenTheExamHasLessThanHalfTheSessionTheTitleNamesTheCourses() throws {
+        var snap = snapshot(.session, summary(questions: 42), focus: focus(questions: 7))
+        snap.sessionCourses = ["Chem 110", "Bio 101", "AP Psychology"]
+        var c = TodayHeroContent.make(snap)
+        XCTAssertEqual(c.title, "Chem 110, Bio 101, and AP Psychology")
+        XCTAssertEqual(c.chip?.text, "Chem 110 Quiz · Tue")
+        XCTAssertEqual(c.readiness, 0.42)
+        XCTAssertEqual(try XCTUnwrap(c.actions.first).kind, .session(.daily, minutes: nil, examID: nil))
+
+        // Half or more: its topics.
+        snap.focus = focus(questions: 21)
+        XCTAssertEqual(TodayHeroContent.make(snap).title, "Limiting reagents and Stoichiometry")
+        // Four courses: three named, the rest counted.
+        snap.focus = focus(questions: 7)
+        snap.sessionCourses = ["Chem 110", "Bio 101", "AP Psychology", "Spanish II"]
+        XCTAssertEqual(TodayHeroContent.make(snap).title, "Chem 110, Bio 101, AP Psychology, and 1 more")
+        // One course only (two exams in it): its topics say more than its name.
+        snap.sessionCourses = ["Chem 110"]
+        c = TodayHeroContent.make(snap)
+        XCTAssertEqual(c.title, "Limiting reagents and Stoichiometry")
     }
 
     func testMoreThanTwoTopicsAreCountedAndNeverChainedWithThen() {
@@ -102,90 +112,108 @@ final class TodayHeroContentTests: XCTestCase {
         XCTAssertEqual(content(.session, focus: focus(topics: [])).title, "Chem 110 Quiz", "no topics: the exam itself")
     }
 
-    func testWithNoExamToNameTheCardHasNoChipAndNoRings() throws {
+    func testWithNoExamTheSessionServesTheCardHasNoChipAndNoRing() throws {
         var snap = snapshot(.session)
         snap.sessionTopics = ["Cell cycle", "Moles"]
         let c = TodayHeroContent.make(snap)
-        XCTAssertNil(c.chip)
-        XCTAssertNil(c.rings)
-        XCTAssertNil(c.when)
+        XCTAssertNil(c.chip, "exams exist, the session serves none of them")
+        XCTAssertNil(c.readiness)
+        XCTAssertNil(c.line)
         XCTAssertEqual(c.title, "Cell cycle and Moles")
-        XCTAssertEqual(c.reason, "Your weakest topics, plus 18 questions you're about to forget.")
         XCTAssertEqual(text(try XCTUnwrap(c.actions.first).title), "Study · 15 min")
         XCTAssertTrue(c.showsWhy)
     }
 
-    func testPartWayThroughTheGoalTheReasonSaysHowFarAndTheButtonHowMuchIsLeft() throws {
-        let c = content(.session, summary(planned: 9, done: 6), focus: focus())
-        XCTAssertEqual(text(try XCTUnwrap(c.actions.first).title), "Study · 9 min")
-        XCTAssertTrue(c.reason.hasPrefix("6 of 15 minutes done. "), c.reason)
+    func testWithNoExamAtAllTheChipOffersOne() throws {
+        var snap = snapshot(.session, exams: [])
+        snap.sessionTopics = ["Cell cycle"]
+        let chip = try XCTUnwrap(TodayHeroContent.make(snap).chip)
+        XCTAssertEqual(chip.text, "Add exam")
+        XCTAssertEqual(chip.link, .addExam)
+        XCTAssertEqual(chip.tone, .add)
+        XCTAssertEqual(TodayHeroContent.make(snapshot(.caughtUp, summary(ready: false), exams: [])).chip?.link, .addExam)
+        XCTAssertNil(TodayHeroContent.make(snapshot(.noMaterial, exams: [])).chip, "first the material")
     }
 
-    func testCatchUpIsTheSameCardWithTheBacklogAsItsReasonAndTheSameWord() throws {
+    func testPartWayThroughTheGoalTheLineSaysHowFarAndTheButtonHowMuchIsLeft() throws {
+        let c = content(.session, summary(planned: 9, done: 6), focus: focus())
+        XCTAssertEqual(text(try XCTUnwrap(c.actions.first).title), "Study · 9 min")
+        XCTAssertEqual(c.line, "6 of 15 minutes done.")
+    }
+
+    func testCatchUpIsTheSameCardWithTheBacklogAsItsLine() throws {
         let c = content(.catchUp, summary(due: 142, days: 4), focus: focus())
         let action = try XCTUnwrap(c.actions.first)
         XCTAssertEqual(text(action.title), "Study · 15 min", "one word for the day's job")
         XCTAssertEqual(action.request?.kind, .catchUp)
-        XCTAssertEqual(c.chip?.text, "For Chem 110 Quiz")
-        XCTAssertTrue(c.reason.hasPrefix("142 reviews piled up. At 15 minutes a day they're cleared in 4 days"), c.reason)
-        XCTAssertTrue(content(.catchUp, summary(due: 1, days: 1)).reason.hasPrefix("1 review piled up. At 15 minutes a day they're cleared in a day"))
+        XCTAssertEqual(c.chip?.text, "Chem 110 Quiz · Tue")
+        XCTAssertEqual(c.line, "Catching up: about 4 days at 15 minutes a day.", "no second count beside the band's")
+        XCTAssertEqual(content(.catchUp, summary(due: 1, days: 1)).line, "Catching up: about a day at 15 minutes a day.")
     }
 
-    func testExamEveOffersTonightsTenMinutesOnItsWeakSpots() throws {
+    func testTheNightBeforeOffersTonightsMinutesOnItsWeakSpots() throws {
         let c = content(.examEve(examID))
         let action = try XCTUnwrap(c.actions.first)
         XCTAssertEqual(text(action.title), "Tonight · 10 min")
         XCTAssertEqual(action.kind, .session(.examEve, minutes: nil, examID: examID))
         XCTAssertEqual(action.request?.examID, examID)
-        XCTAssertEqual(c.chip?.text, "Chem 110 Quiz")
+        XCTAssertEqual(c.chip?.text, "Chem 110 Quiz · Tue")
         XCTAssertEqual(c.chip?.symbol, "moon.stars.fill")
+        XCTAssertEqual(c.chip?.link, .exam(examID))
         XCTAssertEqual(c.title, "Tonight: weak spots only")
-        XCTAssertEqual(c.reason, "10 minutes on Limiting reagents and Stoichiometry, then sleep. That's the whole plan tonight.")
+        XCTAssertEqual(c.line, "Limiting reagents and Stoichiometry, then sleep.")
         XCTAssertEqual(c.sky, .regionLit(examID))
-        XCTAssertNil(c.rings)
+        XCTAssertNil(c.readiness, "the night before is calm: no number")
         XCTAssertFalse(c.showsWhy)
         XCTAssertTrue(c.twinkles)
     }
 
-    /// The button, its spoken words and the reason all say the session's own minutes.
-    func testTheEveSaysItsSessionsOwnMinutes() throws {
+    /// The button and its spoken words say the session's own minutes.
+    func testTheNightBeforeSaysItsSessionsOwnMinutes() throws {
         var snap = snapshot(.examEve(examID))
         snap.eveMinutes = 4
-        var c = TodayHeroContent.make(snap)
-        var action = try XCTUnwrap(c.actions.first)
+        var action = try XCTUnwrap(TodayHeroContent.make(snap).actions.first)
         XCTAssertEqual(text(action.title), "Tonight · 4 min")
         XCTAssertEqual(text(try XCTUnwrap(action.spoken)), "Tonight, 4 minutes")
-        XCTAssertEqual(c.reason, "4 minutes on Limiting reagents and Stoichiometry, then sleep. That's the whole plan tonight.")
         snap.eveMinutes = 1
         snap.eveTopics = []
-        c = TodayHeroContent.make(snap)
+        let c = TodayHeroContent.make(snap)
         action = try XCTUnwrap(c.actions.first)
         XCTAssertEqual(text(action.title), "Tonight · 1 min")
         XCTAssertEqual(text(try XCTUnwrap(action.spoken)), "Tonight, 1 minute")
-        XCTAssertEqual(c.reason, "1 minute on your weak spots, then sleep. That's the whole plan tonight.")
+        XCTAssertEqual(c.line, "Then sleep. That's the whole plan tonight.")
     }
 
-    func testExamEveWithNothingWeakSaysSleepInsteadOfOfferingWork() throws {
+    func testTwoExamsSharingTheEveningAreBothOnTheChip() throws {
+        var snap = snapshot(.examEve(examID))
+        var bio = exam()
+        bio.id = UUID()
+        bio.title = "Bio 101 Midterm"
+        snap.exams = [exam(), bio]
+        snap.summary.examEveExamIDs = [examID, bio.id]
+        XCTAssertEqual(TodayHeroContent.make(snap).chip?.text, "Chem 110 Quiz and Bio 101 Midterm · Tomorrow")
+    }
+
+    func testTheNightBeforeWithNothingWeakSaysSleepInsteadOfOfferingWork() throws {
         let c = content(.examEve(examID), eveHasWork: false)
         XCTAssertTrue(c.actions.isEmpty)
         XCTAssertEqual(c.title, "Nothing left to review tonight")
         XCTAssertEqual(c.cap, .asleep)
         XCTAssertFalse(c.twinkles, "the sky settles")
         XCTAssertEqual(c.sky, .regionLit(examID))
-        XCTAssertEqual(c.reason, "Chem 110 Quiz is tomorrow. Sleep is part of studying.")
+        XCTAssertEqual(c.line, "Sleep is part of studying.", "the chip already says when")
     }
 
-    func testAfterTheEveSessionTheSkySettlesAndCapSleeps() throws {
+    func testAfterTheNightBeforesSessionTheSkySettlesAndCapSleeps() throws {
         let c = content(.examEveDone(examID))
         XCTAssertTrue(c.actions.isEmpty)
         XCTAssertEqual(c.title, "That's enough for today")
         XCTAssertEqual(c.cap, .asleep)
         XCTAssertFalse(c.twinkles)
-        XCTAssertTrue(c.reason.hasPrefix("Chem 110 Quiz is tomorrow at "), c.reason)
-        XCTAssertTrue(c.reason.hasSuffix("Sleep is part of studying."))
+        XCTAssertEqual(c.line, "Sleep is part of studying.")
     }
 
-    func testOnceTheEveSessionIsDoneTheLastLookIsAQuietButton() throws {
+    func testOnceTheNightBeforesSessionIsDoneTheLastLookIsAQuietButton() throws {
         var snap = snapshot(.examEveDone(examID))
         snap.lastLookIdeas = 5
         let c = TodayHeroContent.make(snap)
@@ -205,28 +233,29 @@ final class TodayHeroContentTests: XCTestCase {
         XCTAssertTrue(TodayHeroContent.make(rest).actions.isEmpty)
     }
 
-    func testDoneIsBrightTonightWithTheExamItMovedAndAnOptionalExtra() throws {
-        var snap = snapshot(.done, summary(done: 15), answers: 24)
-        snap.doneExam = TodayDoneExam(title: "Chem 110 Quiz", readiness: 0.52, deltaToday: 0.10, daysLeft: 2)
+    func testDoneNamesTheExamItMovedAndOffersAnOptionalExtra() throws {
+        var snap = snapshot(.done, summary(done: 15))
+        snap.doneExam = exam(readiness: 0.52)
         let c = TodayHeroContent.make(snap)
-        XCTAssertEqual(c.chip?.text, "Done for today")
-        XCTAssertEqual(c.chip?.tone, .done)
-        XCTAssertEqual(c.when, "15 min · 24 answers")
-        XCTAssertEqual(c.title, "Bright tonight")
-        XCTAssertEqual(c.reason, "Back tomorrow. Your streak is safe.")
-        let line = try XCTUnwrap(c.ringLine)
-        XCTAssertEqual(line.title, "Chem 110 Quiz: 52% ready")
-        XCTAssertEqual(line.detail, "+10% today · 2 days to go")
+        XCTAssertEqual(c.chip?.text, "Chem 110 Quiz · Tue")
+        XCTAssertEqual(c.readiness, 0.52)
+        XCTAssertEqual(c.title, "Done for today")
+        XCTAssertEqual(c.line, "Back tomorrow. Your streak is safe.")
         let extra = try XCTUnwrap(c.actions.first)
         XCTAssertEqual(c.actions.count, 1)
         XCTAssertEqual(text(extra.title), "5 more minutes")
         XCTAssertFalse(extra.prominent, "nothing is asked of you tonight")
         XCTAssertEqual(extra.kind, .session(.daily, minutes: 5, examID: nil))
         XCTAssertEqual(c.cap.pose, .proud)
-        // With nothing left in the queue, the extra is a practice round; with no exam studied for, no ring line.
-        let practice = content(.done, summary(done: 6, ready: false), answers: 6)
+        // With nothing left in the queue, the extra is a practice round; with no exam studied for, no chip and no ring.
+        let practice = content(.done, summary(done: 6, ready: false))
         XCTAssertEqual(try XCTUnwrap(practice.actions.first).kind, .session(.practice, minutes: 5, examID: nil))
-        XCTAssertNil(practice.ringLine)
+        XCTAssertNil(practice.chip)
+        XCTAssertNil(practice.readiness)
+        // Quiet mode says nothing about the streak.
+        var quiet = snapshot(.done, summary(done: 15))
+        quiet.quiet = true
+        XCTAssertEqual(TodayHeroContent.make(quiet).line, "Back tomorrow.")
     }
 
     func testAllLitOffersAPracticeOnTheTopicRememberedLeast() throws {
@@ -235,8 +264,7 @@ final class TodayHeroContentTests: XCTestCase {
         snap.practice = TodayPractice(name: "Limiting reagents", topicID: topic, courseID: course)
         let c = TodayHeroContent.make(snap)
         XCTAssertEqual(c.title, "All lit")
-        XCTAssertEqual(c.reason, "Nothing due right now. A short practice on Limiting reagents keeps it fresh.",
-                       "the reason names the topic: the button may be too narrow to")
+        XCTAssertEqual(c.line, "Nothing to review right now.")
         let action = try XCTUnwrap(c.actions.first)
         XCTAssertEqual(text(action.title), "Practice Limiting reagents · 5 min")
         XCTAssertEqual(text(try XCTUnwrap(action.shortTitle)), "Practice · 5 min")
@@ -249,16 +277,17 @@ final class TodayHeroContentTests: XCTestCase {
         XCTAssertEqual(c.cap.pose, .relax)
         let noTopic = content(.caughtUp, summary(ready: false))
         XCTAssertEqual(text(try XCTUnwrap(noTopic.actions.first).title), "Practice · 5 min", "with no topic to name, a short practice")
-        XCTAssertEqual(noTopic.reason, "Nothing due right now. A short practice keeps it fresh.")
     }
 
     func testWithNoQuestionsYetTheSkyIsUnlitOutlinesAndTheWayInIsASamplePage() throws {
-        for (hero, title) in [(TodayHero.empty, "Let's make your first set"), (.noMaterial, "Add your first material")] {
+        for (hero, title, line) in [(TodayHero.empty, "Let's make your first set", "Capling turns a page from class into questions."),
+                                    (.noMaterial, "Add your first material", "One page from class is enough to start.")] {
             let c = content(hero)
             XCTAssertEqual(c.sky, .outline, "\(hero)")
             XCTAssertEqual(c.title, title)
+            XCTAssertEqual(c.line, line)
             XCTAssertNil(c.chip)
-            XCTAssertNil(c.rings)
+            XCTAssertNil(c.readiness)
             XCTAssertFalse(c.showsWhy)
             XCTAssertEqual(c.actions.map(\.kind), [.sample, .scan])
             XCTAssertEqual(c.actions.map(\.prominent), [true, false])
@@ -271,25 +300,27 @@ final class TodayHeroContentTests: XCTestCase {
 
     // MARK: Rules that hold on every day
 
-    func testEveryDayHasAReasonAtMostOneBigButtonAndSomethingToSay() {
+    func testEveryDayHasATitleAtMostOneShortLineOneBigButtonAndOneNumber() {
         let heroes: [TodayHero] = [.empty, .noMaterial, .session, .catchUp, .examEve(examID), .examEveDone(examID), .done, .caughtUp]
         for hero in heroes {
             for work in [true, false] {
                 for f in [nil, focus()] {
-                    let c = content(hero, summary(done: 15), answers: 3, focus: f, eveHasWork: work)
-                    XCTAssertFalse(c.reason.isEmpty, "\(hero)")
+                    let c = content(hero, summary(done: 15, due: 142, days: 4), focus: f, eveHasWork: work)
                     XCTAssertFalse(c.title.isEmpty, "\(hero)")
                     XCTAssertLessThanOrEqual(c.actions.count, 2, "\(hero)")
                     XCTAssertLessThanOrEqual(c.actions.filter(\.prominent).count, 1, "\(hero): one big button")
                     XCTAssertTrue(CapPose.drawn.contains(c.cap.pose), "\(hero)")
-                    for words in [c.title, c.reason] {
+                    if let line = c.line {
+                        XCTAssertLessThanOrEqual(line.split(separator: " ").count, 12, "\(hero): a short line: \(line)")
+                    }
+                    for words in [c.title, c.line ?? "", c.chip?.text ?? ""] {
                         XCTAssertFalse(words.localizedCaseInsensitiveContains(" cards"), "\(hero): questions, not cards")
-                        // "then sleep" on the eve is the plan for the night; between topics there is never a "then".
+                        XCTAssertFalse(words.contains("%"), "\(hero): the ring's words are the one number")
+                        XCTAssertFalse(words.contains("forget"), "\(hero): to review")
+                        XCTAssertFalse(words.hasPrefix("For "), "\(hero): the chip names the exam")
+                        // "then sleep" on the night before is the plan for the night; between topics there is never a "then".
                         XCTAssertFalse(words.replacingOccurrences(of: ", then sleep", with: "").contains(" then "),
                                        "\(hero): the session interleaves; no 'then' between topics")
-                    }
-                    if let rings = c.rings {
-                        XCTAssertGreaterThanOrEqual(rings.after ?? rings.now, rings.now, "\(hero): a forecast never goes down")
                     }
                 }
             }

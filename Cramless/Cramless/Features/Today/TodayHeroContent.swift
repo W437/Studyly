@@ -1,26 +1,27 @@
 import Foundation
 
 /// What Today says and offers on each kind of day, as plain values, so every state is tested without a view: Cap and the sky in
-/// the band (`TodaySkyHero`), and the day card under it (`TodayDayCard`): a chip naming the exam and when it is, a title, one reason,
-/// the readiness rings (now and about N% after today), the day's one button and "Why these?".
+/// the band (`TodaySkyHero`), and the day card under it (`TodayDayCard`): a chip naming the exam and its day (a tap opens it) with
+/// its readiness beside it, a title, at most one short line, the day's one button and "Why these?".
 ///
-/// | Day | Chip | Title | Button |
-/// |---|---|---|---|
-/// | Plan (a session for one exam) | "For Chem 110 Quiz" · "Sun · in 2 days" | up to two topics | "Study · 15 min" |
-/// | Catch-up | the same | the same, the backlog as the reason | "Study · 15 min" |
-/// | No exam (or none the session serves, `SessionFocus`) | none | its topics or courses | "Study · 15 min" |
-/// | Exam eve | moon, the exam · "Tomorrow · 10:00" | "Tonight: weak spots only" | "Tonight · 4 min" (the session's own minutes) |
-/// | Eve, nothing weak | the same | "Nothing left to review tonight" | none |
-/// | Eve, done | the same | "That's enough for today" | "Your last look" (quiet), when it has ideas |
-/// | Done | "Done for today" · "15 min · 24 answers" | "Bright tonight" | "5 more minutes" (quiet) |
-/// | All lit | none | "All lit" | "Practice Limiting reagents · 5 min", or "Practice · 5 min" when that doesn't fit |
-/// | No questions yet | none | "Let's make your first set" / "Add your first material" | "Try a sample page", "Scan a page" |
+/// The line is there only where it says something the title and the button don't.
+///
+/// | Day | Chip · ring | Title | Line | Button |
+/// |---|---|---|---|---|
+/// | Plan (a session for one exam) | "Chem 110 Quiz · Tue" · "41% ready" | up to two topics; the courses, soonest first, when the exam has less than half the session | none ("6 of 15 minutes done." part way) | "Study · 15 min" |
+/// | Catch-up | the same | the same | "Catching up: about 4 days at 15 minutes a day." | "Study · 15 min" |
+/// | No exam the session serves | none ("Add exam" with no exam at all) | its topics or courses | none | "Study · 15 min" |
+/// | Night before | moon, "Chem 110 Quiz · Tomorrow at 10:00" | "Tonight: weak spots only" | "Limiting reagents and Stoichiometry, then sleep." | "Tonight · 4 min" |
+/// | Night before, nothing weak or done | the same | "Nothing left to review tonight" / "That's enough for today" | "Sleep is part of studying." | none, or "Your last look" (quiet) |
+/// | Done | the exam today counted toward · its readiness | "Done for today" | "Back tomorrow. Your streak is safe." | "5 more minutes" (quiet) |
+/// | All lit | none ("Add exam" with no exam at all) | "All lit" | "Nothing to review right now." | "Practice Limiting reagents · 5 min" |
+/// | No questions yet | none | "Let's make your first set" / "Add your first material" | one short line | "Try a sample page", "Scan a page" |
 struct TodayHeroContent: Equatable, Sendable {
     /// How the band's sky is drawn.
     enum Sky: Equatable, Sendable {
         /// The person's own sky.
         case live
-        /// Exam eve: the exam's region lit, everything else dimmed.
+        /// The night before an exam: the exam's region lit, everything else dimmed.
         case regionLit(UUID)
         /// Nothing studied yet: outline stars, unlit.
         case outline
@@ -33,7 +34,7 @@ struct TodayHeroContent: Equatable, Sendable {
             case practice(topicID: UUID, courseID: UUID, minutes: Int)
             case sample
             case scan
-            /// The last look on an exam's eve.
+            /// The last look on the night before an exam.
             case lastLook(examID: UUID)
         }
 
@@ -60,31 +61,19 @@ struct TodayHeroContent: Equatable, Sendable {
         }
     }
 
-    /// The chip at the top of the card: who the day is for.
+    /// The chip at the top of the card: the exam the day is for and its day. A tap opens the exam (or, with no exam at all, adds one).
     struct Chip: Equatable, Sendable {
-        enum Tone: Equatable, Sendable { case exam, eve, done }
+        enum Tone: Equatable, Sendable { case exam, eve, add }
+        enum Link: Equatable, Sendable {
+            case exam(UUID)
+            case addExam
+        }
         var text: String
+        /// What VoiceOver says, when it differs from the text ("Chem 110 Quiz, Tuesday").
+        var spoken: String? = nil
         var symbol: String
         var tone: Tone
-    }
-
-    /// Readiness now, and about where today's session takes it (a projection, drawn dashed).
-    struct Rings: Equatable, Sendable {
-        var now: Double
-        /// Shown only when today moves it by a point or more.
-        var after: Double?
-        /// "15 new questions count once you've studied them. They're in your plan now." while they hold it down, or "Based on 7 questions so far." when
-        /// the exam has few questions yet.
-        var footnote: String?
-    }
-
-    /// The done card's exam: "Chem 110 Quiz: 52% ready" and "+10% today · 2 days to go".
-    struct RingLine: Equatable, Sendable {
-        var value: Double
-        var title: String
-        var detail: String
-        /// The change today, for the arrow beside the detail.
-        var change: Double = 0
+        var link: Link?
     }
 
     var cap: CapMoment
@@ -92,13 +81,12 @@ struct TodayHeroContent: Equatable, Sendable {
     /// The sky twinkles. Off once there is nothing more to do tonight.
     var twinkles = true
     var chip: Chip?
-    /// When the chip's exam is ("Sun · in 2 days"), or on a done day what was done ("15 min · 24 answers").
-    var when: String?
+    /// The chip's exam's readiness, drawn as one ring beside the chip ("41% ready"). The only number on the card.
+    var readiness: Double?
     var title: String
     var titleSymbol: String?
-    var reason: String
-    var rings: Rings?
-    var ringLine: RingLine?
+    /// At most one short line under the title, only where it says something the title and the button don't.
+    var line: String?
     /// Zero, one or two: the day's button, and a quiet extra.
     var actions: [Action] = []
     /// "Why these?" explains the session.
@@ -109,104 +97,93 @@ struct TodayHeroContent: Equatable, Sendable {
     /// The card for `snapshot`.
     static func make(_ snapshot: TodaySnapshot) -> TodayHeroContent {
         let summary = snapshot.summary
+        // With no exam at all, the chip's place offers one.
+        let addExam = snapshot.exams.isEmpty ? Chip.addExam : nil
         switch snapshot.hero {
         case .empty:
-            return TodayHeroContent(
-                cap: .watchingTheSky, sky: .outline, title: String(localized: "Let's make your first set"),
-                reason: String(localized: "Scan a page from class and Capling turns it into questions. Every one becomes a star."),
-                actions: [.sample, .scan(prominent: false)])
+            return TodayHeroContent(cap: .watchingTheSky, sky: .outline, title: String(localized: "Let's make your first set"),
+                                    line: TodayCopy.firstSet, actions: [.sample, .scan(prominent: false)])
 
         case .noMaterial:
-            return TodayHeroContent(
-                cap: .watchingTheSky, sky: .outline, title: String(localized: "Add your first material"),
-                reason: String(localized: "Scan a page, add a PDF or record a lecture, and today's session builds itself."),
-                actions: [.sample, .scan(prominent: false)])
+            return TodayHeroContent(cap: .watchingTheSky, sky: .outline, title: String(localized: "Add your first material"),
+                                    line: TodayCopy.firstMaterial, actions: [.sample, .scan(prominent: false)])
 
         case .session, .catchUp:
             let catchUp = snapshot.hero == .catchUp
             let action = Action.study(catchUp ? .catchUp : .daily, minutes: summary.plannedMinutes)
-            var reason: String
-            if catchUp {
-                reason = TodayCopy.catchUp(due: summary.dueTotal, goal: summary.minutesGoal, days: summary.catchUpDaysToClear)
-            } else if let focus = snapshot.focus {
-                // The counts are this exam's: when the session holds more, the card says that too, so it's true of what its button starts.
-                reason = TodayCopy.reason(weak: focus.weakCount > 0, due: focus.dueCount, new: focus.newCount, forExam: true,
-                                          sessionTotal: summary.plannedQuestions > focus.questions ? summary.plannedQuestions : nil)
-            } else {
-                reason = TodayCopy.reason(weak: summary.weakSpots > 0, due: summary.reviews, new: summary.newItems, forExam: false)
-            }
-            if summary.minutesDone > 0, !catchUp {
-                reason = "\(TodayCopy.partWay(done: summary.minutesDone, goal: summary.minutesGoal)) \(reason)"
-            }
+            let line: String? = catchUp
+                ? TodayCopy.catchUp(goal: summary.minutesGoal, days: summary.catchUpDaysToClear)
+                : summary.minutesDone > 0 ? TodayCopy.partWay(done: summary.minutesDone, goal: summary.minutesGoal) : nil
             guard let focus = snapshot.focus else {
                 let title = snapshot.sessionTopics.isEmpty ? String(localized: "Today's questions") : TodayCopy.topics(snapshot.sessionTopics)
-                return TodayHeroContent(cap: .watchingTheSky, sky: .live, title: title, reason: reason, actions: [action],
+                return TodayHeroContent(cap: .watchingTheSky, sky: .live, chip: addExam, title: title, line: line, actions: [action],
                                         showsWhy: true)
             }
-            let exam = focus.exam
-            let after = focus.forecast - exam.readiness >= 0.01 ? focus.forecast : nil
-            // Why the number is lower than it was, while that's so; else, how little it rests on.
-            let footnote = exam.newQuestions > 0 ? ExamPresentation.newQuestionsLine(exam.newQuestions, inPlan: exam.newQuestionsInPlan)
-                : (exam.itemsInScope < TodayCopy.fewQuestions ? TodayCopy.basedOn(exam.itemsInScope) : nil)
-            return TodayHeroContent(
-                cap: .watchingTheSky, sky: .live,
-                chip: Chip(text: String(localized: "For \(exam.title)"), symbol: "graduationcap.fill", tone: .exam), when: exam.when,
-                title: focus.topics.isEmpty ? exam.title : TodayCopy.topics(focus.topics), reason: reason,
-                rings: Rings(now: exam.readiness, after: after, footnote: footnote), actions: [action], showsWhy: true)
+            return TodayHeroContent(cap: .watchingTheSky, sky: .live, chip: .exam(focus.exam), readiness: focus.exam.readiness,
+                                    title: title(focus, snapshot), line: line, actions: [action], showsWhy: true)
 
         case .examEve(let id):
-            let exam = snapshot.exams.first { $0.id == id }
-            let title = snapshot.eveTitle ?? exam?.title ?? String(localized: "Your exam")
-            let several = snapshot.eveExams.count > 1
-            let chip = Chip(text: title, symbol: "moon.stars.fill", tone: .eve)
+            let chip = eveChip(id, snapshot)
             guard snapshot.eveHasWork else {
-                return TodayHeroContent(
-                    cap: .asleep, sky: .regionLit(id), twinkles: false, chip: chip, when: exam?.when,
-                    title: String(localized: "Nothing left to review tonight"), reason: TodayCopy.eveRest(title: title, several: several, time: nil))
+                return TodayHeroContent(cap: .asleep, sky: .regionLit(id), twinkles: false, chip: chip,
+                                        title: String(localized: "Nothing left to review tonight"), line: TodayCopy.sleep)
             }
-            return TodayHeroContent(
-                cap: .watchingTheSky, sky: .regionLit(id), chip: chip, when: exam?.when,
-                title: String(localized: "Tonight: weak spots only"),
-                reason: TodayCopy.eveReason(minutes: snapshot.eveMinutes, topics: snapshot.eveTopics),
-                actions: [.tonight(examID: id, minutes: snapshot.eveMinutes)])
+            return TodayHeroContent(cap: .watchingTheSky, sky: .regionLit(id), chip: chip, title: String(localized: "Tonight: weak spots only"),
+                                    line: TodayCopy.eveLine(topics: snapshot.eveTopics),
+                                    actions: [.tonight(examID: id, minutes: snapshot.eveMinutes)])
 
         case .examEveDone(let id):
-            let exam = snapshot.exams.first { $0.id == id }
-            let title = snapshot.eveTitle ?? exam?.title ?? String(localized: "Your exam")
-            let several = snapshot.eveExams.count > 1
-            let time = several ? nil : exam.map { $0.date.formatted(.dateTime.hour().minute()) }
-            return TodayHeroContent(
-                cap: .asleep, sky: .regionLit(id), twinkles: false,
-                chip: Chip(text: title, symbol: "moon.stars.fill", tone: .eve), when: exam?.when,
-                title: String(localized: "That's enough for today"), reason: TodayCopy.eveRest(title: title, several: several, time: time),
-                actions: snapshot.lastLookIdeas > 0 ? [.lastLook(examID: id, ideas: snapshot.lastLookIdeas)] : [])
+            return TodayHeroContent(cap: .asleep, sky: .regionLit(id), twinkles: false, chip: eveChip(id, snapshot),
+                                    title: String(localized: "That's enough for today"), line: TodayCopy.sleep,
+                                    actions: snapshot.lastLookIdeas > 0 ? [.lastLook(examID: id, ideas: snapshot.lastLookIdeas)] : [])
 
         case .done:
             let extra = summary.sessionReady
                 ? Action.extra(.daily, minutes: 5, title: .fiveMoreMinutes)
                 : Action.extra(.practice, minutes: 5, title: .fiveMoreMinutes)
-            let line = snapshot.doneExam.map {
-                RingLine(value: $0.readiness, title: TodayCopy.doneRing(title: $0.title, value: $0.readiness),
-                         detail: TodayCopy.doneDelta($0.deltaToday, daysLeft: $0.daysLeft), change: $0.deltaToday)
-            }
-            return TodayHeroContent(
-                cap: .pleased, sky: .live,
-                chip: Chip(text: String(localized: "Done for today"), symbol: "checkmark", tone: .done),
-                when: TodayCopy.doneLine(minutes: summary.minutesDone, answers: snapshot.answersToday),
-                title: String(localized: "Bright tonight"), titleSymbol: "sparkles",
-                reason: snapshot.quiet ? String(localized: "Back tomorrow.") : String(localized: "Back tomorrow. Your streak is safe."),
-                ringLine: line, actions: [extra])
+            return TodayHeroContent(cap: .pleased, sky: .live, chip: snapshot.doneExam.map(Chip.exam), readiness: snapshot.doneExam?.readiness,
+                                    title: String(localized: "Done for today"), titleSymbol: "sparkles",
+                                    line: TodayCopy.doneLine(quiet: snapshot.quiet), actions: [extra])
 
         case .caughtUp:
             let action: Action = snapshot.practice.map { .practice($0) } ?? .extra(.practice, minutes: 5, title: .practiceFiveMinutes, prominent: true)
-            return TodayHeroContent(
-                cap: .relaxed, sky: .live, title: String(localized: "All lit"), titleSymbol: "sparkles",
-                reason: TodayCopy.allLit(topic: snapshot.practice?.name), actions: [action])
+            return TodayHeroContent(cap: .relaxed, sky: .live, chip: addExam, title: String(localized: "All lit"), titleSymbol: "sparkles",
+                                    line: TodayCopy.allLit, actions: [action])
         }
+    }
+
+    /// The day's title: the session's topics for its exam, weakest first; or, when that exam has less than half of today's questions,
+    /// the courses the session holds, soonest exam first ("Chem 110, Bio 101, and AP Psychology"). Only the words change: the session
+    /// is the same.
+    static func title(_ focus: TodayFocus, _ snapshot: TodaySnapshot) -> String {
+        let total = snapshot.summary.plannedQuestions
+        if total > 0, focus.questions * 2 < total, snapshot.sessionCourses.count > 1 {
+            return TodayCopy.courses(snapshot.sessionCourses)
+        }
+        return focus.topics.isEmpty ? focus.exam.title : TodayCopy.topics(focus.topics)
+    }
+
+    /// The night before: the exam (or the exams sharing the evening) and tomorrow, with its time when there is one exam.
+    private static func eveChip(_ id: UUID, _ snapshot: TodaySnapshot) -> Chip {
+        let exam = snapshot.exams.first { $0.id == id }
+        let title = snapshot.eveTitle ?? exam?.title ?? String(localized: "Your exam")
+        let day = snapshot.eveExams.count > 1 ? String(localized: "Tomorrow") : exam?.day ?? String(localized: "Tomorrow")
+        return Chip(text: TodayCopy.chip(title, day: day), symbol: "moon.stars.fill", tone: .eve, link: .exam(id))
     }
 }
 
 // MARK: - Pieces
+
+extension TodayHeroContent.Chip {
+    /// "Chem 110 Quiz · Tue", opening the exam.
+    static func exam(_ exam: TodayExam) -> Self {
+        Self(text: TodayCopy.chip(exam.title, day: exam.day), spoken: exam.daySpoken.map { "\(exam.title), \($0)" },
+             symbol: "graduationcap.fill", tone: .exam, link: .exam(exam.id))
+    }
+
+    /// "Add exam", with no exam at all.
+    static let addExam = Self(text: String(localized: "Add exam"), symbol: "plus", tone: .add, link: .addExam)
+}
 
 private extension TodayHeroContent.Action {
     static let sample = TodayHeroContent.Action(kind: .sample, title: "Try a sample page", systemImage: "wand.and.sparkles",

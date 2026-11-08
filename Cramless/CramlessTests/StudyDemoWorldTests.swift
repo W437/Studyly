@@ -208,10 +208,8 @@ final class StudyDemoWorldTests: XCTestCase {
         XCTAssertEqual(snapshot.focus?.exam.title, "Chem 110 Quiz")
         let input = app.todayReasonsInput()
         XCTAssertEqual(names2.first, input.weakestName, "the title and \"Why these?\" agree on the weakest")
-        let saturdayStrip = try XCTUnwrap(snapshot.strip.first { $0.offset == 1 })
-        // Saturday's eve is tomorrow: its button, the strip and the exam page's plan say one number.
+        // Saturday's eve is tomorrow: its button and the exam page's plan say one number.
         let builtEve = app.builtEveMinutes(examID: chem.id)
-        XCTAssertEqual(saturdayStrip.mark, .eve(minutes: builtEve))
         let stopsWithEve = ExamPresentation.stops(plan: plan, phase: phase, examTitle: chem.title, examDate: chem.date, today: work,
                                                   skipped: nil, tonightMinutes: builtEve, now: app.now, calendar: cal)
         XCTAssertTrue(stopsWithEve.contains { $0.kind == .eve && $0.title.hasSuffix("about \(builtEve) min") }, "\(stopsWithEve.map(\.title))")
@@ -219,8 +217,13 @@ final class StudyDemoWorldTests: XCTestCase {
         XCTAssertEqual(snapshot.summary.plannedQuestions, session.entries.count)
         XCTAssertEqual(input.sessionTotal, session.entries.count)
         XCTAssertLessThan(input.examQuestions, input.sessionTotal, "the demo's session holds other exams too")
-        XCTAssertTrue(TodayHeroContent.make(snapshot).reason.hasSuffix("About \(session.entries.count) questions fit in today's session."),
-                      TodayHeroContent.make(snapshot).reason)
-        print("\n===== DEMO CARD =====\n\(TodayHeroContent.make(snapshot).chip?.text ?? "") · \(TodayHeroContent.make(snapshot).when ?? "") · \(TodayHeroContent.make(snapshot).title) · \(pct(snapshot.focus?.exam.readiness ?? 0)) → \(pct(snapshot.focus?.forecast ?? 0)) · strip Sat \(saturdayStrip.mark)\nWhy: " + TodayReasons.make(input).map { "\($0.title) [\($0.detail ?? "")]" }.joined(separator: " | ") + "\n=====================\n")
+        // The quiz has less than half of it: the title names the session's courses, the quiz's first, and the chip keeps the quiz.
+        let card = TodayHeroContent.make(snapshot)
+        XCTAssertLessThan(input.examQuestions * 2, input.sessionTotal)
+        XCTAssertEqual(snapshot.sessionCourses.first, "Chem 110")
+        XCTAssertEqual(card.title, TodayCopy.courses(snapshot.sessionCourses))
+        XCTAssertTrue(card.chip?.text.hasPrefix("Chem 110 Quiz · ") ?? false, card.chip?.text ?? "")
+        XCTAssertEqual(TodayReasons.make(input).first?.id, "total", "\"Why these?\" says how the session is shared")
+        print("\n===== DEMO CARD =====\n\(card.chip?.text ?? "") · \(pct(card.readiness ?? 0)) · \(card.title)\nWhy: " + TodayReasons.make(input).map { "\($0.title) [\($0.detail ?? "")]" }.joined(separator: " | ") + "\n=====================\n")
     }
 }

@@ -25,14 +25,6 @@ extension AppModel {
         return cards
     }
 
-    /// Where the card on screen stands among today's: position and count for "2 of 3".
-    func todayNoticePlace(session: BuiltSession? = nil) -> (position: Int, count: Int) {
-        let deck = noticeDeck(session: session)
-        let engine = NoticeEngine(noticeBaseInputs())
-        guard let slot = engine.slot(deck, ledger: noticeLedger) else { return (1, 1) }
-        return (slot.position, slot.count)
-    }
-
     /// The cards still to show today, dealing the day's deck if it hasn't been (a card that turned up since joins it, while there's room).
     func noticeDeck(session: BuiltSession? = nil) -> [Notice] {
         let inputs = noticeInputs(session: session)
