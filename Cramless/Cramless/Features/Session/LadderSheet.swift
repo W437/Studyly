@@ -1,16 +1,16 @@
 import SwiftUI
 
-/// "Yes, harder": Cap writes the harder question, the student reads it and adds it or doesn't. Added, the easy one takes a rest, and Undo is
-/// there for a moment. Nothing joins a session until "Add it".
+/// "Yes, harder": Cap writes the harder question, the student reads it and adds it or doesn't. "Add it" closes the sheet with a toast,
+/// "Added. It replaces the easier one.", and Undo on it for a moment. Nothing joins a session until "Add it".
 ///
 /// DEBUG hooks: `CRAMLESS_LADDER=offer` shows the card on Today, from the real engine (`AppModel+NoticeHarness`); `CRAMLESS_NOTICE_TAP=<ms>`
 /// presses its button. `CRAMLESS_ROUTE=ladder` opens this sheet on a question from the demo world, with `CRAMLESS_LADDER=writing|proposal|added`
-/// holding that state (`writing` waits there; `added` adds the mock relay's question).
+/// holding that state (`writing` waits there; `added` adds the mock relay's question: the sheet closes with the toast).
 struct LadderSheet: View {
     let parentID: UUID
 
     private enum Phase: Equatable {
-        case writing, proposal(UUID), added(UUID), failed(String)
+        case writing, proposal(UUID), failed(String)
     }
 
     @Environment(AppModel.self) private var app
@@ -33,7 +33,6 @@ struct LadderSheet: View {
                 switch phase {
                 case .writing: writing
                 case .proposal(let id): proposal(id)
-                case .added(let id): added(id)
                 case .failed(let message): failed(message)
                 }
             }
@@ -122,32 +121,17 @@ struct LadderSheet: View {
     private func addButton(_ id: UUID) -> some View {
         Button("Add it") {
             CLHaptics.success()
-            if app.adoptRung(id) {
-                withAnimation(CLMotion.fade) { phase = .added(id) }
-            }
+            add(id)
         }
         .buttonStyle(.cl(.primary))
     }
 
-    @ViewBuilder
-    private func added(_ id: UUID) -> some View {
-        HStack(alignment: .center, spacing: 12) {
-            CapView(.nice, size: 60, interactive: false)
-            Text("Added. The easy one takes a rest.")
-                .clFont(.headline)
-                .foregroundStyle(CLColor.ink)
-                .fixedSize(horizontal: false, vertical: true)
-                .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .accessibilityElement(children: .combine)
-        Button("Undo") {
-            CLHaptics.tap()
-            app.undoRung(id)
-            withAnimation(CLMotion.fade) { phase = .proposal(id) }
-        }
-        .buttonStyle(.cl(.soft))
-        Button("Done") { dismiss() }
-            .buttonStyle(.cl(.primary))
+    /// Added: the sheet closes, and the toast says what happened, with Undo (`ToastAction.undoRung`).
+    private func add(_ id: UUID) {
+        guard app.adoptRung(id) else { return }
+        dismiss()
+        app.router.toast(LadderCopy.added, systemImage: "checkmark.circle.fill", tone: .success,
+                         actionTitle: "Undo", action: .undoRung(id))
     }
 
     @ViewBuilder
@@ -175,8 +159,8 @@ struct LadderSheet: View {
         switch outcome {
         case .proposal(let id):
             #if DEBUG
-            if hook == "added", app.adoptRung(id) {
-                phase = .added(id)
+            if hook == "added" {
+                add(id)
                 return
             }
             #endif
@@ -194,11 +178,14 @@ enum LadderCopy {
     static var couldNotWrite: String { String(localized: "Cap couldn't write a harder one from these lines.") }
     static var needsConnection: String { String(localized: "Cap needs a connection for this. It can wait.") }
 
-    /// "Limiting reagents: too easy now".
+    /// "Limiting reagents: ready for a harder one?".
     static func noticeTitle(topic: String?) -> String {
-        guard let topic, !topic.isEmpty else { return String(localized: "This one is too easy now") }
-        return String(localized: "\(topic): too easy now")
+        guard let topic, !topic.isEmpty else { return String(localized: "Ready for a harder one?") }
+        return String(localized: "\(topic): ready for a harder one?")
     }
+
+    /// The toast once it's added: what changed, in plain words.
+    static let added: LocalizedStringResource = "Added. It replaces the easier one."
 
     /// "Next time, the same idea in a real problem?".
     static func noticeLine(next: ItemKind) -> String {

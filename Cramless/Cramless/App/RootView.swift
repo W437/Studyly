@@ -169,7 +169,9 @@ private struct ToastHost: View {
             if let toast = app.router.toast {
                 ToastView(toast: toast, onAction: toast.action == nil ? nil : {
                     CLHaptics.tap()
+                    let action = toast.action
                     withAnimation(CLMotion.exit) { app.router.runToastAction() }
+                    if case .undoRung(let id)? = action { app.undoRung(id) }
                 })
                     .transition(.move(edge: .top).combined(with: .opacity))
                     .padding(.top, 6)
