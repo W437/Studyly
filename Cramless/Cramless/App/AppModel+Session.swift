@@ -24,6 +24,17 @@ extension AppModel {
         return out
     }
 
+    // MARK: - The flashcard swipe's hint
+
+    /// Whether a flashcard turned now shows "Swipe right if you got it, left if not": only on the first few ever.
+    var showsSwipeHint: Bool { settings.swipeHintsShown < FlashcardSwipeHint.shownCards }
+
+    /// A flipped flashcard showed the hint: one fewer to go.
+    func noteSwipeHintShown() {
+        guard showsSwipeHint else { return }
+        settings.swipeHintsShown += 1
+    }
+
     // MARK: - Today
 
     /// A finished session of this kind today (with at least one answer), optionally for one exam.

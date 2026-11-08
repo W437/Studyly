@@ -103,7 +103,10 @@ final class OutLoudQuestionTests: XCTestCase {
     }
 
     func testTheCopy() {
-        XCTAssertEqual(OutLoudCopy.size(questions: 12, minutes: 9), "12 questions · about 9 minutes")
+        XCTAssertEqual(OutLoudCopy.size(questions: 23, minutes: 15), "23 questions · about 15 min")
+        XCTAssertEqual(String(localized: OutLoudCopy.screenOff), "Works with the screen off.")
+        XCTAssertEqual(String(localized: OutLoudCopy.commands), "Say “repeat”, “skip” or “stop” any time.")
+        XCTAssertEqual(String(localized: OutLoudCopy.privacy), "Your voice isn't recorded.")
         XCTAssertEqual(StudySessionAttributes.ContentState.clipped(prompt: "  Short  "), "Short")
         XCTAssertNil(StudySessionAttributes.ContentState.clipped(prompt: "   "))
         let long = String(repeating: "word ", count: 80)

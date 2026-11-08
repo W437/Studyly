@@ -197,6 +197,8 @@ enum ToastAction: Hashable, Sendable {
     /// A screen pushed on a tab, which becomes the selected one.
     case push(Route, AppTab)
     case present(AppSheet)
+    /// Undo an added harder question (`AppModel.undoRung`): the toast's host runs it, since it has the model.
+    case undoRung(UUID)
 }
 
 @MainActor
@@ -271,6 +273,8 @@ final class Router {
             push(route, on: tab)
         case .present(let sheet):
             present(sheet)
+        case .undoRung:
+            break // RootView's toast host undoes it.
         }
     }
 

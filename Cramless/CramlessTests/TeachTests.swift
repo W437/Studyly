@@ -276,7 +276,9 @@ final class TeachPlannerTests: XCTestCase {
     func testTheCopy() {
         XCTAssertEqual(TeachCopy.noticeTitle("Anaphase"), "You know anaphase. Can you teach it?")
         XCTAssertEqual(TeachCopy.noticeTitle("DNA replication"), "You know DNA replication. Can you teach it?")
-        XCTAssertEqual(String(localized: TeachCopy.ask("Cell cycle")), "Explain cell cycle to me like I missed the class.")
+        XCTAssertEqual(String(localized: TeachCopy.ask("Cell cycle")), "Teach me “Cell cycle”, like I missed the class.")
+        XCTAssertEqual(String(localized: TeachCopy.how), "Say it in your own words. Cap ticks off each idea he hears.")
+        XCTAssertEqual(String(localized: TeachCopy.privacy), "Your voice isn't recorded.")
         XCTAssertEqual(String(localized: TeachCopy.added), "Question added")
         XCTAssertEqual(TeachCopy.explainTerm("S phase"), "Explain S phase in your own words.")
         XCTAssertEqual(String(localized: TeachCopy.ideasCount(4, of: 6)), "4 of 6 ideas")

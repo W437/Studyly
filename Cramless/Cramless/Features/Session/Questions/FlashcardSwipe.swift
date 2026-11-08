@@ -86,7 +86,6 @@ struct FlashcardSwipeLayer<Content: View>: View {
     let state: FlashcardSwipeState
     /// Only a flipped card can be swiped.
     let enabled: Bool
-    let intervals: [Rating: Double]
     let onSwipe: (Rating) -> Void
     @ViewBuilder var content: Content
 
@@ -112,8 +111,7 @@ struct FlashcardSwipeLayer<Content: View>: View {
         if opacity > 0, !state.gone {
             let rating: Rating = dx > 0 ? .good : .again
             let tone = FlashcardQuestionView.tone(rating)
-            let line = intervals[rating].map { SessionCopy.swipeStamp(rating, interval: SessionCopy.interval(days: $0)) } ?? SessionCopy.swipeWord(rating)
-            Text(line)
+            Text(SessionCopy.swipeWord(rating))
                 .clFont(.subheadlineEmphasis)
                 .foregroundStyle(tone.ink)
                 .padding(.horizontal, 14)
@@ -201,17 +199,7 @@ private struct SwipePan: UIGestureRecognizerRepresentable {
     }
 }
 
-/// "Got it 8" and "Again 2" over the flashcards of this session: ratings, not cards, a held one included.
-struct FlashcardTallyView: View {
-    let tally: SessionRunner.FlashcardTally
-
-    var body: some View {
-        // One above the other at the accessibility sizes, where side by side they would lose their words.
-        ReflowStack(spacing: 6) {
-            CLPill(text: "Got it \(tally.gotIt)", tone: .mint, systemImage: "checkmark")
-            CLPill(text: "Again \(tally.again)", tone: .rose, systemImage: "arrow.uturn.backward")
-        }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("This session: got it \(tally.gotIt), again \(tally.again)")
-    }
+/// How long the swipe's hint stays in a student's life: their first few flashcards ever (`AppSettings.swipeHintsShown`).
+enum FlashcardSwipeHint {
+    static let shownCards = 3
 }

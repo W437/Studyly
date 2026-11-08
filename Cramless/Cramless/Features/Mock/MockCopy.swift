@@ -45,7 +45,10 @@ enum MockCopy {
         return String(localized: "Matches your exam: \(list). Only this exam's topics.")
     }
 
-    /// The card's and the intro's two lines for this mock of this exam.
+    /// The start screen's second line, under `cardLine`: where the questions come from and when they're marked.
+    static let startLine = String(localized: "From this exam's topics. Marked at the end.")
+
+    /// The exam page's two lines for this mock of this exam.
     static func offer(_ plan: MockPlan, format: ExamFormat) -> (line: String, mix: String) {
         let questions = plan.entries.count
         let mix = mixLine(multiple: plan.multipleChoiceCount, fillIns: plan.fillInCount, short: plan.shortCount, essay: plan.essayCount, format: format,
@@ -99,18 +102,8 @@ enum MockCopy {
     /// The summary's headline.
     static func scored(_ score: Double) -> String { String(localized: "You scored \(CLFormat.percent(score)).") }
 
-    static func predicted(_ expected: Double) -> String { String(localized: "Cap predicted \(CLFormat.percent(expected)).") }
-
-    /// Why the prediction isn't the exam page's readiness.
-    static let predictionNote = String(localized: "Cap's prediction is for this mock, today. Readiness is what you'd remember on exam day.")
-
-    static func verdictLine(_ verdict: MockResult.Verdict) -> String {
-        switch verdict {
-        case .asExpected: String(localized: "Right where Cap expected.")
-        case .better: String(localized: "Better than Cap expected.")
-        case .below: String(localized: "Below what Cap expected. The topics below are why.")
-        }
-    }
+    /// The line under the score: what Cap expected for these questions today.
+    static func expected(_ expected: Double) -> String { String(localized: "Cap expected \(CLFormat.percent(expected)).") }
 
     /// What the score rests on, when it isn't the whole mock: "You answered 17 of 20 in time." / "Scored on the 12 of 20 you answered."
     static func scopeLine(counted: Int, total: Int, inTime: Int?) -> String? {

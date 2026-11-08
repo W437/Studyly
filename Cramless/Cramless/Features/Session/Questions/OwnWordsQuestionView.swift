@@ -2,10 +2,10 @@ import SwiftUI
 import UIKit
 
 /// "In your own words" and "Apply it": the person types an answer and submits. The offline grade lands at once:
-/// the highlighter sweeps the key ideas found word for word in their own answer (a tick as each one lands), the
-/// missed ideas are named, the feedback and the one-line fix show. A refined grade (this iPhone's model or Cloud
-/// AI) updates it in place with a quiet cross-fade. "Grade again" appears when the grader isn't sure. The rating
-/// comes from the score, and the person can change it before moving on.
+/// the highlighter sweeps the key ideas found word for word in their own answer (a tick as each one lands), then the panel
+/// rises with the verdict and the one thing to add ("Almost." / "Add this: …"), and nothing else: the highlight already shows
+/// what was there. A refined grade (this iPhone's model or Cloud AI) updates it in place with a quiet cross-fade. The rating
+/// comes from the grade; "Looks wrong?" is the one way to dispute it. The panel's other buttons show only once the verdict is in.
 ///
 /// When no model will grade the answer and the rules' verdict can't be trusted (`GradeMode.selfCheck`), there is no verdict: the
 /// panel says "Compare with the answer.", the card shows the model answer and its source, and the key ideas are a checklist
@@ -23,7 +23,7 @@ import UIKit
 /// into the empty editor the next time the question comes up ("Kept from before"), and cleared once the answer is recorded, so a
 /// call, another app or iOS closing Capling loses nothing.
 ///
-/// A rating the person gave (the marks of a self-check, "Counts as") can be undone for a moment (`SessionRunner.PendingGrade`): this view
+/// A rating the person gave (the marks of a self-check) can be undone for a moment (`SessionRunner.PendingGrade`): this view
 /// then comes back with its panel as it stood, no new grade and no sounds, and its draft is still there, since a draft goes only once
 /// the answer is really recorded.
 ///
@@ -40,7 +40,6 @@ struct OwnWordsQuestionView: View {
     var autoContinue: Int? = nil
 
     @Environment(AppModel.self) private var app
-    @Environment(\.dynamicTypeSize) private var typeSize
     @Environment(\.clReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
     @FocusState private var editorFocused: Bool
@@ -60,9 +59,7 @@ struct OwnWordsQuestionView: View {
     @State private var refining = false
     @State private var regrading = false
     @State private var secondLook: String?
-    @State private var override: Rating?
     @State private var durationMs = 0
-    @State private var intervals: [Rating: Double] = [:]
     @State private var gradeTask: Task<Void, Never>?
     @State private var revealTask: Task<Void, Never>?
     /// A self-check: the key ideas the person ticked, starting from the ones the rules found.
@@ -75,7 +72,8 @@ struct OwnWordsQuestionView: View {
     @State private var restored = false
 
     private var ideas: [KeyIdea] { item.keyIdeas }
-    /// Steps of the reveal after the sweep: each idea row, then the feedback, then the rating line.
+    /// Steps of the reveal after the sweep: each idea row of a self-check's checklist (a graded answer has none, so it passes them at
+    /// once), then the panel, then the last beat.
     private var revealSteps: Int { ideas.count + 2 }
     /// No model graded this answer: the person marks it.
     private var isSelfCheck: Bool { grade?.mode == .selfCheck }
@@ -87,13 +85,12 @@ struct OwnWordsQuestionView: View {
     var body: some View {
         ScrollViewReader { proxy in
             QuestionScroll {
+                QuestionHeader(item: item, entry: entry, topic: runner.topicName(entry.topicID))
                 QuestionCard {
-                    QuestionHeader(item: item, entry: entry, topic: runner.topicName(entry.topicID))
                     Text(item.prompt)
                         .clFont(.title2)
                         .foregroundStyle(CLColor.ink)
                         .fixedSize(horizontal: false, vertical: true)
-                        .padding(.top, 10)
                         .accessibilityAddTraits(.isHeader)
                     if let grade, let submitted {
                         graded(grade, answer: submitted)
@@ -142,6 +139,10 @@ struct OwnWordsQuestionView: View {
             app.takeRecheckDelivery()
             gradeAgain()
         }
+        // Cloud AI allowed from the note under a self-check: a model grades the answer now, so the person needn't mark it.
+        .onChange(of: app.settings.cloudConsentVersion) {
+            if isSelfCheck, canGradeAgain { gradeAgain() }
+        }
         .onChange(of: text) { _, new in
             guard submitted == nil else { return }
             let typed = !new.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -152,12 +153,6 @@ struct OwnWordsQuestionView: View {
         }
         .onChange(of: scenePhase) { _, phase in
             if phase != .active { keepDraftNow() }
-        }
-        // The rating held for Undo moved the session's due load when it was recorded: a label can be a day off until then.
-        .onChange(of: runner.pending == nil) { _, recorded in
-            if recorded, submitted != nil, runner.current?.id == entry.id {
-                intervals = app.intervalPreview(itemID: item.id, sessionID: runner.sessionID)
-            }
         }
         .onAppear {
             pickUpRestore()
@@ -279,17 +274,7 @@ struct OwnWordsQuestionView: View {
                 .background(CLColor.surface2, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
                 .accessibilityLabel(Text(answered ? "Your answer: \(answer)" : "No answer"))
                 .accessibilityValue(Text(markedSummary(grade, answer: answer)))
-            if selfCheck {
-                selfCheckCard
-            } else if !ideas.isEmpty {
-                VStack(alignment: .leading, spacing: 9) {
-                    ForEach(Array(ideas.enumerated()), id: \.element.id) { index, idea in
-                        ideaRow(idea, hit: grade.hitIdeaIDs.contains(idea.id))
-                            .opacity(revealed > index ? 1 : 0)
-                            .offset(y: revealed > index ? 0 : 10)
-                    }
-                }
-            }
+            if selfCheck { selfCheckCard }
             if let panel {
                 AccessibilityOnly { FeedbackDetails(feedback: panel) }
             }
@@ -304,28 +289,9 @@ struct OwnWordsQuestionView: View {
                     .foregroundStyle(CLColor.ink2)
                     .transition(.opacity)
             }
-            RatingAdjuster(auto: autoRating(grade), override: $override, intervals: intervals)
-                .padding(.bottom, -10)
-                // A self-check says how it counts once the person has marked it, not before.
-                .opacity(revealed > ideas.count + 1 && hasMarked ? 1 : 0)
-                .accessibilityHidden(!hasMarked)
-                .id("rating")
+            // Where a self-check's checklist ends: the page brings it above the panel once everything has shown.
+            Color.clear.frame(height: 0).id("rating")
         }
-    }
-
-    private func ideaRow(_ idea: KeyIdea, hit: Bool) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 10) {
-            Image(systemName: hit ? "checkmark.circle" : "xmark.circle")
-                .font(.system(size: 18, weight: .semibold))
-                .foregroundStyle(hit ? CLColor.mintInk : CLColor.roseInk)
-                .accessibilityHidden(true)
-            Text(hit ? idea.label : "Missing: \(SessionCopy.lowerFirst(idea.label))")
-                .clFont(.subheadlineEmphasis)
-                .foregroundStyle(hit ? CLColor.ink : CLColor.ink2)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(hit ? "Hit: \(idea.label)" : "Missing: \(idea.label)")
     }
 
     // MARK: Marking it yourself
@@ -426,8 +392,6 @@ struct OwnWordsQuestionView: View {
             if ticked.contains(idea.id) { ticked.remove(idea.id) } else { ticked.insert(idea.id) }
             marked = true
         }
-        // The ticks decide the rating again, unless the person picks one themselves afterwards.
-        override = nil
     }
 
     /// The person had none of the key ideas: nothing is ticked, and that is their mark.
@@ -437,7 +401,6 @@ struct OwnWordsQuestionView: View {
             ticked.removeAll()
             marked = true
         }
-        override = nil
     }
 
     /// The answer is the person's to mark: the ideas the rules found start ticked, the rest unticked; no verdict is colouring the
@@ -446,7 +409,6 @@ struct OwnWordsQuestionView: View {
         ticked = SelfCheck.startingTicks(of: outcome, ideas: ideas)
         rulesFound = !ticked.isEmpty
         marked = false
-        override = nil
         saved = false
         run = 0
         runner.setProvisional(nil)
@@ -482,16 +444,25 @@ struct OwnWordsQuestionView: View {
         return AnswerFeedback(tone: FeedbackTone(grade.verdict),
                               headline: SessionCopy.headline(outcome, answered: !submitted.isEmpty, saved: saved),
                               cap: .verdict(outcome, answered: !submitted.isEmpty, saved: saved, combo: run),
-                              message: grade.feedback, fix: grade.fix, note: grade.spellingNote, source: item.sourceRef,
+                              message: Self.panelLine(grade), source: item.sourceRef,
                               provenance: provenance(grade), working: refining || regrading,
                               combo: run)
     }
 
-    private func provenance(_ grade: GradeOutcome) -> String {
+    /// The panel's one line: what to add ("Add this: …", "A full answer: …"); nothing for a right answer, whose highlight says it all.
+    /// A grader that names nothing to add but isn't happy says its own words instead.
+    static func panelLine(_ grade: GradeOutcome) -> String? {
+        if !grade.fix.isEmpty { return grade.fix }
+        return grade.verdict == .correct || grade.feedback.isEmpty ? nil : grade.feedback
+    }
+
+    /// The line under the panel's words only while something is still happening, or when the person marks it: a grade that stands
+    /// needs no byline.
+    private func provenance(_ grade: GradeOutcome) -> String? {
         if regrading { return "Taking a second look…" }
         if refining { return "Double-checking…" }
         if grade.mode == .selfCheck { return marked ? SessionCopy.markedByYou : SessionCopy.selfCheckLine(grade.selfCheckReason) }
-        return SessionCopy.gradedBy(grade.gradedBy)
+        return nil
     }
 
     /// The marks as words, for VoiceOver: "Highlighted: grow, repair tissue, identical cells".
@@ -534,7 +505,7 @@ struct OwnWordsQuestionView: View {
         }
     }
 
-    /// A model could grade this self-check now (Cloud AI was allowed since, or the connection is back).
+    /// A model could grade this self-check now (Cloud AI was allowed since).
     private var canGradeAgain: Bool {
         guard let submitted else { return false }
         let subject = GradeSubject(kind: item.kind, prompt: item.prompt, modelAnswer: item.answer, keyIdeas: item.keyIdeas)
@@ -543,33 +514,21 @@ struct OwnWordsQuestionView: View {
 
     @ViewBuilder private var secondary: some View {
         if let grade {
-            // A self-check has a mistake to explain only once the person has left an idea unticked.
-            let explains = grade.mode == .selfCheck ? ticked.count < ideas.count : grade.verdict != .correct
-            let offersRegrade = grade.mode == .selfCheck ? canGradeAgain : (grade.needsSecondLook && grade.mode != .provisional)
-            // Three in one row: shorter labels, so neither button cuts its words off, even on the smallest iPhone.
-            let crowded = explains && offersRegrade && !typeSize.isAccessibilitySize
-            if explains {
-                Button {
-                    CLHaptics.tap()
-                    app.router.present(.explain(itemID: item.id, given: submitted ?? ""))
-                } label: {
-                    Label(crowded ? "Explain" : "Explain my mistake", systemImage: "bubble.left")
-                }
-                .buttonStyle(.cl(.soft, size: .medium))
-                .accessibilityLabel(Text("Explain my mistake"))
-            }
-            if offersRegrade {
-                Button(action: gradeAgain) {
-                    if crowded {
-                        Text(regrading ? "Checking…" : "Grade again")
-                    } else {
-                        Label(regrading ? "Checking…" : "Grade again", systemImage: "flag")
+            // Only once the verdict is in: nothing to explain or dispute while the answer is still being checked.
+            if panel != nil, !isProvisional, !regrading {
+                // A self-check has a mistake to explain only once the person has left an idea unticked.
+                let explains = grade.mode == .selfCheck ? ticked.count < ideas.count : grade.verdict != .correct
+                if explains {
+                    Button {
+                        CLHaptics.tap()
+                        app.router.present(.explain(itemID: item.id, given: submitted ?? ""))
+                    } label: {
+                        Label("Explain my mistake", systemImage: "bubble.left")
                     }
+                    .buttonStyle(.cl(.soft, size: .medium))
                 }
-                .buttonStyle(.cl(.soft, size: .medium))
-                .disabled(regrading)
+                if runner.offersLooksWrong { LooksWrongButton(item: item, given: submitted) }
             }
-            if runner.offersLooksWrong { LooksWrongButton(item: item, given: submitted, compact: offersRegrade) }
         } else {
             Button("I don't know yet") {
                 text = ""
@@ -591,7 +550,6 @@ struct OwnWordsQuestionView: View {
         editorFocused = false
         CLHaptics.commit()
         app.stopReadingAloud()
-        intervals = app.intervalPreview(itemID: item.id, sessionID: runner.sessionID)
         let stream = app.ai.grade(app.gradeSubject(for: item), answer: .text(answer))
         gradeTask = Task { @MainActor in
             var count = 0
@@ -665,7 +623,10 @@ struct OwnWordsQuestionView: View {
                     CLHaptics.tick()
                 }
                 try await nap(marks > 0 ? 220 : 120)
-                for step in 1...revealSteps {
+                // A graded answer has no rows to show one by one: the panel comes straight after the sweep.
+                let first = outcome.mode == .selfCheck ? 1 : ideas.count + 1
+                if first > 1 { revealed = ideas.count }
+                for step in first...revealSteps {
                     withAnimation(CLMotion.settle) { revealed = step }
                     // The panel rises at this step: its sound goes with it, for whatever the grade is by then.
                     if step == ideas.count + 1 { sound(cues(for: answer)) }
@@ -693,7 +654,6 @@ struct OwnWordsQuestionView: View {
         }
         runner.setProvisional(SessionRunner.Outcome(outcome.verdict))
         if previous?.verdict != outcome.verdict || Set(previous?.hitIdeaIDs ?? []) != Set(outcome.hitIdeaIDs) {
-            override = nil
             // The run and the save the panel shows are those of the verdict that stands now, not of the rules' first guess.
             settleVerdict(outcome)
             announce(outcome, refined: true)
@@ -725,7 +685,6 @@ struct OwnWordsQuestionView: View {
                 regrading = false
                 secondLook = wasSelfCheck ? nil : (agrees ? "A second look agrees with this grade." : "Updated after a second look.")
             }
-            if !agrees { override = nil }
             if wasSelfCheck { settleVerdict(outcome) }
             runner.setProvisional(SessionRunner.Outcome(outcome.verdict))
             if wasSelfCheck {
@@ -746,24 +705,21 @@ struct OwnWordsQuestionView: View {
             commitMarks()
             return
         }
-        let rating = override ?? autoRating(grade)
-        // "Counts as" is the person's own call, so it can be taken back; a grade as it stands already waited for Continue.
-        runner.record(rating: rating, score: grade.score, answer: submitted,
-                      gradedBy: override == nil ? grade.gradedBy.rawValue : "person", durationMs: durationMs,
-                      outcome: override.map(SessionRunner.Outcome.init(rating:)) ?? SessionRunner.Outcome(grade.verdict),
-                      undo: override == nil ? nil : restoreState(grade))
+        // A grade as it stands already waited for Continue: nothing to take back.
+        runner.record(rating: autoRating(grade), score: grade.score, answer: submitted, gradedBy: grade.gradedBy.rawValue,
+                      durationMs: durationMs, outcome: SessionRunner.Outcome(grade.verdict))
         CLHaptics.select()
         app.stopReadingAloud()
         withAnimation(CLMotion.settle) { runner.advance() }
     }
 
-    /// Records what the person marked, as marked by themselves ("self"): the rating the ticks come to (ticked over all the key ideas)
-    /// unless the person picked another, and a score that agrees with the rating it ends up as, so the log never says Good over a
+    /// Records what the person marked, as marked by themselves ("self"): the rating the ticks come to (ticked over all the key ideas),
+    /// and a score that agrees with the rating it ends up as, so the log never says Good over a
     /// score that says wrong (`Grading.score(standingFor:near:)`: the ticks' own score when it is in the rating's band). Like a
     /// flashcard's rating it sounds the same whatever it is; it counts in a run like any answer, by its rating.
     private func commitMarks() {
         let ticks = SelfCheck.score(ticked: ticked, of: ideas)
-        let rating = override ?? AppModel.rating(forScore: ticks, kind: item.kind, durationMs: durationMs)
+        let rating = AppModel.rating(forScore: ticks, kind: item.kind, durationMs: durationMs)
         let score = Grading.score(standingFor: rating, near: ticks)
         CLFeel.play(.rated)
         guard let grade else { return }
@@ -776,8 +732,8 @@ struct OwnWordsQuestionView: View {
 
     /// Everything the panel showed, for an Undo to bring back.
     private func restoreState(_ grade: GradeOutcome) -> SessionRunner.AnswerRestore {
-        .ownWords(.init(submitted: submitted ?? "", grade: grade, durationMs: durationMs, intervals: intervals, ticked: ticked,
-                        marked: marked, rulesFound: rulesFound, override: override, secondLook: secondLook, run: run, saved: saved))
+        .ownWords(.init(submitted: submitted ?? "", grade: grade, durationMs: durationMs, ticked: ticked,
+                        marked: marked, rulesFound: rulesFound, secondLook: secondLook, run: run, saved: saved))
     }
 
     /// The rating was undone: the panel is back as it stood, with no new grade and no sounds.
@@ -789,11 +745,9 @@ struct OwnWordsQuestionView: View {
         text = state.submitted
         grade = state.grade
         durationMs = state.durationMs
-        intervals = state.intervals
         ticked = state.ticked
         marked = state.marked
         rulesFound = state.rulesFound
-        override = state.override
         secondLook = state.secondLook
         run = state.run
         saved = state.saved
@@ -811,13 +765,11 @@ struct OwnWordsQuestionView: View {
             AccessibilityNotification.Announcement(SessionCopy.selfCheckAnnouncement(ticked: ticked.count, total: ideas.count)).post()
             return
         }
+        // What the screen says: the count of key ideas and the one thing to add.
         var parts: [String] = []
-        if refined { parts.append("Updated grade.") }
+        if refined { parts.append(String(localized: "Updated grade.")) }
         parts.append(SessionCopy.scoreLine(hits: hitCount(outcome), total: ideas.count, verdict: outcome.verdict) + ".")
-        let hits = ideas.filter { outcome.hitIdeaIDs.contains($0.id) }.map(\.label)
-        if !hits.isEmpty { parts.append("You hit: " + hits.joined(separator: ", ") + ".") }
-        if !outcome.missing.isEmpty { parts.append("Missing: " + outcome.missing.map(\.label).joined(separator: ", ") + ".") }
-        if !outcome.fix.isEmpty { parts.append(outcome.fix) }
+        if let line = Self.panelLine(outcome) { parts.append(line) }
         AccessibilityNotification.Announcement(parts.joined(separator: " ")).post()
     }
 }

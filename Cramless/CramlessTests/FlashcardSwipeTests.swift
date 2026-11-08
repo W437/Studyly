@@ -49,7 +49,7 @@ final class SwipeRuleTests: XCTestCase {
     }
 }
 
-/// The tally and what a swipe writes.
+/// What a swipe writes, the count left, and the hint.
 @MainActor
 final class FlashcardSwipeTests: XCTestCase {
     let cal = EngineTest.calendar()
@@ -105,47 +105,34 @@ final class FlashcardSwipeTests: XCTestCase {
         XCTAssertEqual(Set(logs.map(\.score)), [-1])
     }
 
-    func testTheTallyCountsRatingsAndHardCountsAsGotIt() {
-        let runner = runner(5)
-        XCTAssertTrue(runner.flashcardTally.isEmpty)
-        swipe(runner, .good)
-        swipe(runner, .hard)
+    func testTheCountLeftGoesDownAsCardsAreRatedAndBackOnUndo() {
+        // Easy: a new card that graduates at once, so nothing is queued to come back.
+        let runner = runner(3)
+        XCTAssertEqual(runner.questionsLeft, 3)
+        XCTAssertEqual(runner.progress, 0, accuracy: 0.001)
         swipe(runner, .easy)
-        swipe(runner, .again)
-        XCTAssertEqual(runner.flashcardTally, .init(gotIt: 3, again: 1))
-    }
-
-    func testTheTallyIncludesAHeldRatingAndDropsAnUndoneOne() {
-        let runner = runner(3)
-        swipe(runner, .good)
-        XCTAssertTrue(runner.answers.last?.isPending ?? false)
-        XCTAssertEqual(runner.flashcardTally, .init(gotIt: 1, again: 0), "at once, while it can still be taken back")
+        XCTAssertEqual(runner.questionsLeft, 2, "at once, while it can still be taken back")
         runner.undoPending()
-        XCTAssertEqual(runner.flashcardTally, .init(gotIt: 0, again: 0))
-        swipe(runner, .again)
-        XCTAssertEqual(runner.flashcardTally, .init(gotIt: 0, again: 1))
+        XCTAssertEqual(runner.questionsLeft, 3)
+        swipe(runner, .easy)
+        swipe(runner, .easy)
+        XCTAssertEqual(runner.questionsLeft, 1)
+        XCTAssertEqual(runner.progress, 2.0 / 3.0, accuracy: 0.001)
     }
 
-    func testAComebackCountsAgainInTheTally() throws {
+    func testAgainBringsTheCardBackSoOneMoreIsLeft() {
         let runner = runner(3)
-        let first = try XCTUnwrap(runner.current)
+        let before = runner.questionsLeft
         swipe(runner, .again)
-        var guardCount = 0
-        while runner.current?.itemID != first.itemID, runner.phase == .question, guardCount < 10 {
-            swipe(runner, .good)
-            guardCount += 1
-        }
-        swipe(runner, .good)
-        XCTAssertEqual(runner.flashcardTally.again, 1)
-        XCTAssertEqual(runner.flashcardTally.gotIt, guardCount + 1, "ratings, not cards")
+        XCTAssertEqual(runner.questionsLeft, before, "rated, and queued to come back")
     }
 
-    func testOtherFormatsAreNotInTheTally() {
-        let runner = runner(3, kinds: [.flashcard, .mcq, .flashcard])
-        swipe(runner, .good)
-        runner.record(rating: .good, score: 1, answer: "x", gradedBy: "rules", durationMs: 2000, outcome: .right)
-        runner.advance()
-        XCTAssertEqual(runner.flashcardTally, .init(gotIt: 1, again: 0))
+    func testTheSwipeHintIsForTheFirstThreeFlashcardsEver() {
+        XCTAssertTrue(app.showsSwipeHint)
+        for _ in 0..<FlashcardSwipeHint.shownCards { app.noteSwipeHintShown() }
+        XCTAssertFalse(app.showsSwipeHint)
+        app.noteSwipeHintShown()
+        XCTAssertEqual(app.settings.swipeHintsShown, 3, "counted no further")
     }
 
     func testARisingArrivalIsOnlyForTheNextQuestion() {
@@ -158,7 +145,9 @@ final class FlashcardSwipeTests: XCTestCase {
     }
 
     func testTheWordsOnTheCard() {
-        XCTAssertEqual(String(localized: SessionCopy.swipeStamp(.good, interval: "4 days")), "Got it · 4 days")
-        XCTAssertEqual(String(localized: SessionCopy.swipeStamp(.again, interval: "10 min")), "Again · 10 min")
+        XCTAssertEqual(String(localized: SessionCopy.swipeWord(.good)), "Got it", "no interval: Undo says when it's back")
+        XCTAssertEqual(String(localized: SessionCopy.swipeWord(.hard)), "Got it")
+        XCTAssertEqual(String(localized: SessionCopy.swipeWord(.again)), "Again")
+        XCTAssertEqual(String(localized: SessionCopy.swipeHint), "Swipe right if you got it, left if not")
     }
 }

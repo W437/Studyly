@@ -639,5 +639,17 @@
         "other": "%arg days"
       }
     }
+  },
+  "%lld questions left": {
+    "one": "%lld question left",
+    "other": "%lld questions left"
+  },
+  "%lld days left": {
+    "one": "%lld day left",
+    "other": "%lld days left"
+  },
+  "Your %lld shakiest ideas": {
+    "one": "Your %lld shakiest idea",
+    "other": "Your %lld shakiest ideas"
   }
 }

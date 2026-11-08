@@ -1,19 +1,17 @@
 import SwiftUI
 
-/// The last look on an exam's eve: the ideas the student is shakiest on, to read once and go to bed. No quiz and no score, and nothing is recorded. Each idea is a plain sentence when Cap
-/// wrote one ahead of time (`AppModel.prepareLastLooks()`), else its question and its answer, so it reads the same with no connection; a chip opens the page or the lecture it came from.
+/// The last look on an exam's eve, opened on its own (from Today once tonight's session is done): "Your 5 shakiest ideas", "2 min · no
+/// quiz", the ideas, and "Good night" pinned below them. No quiz and no score, and nothing is recorded. Each idea is a plain sentence when
+/// Cap wrote one ahead of time (`AppModel.prepareLastLooks()`), else its question and its answer, so it reads the same with no connection;
+/// a chip opens the page or the lecture it came from. The eve's own summary holds the same ideas itself (`SessionSummaryView`).
 ///
-/// "Good night" ends the evening: it closes this and whatever session it came from. The finale that closes an exam's eve belongs here too, when it comes: eve session → summary →
-/// last look → Good night → the finale.
-///
-/// Opened from a card on the eve's summary, and from Today once tonight's session is done.
+/// "Good night" ends the evening: it closes this and whatever session it came from.
 ///
 /// DEBUG: `CRAMLESS_ROUTE=lastLook`; `CRAMLESS_LASTLOOK=offline` shows it with nothing prepared (questions and answers), `=cloud` with the mock relay's sentences. `CRAMLESS_CANVAS=375x667`: at an iPhone SE's size.
 struct LastLookView: View {
     let examID: UUID
 
     @Environment(AppModel.self) private var app
-    @Environment(\.dismiss) private var dismiss
 
     @State private var look: LastLook?
     @State private var loaded = false
@@ -47,25 +45,7 @@ struct LastLookView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
                 header(look)
-                ForEach(look.ideas) { idea in
-                    card(idea)
-                }
-                if let written = LastLookCopy.written(look) {
-                    Text(verbatim: written)
-                        .clFont(.footnote)
-                        .foregroundStyle(CLColor.ink3)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .padding(.horizontal, 4)
-                }
-                Text(verbatim: LastLookCopy.closing)
-                    .clFont(.callout)
-                    .foregroundStyle(CLColor.ink2)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.top, 10)
-                    .padding(.horizontal, 4)
-                Button("Good night", action: goodNight)
-                    .buttonStyle(.cl(.primary))
-                    .padding(.top, 2)
+                LastLookIdeas(look: look) { ref in sourceLink(ref) }
             }
             .padding(.horizontal, CLSpace.gutter)
             .padding(.top, 20)
@@ -74,31 +54,74 @@ struct LastLookView: View {
             .frame(maxWidth: .infinity)
         }
         .scrollIndicators(.hidden)
+        .sessionFooter {
+            Button("Good night", action: goodNight)
+                .buttonStyle(.cl(.primary))
+        }
     }
 
     private func header(_ look: LastLook) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(verbatim: LastLookCopy.title)
-                        .clFont(.brandTitle(30))
-                        .foregroundStyle(CLColor.ink)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .accessibilityAddTraits(.isHeader)
-                    Text(verbatim: LastLookCopy.line(ideas: look.ideas.count, minutes: look.minutes))
-                        .clFont(.footnoteEmphasis)
-                        .foregroundStyle(CLColor.ink2)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                Spacer(minLength: 8)
-                CapView(.asleep, size: 72, interactive: false)
-                    .accessibilityHidden(true)
+        HStack(alignment: .top) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(verbatim: LastLookCopy.title(ideas: look.ideas.count))
+                    .clFont(.brandTitle(30))
+                    .foregroundStyle(CLColor.ink)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityAddTraits(.isHeader)
+                Text(verbatim: LastLookCopy.line(minutes: look.minutes))
+                    .clFont(.footnoteEmphasis)
+                    .foregroundStyle(CLColor.ink2)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            Text(verbatim: LastLookCopy.subtitle(ideas: look.ideas.count, inSentences: look.isAllSentences))
-                .clFont(.subheadline)
-                .foregroundStyle(CLColor.ink2)
-                .fixedSize(horizontal: false, vertical: true)
-                .padding(.top, 6)
+            Spacer(minLength: 8)
+            CapView(.asleep, size: 72, interactive: false)
+                .accessibilityHidden(true)
+        }
+    }
+
+    /// Opens the page, zoomed to the lines and circled, or the lecture at that moment, inside this sheet.
+    private func sourceLink(_ ref: SourceRef) -> some View {
+        let isLecture = ref.start != nil || app.source(ref.sourceID)?.kind == .lecture
+        return NavigationLink {
+            if isLecture {
+                LectureNotesView(sourceID: ref.sourceID, focusTime: ref.start)
+            } else {
+                SourcePageView(sourceID: ref.sourceID, pageIndex: ref.pageIndex ?? 0, highlight: ref.anchorIDs)
+            }
+        } label: {
+            CLSourceChip(label: ref.label, systemImage: isLecture ? "mic" : "book.pages")
+                .padding(.vertical, 6)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.pressable)
+    }
+
+    /// The end of the evening: this, and the session it came from.
+    private func goodNight() {
+        CLHaptics.commit()
+        app.router.dismissSheet()
+        app.router.dismissCover()
+    }
+}
+
+/// The ideas of a last look, one card each, and under them who wrote the sentences when Cap did. `link` is how a card's source opens where
+/// it is shown: inside the last look's own sheet, or over the eve's summary.
+struct LastLookIdeas<Link: View>: View {
+    let look: LastLook
+    @ViewBuilder var link: (SourceRef) -> Link
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            ForEach(look.ideas) { idea in
+                card(idea)
+            }
+            if let written = LastLookCopy.written(look) {
+                Text(verbatim: written)
+                    .clFont(.footnote)
+                    .foregroundStyle(CLColor.ink3)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, 4)
+            }
         }
     }
 
@@ -135,7 +158,7 @@ struct LastLookView: View {
                     .lineSpacing(2)
                     .fixedSize(horizontal: false, vertical: true)
             }
-            if let ref = idea.ref { sourceLink(ref) }
+            if let ref = idea.ref { link(ref) }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .clCard(padding: 14)
@@ -149,30 +172,6 @@ struct LastLookView: View {
         answer.foregroundColor = CLColor.ink
         answer.inlinePresentationIntent = .stronglyEmphasized
         return question + answer
-    }
-
-    /// Opens the page, zoomed to the lines and circled, or the lecture at that moment, inside this sheet.
-    private func sourceLink(_ ref: SourceRef) -> some View {
-        let isLecture = ref.start != nil || app.source(ref.sourceID)?.kind == .lecture
-        return NavigationLink {
-            if isLecture {
-                LectureNotesView(sourceID: ref.sourceID, focusTime: ref.start)
-            } else {
-                SourcePageView(sourceID: ref.sourceID, pageIndex: ref.pageIndex ?? 0, highlight: ref.anchorIDs)
-            }
-        } label: {
-            CLSourceChip(label: ref.label, systemImage: isLecture ? "mic" : "book.pages")
-                .padding(.vertical, 6)
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.pressable)
-    }
-
-    /// The end of the evening: this, and the session it came from.
-    private func goodNight() {
-        CLHaptics.commit()
-        app.router.dismissSheet()
-        app.router.dismissCover()
     }
 }
 
