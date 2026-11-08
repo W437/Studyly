@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Who in the person's Squad has studied today, as Today's "Your plan" says it. Kept for the day on this phone; only the people who chose to share say anything.
+/// Who in the person's Squad has studied today, as Today's line under the quests row says it. Kept for the day on this phone; only the people who chose to share say anything.
 struct SquadToday: Codable, Equatable, Sendable {
     struct Friend: Codable, Equatable, Sendable, Identifiable {
         var id: String
