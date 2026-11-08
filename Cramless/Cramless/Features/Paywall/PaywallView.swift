@@ -326,7 +326,7 @@ struct PaywallView: View {
 
     private func applyDebugHooks() {
         #if DEBUG
-        if let raw = TestHarness.once("CRAMLESS_PAYWALL_PLAN"), let option = PlanOption(rawValue: raw) {
+        if let raw = TestHarness.once("CRAMLESS_PAYWALL_PLAN"), let option = PlanOption(rawValue: raw), PlanOption.paywallOptions.contains(option) {
             selected = option
         }
         if TestHarness.value("CRAMLESS_PAYWALL_TRIAL") == "0" { trialUsed = true }
