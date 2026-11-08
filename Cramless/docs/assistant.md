@@ -41,8 +41,9 @@ for its icon, because that would tell the site what the student is researching.
 
 ## Control
 
-- **Ask first** is the default for everything. Settings ▸ What Cap can do has a switch per kind (flashcards and questions,
-  notes, exams) for "Let Cap do it". Practice sessions and screens are buttons, never automatic. Anything that changes or
+- **Ask first** is the default for everything. Settings ▸ AI and privacy has one switch, "Let Cap add cards, notes and exams
+  without asking", that hands over every kind at once (`setAssistantAutoAll`; the setting still keeps the kinds apart, and
+  `CRAMLESS_ASSISTANT_AUTO` can set them one by one). Practice sessions and screens are buttons, never automatic. Anything that changes or
   deletes something that already exists would always ask (v1 has no such tool).
 - **Added by Cap** lists everything Cap has added that is still there, with Undo. Undo is a soft delete of exactly what the step
   made.
@@ -84,7 +85,7 @@ student ─ message ─▶ AskStreams.ask ─▶ AIRouter.assistant ─ request 
 - **App**: contract `AI/AssistantContract.swift`; reading the model's arguments `AI/AssistantDrafts.swift` (pure);
   the reply loop `AI/AIRouter+Assistant.swift`; the library side `App/AppModel+Assistant.swift` (study index, draft tools,
   add, undo, steps in the chat); values `Model/AssistantSteps.swift` (kept in `ChatMessage.actionsData`; chats never sync);
-  screens `Features/Ask/Assistant/*`; settings `Features/Settings/AssistantPage.swift`.
+  screens `Features/Ask/Assistant/*`; settings `Features/Settings/AIPrivacyPage.swift` (AI and privacy, which holds "What Cap can do").
 - **Costs** (live test, 50 requests): 0.27¢ a request on average; a drafting turn about 0.25¢; a web research turn 1.7¢
   (tokens plus the search). Meters, all per day:
   - `tutor`: a reply's first round is a tutor message (10 on the free plan), as before.
@@ -115,7 +116,7 @@ student ─ message ─▶ AskStreams.ask ─▶ AIRouter.assistant ─ request 
 DEBUG launch hooks (see `CLAUDE.md`): `CRAMLESS_ASSISTANT=cards|quiz|note|exam|practice|research|multi|answer|limit|error`
 asks Cap in a Bio 101 chat and plays the mock relay's script; `…_FREEZE=<n>` holds it part way; `…_AUTO=cards,notes,exams`
 switches on "Let Cap do it"; `…_APPROVE=<ms>` and `…_UNDO=<ms>` press the buttons; `CRAMLESS_RESEARCH=pro` shows what a free
-account sees; `CRAMLESS_ROUTE=settings:assistant` opens the settings page.
+account sees; `CRAMLESS_ROUTE=settings:assistant` opens the settings page (AI and privacy).
 
 Against the real model: `cd supabase/functions && deno run -A tools/assistant_bakeoff/run.ts [--group cards] [--live-research]`
 (key from `~/.config/capling/openai_key`, else `OPENAI_API_KEY`; 50 requests, about 13¢; `--mode hints` runs them in the app's default
