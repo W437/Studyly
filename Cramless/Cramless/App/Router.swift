@@ -34,6 +34,9 @@ enum SettingsPage: String, Hashable, CaseIterable, Sendable, Identifiable {
     case account, subscription, study, notifications, aiPrivacy, assistant, accessibility, appearance, help, data, about, debug
     /// DEBUG builds: every sound and haptic, for auditioning and filming.
     case feelLab
+    /// Settings ▸ More (Help, Your data, About, how sure you'll be); the target retention; the kinds of Cap's cards switched off; the
+    /// fonts' licences (under About).
+    case more, retention, hiddenTips, fontLicences
     var id: String { rawValue }
 }
 
@@ -115,7 +118,7 @@ enum AppSheet: Identifiable, Hashable, Sendable {
     case editItem(UUID)
     case newItem(courseID: UUID?)
     case explain(itemID: UUID, given: String)
-    case makeCards(threadID: UUID, maxItems: Int = 6)
+    case makeCards(threadID: UUID)
     case reviewDraft(sourceID: UUID)
     /// A source page over a cover or chat (sessions and the tutor can't push onto a tab's stack).
     case sourcePage(sourceID: UUID, pageIndex: Int, highlight: [String])

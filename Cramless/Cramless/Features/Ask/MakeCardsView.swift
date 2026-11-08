@@ -1,15 +1,15 @@
 import SwiftUI
 
-/// Make cards from a chat: Cap drafts cards from the conversation, the person ticks the ones to keep, edits any,
-/// picks the course and adds them with one tap. Nothing is added before that tap. Cards that rest on a page the chat
-/// cited link back to it.
+/// "Make cards", from a chat (the chip under a reply, or the chat's menu: always this sheet): Cap drafts up to six cards from the
+/// conversation, the person ticks the ones to keep, edits any, picks the course and adds them with one tap. Nothing is added before that
+/// tap. Cards that rest on a page the chat cited link back to it.
 ///
 /// Harness: `CRAMLESS_ROUTE=makeCards` (the latest chat). `CRAMLESS_CARDS=making` holds the drafting state;
 /// `edit` opens the first draft for editing.
 struct MakeCardsView: View {
     let threadID: UUID
     /// How many cards to draft at most.
-    var maxItems = 6
+    static let maxItems = 6
 
     struct Draft: Identifiable, Equatable {
         var card: GeneratedItem
@@ -68,7 +68,7 @@ struct MakeCardsView: View {
         HStack(alignment: .top, spacing: 12) {
             CLIconBadge(systemImage: "rectangle.stack.badge.plus", tint: .tangerine, size: 44)
             VStack(alignment: .leading, spacing: 3) {
-                Text("Cards from this chat").clFont(.title2).foregroundStyle(CLColor.ink).accessibilityAddTraits(.isHeader)
+                Text("Make cards").clFont(.title2).foregroundStyle(CLColor.ink).accessibilityAddTraits(.isHeader)
                 Text(subtitle).clFont(.footnote).foregroundStyle(CLColor.ink2).fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: 8)
@@ -188,7 +188,7 @@ struct MakeCardsView: View {
         let hook = TestHarness.once("CRAMLESS_CARDS")
         if hook == "making" { return }
         #endif
-        let outcome = await app.ai.cardsFromChat(course: app.liveCourse(thread.courseID)?.name, messages: messages, maxItems: maxItems)
+        let outcome = await app.ai.cardsFromChat(course: app.liveCourse(thread.courseID)?.name, messages: messages, maxItems: Self.maxItems)
         origin = outcome.origin
         suggestion = outcome.suggestion
         withAnimation(CLMotion.settle) {

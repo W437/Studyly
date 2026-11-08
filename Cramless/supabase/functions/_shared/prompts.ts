@@ -402,7 +402,7 @@ export function citableBlocks(text: string, maxBlocks = 80): { type: "text"; tex
   return (blocks.length > 0 ? blocks : [text]).map((t) => ({ type: "text", text: t }));
 }
 
-/** How "Explain my mistake" wants its reply: three short parts the app shows one page at a time (`MistakeSteps` in the app). It goes
+/** How "Explain my mistake" wants its reply: three short parts the app shows on one page, the first two as the explanation and the third as the quick check (`MistakeReply` in the app). It goes
  * with the question they got wrong, in the last turn, so the instructions and the material before it stay the same bytes for the
  * prompt cache. The app shows the right answer beside theirs, so a part may say it; on hints first, the second part still points
  * instead of telling. */

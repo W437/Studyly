@@ -1982,6 +1982,21 @@ Each of these screens did one job behind several others; the pass removes, merge
   `AppSheet.streakMonth`, the `month` route), "Last 12 weeks" (`StudyHeatmap` and its presentation) and "Milestones" (four of them are
   badges) are gone. The calendar's key says "Night before".
 
+## Clarity pass: Settings and Ask Cap (2026-11-08, lane `c-settings-ask`)
+
+- **Settings** is the name card (no plan pill, no "Go Pro") and eight rows: Account, Subscription, Study, Notifications, AI and privacy, Accessibility,
+  Appearance, More (`SettingsView.rows`). Squad moved inside Subscription; What Cap can do lives in AI and privacy; Help, Your data, About and the retention
+  slider ("How sure you'll be") sit under More (`MorePages.swift`). `SettingsPage.trail` makes deep links and `settings:<page>` push the pages a tap passes.
+- **Study** keeps the daily goal, lighter days and Quiet mode. The reminder and quiet hours moved to Notifications, beside "Cap noticed". The per-kind switches
+  went (every card on Today has "Don't show these"); "Hidden tips" shows only while a kind is off, each with "Show again" (`HiddenTipsPage`).
+- **Help** is one line and "Write to us"; the Always free card left Help and Subscription, Restore is only on Subscription (and the paywall), the version only on
+  About. About is Cap, the wordmark, the version, Terms, Privacy and "Font licences" last (`FontLicencesPage`).
+- **Explain my mistake** is one scrolling page, "Cap explains": the two answers, Cap's explanation streaming under them, then the quick check and "Make this a
+  card" as they arrive, and "Back to my session". `MistakeReply` (was `MistakeSteps`) splits the reply into the explanation and the check; no steps, dots or Next.
+- **Ask:** while Cap's question waits (`ChatPane.waitingCheck`), the composer says "Your answer…" and sends the answer, and the chips are one, "Just tell me";
+  the quick check card has no field of its own there. "Make cards" is the one name, and the chip and the chat menu always open the same sheet
+  (`AppSheet.makeCards`, six at most); the empty chat's starter is "Make cards" too, and it still starts a request for the assistant.
+
 ## Left for the owner
 
 - Accounts and keys (see README "Before the App Store"):

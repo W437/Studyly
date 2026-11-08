@@ -56,13 +56,12 @@ final class RouterTests: XCTestCase {
     func testTheHelpRouteOpensSettingsHelp() throws {
         let app = WidgetTestSupport.makeApp()
         TestHarness.apply(route: "settings", arg: "help", app: app)
-        XCTAssertEqual(app.router.paths[.today], [.settings, .settingsPage(.help)])
+        XCTAssertEqual(app.router.paths[.today], [.settings, .settingsPage(.more), .settingsPage(.help)], "Help is under More")
         XCTAssertEqual(SettingsPage(rawValue: "help"), .help)
         XCTAssertEqual(String(localized: SettingsPage.help.title), "Help")
         XCTAssertEqual(StoreCatalog.supportURL.absoluteString, "https://loopware.app/support")
-        XCTAssertEqual(HelpCopy.supportHost, "loopware.app/support")
         XCTAssertEqual(String(localized: HelpCopy.intro),
-                       "Questions, a bug, or a charge you didn't expect? Write to us. A real person reads every message.")
+                       "Questions, a bug or a surprise charge? A real person reads every message.")
         XCTAssertFalse(String(localized: HelpCopy.intro).lowercased().contains("within"), "no reply time is promised")
         XCTAssertEqual(DeepLinks.parse(CramlessLink.settings(page: "help")), .settings(.help))
     }

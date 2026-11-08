@@ -44,7 +44,7 @@ struct FeelLab: View {
         CapDemo(name: "Not yet.", moment: .notYet, cues: [.notYet]),
         CapDemo(name: "Here's the answer.", moment: .answerShown, cues: [.revealed]),
         CapDemo(name: "Five in a row", moment: .runMilestone, cues: [.right(combo: 5), .flourish]),
-        CapDemo(name: "Saved it.", moment: .saved, cues: [.saved]),
+        CapDemo(name: "Just in time!", moment: .saved, cues: [.saved]),
         CapDemo(name: "Checking…", moment: .working, cues: []),
         CapDemo(name: "Session done", moment: .finished, cues: [.done]),
         CapDemo(name: "Milestone", moment: .milestone, cues: []),
@@ -297,7 +297,7 @@ struct FeelLab: View {
         }
 
         SettingsGroup(title: .verbatim("Sizes"),
-                      footer: .verbatim("A summary picks one (CelebrationPolicy). Exam eve and quiet hours are calm, and a big one plays at most once a day.")) {
+                      footer: .verbatim("A summary picks one (CelebrationPolicy). The night before an exam and quiet hours are calm, and a big one plays at most once a day.")) {
             ForEach([Celebration.nudge, .small, .medium, .big, .calm], id: \.self) { size in
                 Button {
                     start { await celebrate(size) }
@@ -348,9 +348,9 @@ struct FeelLab: View {
         case .none: "Nothing yet"
         case .nudge: "Cap hops as the streak rolls over"
         case .small: "A puff of confetti, Cap hops: a perfect session, 3 days"
-        case .medium: "A burst and sparkles: 7 days, a goal reached, a mix-up fixed"
+        case .medium: "A burst and sparkles: 7 days, a goal reached, a confused pair fixed"
         case .big: "Both corners, once a day at most: the first session, 30 days"
-        case .calm: "No confetti: exam eve and quiet hours"
+        case .calm: "No confetti: the night before an exam, and quiet hours"
         }
     }
 
@@ -421,7 +421,7 @@ struct FeelLab: View {
         case .revealed: "Here's the answer"
         case .flip: "Card flips"
         case .rated: "Card rated"
-        case .saved: "Saved it"
+        case .saved: "Just in time"
         case .flourish: "Five in a row"
         case .done: "Session done"
         case .cardOut(let n): "Card \(n + 1) leaves the page"

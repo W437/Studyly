@@ -323,7 +323,7 @@ struct SheetDestination: View {
         case .editItem(let id): ItemEditorView(itemID: id, courseID: nil)
         case .newItem(let courseID): ItemEditorView(itemID: nil, courseID: courseID)
         case .explain(let id, let given): ExplainMistakeView(itemID: id, given: given)
-        case .makeCards(let id, let maxItems): MakeCardsView(threadID: id, maxItems: maxItems)
+        case .makeCards(let id): MakeCardsView(threadID: id)
         case .reviewDraft(let id): DraftReviewView(sourceID: id, isOnboarding: false)
         case .sourcePage(let id, let index, let highlight):
             NavigationStack { SourcePageView(sourceID: id, pageIndex: index, highlight: highlight) }

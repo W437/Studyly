@@ -45,7 +45,9 @@ struct ChatEntry: Identifiable, Equatable {
 
 /// The tutor chat: the title with its course menu, the messages (Cap's streaming in), the follow-ups and, pinned above the keyboard on a
 /// solid dock (`AskDock`) so the chat never shows through behind it, one row of starter chips while the chat is empty and the composer
-/// with Cap's style in it. Used by the Ask tab (a new chat until the first question) and by a chat pushed from history.
+/// with Cap's style in it. While Cap's question waits (a reply that ends in one), the composer takes the answer ("Your answer…") and the
+/// follow-ups are one chip, "Just tell me"; once it's answered they come back. Used by the Ask tab (a new chat until the first question) and
+/// by a chat pushed from history.
 struct ChatPane: View {
     @Binding var threadID: UUID?
     /// The course for a chat that hasn't started yet (the Ask tab).
@@ -88,6 +90,7 @@ struct ChatPane: View {
         let thread = self.thread
         let entries = ChatEntry.entries(of: thread)
         let live = threadID.flatMap { streams.live[$0] }
+        let waiting = live == nil ? Self.waitingCheck(entries) : nil
         ScrollViewReader { proxy in
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
@@ -95,7 +98,7 @@ struct ChatPane: View {
                         if showsEmptyState { emptyState }
                     } else {
                         conversation(entries, live: live, thread: thread)
-                        suggestions(entries, thread: thread, isAnswering: live != nil)
+                        suggestions(entries, thread: thread, isAnswering: live != nil, waiting: waiting)
                     }
                     Color.clear.frame(height: 1).id("end")
                 }
@@ -131,9 +134,10 @@ struct ChatPane: View {
                             .opacity(snapSession == nil ? 1 : 0)
                     }
                     ChatComposer(text: $draft, focused: $composerFocused, isAnswering: live != nil,
-                                 placeholder: "Ask Cap…", thread: thread, showsMode: true,
-                                 onCamera: canSnap ? { snap() } : nil,
-                                 onSend: { send(draft) },
+                                 placeholder: waiting == nil ? "Ask Cap…" : "Your answer…", thread: thread, showsMode: true,
+                                 takesAnswer: waiting != nil,
+                                 onCamera: canSnap && waiting == nil ? { snap() } : nil,
+                                 onSend: { send(draft, answering: waiting) },
                                  onStop: { if let id = threadID { streams.stop(id, app: app) } })
                 }
             }
@@ -230,12 +234,23 @@ struct ChatPane: View {
         }
     }
 
+    /// The question Cap's latest reply ends with, while it waits for an answer; nil when there is none, or Cap declined or found nothing.
+    static func waitingCheck(_ entries: [ChatEntry]) -> QuickCheck? {
+        guard let last = entries.last, last.role == .assistant, !last.isRefusal, !last.isNotCovered else { return nil }
+        return QuickCheck.split(last.text, chatContext: entries.first { $0.role == .user }?.text ?? "")
+    }
+
     @ViewBuilder
-    private func suggestions(_ entries: [ChatEntry], thread: ChatThread?, isAnswering: Bool) -> some View {
+    private func suggestions(_ entries: [ChatEntry], thread: ChatThread?, isAnswering: Bool, waiting: QuickCheck?) -> some View {
         if !isAnswering, let last = entries.last, last.role == .assistant {
             let lastQuestion = entries.last { $0.role == .user }?.text ?? ""
             CLFlow(spacing: 8, lineSpacing: 0) {
-                if last.isRefusal {
+                if let waiting {
+                    let title = String(localized: "Just tell me")
+                    SuggestionChip(title: title, systemImage: "text.bubble") {
+                        ask(title, sendAs: "Just tell me the answer to “\(waiting.question)”, from my notes.")
+                    }
+                } else if last.isRefusal {
                     let topic = declinedTopic(lastQuestion)
                     SuggestionChip(title: topic.map { "Explain \($0) from my notes" } ?? "Explain the key ideas",
                                    systemImage: "text.book.closed") {
@@ -255,8 +270,9 @@ struct ChatPane: View {
                         ask(simpler, sendAs: "Explain \(subject(thread, entries)) more simply, using my notes.")
                     }
                     if let thread {
-                        SuggestionChip(title: String(localized: "Make 3 flashcards"), systemImage: "rectangle.stack.badge.plus") {
-                            makeThreeFlashcards(thread, entries)
+                        SuggestionChip(title: String(localized: "Make cards"), systemImage: "rectangle.stack.badge.plus") {
+                            CLHaptics.tap()
+                            app.router.present(.makeCards(threadID: thread.id))
                         }
                     }
                 }
@@ -315,11 +331,12 @@ struct ChatPane: View {
         composerFocused = true
     }
 
-    private func send(_ text: String) {
+    /// Sends what's in the composer: the answer to Cap's waiting question, or a question of its own.
+    private func send(_ text: String, answering check: QuickCheck?) {
         let clean = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !clean.isEmpty else { return }
         draft = ""
-        ask(clean, sendAs: nil)
+        if let check { answerQuickCheck(clean, check: check) } else { ask(clean, sendAs: nil) }
     }
 
     /// Asks Cap. `sendAs` is what the tutor reads when the shown words lean on the chat ("Explain with an
@@ -331,17 +348,6 @@ struct ChatPane: View {
         CLHaptics.tap()
         withAnimation(CLMotion.settle) {
             streams.ask(text, in: thread, app: app, sendAs: sendAs, fromPhoto: fromPhoto)
-        }
-    }
-
-    /// Three cards from the chat: Cap's assistant drafts them in the chat when it can; otherwise the sheet that picks them out of the answer.
-    private func makeThreeFlashcards(_ thread: ChatThread, _ entries: [ChatEntry]) {
-        // A chat from a photo stays with the tutor, so the sheet picks them out of its answers there too.
-        if app.ai.assistantReady, !thread.isFromPhoto {
-            ask(String(localized: "Make 3 flashcards"), sendAs: "Make 3 flashcards on \(subject(thread, entries)), from my notes.")
-        } else {
-            CLHaptics.tap()
-            app.router.present(.makeCards(threadID: thread.id, maxItems: 3))
         }
     }
 
@@ -466,6 +472,8 @@ struct CapMessageView: View {
     /// False in a sheet opened from a session (Explain my mistake): a free limit shows as a line, with no "See Pro" and no link
     /// out of the sheet. Nothing is sold in the middle of studying.
     var allowsUpgrade = true
+    /// The quick check takes a typed answer in its own card: a screen with no field of its own for it (Explain my mistake).
+    var checkTakesTypedAnswer = false
     let onCitation: (CitationGroup) -> Void
     let onAnswer: (String, QuickCheck) -> Void
     let onSuggestion: (AISuggestion) -> Void
@@ -497,7 +505,7 @@ struct CapMessageView: View {
                 .padding(.trailing, 28)
             }
             if let check {
-                QuickCheckCard(check: check, isActive: isLatest, answered: reply) { onAnswer($0, check) }
+                QuickCheckCard(check: check, isActive: isLatest, answered: reply, takesTypedAnswer: checkTakesTypedAnswer) { onAnswer($0, check) }
                 if lead.isEmpty, !groups.isEmpty { chips(groups).padding(.leading, 4) }
             }
             if let origin { OriginNote(text: origin.text, systemImage: origin.icon) }
@@ -750,10 +758,10 @@ enum AssistantQuickStart {
     @MainActor
     static func available(_ app: AppModel) -> [Start] {
         var all = [
-            Start(title: String(localized: "Make flashcards"), icon: "rectangle.stack", prefix: String(localized: "Make flashcards on "), kind: .cards),
+            Start(title: String(localized: "Make cards"), icon: "rectangle.stack", prefix: String(localized: "Make cards on "), kind: .cards),
             Start(title: String(localized: "Quiz me"), icon: "checklist", prefix: String(localized: "Quiz me on "), kind: .quiz),
             Start(title: String(localized: "Write a note"), icon: "doc.text", prefix: String(localized: "Write me a note on "), kind: .note),
-            Start(title: String(localized: "Add an exam"), icon: "calendar", prefix: String(localized: "Add my exam on "), kind: .exam),
+            Start(title: String(localized: "Add exam"), icon: "calendar", prefix: String(localized: "Add my exam on "), kind: .exam),
         ]
         if app.assistantTools.contains(.researchWeb) {
             all.append(Start(title: String(localized: "Research online"), icon: "globe", prefix: String(localized: "Research online: "), kind: .research))
