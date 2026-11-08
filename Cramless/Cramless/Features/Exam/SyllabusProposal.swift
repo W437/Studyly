@@ -2,7 +2,7 @@ import Foundation
 
 /// What a syllabus says about the exam being set up, as the person checks it: its date and the words that say so, its topics (the ones the course has
 /// and the new ones), and its format. Pure. It is built from what the relay or the rules read, keeps only what the app can stand behind, and does nothing
-/// until "Looks right" fills the draft; Add or Save in the editor is what stores anything.
+/// until the found page's button ("Add Midterm", "Save changes") fills the draft, which the editor then stores.
 struct SyllabusProposal: Equatable, Sendable {
     /// A date further off than this isn't this term's exam.
     static let maxDaysAhead = 400
@@ -214,7 +214,6 @@ struct StatedCounts: Equatable, Sendable {
 
 /// The words of the syllabus flow.
 enum SyllabusCopy {
-    static let question: LocalizedStringResource = "What does it cover?"
     static let pitch: LocalizedStringResource = "Snap the syllabus or a past paper. Cap sets the topics, the date and the format."
     static let snap: LocalizedStringResource = "Snap the syllabus"
     static let pickTopics: LocalizedStringResource = "Pick topics"
@@ -233,7 +232,7 @@ enum SyllabusCopy {
     static let unreadable: LocalizedStringResource = "Couldn't read this page. Try a flatter photo in good light, or a PDF."
     static let noDate: LocalizedStringResource = "I couldn't find a date. Set it yourself."
     static let noTopics: LocalizedStringResource = "I couldn't find any topics on this page."
-    static let filledNote: LocalizedStringResource = "Set from your syllabus. Check anything Cap misread before you save."
+    static let filledNote: LocalizedStringResource = "Set from your syllabus."
     static let inNotes: LocalizedStringResource = "In your notes"
     static let alsoInCourse: LocalizedStringResource = "Also in this course"
     static let alreadyOnIt: LocalizedStringResource = "Its questions are on the exam already, under other topics."

@@ -2,15 +2,18 @@ import PhotosUI
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// "Snap the syllabus": the camera (or photos, or a PDF), the page read on this iPhone, Cap's reading of it, and a proposal to check. "Looks right" fills the
-/// editor's draft and nothing more: Add or Save stores it. The photo is never kept (a syllabus isn't study material), and only its words go to Cloud AI. A local
-/// cover of the editor's sheet, since the router's would close the sheet. Hooks: see `ExamEditorView`.
+/// "Snap the syllabus": the camera (or photos, or a PDF), the page read on this iPhone, Cap's reading of it, and what it found to check. That page is the
+/// one check: its button ("Add Midterm", "Save changes": `actionTitle`) hands the proposal to the editor, which fills its draft and stores it. The photo is never
+/// kept (a syllabus isn't study material), and only its words go to Cloud AI. A local cover of the editor's sheet, since the router's would close the sheet.
+/// Hooks: see `ExamEditorView`.
 struct SyllabusFlowView: View {
     let base: ExamDraft
     let courseName: String
     let topics: [(id: UUID, name: String)]
     /// DEBUG: the state to hold (`CRAMLESS_SYLLABUS`).
     var hold: String? = nil
+    /// The found page's button, for this proposal: what pressing it does ("Add Midterm", "Save changes").
+    var actionTitle: (SyllabusProposal) -> String = { _ in String(localized: SyllabusCopy.looksRight) }
     var onApply: (SyllabusProposal) -> Void
     var onClose: () -> Void
 
@@ -353,7 +356,7 @@ struct SyllabusFlowView: View {
                         .padding(.horizontal, CLSpace.gutter)
                         .padding(.top, 10)
                 }
-                Button(SyllabusCopy.looksRight) {
+                Button(proposal.map(actionTitle) ?? String(localized: SyllabusCopy.looksRight)) {
                     guard let proposal else { return }
                     CLHaptics.commit()
                     onApply(proposal)
