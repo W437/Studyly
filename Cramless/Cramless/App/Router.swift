@@ -137,8 +137,6 @@ enum AppSheet: Identifiable, Hashable, Sendable {
     case help
     /// Two look-alike questions side by side (Cap's card "Show me").
     case lookAlike(a: UUID, b: UUID, examID: UUID?)
-    /// The month's calendar, from Progress's week card.
-    case streakMonth
     /// The reviews coming due and the brightest topics, over the sky.
     case skyMemory
     /// "Fill the gap": how Cap can help with an exam's topics that have no notes. `topicID` nil: whichever the person picks.

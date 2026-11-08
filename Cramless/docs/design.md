@@ -275,9 +275,10 @@ same sky, taken apart.
   evening: one session, both named, and neither waits.
   - Mix-up: "You keep mixing up anaphase and telophase." / "Missed 3 of the last 4 times. Want a 2-minute fix?" / "Fix it · 2 min" / "No AI".
   - Look-alike: "Metaphase and telophase look alike" / "Both are on Wednesday's Bio 101 Midterm. Learn the one difference now?" / "Show me" /
-    "Uses Cloud AI" ("No AI" when Cloud AI won't be asked). The sheet (`LookAlikeView`) sets the two side by side with their sources and the one
-    difference: at once by the rules when Cloud AI won't be asked; otherwise "Cap is writing it" until the lesson is ready, shown once, "Written by
-    Cap from your two questions". "Try 2 questions" or "Not a look-alike".
+    "Uses Cloud AI" ("No AI" when Cloud AI won't be asked). The sheet (`LookAlikeView`) is titled for the pair ("Metaphase vs telophase") and sets
+    the two side by side with their sources and what tells them apart: at once by the rules when Cloud AI won't be asked; otherwise a spinner in
+    the "Try 2 questions" button until the lesson is ready, shown once, "Written by Cap from your two questions". "Try 2 questions" or "Don't
+    bring this up again" (the pair's page says the same).
   - Fading: "18 questions will be dim by exam day" / "From Lecture 3, for your Bio 101 Midterm. 6 more minutes today and tomorrow keeps them." /
     "Fix my week" / "No AI". After it: "Plan updated" / "6 more minutes today and tomorrow for Lecture 3." / OK, Undo. The minutes show on the day
     card and the plan strip.
@@ -331,16 +332,21 @@ parts):
 - **It rests**: nothing moves under Reduce Motion, nothing ambient in Low Power Mode, nothing while the band is scrolled away or
   the app is in the background, and on exam eve once there is nothing left to do it holds still.
 
-**Progress** has no second sky, and takes about a screen and a third. In order:
-- **This week**: the flame and the run ("12-day streak"; on hold, an outline and "On hold"), the minutes against last week and the week's chart. All of it one tap: the month (`StreakMonthSheet`, a fitted sheet with the calendar and today's notes, and a way on to the streak page). A repair offer sits under it, outside that tap.
+**Progress** has no second sky, and opens on the exams. In order:
 - **Exams** as rows: a ring, the name, "in 2 days · +15% this week" (rose within three days), a sparkline ending in a star. Readiness is the one percentage; no letter here (the exam page has it once logged grades calibrate it).
-- **Fading**: topics with questions under the sky's dim line, for the nearest exam first, as their constellations drawn small (`SkyGlyphView`), "Chem 110 · 2 questions fading" and Practice. "Nothing is fading right now." when so.
-- **Mix-ups**, when there are any.
-- Two tiles: **Badges** (three medals, "3 of 13 earned") and **Memory sky** ("63 stars · 17 dim").
+- **Review soon**: topics with questions under the sky's dim line, for the nearest exam first, as their constellations drawn small (`SkyGlyphView`), "Chem 110 · 2 to review" and Practice. "Nothing to review right now." when so.
+- **Often confused**, when there are any: each pair by its own name ("Anaphase vs telophase"), "Missed 3 times · Bio 101".
+- One row for the streak and the week: the flame, "12-day streak · 3 h 5 min this week" and a chevron; it opens the streak page. No comparison with last week (a week in progress against a whole one reads as a loss every Sunday). A repair offer sits under it, outside that tap.
+- Two tiles: **Badges** (three medals, "3 of 13 earned") and **Memory sky** ("63 stars · 17 to review").
 
-The streak page has the twelve weeks of studying (the heatmap's days are stars: a dot that grows and brightens with the minutes, a sparkle from the third step, a glow at the top, so size and shape carry the scale as well as colour does). The sky has "How you remember": what's coming due and the brightest topics, counts only, as a fitted sheet over the sky and at the head of its list.
+The streak page is its header ("12-day streak", Best, freezes saved), the month's calendar (exam days and the night before marked) and one fold, "How freezes work". The sky has "How you remember": what's coming due and the brightest topics, counts only, as a fitted sheet over the sky and at the head of its list.
 
 **Library**: "Recent" (questions to review first, then what was opened or added on this iPhone in two weeks; three at most, none under two), then the courses, each with its next exam's ring or "Add a date". The tab bar's + is the way in; "Bring your stuff" is for a person with no courses yet.
+
+**An exam**: one value in the ring (readiness) beside "Tue 10 Nov · 10:00" and "In 2 days · Multiple choice"; one sentence, "Study today and
+Monday to be about 78% ready by Tuesday. Your goal is 80%."; "Study this exam · 4 min" (its share of today, its weakest questions first; the
+day's mixed session stays on Today); the topics weakest first, each with Practice; the plan as stops with "Daily goal" and "What if I skip
+Monday?"; the mock as one row ("Mock exam · 19 questions · 30 min", Take it); the materials; "How it's gone" folded, with the week's change.
 
 **A course**: the ring, a chip for each exam ("Midterm · Nov 29 · 53% ready", "Quiz · log your grade", "Quiz · you got 91%"), "Study Bio 101 · 15 min" (the daily rules limited to the course, at the whole goal) with a round +, and three tabs: Topics (readiness for the next exam, gaps first by their course order, "Not on the Midterm" apart with counts only; a tap shows the topic's questions, Practice is its own button), Sources, and Questions (needs attention, meaning fading or in an open mix-up, weakest first; suspended; format; topic).
 
@@ -414,18 +420,18 @@ screen that was already there.
 and no asset, so the widgets draw the same. A spark (1 to 6 days), the flame with a bright heart (7 to 29), the flame with a
 warm glow and two embers (30 to 99), gold with glints (100 to 364), and gold with a star over it (365 and more). With no streak,
 or one on hold (a missed day a repair can still join back up) it is an outline. It is in Today's pill, the streak screen, Progress's
-streak card, the badges and the two full-colour widget pills (the Lock Screen's stay monochrome symbols). It bounces once when
+streak row, the badges and the two full-colour widget pills (the Lock Screen's stay monochrome symbols). It bounces once when
 the streak grows (`bounce:`), and never under Reduce Motion.
 
 **Quiet mode** (Settings ▸ Study) turns the whole layer down for someone who wants the plan and nothing else: no flame, quests, badges
-or run counter, celebrations calm, no streak notifications, no "a new sky is lit", no sounds, and the Streak page and Progress's month sheet are only the calendar; Progress keeps its week, exams, fading topics, mix-ups and the sky tile.
+or run counter, celebrations calm, no streak notifications, no "a new sky is lit", no sounds, and the Streak page is only the calendar; Progress keeps its exams, topics to review, pairs often confused, the week's minutes and the sky tile.
 Their plan, stars and readiness stay. Quests and badges go on settling unseen, so turning it off again loses nothing, and a Streak widget
 someone placed stays as it is (they put it there); the Today widget loses its flame.
 
 **Milestones** are 3, 7, 30, 100 and 365 days (`StreakStage.milestones`; the flame changes at the last four). The summary's hero
 becomes the milestone: Cap proud, the stage's flame popping in beside him and bouncing once, "30 days." as the title and one
-warm line about the memory, never about the number ("A month of showing up. Your sky is brighter for it."). The streak screen
-lists all five, a check for each the best streak has reached and how far the streak is along to the next. The day one session
+warm line about the memory, never about the number ("A month of showing up. Your sky is brighter for it."). Four of them are
+badges, on the badges page. The day one session
 makes a milestone (a streak of 29, today not done; or 29 and done, for tomorrow) the reminder and the 20:30 nudge say so: "One
 session today makes it 30 days."
 

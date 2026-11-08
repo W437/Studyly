@@ -200,10 +200,6 @@ enum TestHarness {
             if let arg, let page = SettingsPage(rawValue: arg) { r.push(.settingsPage(page), on: .today) }
         case "squad": r.push(.squad, on: .today)
         case "streak": r.push(.streak, on: .progress)
-        // Progress's month sheet.
-        case "month":
-            r.tab = .progress
-            r.present(.streakMonth)
         // Every badge, and one badge up close: `badge:<id>` (see `Badge`), `badge:streak30`.
         case "badges": r.push(.badges, on: .progress)
         case "badge": if let id = arg.flatMap(Badge.init(rawValue:)) { r.present(.badge(id)) }

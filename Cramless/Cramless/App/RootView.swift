@@ -340,7 +340,6 @@ struct SheetDestination: View {
         case .quests: TodayQuestsSheet()
         case .help: HelpSheet()
         case .lookAlike(let a, let b, _): LookAlikeView(a: a, b: b)
-        case .streakMonth: StreakMonthSheet()
         case .skyMemory: SkyMemorySheet()
         case .fillGap(let examID, let topicID): FillGapSheet(examID: examID, topicID: topicID)
         case .looksWrong(let id, let given): LooksWrongSheet(itemID: id, given: given)

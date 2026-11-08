@@ -1,10 +1,13 @@
 import SwiftUI
 
-/// The streak in full: this month's calendar of studied, frozen and repaired days, with each upcoming exam's day and its eve
-/// marked (earlier months and the next one a tap of the arrows away), the repair offer when there is one, and how freezes and
-/// repairs work, in plain words. Today's "Your plan" opens it from "Calendar". In Quiet mode it is only the calendar.
+/// The streak: its header, this month's calendar of studied, frozen and repaired days, with each upcoming exam's day and the night
+/// before marked (earlier months and the next one a tap of the arrows away), the repair offer when there is one, and one fold, "How freezes
+/// work". Every streak link opens it (Progress's row, Today's flame, "Calendar" in "Your plan"). In Quiet mode it is only the calendar.
+///
+/// Harness: `CRAMLESS_ROUTE=streak`; `CRAMLESS_SCROLL=freezes` opens the fold and scrolls to it.
 struct StreakView: View {
     @Environment(AppModel.self) private var app
+    @State private var showsFreezes = false
 
     var body: some View {
         let _ = app.revision
@@ -33,29 +36,9 @@ struct StreakView: View {
                             .padding(.top, 16)
                     }
 
-                    CLSectionHeader(title: "Last 12 weeks")
-                        .id("heatmap")
-                    StudyHeatmap(cells: app.heatmap(weeks: 12), calendar: calendar)
-                        .clCard()
-
-                    CLSectionHeader(title: "Milestones")
-                        .id("milestones")
-                    MilestonesCard(current: streak.current, best: streak.best)
-
-                    CLSectionHeader(title: "How freezes work")
+                    FreezesFold(isOpen: $showsFreezes, dailyMinutes: dailyMinutes)
+                        .padding(.top, 16)
                         .id("freezes")
-                    Explainer(icon: "snowflake", tint: .sky, lines: [
-                        "Every 7 days in a row you study earns a freeze. You can hold \(StreakEngine.maxFreezes).",
-                        "Miss a single day and a freeze covers it the next morning, so your streak carries on.",
-                        "A freeze never covers two days in a row.",
-                    ])
-
-                    CLSectionHeader(title: "How repairs work")
-                    Explainer(icon: "bandage", tint: .tangerine, lines: [
-                        "Missed a day with no freeze left? You have \(StreakEngine.repairWindow) days to fix it.",
-                        "Study \(CLFormat.minutes(dailyMinutes * 2)) in one day, twice your daily goal, and the missed day counts again.",
-                        "One missed day never undoes a good run. That's the point.",
-                    ])
                 }
             }
             .padding(.horizontal, CLSpace.gutter)
@@ -66,6 +49,9 @@ struct StreakView: View {
         .clScreenBackground()
         .navigationTitle(quiet ? "Calendar" : "Streak")
         .navigationBarTitleDisplayMode(.inline)
+        #if DEBUG
+        .task { if TestHarness.value("CRAMLESS_SCROLL") == "freezes" { showsFreezes = true } }
+        #endif
     }
 
     private func header(_ streak: StreakState, run: Int) -> some View {
@@ -98,7 +84,7 @@ struct StreakView: View {
 
 }
 
-/// The month's card, on the streak page and in Progress's month sheet: the calendar with its arrows and its legend.
+/// The month's card on the streak page: the calendar with its arrows and its legend.
 struct StreakMonthCard: View {
     /// The days that can be shown, with what was studied on each.
     let cells: [HeatmapCell]
@@ -154,67 +140,6 @@ struct StreakMonthCard: View {
     }
 }
 
-/// The milestones, each with the flame it brings: a check on the ones the best streak has reached, and how far the streak
-/// is along to the next. A milestone reached stays reached, whatever the streak does after.
-private struct MilestonesCard: View {
-    let current: Int
-    let best: Int
-
-    @Environment(\.dynamicTypeSize) private var typeSize
-
-    var body: some View {
-        let next = StreakStage.nextMilestone(after: best)
-        VStack(spacing: 14) {
-            ForEach(StreakStage.milestones, id: \.self) { days in
-                row(days, reached: best >= days, isNext: days == next)
-            }
-        }
-        .clCard()
-        .accessibilityElement(children: .contain)
-    }
-
-    private func along(_ days: Int) -> some View {
-        Text("\(min(current, days)) of \(days)")
-            .clFont(.footnoteEmphasis)
-            .foregroundStyle(CLColor.tangerineInk)
-            .monospacedDigit()
-    }
-
-    private func row(_ days: Int, reached: Bool, isNext: Bool) -> some View {
-        let stage = StreakStage(days: days)
-        return VStack(spacing: 8) {
-            HStack(spacing: 12) {
-                StreakFlame(stage: stage, size: 34, lit: reached)
-                    .opacity(reached || isNext ? 1 : 0.7)
-                VStack(alignment: .leading, spacing: 1) {
-                    Text("\(days) days")
-                        .clFont(.subheadlineEmphasis)
-                        .foregroundStyle(reached || isNext ? CLColor.ink : CLColor.ink3)
-                    Text(stage.title)
-                        .clFont(.footnote)
-                        .foregroundStyle(CLColor.ink3)
-                    // At the big text sizes the count has no room beside the name: it goes under it.
-                    if isNext, typeSize.isAccessibilitySize { along(days) }
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                if reached {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 22, weight: .semibold))
-                        .foregroundStyle(CLColor.mint)
-                } else if isNext, !typeSize.isAccessibilitySize {
-                    along(days)
-                }
-            }
-            if isNext {
-                CLBar(value: Double(min(current, days)) / Double(days), color: CLColor.tangerine, height: 6)
-            }
-        }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(Text("\(days) days, \(String(localized: stage.title))"))
-        .accessibilityValue(reached ? Text("Reached") : isNext ? Text("\(min(current, days)) of \(days)") : Text("Not yet"))
-    }
-}
-
 /// The upcoming exams by day: each exam's day and its eve (the night before), by day number.
 struct ExamMarks: Equatable {
     var exams: [Int: [String]] = [:]
@@ -232,7 +157,7 @@ struct ExamMarks: Equatable {
 }
 
 /// A month: studied days filled, frozen days in Sky with a snowflake, repaired days marked, today ringed, exam days with a
-/// mortarboard and their eves with a moon.
+/// mortarboard and the night before each with a moon.
 private struct MonthCalendar: View {
     let month: Date
     let byDay: [Int: HeatmapCell]
@@ -353,7 +278,7 @@ private struct CalendarLegend: View {
                 }
                 HStack(spacing: 5) {
                     Image(systemName: "moon.stars.fill").font(.system(size: 10, weight: .bold)).foregroundStyle(CLColor.sunInk)
-                    Text("Eve").clFont(.caption).foregroundStyle(CLColor.ink2)
+                    Text("Night before").clFont(.caption).foregroundStyle(CLColor.ink2)
                 }
             }
         }
@@ -368,25 +293,50 @@ private struct CalendarLegend: View {
     }
 }
 
-/// A few plain sentences beside an icon.
-private struct Explainer: View {
-    let icon: String
-    let tint: CourseColor
-    let lines: [String]
+/// "How freezes work", folded: how a freeze is earned and what it covers, and the repair for a day no freeze covered.
+private struct FreezesFold: View {
+    @Binding var isOpen: Bool
+    let dailyMinutes: Int
 
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            CLIconBadge(systemImage: icon, tint: tint, size: 36)
-            VStack(alignment: .leading, spacing: 8) {
-                ForEach(lines, id: \.self) { line in
-                    Text(line)
-                        .clFont(.subheadline)
-                        .foregroundStyle(CLColor.ink)
-                        .fixedSize(horizontal: false, vertical: true)
+        VStack(alignment: .leading, spacing: 12) {
+            Button {
+                CLHaptics.select()
+                withAnimation(CLMotion.settle) { isOpen.toggle() }
+            } label: {
+                HStack(spacing: 12) {
+                    CLIconBadge(systemImage: "snowflake", tint: .sky, size: 36)
+                    Text("How freezes work").clFont(.headline).foregroundStyle(CLColor.ink)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundStyle(CLColor.ink3)
+                        .rotationEffect(.degrees(isOpen ? 180 : 0))
+                        .accessibilityHidden(true)
                 }
+                .frame(minHeight: CLMetrics.minHitTarget)
+                .contentShape(Rectangle())
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .buttonStyle(.plain)
+            .accessibilityValue(Text(isOpen ? "Shown" : "Hidden"))
+            if isOpen {
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(lines, id: \.self) { line in
+                        Text(verbatim: line)
+                            .clFont(.subheadline)
+                            .foregroundStyle(CLColor.ink)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .transition(.opacity)
+            }
         }
         .clCard()
+    }
+
+    private var lines: [String] {
+        [String(localized: "Every 7 days in a row earns a freeze. You can hold \(StreakEngine.maxFreezes)."),
+         String(localized: "Miss a day and a freeze covers it, so your streak carries on. It never covers two days in a row."),
+         String(localized: "No freeze left? Within \(StreakEngine.repairWindow) days, study \(CLFormat.minutes(dailyMinutes * 2)) in one day, twice your daily goal, and the missed day counts again.")]
     }
 }
