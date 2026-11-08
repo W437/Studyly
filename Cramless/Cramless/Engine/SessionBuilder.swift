@@ -651,6 +651,10 @@ struct SessionBuilder: Sendable {
         session.budgetSeconds = budget
         let explicit = Set(spec.itemIDs)
         let tomorrow = startOfTomorrow
+        // One exam's own round ("Study this exam"): with no topic or list of its own, only what that exam covers, and the questions it would
+        // remember least on the day first, which is where its weakest topics are.
+        let exam = explicit.isEmpty && spec.topicID == nil ? spec.examID.flatMap { id in index.all.first { $0.id == id } } : nil
+        var onTheDay: [UUID: Double] = [:]
         var due: [Candidate] = [], extra: [Candidate] = [], fresh: [Candidate] = []
         var byID: [UUID: Candidate] = [:]
         for item in items where item.isActive {
@@ -659,6 +663,10 @@ struct SessionBuilder: Sendable {
             } else {
                 if let course = spec.courseID, item.courseID != course { continue }
                 if let topic = spec.topicID, item.topicID != topic { continue }
+                if let exam {
+                    guard exam.covers(item) else { continue }
+                    onTheDay[item.id] = examRecall(item.memory, on: exam.date)
+                }
             }
             let c = candidate(item, index: index)
             byID[item.id] = c
@@ -669,8 +677,16 @@ struct SessionBuilder: Sendable {
             }
         }
         session.dueTotal = due.count
-        due.sort { $0.recall < $1.recall }
-        extra.sort { $0.recall < $1.recall }
+        if exam != nil {
+            let weakerOnTheDay = { (a: Candidate, b: Candidate) in
+                Self.weaker(onTheDay[a.item.id] ?? 0, a.item, than: onTheDay[b.item.id] ?? 0, b.item)
+            }
+            due.sort(by: weakerOnTheDay)
+            extra.sort(by: weakerOnTheDay)
+        } else {
+            due.sort { $0.recall < $1.recall }
+            extra.sort { $0.recall < $1.recall }
+        }
         fresh.sort { $0.item.createdAt != $1.item.createdAt ? $0.item.createdAt < $1.item.createdAt
             : $0.item.difficultyHint < $1.item.difficultyHint }
         var used = 0.0

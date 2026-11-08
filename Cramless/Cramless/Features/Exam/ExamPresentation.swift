@@ -139,30 +139,37 @@ enum ExamPresentation {
 
     // MARK: The mock exam
 
-    /// The exam page's mock card: an offer with the mock's size and mix, or how far short the questions are. Nil on the eve, the day and after.
+    /// The exam page's mock row, under the plan: its size and time with "Take it", or how many questions it still needs. The mix, why it is shorter
+    /// and the last score are on the mock's own start screen.
     struct MockCard: Equatable, Sendable {
         enum Kind: Equatable, Sendable {
-            /// "20 questions like the real one · 25 min", "Matches your exam: …"; a shorter one says so (`MockCopy.offer`).
-            case offer(line: String, mix: String)
-            /// "This exam is multiple choice. A mock needs 8 of those, …"; `canWrite`: a reading has something left to write questions from.
-            case tooFew(line: String, canWrite: Bool)
+            /// "19 questions · 30 min".
+            case ready(line: String)
+            /// "Needs 6 more questions"; `canWrite`: a reading has something left to write questions from.
+            case needsMore(line: String, canWrite: Bool)
         }
 
         var kind: Kind
-        /// "Last mock: 72% on Nov 3".
-        var last: String?
+
+        /// What the row says under "Mock exam".
+        var line: String {
+            switch kind {
+            case .ready(let line), .needsMore(let line, _): line
+            }
+        }
     }
 
-    static func mockCard(offer: MockOffer, format: ExamFormat, lastScore: Double?, lastDate: Date?, canWrite: Bool, calendar: Calendar) -> MockCard? {
-        let last = lastScore.flatMap { score in lastDate.map { MockCopy.lastLine(score: score, date: $0, calendar: calendar) } }
+    /// Nil on the eve, the day and after; one that still needs questions is nil in the last `nearDays` too, when there is no time to add them.
+    static func mockCard(offer: MockOffer, format: ExamFormat, phase: Phase, canWrite: Bool) -> MockCard? {
         switch offer {
         case .hidden:
             return nil
         case .tooFew(let have):
-            return MockCard(kind: .tooFew(line: MockCopy.tooFew(have: have, format: format), canWrite: canWrite), last: last)
+            if case .ahead(let days) = phase, days <= nearDays { return nil }
+            let short = max(1, MockExamBuilder.minimum(for: format) - have)
+            return MockCard(kind: .needsMore(line: String(localized: "Needs \(short) more questions"), canWrite: canWrite))
         case .ready(let plan):
-            let words = MockCopy.offer(plan, format: format)
-            return MockCard(kind: .offer(line: words.line, mix: words.mix), last: last)
+            return MockCard(kind: .ready(line: String(localized: "\(String(localized: "\(plan.entries.count) questions")) · \(plan.minutes) min")))
         }
     }
 
@@ -280,25 +287,47 @@ enum ExamPresentation {
             : String(localized: "\(count) new questions count once you've studied them.")
     }
 
+    // MARK: Beside the ring
+
+    /// The exam's day and time: "Tue 10 Nov · 10:00".
+    static func whenParts(_ date: Date, calendar: Calendar) -> [String] {
+        [dayLabel(date, calendar: calendar), date.formatted(LibraryFormat.dateStyle(calendar).hour().minute())]
+    }
+
+    /// A day in a line: "Tue 10 Nov" (the weekday, then the day as the calendar's language writes it).
+    static func dayLabel(_ date: Date, calendar: Calendar) -> String {
+        let style = LibraryFormat.dateStyle(calendar)
+        return date.formatted(style.weekday(.abbreviated)) + " " + date.formatted(style.day().month(.abbreviated))
+    }
+
+    /// How far off it is, then its format: "In 2 days · Multiple choice".
+    static func countdownParts(_ phase: Phase, formatLine: String) -> [String] {
+        let when: String
+        switch phase {
+        case .ahead(let days): when = String(localized: "In \(days) days")
+        case .eve: when = String(localized: "Tomorrow")
+        case .today: when = String(localized: "Today")
+        case .past(let days):
+            switch days {
+            case 0: when = String(localized: "Earlier today")
+            case 1: when = String(localized: "Yesterday")
+            default: when = String(localized: "\(days) days ago")
+            }
+        }
+        return [when] + formatLine.components(separatedBy: " · ").filter { !$0.isEmpty }
+    }
+
     // MARK: The projection
 
-    /// Under this many questions in scope, the card says how few the projection rests on.
-    static let fewQuestions = 15
-
-    /// The projection card: one sentence that says where the plan takes readiness and what that takes, with what else gets closer
-    /// to the goal, the letter once calibrated and how few questions it rests on.
+    /// The projection card: one sentence that says where the plan takes readiness and what that takes, with the goal; the letter once
+    /// calibrated, and why the ring reads lower while new questions wait to be studied.
     struct Projection: Equatable, Sendable {
+        /// "Study today and Monday to be about 78% ready by Tuesday. Your goal is 80%."
         var sentence: String
-        /// "Practice Limiting reagents as well to get closer to 80%." / "About 25 minutes a day gets you closer to 80%."
-        var nudge: String?
         /// "15 new questions count once you've studied them. They're in your plan now.", while they hold the ring down (`newQuestionsLine`).
         var newQuestions: String?
         /// "From your past grades, that's about a B+." (calibrated only).
         var letter: String?
-        /// "Based on 7 questions so far."
-        var basedOn: String?
-        /// "A projection from your recall so far, not a promise." Nil when there is nothing to project.
-        var footnote: String?
         /// Nothing to study yet: the card offers "Add material".
         var addsMaterial = false
         /// The projection reaches the goal.
@@ -306,9 +335,8 @@ enum ExamPresentation {
     }
 
     /// The projection for an exam still to come. `plan` is the exam's shared plan, or its what-if plan with `skipping` (the day
-    /// skipped). `weakestTopic`: the weakest topic under the goal with questions. `eveDone`: tonight's session is finished, so the
-    /// sentence is the rest, not what tonight will add. Nil on exam day and after.
-    static func projection(phase: Phase, plan: StudyPlan, questionCount: Int, weakestTopic: String?, grade: ProjectedGrade?,
+    /// skipped). `eveDone`: tonight's session is finished, so the sentence is the rest, not what tonight will add. Nil on exam day and after.
+    static func projection(phase: Phase, plan: StudyPlan, questionCount: Int, grade: ProjectedGrade?,
                            examDate: Date, now: Date, calendar: Calendar, skipping: SkipOption? = nil, eveDone: Bool = false,
                            newQuestions: Int = 0, newQuestionsInPlan: Bool = false) -> Projection? {
         switch phase {
@@ -323,14 +351,10 @@ enum ExamPresentation {
         let goal = CLFormat.percent(plan.target)
         let reaches = Int((plan.projectedReadiness * 100).rounded()) >= Int((plan.target * 100).rounded())
         let when = examDayName(examDate, now: now, calendar: calendar)
-        var result = Projection(sentence: "", footnote: String(localized: "A projection from your recall so far, not a promise."),
-                                reachesGoal: reaches)
-        if questionCount < fewQuestions { result.basedOn = String(localized: "Based on \(questionCount) questions so far.") }
+        var result = Projection(sentence: "", reachesGoal: reaches)
         if newQuestions > 0, skipping == nil { result.newQuestions = newQuestionsLine(newQuestions, inPlan: newQuestionsInPlan) }
         if let grade, showsLetter(grade), skipping == nil { result.letter = calibratedProjectionLine(grade) }
-        let past = reaches ? " " + (Int((plan.projectedReadiness * 100).rounded()) == Int((plan.target * 100).rounded())
-            ? String(localized: "That's your \(goal) goal.") : String(localized: "That's past your \(goal) goal.")) : ""
-        let practice = weakestTopic.map { String(localized: "Practice \($0) as well to get closer to \(goal).") }
+        let goalLine = " " + String(localized: "Your goal is \(goal).")
 
         if let skipping {
             result.sentence = String(localized: "Skip \(skipping.name), and you'll be about \(projected) ready by \(when).")
@@ -353,23 +377,19 @@ enum ExamPresentation {
         let daysLeft = calendar.dayDistance(from: now, to: examDate)
         if daysLeft <= nearDays {
             let names = plan.days.filter { $0.kind != .exam && $0.seconds > 0 && !$0.isSkipped }.map { day -> String in
-                if day.offset == 0 { return String(localized: "today") }
-                let name = weekday(day.date, calendar: calendar)
-                return day.kind == .examEve ? String(localized: "\(name) evening") : name
+                day.offset == 0 ? String(localized: "today") : weekday(day.date, calendar: calendar)
             }
-            result.sentence = names.isEmpty
-                ? String(localized: "You'll be about \(projected) ready by \(when).") + past
-                : String(localized: "Study \(ListFormatter.localizedString(byJoining: names)), and you'll be about \(projected) ready by \(when).") + past
-            if !reaches { result.nudge = practice }
+            result.sentence = (names.isEmpty
+                ? String(localized: "You'll be about \(projected) ready by \(when).")
+                : String(localized: "Study \(ListFormatter.localizedString(byJoining: names)) to be about \(projected) ready by \(when).")) + goalLine
             return result
         }
         let perDay = String(localized: "\(plan.dailyMinutes) minutes a day")
         if !reaches, let suggested = plan.suggestedMinutes, suggested > plan.dailyMinutes {
-            result.sentence = String(localized: "At \(perDay) you'll be about \(projected) ready by \(when).")
-            result.nudge = String(localized: "About \(String(localized: "\(suggested) minutes a day")) gets you closer to \(goal).")
+            result.sentence = String(localized: "At \(perDay) you'll be about \(projected) ready by \(when).") + " "
+                + String(localized: "About \(String(localized: "\(suggested) minutes a day")) gets you closer to your \(goal) goal.")
         } else {
-            result.sentence = String(localized: "Keep up your \(perDay), and you'll be about \(projected) ready by \(when).") + past
-            if !reaches { result.nudge = practice }
+            result.sentence = String(localized: "Keep up \(perDay) to be about \(projected) ready by \(when).") + goalLine
         }
         return result
     }
@@ -427,52 +447,46 @@ enum ExamPresentation {
                          missedYesterday: missedYesterday, sessionSeconds: entries.reduce(0) { $0 + $1.estimatedSeconds })
     }
 
-    /// The page's main button: the day's session ("Study · 15 min"), tonight's on the eve, or a practice round once today is done.
+    /// The page's main button: a round of this exam alone, its weakest questions first ("Study this exam · 4 min"), or tonight's session on
+    /// the eve. The day's mixed session stays on Today.
     struct StudyAction: Equatable, Sendable {
         enum Kind: Equatable, Sendable {
-            case daily
+            /// A practice round of this exam's own questions with this budget (`SessionBuilder`'s exam-scoped practice).
+            case exam(minutes: Int)
             case examEve
-            /// A practice round on one topic (nil: the course).
-            case practice(topicID: UUID?, minutes: Int?)
         }
 
         var kind: Kind
         var title: String
-        var subline: String?
-        /// What the button says when `title` doesn't fit on one line ("Practice · 5 min").
+        /// What the button says when `title` doesn't fit on one line ("Study · 4 min").
         var shortTitle: String?
     }
 
-    /// `eveMinutes`: the eve session built for tonight (`BuiltSession.tonightMinutes`); with 0 there is nothing to review and no button.
-    /// `eveDone`: tonight's session is finished, and no button either.
-    static func studyAction(phase: Phase, today: TodayWork, weakest: TopicRow?, courseName: String,
-                            eveMinutes: Int = SessionBuilder.examEveMinutes, eveDone: Bool = false) -> StudyAction? {
+    /// "Study this exam" with none of today's session for it (or today's done): this long.
+    static let ownMinutes = 5
+
+    /// The budget "Study this exam" asks for: this exam's share of today's session, the same number the plan's first stop says, or `ownMinutes`
+    /// when today holds nothing for it.
+    static func ownSessionMinutes(_ today: TodayWork) -> Int {
+        today.sessionMinutes > 0 && today.examSeconds > 0 ? today.examMinutes : ownMinutes
+    }
+
+    /// `budget`: the minutes asked of the round (`ownSessionMinutes`), `plannedMinutes` what it holds as built (0: nothing of this exam's to
+    /// study, and no button). `eveMinutes`: the eve session built for tonight (`BuiltSession.tonightMinutes`); with 0 there is nothing to
+    /// review and no button. `eveDone`: tonight's session is finished, and no button either.
+    static func studyAction(phase: Phase, budget: Int, plannedMinutes: Int, eveMinutes: Int = SessionBuilder.examEveMinutes,
+                            eveDone: Bool = false) -> StudyAction? {
         switch phase {
-        case .today, .past: return nil
+        case .today, .past:
+            return nil
         case .eve:
             guard eveMinutes > 0, !eveDone else { return nil }
-            return StudyAction(kind: .examEve, title: String(localized: "Tonight · \(eveMinutes) min"),
-                               subline: String(localized: "About \(eveMinutes) minutes on what you're shakiest on. Then stop: sleep does the rest."))
-        case .ahead: break
+            return StudyAction(kind: .examEve, title: String(localized: "Tonight · \(eveMinutes) min"))
+        case .ahead:
+            guard plannedMinutes > 0 else { return nil }
+            return StudyAction(kind: .exam(minutes: budget), title: String(localized: "Study this exam · \(plannedMinutes) min"),
+                               shortTitle: String(localized: "Study · \(plannedMinutes) min"))
         }
-        if today.sessionMinutes > 0 {
-            let subline: String
-            if today.examSeconds <= 0 {
-                subline = String(localized: "Today's session is for your other exams.")
-            } else if today.isWholeSession {
-                subline = String(localized: "The whole session is for this exam.")
-            } else {
-                subline = String(localized: "About \(today.examMinutes) of the \(today.sessionMinutes) minutes are for this exam.")
-            }
-            return StudyAction(kind: .daily, title: String(localized: "Study · \(today.sessionMinutes) min"), subline: subline)
-        }
-        let done = today.studiedToday ? String(localized: "Today's session is done. This one is extra.") : nil
-        if let weakest, let minutes = weakest.practiceMinutes {
-            return StudyAction(kind: .practice(topicID: weakest.id, minutes: minutes),
-                               title: String(localized: SkyCopy.practice(weakest.name, minutes: minutes)), subline: done,
-                               shortTitle: String(localized: "Practice · \(minutes) min"))
-        }
-        return StudyAction(kind: .practice(topicID: nil, minutes: nil), title: String(localized: "Practice \(courseName)"), subline: done)
     }
 
     // MARK: A thin scope

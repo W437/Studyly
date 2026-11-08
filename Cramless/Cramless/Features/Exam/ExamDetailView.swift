@@ -1,17 +1,17 @@
 import SwiftUI
 
-/// One exam, in the order a student reads it: how ready they are now (the ring with the goal's dot and the plan's faint arc), one
-/// sentence on where the plan takes them and what that takes, today's session ("Study · 15 min"), the topics weakest first with a
-/// practice round each, the plan as stops with "What if I skip Saturday?", the materials, how it's gone so far (folded), and Exam
-/// Pass for a free plan. After the exam: readiness on the day and the grade. Every number comes from the engine, read once per
-/// change of the store; the letter grade shows only once logged grades calibrate it.
+/// One exam, in the order a student reads it: how ready they are now (one value in the ring) beside its day and how far off it is, one
+/// sentence on where the plan takes them with the goal, a round of this exam alone ("Study this exam · 4 min", its weakest questions first),
+/// the topics weakest first with a practice round each, the plan as stops with "What if I skip Monday?", the mock exam, the materials, how
+/// it's gone so far (folded, with the week's change), and Exam Pass for a free plan. After the exam: readiness on the day and the grade.
+/// Every number comes from the engine, read once per change of the store; the letter grade shows only once logged grades calibrate it.
 ///
 /// Harness: `CRAMLESS_ROUTE=exam[:n]` (0 the Chem quiz on Sunday, 1 the Bio midterm, 2 AP Psych, with
 /// `CRAMLESS_NOW=2026-11-06T14:00:00-05:00`); `CRAMLESS_SCENARIO=eve|past|graded|missed|thin|calibrated|ontrack|crowded|empty` puts
 /// the exam (or yesterday) in that state first (`AppModel.applyHarnessScenario`); `CRAMLESS_EXAM_SKIP=1` opens with the what-if on;
-/// `CRAMLESS_SCROLL=topics|plan|materials|path` scrolls to a section. `CRAMLESS_SCENARIO=mocked` adds a mock taken three days ago (the
-/// card's "Last mock" line); `fewItems` leaves five questions in scope (the card asks for more); `gap` leaves a topic of the exam with drafts waiting too, beside the
-/// topics with nothing yet (the gap card, `FillGapSheet`).
+/// `CRAMLESS_SCROLL=topics|plan|mock|materials|path` scrolls to a section (`path` also opens the fold). `CRAMLESS_SCENARIO=fewItems` leaves
+/// five questions in scope (the mock row asks for more, more than three days out); `gap` leaves a topic of the exam with drafts waiting too,
+/// beside the topics with nothing yet (the gap card, `FillGapSheet`).
 struct ExamDetailView: View {
     let examID: UUID
 
@@ -49,6 +49,7 @@ struct ExamDetailModel {
     var path: ExamPresentation.Path
     var topics: [ExamPresentation.TopicRow]
     var today: ExamPresentation.TodayWork
+    /// The main button: this exam alone, or tonight's session on the eve.
     var study: ExamPresentation.StudyAction?
     /// On the eve, tonight's session's own minutes (0: nothing to review): the button and the plan's "Tonight" say this number.
     var tonightMinutes: Int?
@@ -65,7 +66,7 @@ struct ExamDetailModel {
     var offersRest = false
     var materials: [Material]
     var offersExamPass: Bool
-    /// The mock exam's card; nil on the eve, the day and after.
+    /// The mock exam's row; nil on the eve, the day and after, and in the last days while it can't be taken.
     var mock: ExamPresentation.MockCard?
     /// A scope that holds too little for the ring to mean anything: the ring says how little, and the page offers the whole course.
     var thinScope: ExamPresentation.ThinScope?
@@ -118,7 +119,18 @@ struct ExamDetailModel {
             // Its evening is tomorrow: the plan's stop says what Today's strip says.
             tonightMinutes = app.builtEveMinutes(examID: exam.id)
         }
-        study = ExamPresentation.studyAction(phase: phase, today: today, weakest: topics.first { $0.isWeakest }, courseName: course.name,
+        // "Study this exam": its share of today's session as a round of its own, built now so the button says what the round holds. A share
+        // too short for any of its questions gets the round it would have with none today.
+        var budget = 0, planned = 0
+        if case .ahead = phase, read.readiness.itemsInScope > 0 {
+            budget = ExamPresentation.ownSessionMinutes(today)
+            planned = app.buildSession(Self.ownRound(examID: exam.id, courseID: course.id, minutes: budget)).plannedMinutes
+            if planned == 0, budget < ExamPresentation.ownMinutes {
+                budget = ExamPresentation.ownMinutes
+                planned = app.buildSession(Self.ownRound(examID: exam.id, courseID: course.id, minutes: budget)).plannedMinutes
+            }
+        }
+        study = ExamPresentation.studyAction(phase: phase, budget: budget, plannedMinutes: planned,
                                              eveMinutes: tonightMinutes ?? SessionBuilder.examEveMinutes, eveDone: eveDone)
         skip = ExamPresentation.skipOption(plan: plan, phase: phase, calendar: app.calendar)
         result = exam.resultScore
@@ -153,11 +165,10 @@ struct ExamDetailModel {
                                                          examDates: app.upcomingExams().map(\.date), now: app.now,
                                                          calendar: app.calendar)
         let offer = app.mockOffer(for: exam)
-        let last = offer == .hidden ? nil : app.lastMock(for: exam.id)
-        // Only a card that asks for more questions needs to know whether a reading has more to give.
+        // Only a row that asks for more questions, early enough to add them, needs to know whether a reading has more to give.
         var canWrite = false
-        if case .tooFew = offer { canWrite = app.mockRestRequest(for: exam) != nil }
-        mock = ExamPresentation.mockCard(offer: offer, format: exam.format, lastScore: last?.score, lastDate: last?.date, canWrite: canWrite, calendar: app.calendar)
+        if case .tooFew = offer, case .ahead(let days) = phase, days > ExamPresentation.nearDays { canWrite = app.mockRestRequest(for: exam) != nil }
+        mock = ExamPresentation.mockCard(offer: offer, format: exam.format, phase: phase, canWrite: canWrite)
         if case .ahead = phase, !app.gapIsPutOff(exam.id), let found = app.examGap(for: exam, topics: readiness.topics) {
             gap = found
             gapDrafts = found.waiting.isEmpty ? nil : app.draftSource(forTopics: found.waiting.map(\.id), in: course.id)
@@ -165,6 +176,11 @@ struct ExamDetailModel {
     }
 
     var isPast: Bool { if case .past = phase { true } else { false } }
+
+    /// The round "Study this exam" starts: a practice of this exam's own questions (`SessionBuilder.buildPractice` scopes it to the exam).
+    static func ownRound(examID: UUID, courseID: UUID, minutes: Int) -> SessionRequest {
+        SessionRequest(kind: .practice, courseID: courseID, examID: examID, minutes: minutes)
+    }
 }
 
 private struct ExamDetailContent: View {
@@ -194,9 +210,6 @@ private struct ExamDetailContent: View {
                 if model.isPast, model.result != nil {
                     resultCard.padding(.top, 16)
                 }
-                if let mock = model.mock {
-                    mockCard(mock).padding(.top, 16)
-                }
                 topicsSection.id("topics")
                 // The ring is how well the questions are remembered; this is how much of the material they reach, and what no material reaches yet.
                 if let gap = model.gap {
@@ -207,6 +220,9 @@ private struct ExamDetailContent: View {
                         .padding(.top, 12)
                 }
                 planSection.id("plan")
+                if let mock = model.mock {
+                    mockRow(mock).padding(.top, 16).id("mock")
+                }
                 materials.id("materials")
                 if !model.isPast { historyFold.padding(.top, 16).id("path") }
                 if model.offersExamPass {
@@ -255,6 +271,7 @@ private struct ExamDetailContent: View {
         .task {
             // Harness: `CRAMLESS_EXAM_SKIP=1` opens with "What if I skip …?" on; `CRAMLESS_GAP` opens "Fill the gap" (`FillGapSheet`).
             if TestHarness.once("CRAMLESS_EXAM_SKIP") == "1", model.skip != nil { toggleSkip() }
+            if TestHarness.value("CRAMLESS_SCROLL") == "path" { showsHistory = true }
             if TestHarness.once("CRAMLESS_GAP") != nil { app.router.present(.fillGap(examID: model.id, topicID: nil)) }
         }
         #endif
@@ -292,9 +309,7 @@ private struct ExamDetailContent: View {
     // MARK: Hero
 
     private var hero: some View {
-        let target = model.readiness.target
-        let ahead = !model.isPast
-        return ReflowStack(horizontalAlignment: .center, verticalAlignment: .center, spacing: 18) {
+        ReflowStack(horizontalAlignment: .center, verticalAlignment: .center, spacing: 18) {
             if let thin = model.thinScope {
                 // Too little to read a percentage from: the ring says what there is instead.
                 ZStack {
@@ -315,34 +330,18 @@ private struct ExamDetailContent: View {
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel(Text(verbatim: thin.spoken))
             } else {
+                // One value: readiness. The goal is in the sentence under it, the plan's path in "How it's gone".
                 ReadinessRing(value: shownReadiness, size: 150, lineWidth: 15, caption: model.isPast ? "on the day" : "ready",
-                              animatesFromZero: true, goal: ahead ? target : nil,
-                              projected: ahead && model.readiness.itemsInScope > 0 ? (shownSkipPlan ?? model.plan).projectedReadiness : nil)
+                              animatesFromZero: true)
                     .accessibilityLabel(Text(model.isPast ? "Readiness on the day" : "Readiness"))
             }
             VStack(alignment: .leading, spacing: 6) {
-                DotLine(parts: whenParts)
+                DotLine(parts: ExamPresentation.whenParts(model.date, calendar: model.calendar))
                     .clFont(.title3)
                     .foregroundStyle(CLColor.ink)
-                DotLine(parts: sublineParts)
+                DotLine(parts: ExamPresentation.countdownParts(model.phase, formatLine: model.formatLine))
                     .clFont(.subheadline)
                     .foregroundStyle(CLColor.ink2)
-                // A thin scope's week says little: the count and the note say it instead.
-                if ahead, model.thinScope == nil {
-                    ReflowPill(text: "\(CLFormat.delta(model.readiness.deltaThisWeek)) this week",
-                               tone: model.readiness.deltaThisWeek > 0.004 ? .mint : .neutral,
-                               systemImage: model.readiness.deltaThisWeek > 0.004 ? "arrow.up.right" : nil)
-                        .padding(.top, 2)
-                    HStack(spacing: 6) {
-                        Circle().fill(CLColor.mint).frame(width: 9, height: 9)
-                            .overlay(Circle().stroke(CLColor.surface, lineWidth: 2))
-                            .accessibilityHidden(true)
-                        Text("Goal \(CLFormat.percent(target))")
-                            .clFont(.footnoteEmphasis)
-                            .foregroundStyle(CLColor.ink2)
-                    }
-                    .padding(.top, 2)
-                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
@@ -367,29 +366,10 @@ private struct ExamDetailContent: View {
         return model.readiness.value
     }
 
-    /// "Sun, Nov 8", "10:00 AM".
-    private var whenParts: [String] {
-        let style = LibraryFormat.dateStyle(model.calendar)
-        return [model.date.formatted(style.weekday(.abbreviated).month(.abbreviated).day()), model.date.formatted(style.hour().minute())]
-    }
-
-    /// "2 days to go", then the exam's format.
-    private var sublineParts: [String] {
-        let when: String
-        switch model.phase {
-        case .ahead(let days): when = LibraryFormat.countdown(days: days)
-        case .eve: when = "Tomorrow"
-        case .today: when = "Today"
-        case .past(let days): when = days == 0 ? "Earlier today" : LibraryFormat.countdown(days: -days)
-        }
-        return [when] + model.formatLine.components(separatedBy: " · ").filter { !$0.isEmpty }
-    }
-
     // MARK: The projection
 
     private var projection: ExamPresentation.Projection? {
         ExamPresentation.projection(phase: model.phase, plan: shownSkipPlan ?? model.plan, questionCount: model.readiness.itemsInScope,
-                                    weakestTopic: model.topics.first { $0.isWeakest }?.name,
                                     grade: model.readiness.projectedGrade, examDate: model.date, now: model.now,
                                     calendar: model.calendar, skipping: shownSkipPlan == nil ? nil : model.skip, eveDone: model.eveDone,
                                     newQuestions: model.readiness.newQuestions, newQuestionsInPlan: model.readiness.newQuestionsInPlan)
@@ -421,12 +401,6 @@ private struct ExamDetailContent: View {
                 .foregroundStyle(CLColor.ink)
                 .fixedSize(horizontal: false, vertical: true)
                 .contentTransition(.opacity)
-            if let nudge = p.nudge {
-                Text(verbatim: nudge)
-                    .clFont(.subheadline)
-                    .foregroundStyle(CLColor.ink2)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
             if let new = p.newQuestions {
                 Label {
                     Text(verbatim: new).fixedSize(horizontal: false, vertical: true)
@@ -455,14 +429,6 @@ private struct ExamDetailContent: View {
                 .buttonStyle(.cl(.dark, size: .medium, fullWidth: false))
                 .padding(.top, 4)
             }
-            let small = [p.basedOn, p.footnote].compactMap { $0 }
-            if !small.isEmpty {
-                Text(verbatim: small.joined(separator: " "))
-                    .clFont(.footnote)
-                    .foregroundStyle(CLColor.ink3)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.top, 2)
-            }
         }
         .clCard()
         .accessibilityElement(children: .contain)
@@ -473,23 +439,13 @@ private struct ExamDetailContent: View {
     @ViewBuilder
     private var actions: some View {
         if let study = model.study {
-            VStack(spacing: 8) {
-                Button {
-                    start(study)
-                } label: {
-                    FittingLabel(titles: [study.title] + [study.shortTitle].compactMap { $0 },
-                                 systemImage: study.kind == .examEve ? "moon.stars.fill" : "play.fill")
-                }
-                .buttonStyle(.cl(.primary))
-                if let subline = study.subline {
-                    Text(verbatim: subline)
-                        .clFont(.footnote)
-                        .foregroundStyle(CLColor.ink2)
-                        .multilineTextAlignment(.center)
-                        .frame(maxWidth: .infinity)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
+            Button {
+                start(study)
+            } label: {
+                FittingLabel(titles: [study.title] + [study.shortTitle].compactMap { $0 },
+                             systemImage: study.kind == .examEve ? "moon.stars.fill" : "play.fill")
             }
+            .buttonStyle(.cl(.primary))
         } else {
             switch model.phase {
             case .today:
@@ -528,75 +484,55 @@ private struct ExamDetailContent: View {
 
     private func start(_ study: ExamPresentation.StudyAction) {
         switch study.kind {
-        case .daily:
-            app.router.present(.session(SessionRequest(kind: .daily)))
+        case .exam(let minutes):
+            app.router.present(.session(ExamDetailModel.ownRound(examID: model.id, courseID: model.courseID, minutes: minutes)))
         case .examEve:
             app.router.present(.session(SessionRequest(kind: .examEve, examID: model.id)))
-        case .practice(let topicID, let minutes):
-            app.router.present(.session(SessionRequest(kind: .practice, courseID: model.courseID, examID: model.id, minutes: minutes,
-                                                       topicID: topicID)))
         }
     }
 
     // MARK: The mock exam
 
-    private func mockCard(_ card: ExamPresentation.MockCard) -> some View {
-        HStack(alignment: .top, spacing: 12) {
-            CLIconBadge(systemImage: "timer", tint: .sky, size: 40)
-            VStack(alignment: .leading, spacing: 4) {
-                Text(MockCopy.title)
-                    .clFont(.headline)
-                    .foregroundStyle(CLColor.ink)
-                    .accessibilityAddTraits(.isHeader)
-                switch card.kind {
-                case .offer(let line, let mix):
-                    Text(verbatim: line)
-                        .clFont(.subheadlineEmphasis)
+    /// One row under the plan: "Mock exam · 19 questions · 30 min" with Take it, or what it still needs with the way to add it. Its mix and
+    /// the last score are on its own start screen.
+    private func mockRow(_ card: ExamPresentation.MockCard) -> some View {
+        ReflowStack(verticalAlignment: .center, spacing: 12) {
+            HStack(spacing: 12) {
+                CLIconBadge(systemImage: "timer", tint: .sky, size: 40)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(MockCopy.title)
+                        .clFont(.headline)
                         .foregroundStyle(CLColor.ink)
-                        .fixedSize(horizontal: false, vertical: true)
-                    Text(verbatim: mix)
-                        .clFont(.subheadline)
-                        .foregroundStyle(CLColor.ink2)
-                        .fixedSize(horizontal: false, vertical: true)
-                case .tooFew(let line, _):
-                    Text(verbatim: line)
+                    Text(verbatim: card.line)
                         .clFont(.subheadline)
                         .foregroundStyle(CLColor.ink2)
                         .fixedSize(horizontal: false, vertical: true)
                 }
-                if let last = card.last {
-                    Text(verbatim: last)
-                        .clFont(.footnoteEmphasis)
-                        .foregroundStyle(CLColor.ink3)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .padding(.top, 2)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .accessibilityElement(children: .combine)
+            switch card.kind {
+            case .ready:
+                Button {
+                    CLHaptics.commit()
+                    app.router.present(.mockExam(examID: model.id))
+                } label: {
+                    Text("Take it")
                 }
-                switch card.kind {
-                case .offer:
-                    Button {
-                        CLHaptics.commit()
-                        app.router.present(.mockExam(examID: model.id))
-                    } label: {
-                        Text("Take it")
-                    }
-                    .buttonStyle(.cl(.dark, size: .medium, fullWidth: false))
-                    .padding(.top, 6)
-                case .tooFew(_, let canWrite):
-                    CLFlow(spacing: 8, lineSpacing: 8) {
-                        if canWrite {
-                            Button("Write more questions", action: writeForTheMock)
-                                .buttonStyle(.cl(.dark, size: .medium, fullWidth: false))
-                        }
-                        Button("Add material") { app.router.present(.capture(courseID: model.courseID)) }
-                            .buttonStyle(.cl(canWrite ? .soft : .dark, size: .medium, fullWidth: false))
-                    }
-                    .padding(.top, 6)
+                .buttonStyle(.cl(.dark, size: .medium, fullWidth: false))
+                .accessibilityLabel(Text("Take the mock exam"))
+            case .needsMore(_, let canWrite):
+                if canWrite {
+                    Button("Add questions", action: writeForTheMock)
+                        .buttonStyle(.cl(.soft, size: .medium, fullWidth: false))
+                        .accessibilityHint(Text("Cap writes more questions for the mock from your notes"))
+                } else {
+                    Button("Add material") { app.router.present(.capture(courseID: model.courseID)) }
+                        .buttonStyle(.cl(.soft, size: .medium, fullWidth: false))
                 }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .clCard()
-        .accessibilityElement(children: .contain)
+        .clCard(padding: 16)
     }
 
     // MARK: The gap
@@ -733,7 +669,7 @@ private struct ExamDetailContent: View {
                                            tonightMinutes: model.tonightMinutes, eveDone: model.eveDone, otherExams: model.otherExams,
                                            now: model.now, calendar: model.calendar)
         if !stops.isEmpty, model.readiness.itemsInScope > 0 {
-            CLSectionHeader(title: "The plan", actionTitle: "Adjust") { app.router.push(.settingsPage(.study)) }
+            CLSectionHeader(title: "The plan", actionTitle: "Daily goal") { app.router.push(.settingsPage(.study)) }
             ExamPlanPath(stops: stops, skip: model.skip, skipping: shownSkipPlan != nil, cost: skipCost) { toggleSkip() }
         }
     }
@@ -760,6 +696,12 @@ private struct ExamDetailContent: View {
             .buttonStyle(.plain)
             .accessibilityValue(Text(showsHistory ? "Shown" : "Hidden"))
             if showsHistory {
+                // The week's change lives here, beside the history it comes from (a thin scope's week says little).
+                if model.thinScope == nil {
+                    let delta = model.readiness.deltaThisWeek
+                    ReflowPill(text: "\(CLFormat.delta(delta)) this week", tone: delta > 0.004 ? .mint : .neutral,
+                               systemImage: delta > 0.004 ? "arrow.up.right" : nil)
+                }
                 ExamPathChart(path: model.path, calendar: model.calendar)
                 ExamPathKey()
             }
