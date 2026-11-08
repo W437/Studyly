@@ -1,7 +1,8 @@
 import SwiftUI
 
-/// A named mix-up ("Anaphase vs telophase"): what gets mixed up and why, the 2-minute lesson with the confused
-/// terms highlighted, the questions involved with the answer the person last gave, and Fix it now.
+/// Two things often confused, named for themselves ("Anaphase vs telophase"), under the course's name: how often and when last they were
+/// missed (counted now, never from stored words), the difference with the two terms highlighted, the questions involved with the answer the
+/// person last gave, and Fix it. The bar shows the name once the header has scrolled away.
 struct ConfusionView: View {
     let confusionID: UUID
 
@@ -14,12 +15,11 @@ struct ConfusionView: View {
             if let confusion = app.confusion(confusionID), confusion.deletedAt == nil, confusion.modelContext != nil {
                 ConfusionDetail(confusion: confusion, onDismissed: { dismiss() })
             } else {
-                ContentUnavailableView("This mix-up is gone", systemImage: "questionmark.circle",
+                ContentUnavailableView("This is gone", systemImage: "questionmark.circle",
                                        description: Text("It may have been removed on another device."))
                     .clScreenBackground()
             }
         }
-        .navigationTitle("Mix-up")
         .navigationBarTitleDisplayMode(.inline)
     }
 }
@@ -30,6 +30,8 @@ private struct ConfusionDetail: View {
 
     @Environment(AppModel.self) private var app
     @State private var lessonShown = false
+    /// The header has scrolled away: the bar names the pair.
+    @State private var showsTitle = false
 
     var body: some View {
         let items = confusion.itemIDs.compactMap { app.item($0) }.filter { $0.deletedAt == nil }
@@ -38,14 +40,14 @@ private struct ConfusionDetail: View {
             VStack(alignment: .leading, spacing: 0) {
                 header
                 if let lesson = confusion.fix?.lesson, !lesson.isEmpty {
-                    CLSectionHeader(title: confusion.itemIDs.count == 1 ? "A quick look" : "The 2-minute lesson")
+                    CLSectionHeader(title: lessonTitle)
                     HighlightedText(text: lesson, marks: lessonMarks(lesson), revealed: lessonShown, style: .callout)
                         .lineSpacing(4)
                         .fixedSize(horizontal: false, vertical: true)
                         .clCard()
                 }
                 if !items.isEmpty {
-                    CLSectionHeader(title: confusion.missCount == 0 ? "The questions that look alike" : confusion.itemIDs.count == 1 ? "The question you missed" : "The questions you mixed up")
+                    CLSectionHeader(title: confusion.missCount == 0 ? "The questions" : confusion.itemIDs.count == 1 ? "The question you missed" : "The questions you mixed up")
                     CLList {
                         ForEach(items, id: \.id) { item in
                             questionRow(item)
@@ -63,6 +65,10 @@ private struct ConfusionDetail: View {
             .padding(.top, 8)
             .padding(.bottom, 24)
         }
+        .onScrollGeometryChange(for: Bool.self) { $0.contentOffset.y + $0.contentInsets.top > 96 } action: { _, past in
+            showsTitle = past
+        }
+        .navigationTitle(showsTitle ? title : "")
         .clScreenBackground()
         .safeAreaBar(edge: .bottom) {
             Button(confusion.status == .fixed ? String(localized: "Practice it again") : SessionCopy.fixTitle(questions: confusion.itemIDs.count), action: fix)
@@ -74,7 +80,7 @@ private struct ConfusionDetail: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
-                    Button("Not a mix-up", systemImage: "hand.thumbsdown", role: .destructive) {
+                    Button("Don't bring this up again", systemImage: "hand.thumbsdown", role: .destructive) {
                         app.dismissConfusion(confusion.id)
                         app.router.toast("Cap won't bring it up again", systemImage: "checkmark.circle.fill", tone: .neutral)
                         onDismissed()
@@ -96,23 +102,19 @@ private struct ConfusionDetail: View {
             HStack(alignment: .top, spacing: 12) {
                 CapFace(size: 52)
                 VStack(alignment: .leading, spacing: 4) {
-                    CLEyebrow(text: confusion.course.map { "Mix-up · \($0.name)" } ?? "Mix-up")
-                    Text(confusion.itemIDs.count == 1 && confusion.name == ConfusionCandidate.unnamed ? String(localized: "A question you keep missing") : confusion.name)
+                    if let course = confusion.course { CLEyebrow(text: .verbatim(course.name)) }
+                    Text(verbatim: title)
                         .clFont(.title2)
                         .foregroundStyle(CLColor.ink)
                         .fixedSize(horizontal: false, vertical: true)
                         .accessibilityAddTraits(.isHeader)
                 }
             }
-            Text(confusion.explanation)
-                .clFont(.body)
-                .foregroundStyle(CLColor.ink2)
-                .fixedSize(horizontal: false, vertical: true)
             HStack(spacing: 8) {
                 if confusion.status == .fixed {
                     CLPill(text: "Fixed", tone: .mint, systemImage: "checkmark")
                 }
-                Text(missLine)
+                Text(verbatim: missLine)
                     .clFont(.footnote)
                     .foregroundStyle(CLColor.ink3)
             }
@@ -120,12 +122,23 @@ private struct ConfusionDetail: View {
         .clCard()
     }
 
+    /// "Anaphase vs telophase"; one question with no name of its own: "A question you keep missing".
+    private var title: String {
+        confusion.itemIDs.count == 1 && confusion.name == ConfusionCandidate.unnamed ? String(localized: "A question you keep missing") : confusion.name
+    }
+
+    /// Two terms: "The difference"; otherwise what the lesson is, the right answers.
+    private var lessonTitle: LocalizedStringResource {
+        if confusion.name.contains(" vs ") { return "The difference" }
+        return confusion.itemIDs.count == 1 ? "The right answer" : "The right answers"
+    }
+
+    /// "Missed 3 times · last on Sat 7 Nov", counted from the confusion as it is now.
     private var missLine: String {
         // An adopted look-alike: nothing has been missed yet.
-        if confusion.missCount == 0 { return String(localized: "Spotted before any mix-up") }
-        let last = confusion.lastSeenAt.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day())
-        let times = confusion.missCount == 1 ? "once" : "\(confusion.missCount) times"
-        return "Missed \(times) · last on \(last)"
+        if confusion.missCount == 0 { return String(localized: "Not missed yet") }
+        return String(localized: "Missed \(confusion.missCount) times") + " · "
+            + String(localized: "last on \(ExamPresentation.dayLabel(confusion.lastSeenAt, calendar: app.calendar))")
     }
 
     private func questionRow(_ item: StudyItem) -> some View {
